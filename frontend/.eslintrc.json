@@ -1,0 +1,3 @@
+{
+  "extends": ["@arboria-tech/arboria-config/eslint"]
+}

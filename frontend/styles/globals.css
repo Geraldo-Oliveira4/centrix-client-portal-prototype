@@ -1,0 +1,334 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 237 40% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 237 40% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 237 40% 15%;
+    --primary: 326 79% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 326 50% 95%;
+    --secondary-foreground: 326 79% 35%;
+    --muted: 237 20% 95%;
+    --muted-foreground: 237 20% 45%;
+    --accent: 35 93% 54%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 237 20% 88%;
+    --input: 237 20% 88%;
+    --ring: 326 79% 48%;
+    --radius: 0.5rem;
+
+    /* Brand colors */
+    --navy: 237 54% 21%;
+    --pink: 326 79% 48%;
+    --orange: 35 93% 54%;
+  }
+
+  .dark {
+    --background: 237 54% 13%;
+    --foreground: 0 0% 100%;
+    --card: 237 54% 17%;
+    --card-foreground: 0 0% 100%;
+    --popover: 237 54% 17%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 326 79% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 237 40% 22%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 237 40% 20%;
+    --muted-foreground: 237 20% 65%;
+    --accent: 35 93% 54%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72.2% 50.6%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 237 40% 23%;
+    --input: 237 40% 23%;
+    --ring: 326 79% 58%;
+  }
+}
+
+/* Glassmorphism effects */
+.glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.dark .glass {
+  background: rgba(22, 24, 65, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Mountain background utility */
+.mountain-bg {
+  background-image: url('/assets/images/mountain.svg');
+  background-position: bottom;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+/* Gradient backgrounds */
+.bg-blue-gradient {
+  background: linear-gradient(
+    135deg,
+    hsl(326, 79%, 48%) 0%,
+    hsl(35, 93%, 54%) 100%
+  );
+}
+
+/* Brand gradient with glow effect */
+.bg-brand-gradient {
+  background: radial-gradient(
+      ellipse at top left,
+      rgba(233, 30, 140, 0.35) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse at bottom right,
+      rgba(247, 148, 29, 0.3) 0%,
+      transparent 55%
+    ),
+    hsl(237, 54%, 13%);
+}
+
+/* Enhanced animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.5s ease-out forwards;
+}
+
+.animate-pulse-subtle {
+  animation: pulse 2s infinite;
+}
+
+/* Spring slide-up para FileCards */
+@keyframes slideUpSpring {
+  0% {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(2px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up-spring {
+  animation: slideUpSpring 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Scale in para DropZone em drag */
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Badge fade in */
+@keyframes badgeFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-badge-fade-in {
+  animation: badgeFadeIn 0.4s ease-out;
+}
+
+/* Pulse sutil */
+@keyframes pulseSlow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulseSlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Card fly away */
+@keyframes flyAway {
+  to {
+    transform: translateY(-100vh) scale(0.5);
+    opacity: 0;
+  }
+}
+
+.animate-fly-away {
+  animation: flyAway 0.8s cubic-bezier(0.6, 0.04, 0.98, 0.34) forwards;
+}
+
+/* Airtable sync animation */
+@keyframes flyToAirtable {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(var(--target-x), var(--target-y)) scale(0.5);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(var(--target-x), var(--target-y)) scale(0);
+    opacity: 0;
+  }
+}
+
+.animate-fly-to-airtable {
+  animation: flyToAirtable 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Confidence badge colors */
+.confidence-high {
+  @apply bg-green-100 text-green-800 border-green-200;
+}
+
+.confidence-medium {
+  @apply bg-yellow-100 text-yellow-800 border-yellow-200;
+}
+
+.confidence-low {
+  @apply bg-red-100 text-red-800 border-red-200;
+}
+
+.dialog-content-sm {
+  max-width: 400px;
+}
+
+.dialog-content-md {
+  max-width: 600px;
+}
+
+.dialog-content-lg {
+  max-width: min(960px, 90vw);
+}
+
+.dialog-content-xl {
+  max-width: min(1200px, 95vw);
+}
+
+@media (min-width: 768px) {
+  .dialog-content-sm {
+    max-width: 400px;
+  }
+
+  .dialog-content-md {
+    max-width: 600px;
+  }
+
+  .dialog-content-lg {
+    max-width: min(960px, 90vw);
+  }
+
+  .dialog-content-xl {
+    max-width: min(1200px, 95vw);
+  }
+}
+
+@media print {
+  .printableTable {
+    display: block !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+  table {
+    width: 100% !important;
+    border-collapse: collapse;
+  }
+  th,
+  td {
+    border: 1px solid #000 !important;
+    padding: 8px !important;
+    text-align: left !important;
+    word-wrap: break-word !important;
+  }
+}
+
+/* Upload Loading Animations */
+@keyframes progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-progress {
+  animation: progress 2s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
