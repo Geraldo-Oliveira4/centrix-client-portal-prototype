@@ -78,3 +78,29 @@ Abra **http://localhost:3000/portal/cotacoes** — o portal abre já logado como
 
 `make seed` é idempotente: se o cliente demo já existe, não faz nada. Para
 recomeçar do zero: `docker compose down -v` e refaça migrate + seed.
+
+## Testes de ponta a ponta
+
+`backend/scripts/e2e_test.py` exercita **todos** os endpoints do portal contra o
+backend em execução e verifica o comportamento exato dos handlers originais do
+Centrix: status codes, transições de estado, mapeamento de buckets do kanban,
+omissão de campos internos (privacidade), regras de elegibilidade de RFQ,
+404 anti-enumeração (posse do cliente) e os mocks offline (S3 local, e-mail no-op).
+
+```bash
+# banco limpo é necessário (os testes conferem contagens fixas)
+docker compose down -v && docker compose up -d
+cd backend
+make migrate && make seed
+make run &                       # backend em :8000
+.venv/bin/python -m scripts.e2e_test
+```
+
+Cobertura (52 checagens): auth/auto-login, listagem/kanban, detalhe, recomendação,
+histórico, documentos (upload → S3 local → download), criar cotação, montar +
+disparar RFQ (incl. bloqueio de agente fora da lista), aprovar, recusar, cancelar,
+trigger de extração (no-op), isolamento por cliente e stubs de auth.
+
+Resultado atual: **52/52 checagens passam**. Além disso, o fluxo de aprovação foi
+validado pela UI real no navegador (diálogo de confirmação → toast de sucesso →
+badge "Vencedora" → banner de aprovação).
