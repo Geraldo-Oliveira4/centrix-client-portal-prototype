@@ -239,13 +239,15 @@ def run():
     pid = d["quotation"]["proposals"][0]["id"]
     st, ap = req("POST", f"/portal/quotations/{q_approve}/proposals/{pid}/approve", {})
     apq = ap.get("quotation", {})
-    check("H1 approve -> 200, state APROVADA_PELO_CLIENTE",
-          st == 200 and apq.get("state") == "APROVADA_PELO_CLIENTE", f"{st} {apq.get('state')}")
+    # PROTOTYPE: approval auto-closes (analyst simulated) -> FECHADA, so the card
+    # moves to "Aprovadas" instead of lingering in "Escolha sua proposta".
+    check("H1 approve -> 200, auto-closed to FECHADA (prototype happy path)",
+          st == 200 and apq.get("state") == "FECHADA", f"{st} {apq.get('state')}")
     winner = [p for p in apq.get("proposals", []) if p["id"] == pid]
     check("H2 approved proposal marked is_winner",
           bool(winner) and winner[0].get("is_winner") is True, str(winner[:1]))
     st, _ = req("POST", f"/portal/quotations/{q_approve}/proposals/{pid}/approve", {})
-    check("H3 re-approve (not ENVIADA_CLIENTE) -> 409", st == 409, str(st))
+    check("H3 re-approve (already closed) -> 409", st == 409, str(st))
     st, _ = req("POST", f"/portal/quotations/{q_decline}/proposals/{uuid.uuid4()}/approve", {})
     check("H4 approve wrong proposal -> 404", st == 404, str(st))
 

@@ -9,6 +9,7 @@ import importlib
 from fastapi import APIRouter, Request
 
 from app.event_shim import invoke
+from app.prototype_flow import auto_close_approved_quotation
 
 router = APIRouter(prefix="/portal", tags=["portal"])
 
@@ -65,7 +66,17 @@ async def get_my_quotation(request: Request, id: str):
 
 @router.post("/quotations/{id}/proposals/{proposal_id}/approve")
 async def approve_proposal(request: Request, id: str, proposal_id: str):
-    return await invoke(h["approve_proposal"], request, {"id": id, "proposal_id": proposal_id})
+    resp = await invoke(h["approve_proposal"], request, {"id": id, "proposal_id": proposal_id})
+    # PROTOTYPE happy-path: after the client approves, simulate the Freitas
+    # analyst auto-approving/closing the quotation (APROVADA_PELO_CLIENTE ->
+    # FECHADA) so it moves to "Aprovadas" instead of waiting in "Escolha sua
+    # proposta". See app/prototype_flow.py for the full rationale (guard rail is
+    # intentionally simplified out in this prototype). Then return the fresh
+    # detail so the UI reflects the closed/approved state.
+    if resp.status_code == 200:
+        auto_close_approved_quotation(id)
+        return await invoke(h["get_my_quotation"], request, {"id": id})
+    return resp
 
 
 @router.post("/quotations/{id}/decline")

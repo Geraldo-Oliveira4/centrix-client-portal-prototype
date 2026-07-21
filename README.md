@@ -27,6 +27,16 @@ Não é um sistema de produção — é uma cópia funcional para prototipagem.
 | Montar + disparar RFQ | Upload S3 → filesystem local (`backend/storage/`) |
 | Recomendação (score determinístico) | Cognito → auto-login como cliente demo |
 
+## Aprovação de proposta (happy path simplificado)
+
+No Centrix de produção, quando o cliente aprova uma proposta a cotação vai para
+`APROVADA_PELO_CLIENTE` e **aguarda um analista da Freitas** revisar/fechar (o
+"guard rail"). Neste protótipo simulamos o happy path: ao aprovar, o sistema
+**automaticamente** faz o papel do analista e fecha a cotação (`FECHADA`), então
+o card já anda para "Aprovadas". O guard rail e a etapa manual do analista ficam
+de fora de propósito. Toda a lógica dessa simplificação está isolada e comentada
+em `backend/app/prototype_flow.py` (não altera os handlers originais).
+
 ## Autenticação
 
 Não há Cognito. O frontend faz **auto-login** como o cliente demo semeado
