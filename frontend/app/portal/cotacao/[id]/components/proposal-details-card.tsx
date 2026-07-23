@@ -5,36 +5,36 @@ import type { PortalProposal } from '@/types/portal';
 
 export function ProposalDetailsCard({ proposal }: { proposal: PortalProposal }) {
   return (
-    <section className="rounded-md border bg-background p-4">
-      <h3 className="text-base font-semibold mb-3">
+    <section className="portal-card-muted p-6">
+      <h2 className="portal-h3 mb-4 text-foreground">
         Detalhes — {proposal.agent?.name ?? '—'}
-      </h3>
-      <div className="grid grid-cols-2 gap-4 text-sm">
+      </h2>
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <p className="text-xs text-muted-foreground">Frete</p>
-          <p className="font-medium">{formatCurrency(proposal.freight_value)}</p>
+          <p className="portal-small text-portal-neutral">Frete</p>
+          <p className="portal-body font-medium">{formatCurrency(proposal.freight_value)}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Total</p>
-          <p className="font-semibold">{formatBRL(proposal.total_brl)}</p>
+          <p className="portal-small text-portal-neutral">Total</p>
+          <p className="portal-body font-semibold">{formatBRL(proposal.total_brl)}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Transit Time</p>
-          <p className="font-medium">{proposal.transit_time} dias</p>
+          <p className="portal-small text-portal-neutral">Transit Time</p>
+          <p className="portal-body font-medium">{proposal.transit_time} dias</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Validade</p>
-          <p className="font-medium">{formatDate(proposal.validity)}</p>
+          <p className="portal-small text-portal-neutral">Validade</p>
+          <p className="portal-body font-medium">{formatDate(proposal.validity)}</p>
         </div>
         {proposal.frequencia ? (
           <div className="col-span-2">
-            <p className="text-xs text-muted-foreground">Frequência</p>
-            <p className="font-medium">{proposal.frequencia}</p>
+            <p className="portal-small text-portal-neutral">Frequência</p>
+            <p className="portal-body font-medium">{proposal.frequencia}</p>
           </div>
         ) : null}
         {proposal.observations ? (
           <div className="col-span-2">
-            <p className="text-xs text-muted-foreground">Observações</p>
+            <p className="portal-small text-portal-neutral">Observações</p>
             <p className="text-sm">{proposal.observations}</p>
           </div>
         ) : null}

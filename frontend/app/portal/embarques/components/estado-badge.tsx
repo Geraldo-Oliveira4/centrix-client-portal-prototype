@@ -15,7 +15,7 @@ export function EstadoBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded border px-1.5 py-0.5 text-xs whitespace-nowrap',
+        'portal-small inline-flex items-center whitespace-nowrap rounded border px-2 py-0.5 font-medium',
         ESTADO_BADGE_CLASS[estado],
         className,
       )}

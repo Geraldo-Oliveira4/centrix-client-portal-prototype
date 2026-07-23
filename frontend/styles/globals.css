@@ -332,3 +332,65 @@
 .animate-pulse-slow {
   animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* ---------------------------------------------------------------------------
+ * Client Portal design system
+ *
+ * Type scale and semantic colours for the /portal screens, defined once here so
+ * the pages stop hand-rolling sizes. Line-height is 1.5 throughout.
+ *
+ * Emphasis uses weight 500 (medium) rather than 700 (bold) everywhere except the
+ * page title: at 14-16px, bold reads as heavy and flattens the hierarchy, which
+ * is what made every card feel equally loud.
+ *
+ * Action/link colour stays the Freitas brand pink (--primary). The semantic
+ * palette below is for STATE only (done / attention / critical / secondary) and
+ * lives in tailwind.config.ts as portal-success | portal-warning |
+ * portal-danger | portal-neutral | portal-canvas.
+ * ------------------------------------------------------------------------- */
+.portal-h1 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+
+.portal-h2 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.portal-h3 {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.portal-body {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.portal-small {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* Primary surface: the content the screen exists for. */
+.portal-card {
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--card));
+  box-shadow: 0 1px 2px 0 rgb(16 24 40 / 0.04);
+}
+
+/* Secondary surface: supporting detail. Same grid, deliberately quieter — no
+ * shadow and a tinted background so it recedes behind .portal-card. */
+.portal-card-muted {
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border) / 0.7);
+  background-color: hsl(var(--muted) / 0.35);
+}

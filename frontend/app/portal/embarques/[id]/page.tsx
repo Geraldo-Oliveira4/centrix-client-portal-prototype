@@ -7,10 +7,6 @@ import { LoaderComponent, ErrorComponent } from '@arboria-tech/arboria-ui';
 
 import { Button } from '@/components/ui/button';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Table,
   TableBody,
   TableCell,
@@ -23,14 +19,16 @@ import { useMyShipment } from '@/hooks/use-portal-shipments';
 import { MODAL_LABELS, TIPO_EMBARQUE_LABELS } from '@/types/quotation';
 
 import { ModalIcon } from '../../_shared/modal-icon';
+import { SectionHeading } from '../../_shared/page-header';
 import { EstadoBadge } from '../components/estado-badge';
 import { ShipmentProgress } from '../components/shipment-progress';
+import { ShipmentRoute } from '../components/shipment-route';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm">{children}</p>
+    <div className="space-y-1">
+      <p className="portal-small text-portal-neutral">{label}</p>
+      <p className="portal-body font-medium text-foreground">{children}</p>
     </div>
   );
 }
@@ -46,59 +44,65 @@ export default function PortalEmbarqueDetailPage() {
   if (isError || !shipment) return <ErrorComponent />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="-ml-2 h-7 px-2 text-muted-foreground"
-            onClick={() => router.push('/portal/embarques')}
-          >
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Meus Embarques
-          </Button>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold">{shipment.referencia}</h1>
-            <EstadoBadge estado={shipment.estado} />
-            {shipment.carga_urgente && (
-              <span className="inline-flex items-center gap-1 rounded border border-orange-300 bg-orange-100 px-1.5 py-0.5 text-xs text-orange-700">
-                <AlertTriangle className="h-3 w-3" />
-                Carga urgente
-              </span>
-            )}
+    <div className="space-y-8">
+      <div className="space-y-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2 h-8 px-2 text-portal-neutral hover:text-foreground"
+          onClick={() => router.push('/portal/embarques')}
+        >
+          <ArrowLeft className="mr-2 h-5 w-5" />
+          Meus Embarques
+        </Button>
+
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="portal-h1 text-foreground">{shipment.referencia}</h1>
+              <EstadoBadge estado={shipment.estado} />
+              {shipment.carga_urgente && (
+                <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-2 py-0.5 font-medium text-portal-warning">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Carga urgente
+                </span>
+              )}
+            </div>
+            <p className="portal-small text-portal-neutral">
+              Aberto em {formatShortDate(shipment.created_at)}
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Aberto em {formatShortDate(shipment.created_at)}
-          </p>
+          {shipment.quotation_id && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/portal/cotacao/${shipment.quotation_id}`}>
+                <FileText className="mr-2 h-5 w-5" />
+                Ver cotação de origem
+              </Link>
+            </Button>
+          )}
         </div>
-        {shipment.quotation_id && (
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/portal/cotacao/${shipment.quotation_id}`}>
-              <FileText className="mr-1.5 h-4 w-4" />
-              Ver cotação de origem
-            </Link>
-          </Button>
-        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Situação atual</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Primary: the reason the client opened this screen. The route track sits
+          above the steps as the quick read ("where is my cargo, roughly"), with
+          the steps below as the precise one. Both are driven by the same
+          `estado` — the track adds no information, only legibility, which is why
+          it carries an explicit "not GPS" caption. */}
+      <section className="portal-card space-y-6 p-6">
+        <SectionHeading title="Situação atual" />
+        <ShipmentRoute estado={shipment.estado} modal={shipment.modal} />
+        <div className="border-t pt-6">
           <ShipmentProgress estado={shipment.estado} />
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Dados do embarque</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      {/* Supporting detail, deliberately quieter than the block above. */}
+      <section className="portal-card-muted space-y-4 p-6">
+        <SectionHeading title="Dados do embarque" />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Field label="Modal">
-            <span className="inline-flex items-center gap-1.5">
-              <ModalIcon modal={shipment.modal} />
+            <span className="inline-flex items-center gap-2">
+              <ModalIcon modal={shipment.modal} className="h-5 w-5" />
               {shipment.modal ? MODAL_LABELS[shipment.modal] : '—'}
             </span>
           </Field>
@@ -119,59 +123,59 @@ export default function PortalEmbarqueDetailPage() {
           <Field label="Última atualização">
             {shipment.updated_at ? formatShortDate(shipment.updated_at) : '—'}
           </Field>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Container className="h-4 w-4" />
-            Containers
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {shipment.containers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhum container informado até o momento.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Número</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Tara (kg)</TableHead>
+      <section className="portal-card-muted space-y-4 p-6">
+        <SectionHeading
+          title="Containers"
+          icon={<Container className="h-5 w-5" />}
+        />
+        {shipment.containers.length === 0 ? (
+          <p className="portal-body text-portal-neutral">
+            Nenhum container informado até o momento.
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="portal-small font-medium text-portal-neutral">
+                  Número
+                </TableHead>
+                <TableHead className="portal-small font-medium text-portal-neutral">
+                  Tipo
+                </TableHead>
+                <TableHead className="portal-small font-medium text-portal-neutral">
+                  Tara (kg)
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {shipment.containers.map((container, index) => (
+                <TableRow key={container.numero ?? index} className="hover:bg-transparent">
+                  <TableCell className="portal-body font-medium">
+                    {container.numero ?? '—'}
+                  </TableCell>
+                  <TableCell className="portal-body text-portal-neutral">
+                    {container.tipo ?? '—'}
+                  </TableCell>
+                  <TableCell className="portal-body text-portal-neutral">
+                    {container.tara ?? '—'}
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {shipment.containers.map((container, index) => (
-                  <TableRow key={container.numero ?? index}>
-                    <TableCell className="font-medium">
-                      {container.numero ?? '—'}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {container.tipo ?? '—'}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {container.tara ?? '—'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </section>
 
       {shipment.observacao && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Observação da Freitas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm whitespace-pre-line">{shipment.observacao}</p>
-          </CardContent>
-        </Card>
+        <section className="portal-card-muted space-y-2 p-6">
+          <SectionHeading title="Observação da Freitas" />
+          <p className="portal-body whitespace-pre-line text-foreground/80">
+            {shipment.observacao}
+          </p>
+        </section>
       )}
     </div>
   );

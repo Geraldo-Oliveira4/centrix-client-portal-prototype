@@ -209,8 +209,8 @@ export default function PortalCotacaoDetailPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3 flex-wrap">
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-center gap-3">
         <Button
           variant="ghost"
           size="icon"
@@ -220,10 +220,10 @@ export default function PortalCotacaoDetailPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex items-center gap-2">
-          <ModalIcon modal={quotation.modal} className="h-5 w-5" />
-          <h1 className="text-2xl font-bold">{quotation.reference}</h1>
+          <ModalIcon modal={quotation.modal} className="h-5 w-5 text-portal-neutral" />
+          <h1 className="portal-h1 text-foreground">{quotation.reference}</h1>
           {quotation.incoterm ? (
-            <span className="rounded border px-2 py-0.5 text-xs">
+            <span className="portal-small rounded border px-2 py-0.5 font-medium text-portal-neutral">
               {quotation.incoterm}
             </span>
           ) : null}
@@ -264,7 +264,7 @@ export default function PortalCotacaoDetailPage() {
         ) : null}
       </div>
 
-      <div className="text-sm text-muted-foreground">
+      <div className="portal-body text-portal-neutral">
         {formatRoute(quotation)}{' '}
         {quotation.product ? ` · ${quotation.product}` : ''}
       </div>

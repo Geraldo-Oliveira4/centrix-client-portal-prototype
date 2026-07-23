@@ -136,9 +136,9 @@ export function RfqDispatchCard({
       <CardHeader>
         <CardTitle className="text-lg">Solicitar cotação aos agentes</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-4">
         {agents.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="portal-body text-portal-neutral">
             Nenhum agente pré-definido está disponível para esta cotação. Entre
             em contato com a equipe Freitas.
           </p>
@@ -150,7 +150,7 @@ export function RfqDispatchCard({
                 {agents.map((agent) => (
                   <label
                     key={agent.id}
-                    className="flex items-center gap-2 rounded border p-2.5 text-sm cursor-pointer hover:bg-muted/40"
+                    className="portal-body flex cursor-pointer items-center gap-2 rounded-lg border p-2 hover:bg-muted/40"
                   >
                     <Checkbox
                       checked={selected.includes(agent.id)}
@@ -170,13 +170,13 @@ export function RfqDispatchCard({
                   type="datetime-local"
                   value={deadline}
                   onChange={(e) => setDeadline(e.target.value)}
-                  className="w-full rounded border px-3 py-2 text-sm"
+                  className="portal-body w-full rounded-lg border px-3 py-2"
                 />
               </div>
             ) : null}
 
             {showOriginFields ? (
-              <div className="space-y-2 rounded border border-amber-200 bg-amber-50/60 p-3">
+              <div className="space-y-2 rounded border border-portal-warning/30 bg-portal-warning/8 p-4">
                 <Label htmlFor="rfq-origin">Local de coleta (origem)</Label>
                 <input
                   id="rfq-origin"

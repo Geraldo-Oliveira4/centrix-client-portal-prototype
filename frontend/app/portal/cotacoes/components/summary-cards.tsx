@@ -23,19 +23,21 @@ export function SummaryCards({
   awaitingProposals,
 }: SummaryCardsProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid items-start gap-4 md:grid-cols-2">
       <SummaryCard
         label={PORTAL_BUCKET_LABELS.aguardando_aprovacao}
         quotations={awaitingApproval}
         icon={CheckCircle2}
-        iconClass="bg-emerald-50 text-emerald-600"
+        iconClass="bg-portal-success/10 text-portal-success"
+        countClass="text-portal-success"
         renderItem={(q) => <ApproveItem quotation={q} />}
       />
       <SummaryCard
         label={PORTAL_BUCKET_LABELS.buscando_propostas}
         quotations={awaitingProposals}
         icon={Clock}
-        iconClass="bg-amber-50 text-amber-600"
+        iconClass="bg-portal-warning/10 text-portal-warning"
+        countClass="text-portal-warning"
         renderItem={(q) => <WaitingItem quotation={q} />}
       />
     </div>
@@ -47,6 +49,7 @@ interface SummaryCardProps {
   quotations: PortalQuotation[];
   icon: typeof CheckCircle2;
   iconClass: string;
+  countClass: string;
   renderItem: (q: PortalQuotation) => React.ReactNode;
 }
 
@@ -55,17 +58,18 @@ function SummaryCard({
   quotations,
   icon: Icon,
   iconClass,
+  countClass,
   renderItem,
 }: SummaryCardProps) {
   return (
-    <div className="rounded-md border bg-background p-4 space-y-4">
+    <div className="portal-card-muted space-y-4 p-4">
       <header className="flex items-center gap-3">
         <div className={cn('rounded-full p-2', iconClass)}>
           <Icon className="h-5 w-5" />
         </div>
-        <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-2xl font-semibold leading-none">
+        <div className="space-y-1">
+          <p className="portal-small text-portal-neutral">{label}</p>
+          <p className={cn('text-2xl font-semibold leading-none', countClass)}>
             {quotations.length}
           </p>
         </div>
@@ -97,17 +101,17 @@ function ApproveItem({ quotation }: { quotation: PortalQuotation }) {
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="font-medium text-foreground truncate">
+        <p className="portal-body font-medium text-foreground truncate">
           {formatRoute(quotation)}
         </p>
         {arrivalLabel ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="portal-small text-portal-neutral">
             Chegada na fábrica: {arrivalLabel}
           </p>
         ) : null}
       </div>
       {best ? (
-        <p className="text-sm font-semibold text-emerald-600 whitespace-nowrap">
+        <p className="portal-body font-medium text-portal-success whitespace-nowrap">
           {formatBRL(best.total_brl)}
         </p>
       ) : null}
@@ -120,17 +124,17 @@ function WaitingItem({ quotation }: { quotation: PortalQuotation }) {
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="font-medium text-foreground truncate">
+        <p className="portal-body font-medium text-foreground truncate">
           {formatRoute(quotation)}
         </p>
         {quotation.product ? (
-          <p className="text-xs text-muted-foreground truncate">
+          <p className="portal-small text-portal-neutral truncate">
             {quotation.product}
           </p>
         ) : null}
       </div>
       {since ? (
-        <p className="text-xs text-amber-600 whitespace-nowrap">{since}</p>
+        <p className="portal-small text-portal-warning whitespace-nowrap">{since}</p>
       ) : null}
     </div>
   );

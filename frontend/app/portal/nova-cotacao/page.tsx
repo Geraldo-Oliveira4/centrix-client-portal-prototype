@@ -16,6 +16,7 @@ import { ManualForm } from '@/app/cotacao/nova-cotacao/components/manual-form';
 import { UploadZone } from '@/app/cotacao/nova-cotacao/components/upload-zone';
 import { RfqDispatchCard } from '@/app/portal/cotacao/[id]/components/rfq-dispatch-card';
 import { PortalExporterSelect } from '@/app/portal/components/portal-exporter-select';
+import { PagePortalHeader } from '@/app/portal/_shared/page-header';
 import type { Quotation } from '@/types/quotation';
 import type { Exporter } from '@/types/exporter';
 
@@ -104,13 +105,11 @@ export default function PortalNovaCotacaoPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Nova Cotação</h1>
-        <p className="text-sm text-muted-foreground">
-          Envie os documentos da sua carga ou preencha os dados manualmente.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PagePortalHeader
+        title="Nova Cotação"
+        subtitle="Envie os documentos da sua carga ou preencha os dados manualmente."
+      />
 
       <Tabs defaultValue="manual">
         <TabsList>

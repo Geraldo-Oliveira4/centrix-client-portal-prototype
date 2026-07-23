@@ -12,16 +12,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui';
+import { cn } from '@/lib/utils';
 import { formatShortDate } from '@/lib/portal-formatters';
 import { useMyShipments } from '@/hooks/use-portal-shipments';
 import { MODAL_LABELS } from '@/types/quotation';
 import {
+  ESTADO_ACCENT_CLASS,
   ESTADO_LABELS,
   SHIPMENT_STEPS,
   EXCEPTION_STATES,
   type EmbarqueEstado,
 } from '@/types/portal-shipment';
 
+import { PagePortalHeader } from '../_shared/page-header';
 import { ModalIcon } from '../_shared/modal-icon';
 import { EstadoBadge } from './components/estado-badge';
 
@@ -29,6 +32,9 @@ import { EstadoBadge } from './components/estado-badge';
 // KPIs (SLA em risco, documentos pendentes) are not shown because no column
 // backs them — there is no deadline to compare against and no notion of which
 // documents are required. Counting by state is the one figure the data supports.
+//
+// Rendered as light tiles, not cards: this is orientation, not the content of
+// the screen, so it must not compete with the table below.
 function EstadoSummary({ byEstado }: { byEstado: Partial<Record<EmbarqueEstado, number>> }) {
   const shown = [...SHIPMENT_STEPS, ...EXCEPTION_STATES].filter(
     (estado) => (byEstado[estado] ?? 0) > 0,
@@ -40,10 +46,14 @@ function EstadoSummary({ byEstado }: { byEstado: Partial<Record<EmbarqueEstado, 
       {shown.map((estado) => (
         <div
           key={estado}
-          className="rounded-md border bg-background px-3 py-2 min-w-24"
+          className="portal-card-muted min-w-32 flex-1 px-4 py-3 sm:flex-none"
         >
-          <p className="text-xl font-semibold leading-none">{byEstado[estado]}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{ESTADO_LABELS[estado]}</p>
+          <p className={cn('text-2xl font-semibold leading-none', ESTADO_ACCENT_CLASS[estado])}>
+            {byEstado[estado]}
+          </p>
+          <p className="portal-small mt-1 text-portal-neutral">
+            {ESTADO_LABELS[estado]}
+          </p>
         </div>
       ))}
     </div>
@@ -57,91 +67,105 @@ export default function PortalEmbarquesPage() {
   if (isError) return <ErrorComponent />;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Meus Embarques</h1>
-        <p className="text-sm text-muted-foreground">
-          {shipments.length === 0
+    <div className="space-y-8">
+      <PagePortalHeader
+        title="Meus Embarques"
+        subtitle={
+          shipments.length === 0
             ? 'Nenhum embarque em andamento.'
             : `${shipments.length} ${
                 shipments.length === 1
                   ? 'embarque em acompanhamento'
                   : 'embarques em acompanhamento'
-              }.`}
-        </p>
-      </div>
-
-      <EstadoSummary byEstado={byEstado} />
+              }.`
+        }
+      />
 
       {shipments.length === 0 ? (
         <EmptyState message="Seus embarques aparecem aqui assim que uma cotação aprovada é fechada pela Freitas." />
       ) : (
-        <div className="rounded-md border bg-background">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Referência</TableHead>
-                <TableHead>Situação</TableHead>
-                <TableHead>Modal</TableHead>
-                <TableHead>Incoterm</TableHead>
-                <TableHead>Agente</TableHead>
-                <TableHead>Aberto em</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {shipments.map((shipment) => (
-                <TableRow
-                  key={shipment.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                >
-                  <TableCell className="font-medium">
-                    <Link
-                      href={`/portal/embarques/${shipment.id}`}
-                      className="flex items-center gap-2 hover:underline"
-                    >
-                      {shipment.referencia}
-                      {shipment.carga_urgente && (
-                        <span
-                          className="inline-flex items-center gap-1 rounded border border-orange-300 bg-orange-100 px-1.5 py-0.5 text-xs text-orange-700"
-                          title="Carga urgente"
-                        >
-                          <AlertTriangle className="h-3 w-3" />
-                          Urgente
-                        </span>
-                      )}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <EstadoBadge estado={shipment.estado} />
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    <span className="inline-flex items-center gap-1.5">
-                      <ModalIcon modal={shipment.modal} />
-                      {shipment.modal ? MODAL_LABELS[shipment.modal] : '—'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {shipment.incoterm ?? '—'}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {shipment.agente_nome ?? '—'}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatShortDate(shipment.created_at)}
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/portal/embarques/${shipment.id}`}
-                      aria-label={`Abrir ${shipment.referencia}`}
-                    >
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </Link>
-                  </TableCell>
+        <div className="space-y-4">
+          <EstadoSummary byEstado={byEstado} />
+
+          <div className="portal-card overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="portal-small font-medium text-portal-neutral">
+                    Referência
+                  </TableHead>
+                  <TableHead className="portal-small font-medium text-portal-neutral">
+                    Situação
+                  </TableHead>
+                  <TableHead className="portal-small font-medium text-portal-neutral">
+                    Modal
+                  </TableHead>
+                  <TableHead className="portal-small font-medium text-portal-neutral">
+                    Incoterm
+                  </TableHead>
+                  <TableHead className="portal-small font-medium text-portal-neutral">
+                    Agente
+                  </TableHead>
+                  <TableHead className="portal-small font-medium text-portal-neutral">
+                    Aberto em
+                  </TableHead>
+                  <TableHead className="w-10" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {shipments.map((shipment) => (
+                  <TableRow
+                    key={shipment.id}
+                    className="cursor-pointer hover:bg-muted/40"
+                  >
+                    <TableCell>
+                      <Link
+                        href={`/portal/embarques/${shipment.id}`}
+                        className="flex items-center gap-2 font-medium hover:text-primary"
+                      >
+                        {shipment.referencia}
+                        {shipment.carga_urgente && (
+                          <span
+                            className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-1.5 py-0.5 font-medium text-portal-warning"
+                            title="Carga urgente"
+                          >
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            Urgente
+                          </span>
+                        )}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <EstadoBadge estado={shipment.estado} />
+                    </TableCell>
+                    <TableCell className="portal-body text-portal-neutral">
+                      <span className="inline-flex items-center gap-2">
+                        <ModalIcon modal={shipment.modal} className="h-5 w-5" />
+                        {shipment.modal ? MODAL_LABELS[shipment.modal] : '—'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="portal-body text-portal-neutral">
+                      {shipment.incoterm ?? '—'}
+                    </TableCell>
+                    <TableCell className="portal-body text-portal-neutral">
+                      {shipment.agente_nome ?? '—'}
+                    </TableCell>
+                    <TableCell className="portal-body text-portal-neutral">
+                      {formatShortDate(shipment.created_at)}
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/portal/embarques/${shipment.id}`}
+                        aria-label={`Abrir ${shipment.referencia}`}
+                      >
+                        <ChevronRight className="h-5 w-5 text-portal-neutral" />
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
     </div>

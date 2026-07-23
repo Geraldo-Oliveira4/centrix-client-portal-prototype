@@ -330,6 +330,63 @@ Use `size="lg"` on `<DialogContent>` for entity modals (clients, agents, quotati
 
 Pages should **not** artificially constrain their width. Do not apply `max-w-*` to top-level page containers — let the layout fill the available space. The sidebar + main layout already provides appropriate padding.
 
+## Client Portal design system (`/portal` only)
+
+The portal screens follow a small explicit system so the pages stop hand-rolling
+sizes and every card stops carrying the same visual weight. Defined once in
+`styles/globals.css` (type + surfaces) and `tailwind.config.ts` (colours).
+
+**Type scale** — `.portal-h1` (28/700), `.portal-h2` (20/600), `.portal-h3`
+(16/600), `.portal-body` (14/400), `.portal-small` (12/400), all line-height 1.5.
+Emphasis inside cards uses `font-medium`, not bold: at 14px bold flattens the
+hierarchy. Use `<PagePortalHeader>` / `<SectionHeading>` from
+`app/portal/_shared/page-header.tsx` rather than a bare `<h1>`/`<h2>`.
+
+**Surfaces** — two levels, and only two:
+- `.portal-card` — primary: the content the screen exists for (proposals table,
+  current shipment status, shipment list). White, bordered, faint shadow.
+- `.portal-card-muted` — supporting detail (dados da cotação, containers,
+  observação). No shadow, tinted background, recedes on the canvas.
+
+Page background is `bg-portal-canvas` (#F5F5F7), applied in `app/portal/layout.tsx`.
+
+**Colour** — actions and links stay on the brand pink (`--primary`). The semantic
+palette is for STATE only and never for actions:
+
+| Token | Hex | Meaning |
+|---|---|---|
+| `portal-success` | `#00B050` | done / approved |
+| `portal-warning` | `#FF9500` | waiting / attention |
+| `portal-danger` | `#FF3B30` | critical / divergent |
+| `portal-info` | `#2E5CFF` | in progress, nothing required from the client |
+| `portal-neutral` | `#8E8E93` | secondary metadata |
+
+State→colour maps live next to their type (`ESTADO_BADGE_CLASS` /
+`ESTADO_ACCENT_CLASS` in `types/portal-shipment.ts`) so the badge, the summary
+tile and the progress steps cannot drift apart.
+
+**Shared components on a portal surface** — do not fork them. `RecommendationView`
+takes `variant="portal"`, which swaps only its shell and header for
+`.portal-card` + `.portal-h2`; the analyst and public-proposal surfaces keep the
+default. Follow that pattern for any other shared component that has to sit on a
+portal screen.
+
+**`ShipmentRoute`** (`app/portal/embarques/components/shipment-route.tsx`) is an
+illustrative origin→destination track: the vehicle position is a fixed
+percentage per `estado`, NOT a location — there is no GPS/AIS/carrier feed in
+this repo. Its "não é rastreamento por GPS" caption is load-bearing; keep it if
+you touch the component. Endpoints are labelled generically because the shipment
+payload carries no route (origin lives on the quotation).
+
+**Spacing** — 8px grid: `gap-1` (4) / `gap-2` (8, default) / `gap-4` (16, between
+sections) / `p-6` (24, card padding) / `space-y-8` (32, between page blocks).
+Do not introduce `p-3`, `gap-3`, `space-y-5` or other off-grid steps in `/portal`.
+
+**Icons** — outline (lucide), `h-5 w-5` (20px), always paired with a label.
+
+> Class names composed in `types/` are only picked up because
+> `./types/**/*.{ts,tsx}` is in the Tailwind `content` globs. Keep it there.
+
 ## Quotation field utilities — `utils/quotation-fields.ts`
 
 All shared logic for quotation field handling lives in `utils/quotation-fields.ts`. **Do not duplicate any of this in component or page files.**

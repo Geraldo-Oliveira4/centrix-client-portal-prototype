@@ -990,7 +990,13 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
               )}
 
               <div className="grid grid-cols-2 gap-3">
-                <FormItem>
+                {/* Spans both columns: this field is a currency select (fixed
+                    96px) plus an amount input sharing one half-width cell, which
+                    left the amount at ~28px of usable width at 1280px — too
+                    narrow to read or type into. Full width gives the input the
+                    remaining ~180px. Also fixes the same field on the analyst
+                    screen, which renders this shared form. */}
+                <FormItem className="col-span-2">
                   <FormLabel>Valor da Carga</FormLabel>
                   <div className="flex gap-2">
                     <FormField

@@ -89,12 +89,39 @@ export const ESTADO_DESCRIPTIONS: Record<EmbarqueEstado, string> = {
     'O booking veio diferente do que foi aprovado. A Freitas está em tratativa com o armador.',
 };
 
+/**
+ * Semantic colour per state. The palette carries the meaning, so the same state
+ * reads identically in the badge, the summary tile and the progress steps:
+ *
+ *   portal-info    — moving, nothing required from the client (solicitado, coletado)
+ *   portal-warning — waiting or under review (aguardando_prontidao, analise_booking,
+ *                    postergado: a delay is attention, not a failure)
+ *   portal-success — done (embarcado)
+ *   portal-danger  — divergence the client should know about (booking_divergente)
+ *
+ * Brand pink is deliberately absent: it means "action" in this app, and a
+ * shipment state is never an action the client can take here.
+ */
 export const ESTADO_BADGE_CLASS: Record<EmbarqueEstado, string> = {
-  solicitado: 'bg-blue-50 text-blue-700 border-blue-200',
-  aguardando_prontidao: 'bg-yellow-50 text-yellow-800 border-yellow-200',
-  coletado: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  analise_booking: 'bg-orange-50 text-orange-800 border-orange-200',
-  embarcado: 'bg-green-50 text-green-700 border-green-200',
-  postergado: 'bg-amber-50 text-amber-800 border-amber-200',
-  booking_divergente: 'bg-destructive/10 text-destructive border-destructive/30',
+  solicitado: 'bg-portal-info/10 text-portal-info border-portal-info/25',
+  aguardando_prontidao:
+    'bg-portal-warning/10 text-portal-warning border-portal-warning/30',
+  coletado: 'bg-portal-info/10 text-portal-info border-portal-info/25',
+  analise_booking:
+    'bg-portal-warning/10 text-portal-warning border-portal-warning/30',
+  embarcado: 'bg-portal-success/10 text-portal-success border-portal-success/25',
+  postergado: 'bg-portal-warning/10 text-portal-warning border-portal-warning/30',
+  booking_divergente:
+    'bg-portal-danger/10 text-portal-danger border-portal-danger/30',
+};
+
+/** Solid colour per state, for the progress dots and the summary tile numbers. */
+export const ESTADO_ACCENT_CLASS: Record<EmbarqueEstado, string> = {
+  solicitado: 'text-portal-info',
+  aguardando_prontidao: 'text-portal-warning',
+  coletado: 'text-portal-info',
+  analise_booking: 'text-portal-warning',
+  embarcado: 'text-portal-success',
+  postergado: 'text-portal-warning',
+  booking_divergente: 'text-portal-danger',
 };

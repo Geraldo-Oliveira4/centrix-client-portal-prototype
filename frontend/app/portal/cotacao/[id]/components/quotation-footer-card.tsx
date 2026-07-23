@@ -5,8 +5,8 @@ import type { PortalQuotation } from '@/types/portal';
 
 export function QuotationFooterCard({ quotation }: { quotation: PortalQuotation }) {
   return (
-    <section className="rounded-md border bg-background p-4 space-y-3 text-sm">
-      <h3 className="text-base font-semibold">Dados da cotação</h3>
+    <section className="portal-card-muted space-y-3 p-6">
+      <h2 className="portal-h3 text-foreground">Dados da cotação</h2>
       <Field label="Solicitada em" value={formatDate(quotation.created_at)} />
       <Field label="Carga" value={formatTotals(quotation.totals, quotation.modal)} />
       <Field label="Produto" value={quotation.product} />
@@ -27,8 +27,8 @@ function Field({
 }) {
   return (
     <div className="flex items-center justify-between border-b last:border-b-0 pb-2 last:pb-0">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="font-medium">{value || '—'}</span>
+      <span className="portal-small text-portal-neutral">{label}</span>
+      <span className="portal-body font-medium">{value || '—'}</span>
     </div>
   );
 }

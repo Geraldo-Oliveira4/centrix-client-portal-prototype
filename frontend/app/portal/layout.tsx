@@ -45,7 +45,10 @@ export default function PortalLayout({
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-muted/30">
+      {/* Canvas #F5F5F7 behind white cards: with a white page background the
+          cards had nothing to sit on, which is half of why every block read as
+          the same weight. Page margin is the 32px step (p-8) on desktop. */}
+      <div className="flex min-h-screen w-full bg-portal-canvas">
         <PortalSidebar />
         <main className="flex-1 min-w-0 overflow-auto">
           <PortalHeader />

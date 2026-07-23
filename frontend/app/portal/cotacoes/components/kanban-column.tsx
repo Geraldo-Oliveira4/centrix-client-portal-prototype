@@ -20,11 +20,13 @@ interface KanbanColumnProps {
 }
 
 const DEFAULT_ACCENT: Record<PortalBucketKey, string> = {
-  aguardando_dados: 'border-t-amber-500',
-  buscando_propostas: 'border-t-blue-500',
-  aguardando_aprovacao: 'border-t-teal-500',
-  finalizadas: 'border-t-slate-300',
-  cancelada: 'border-t-slate-300',
+  // Semantic accents: waiting on the client or on Freitas = warning, in
+  // progress = info, ready for the client to decide = success.
+  aguardando_dados: 'border-t-portal-warning',
+  buscando_propostas: 'border-t-portal-info',
+  aguardando_aprovacao: 'border-t-portal-success',
+  finalizadas: 'border-t-portal-neutral/40',
+  cancelada: 'border-t-portal-neutral/40',
 };
 
 export function KanbanColumn({ bucket, quotations, label, accentColor }: KanbanColumnProps) {
@@ -33,23 +35,23 @@ export function KanbanColumn({ bucket, quotations, label, accentColor }: KanbanC
   return (
     <div
       className={cn(
-        'flex flex-col min-w-80 w-80 rounded-lg border bg-muted/20 border-t-4',
+        'flex flex-col min-w-80 w-80 rounded-xl border border-t-4 bg-white/60',
         topBorder,
       )}
     >
-      <header className="flex items-center justify-between px-3 py-2.5 rounded-t-lg bg-muted/30 shrink-0">
-        <h2 className="text-sm font-medium text-foreground uppercase tracking-wide">
+      <header className="flex shrink-0 items-center justify-between rounded-t-xl px-4 py-3">
+        <h2 className="portal-small font-medium uppercase tracking-wide text-portal-neutral">
           {label ?? PORTAL_BUCKET_LABELS[bucket]}
         </h2>
-        <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground tabular-nums">
+        <span className="portal-small rounded bg-muted px-2 py-0.5 tabular-nums text-portal-neutral">
           {quotations.length}
         </span>
       </header>
 
       <ScrollArea className="flex-1 max-h-[calc(100vh-220px)]">
-        <div className="p-2 space-y-2">
+        <div className="space-y-2 p-2">
           {quotations.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8">
+            <p className="portal-small py-8 text-center text-portal-neutral">
               Nenhuma cotação.
             </p>
           ) : (

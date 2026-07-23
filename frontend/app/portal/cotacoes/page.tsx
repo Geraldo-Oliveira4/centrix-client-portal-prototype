@@ -9,6 +9,7 @@ import { useMyQuotations } from '@/hooks/use-portal-quotations';
 import { Button } from '@/components/ui';
 import type { PortalBucketKey } from '@/types/portal';
 
+import { PagePortalHeader } from '../_shared/page-header';
 import { Bucket } from './components/bucket';
 import { KanbanColumn } from './components/kanban-column';
 import { SummaryCards } from './components/summary-cards';
@@ -67,26 +68,24 @@ export default function PortalCotacoesPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Minhas Cotações</h1>
-          <p className="text-sm text-muted-foreground">
-            {totalAcrossBuckets === 0
-              ? 'Nenhuma cotação encontrada.'
-              : `${totalAcrossBuckets} ${totalAcrossBuckets === 1 ? 'cotação' : 'cotações'} no total.`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      <PagePortalHeader
+        title="Minhas Cotações"
+        subtitle={
+          totalAcrossBuckets === 0
+            ? 'Nenhuma cotação encontrada.'
+            : `${totalAcrossBuckets} ${totalAcrossBuckets === 1 ? 'cotação' : 'cotações'} no total.`
+        }
+        action={
           <Button onClick={() => router.push('/portal/nova-cotacao')}>
             Solicitar nova cotação
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {totalAcrossBuckets === 0 ? (
         <EmptyState message="Nenhuma cotação. Quando a Freitas registrar uma cotação para sua empresa, ela aparecerá aqui." />
       ) : (
-        <>
+        <div className="space-y-4">
           <SummaryCards
             awaitingApproval={data.buckets.aguardando_aprovacao ?? []}
             awaitingProposals={data.buckets.buscando_propostas ?? []}
@@ -97,8 +96,8 @@ export default function PortalCotacoesPage() {
           {filteredTotal === 0 ? (
             <EmptyState message="Nenhuma cotação corresponde aos filtros aplicados." />
           ) : (
-            <div className="space-y-8">
-              <div className="flex gap-3 overflow-x-auto pb-4">
+            <div className="space-y-6">
+              <div className="flex gap-4 overflow-x-auto pb-4">
                 {data.bucket_order.map((bucket) => (
                   <KanbanColumn
                     key={bucket}
@@ -111,14 +110,14 @@ export default function PortalCotacoesPage() {
                   bucket="finalizadas"
                   quotations={(filteredBuckets.finalizadas ?? []).filter((q) => q.state === 'FECHADA')}
                   label="Aprovadas"
-                  accentColor="border-t-emerald-500"
+                  accentColor="border-t-portal-success"
                 />
                 <KanbanColumn
                   key="finalizadas-recusadas"
                   bucket="finalizadas"
                   quotations={(filteredBuckets.finalizadas ?? []).filter((q) => q.state !== 'FECHADA')}
                   label="Recusadas"
-                  accentColor="border-t-rose-500"
+                  accentColor="border-t-portal-danger"
                 />
               </div>
               {cancelledCount > 0 ? (
@@ -129,7 +128,7 @@ export default function PortalCotacoesPage() {
               ) : null}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

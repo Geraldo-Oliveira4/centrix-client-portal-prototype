@@ -26,12 +26,12 @@ export function ProposalsTable({
   headerHint,
 }: ProposalsTableProps) {
   return (
-    <section className="rounded-md border bg-background">
-      <header className="flex items-center justify-between px-4 py-3 border-b">
-        <h2 className="text-base font-semibold">
+    <section className="portal-card overflow-hidden">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b px-6 py-4">
+        <h2 className="portal-h2 text-foreground">
           Propostas Disponíveis ({proposals.length})
         </h2>
-        <p className="text-xs text-muted-foreground">
+        <p className="portal-small text-portal-neutral">
           {headerHint ?? getHeaderHint(locked, winnerId)}
         </p>
       </header>

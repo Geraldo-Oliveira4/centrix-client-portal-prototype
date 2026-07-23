@@ -133,16 +133,36 @@ interface RecommendationViewProps {
   isLoading?: boolean;
   /** Optional action rendered in the header (e.g. the analyst "Sobrescrever" button). */
   headerAction?: ReactNode;
+  /**
+   * Surface styling. 'default' keeps the analyst / public-proposal look; 'portal'
+   * swaps the outer shell and the header for the Client Portal design system
+   * (.portal-card + .portal-h2) so this panel stops being the one block on the
+   * quotation detail screen that still reads as an internal tool.
+   *
+   * Only the shell and the header change — the score rows and the recommendation
+   * text below are shared markup and stay identical on every surface.
+   */
+  variant?: 'default' | 'portal';
 }
 
 export function RecommendationView({
   recommendation,
   isLoading,
   headerAction,
+  variant = 'default',
 }: RecommendationViewProps) {
+  const isPortal = variant === 'portal';
+
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4 text-sm text-muted-foreground animate-pulse">
+      <div
+        className={cn(
+          'animate-pulse',
+          isPortal
+            ? 'portal-card portal-body p-6 text-portal-neutral'
+            : 'rounded-lg border bg-card p-4 text-sm text-muted-foreground',
+        )}
+      >
         Calculando recomendação...
       </div>
     );
@@ -156,15 +176,29 @@ export function RecommendationView({
   });
 
   return (
-    <div className="rounded-lg border bg-card overflow-hidden">
-      <div className="flex items-center justify-between bg-muted/40 px-4 py-2.5 border-b">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Recomendação por IA
-        </p>
+    <div
+      className={cn(
+        'overflow-hidden',
+        isPortal ? 'portal-card' : 'rounded-lg border bg-card',
+      )}
+    >
+      <div
+        className={cn(
+          'flex items-center justify-between border-b',
+          isPortal ? 'px-6 py-4' : 'bg-muted/40 px-4 py-2.5',
+        )}
+      >
+        {isPortal ? (
+          <h2 className="portal-h2 text-foreground">Recomendação por IA</h2>
+        ) : (
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Recomendação por IA
+          </p>
+        )}
         {headerAction}
       </div>
 
-      <div className="p-4 flex flex-col gap-3">
+      <div className={cn('flex flex-col', isPortal ? 'gap-4 p-6' : 'gap-3 p-4')}>
         {recommendation.is_overridden && recommendation.override && (
           <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
             <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-px" />

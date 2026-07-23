@@ -9,9 +9,9 @@ import type {
 } from '@/types/portal';
 
 const PROBABILITY_COLOR: Record<PortalCostProbability, string> = {
-  BAIXA: 'text-emerald-600',
-  MEDIA: 'text-amber-600',
-  ALTA: 'text-rose-600',
+  BAIXA: 'text-portal-success',
+  MEDIA: 'text-portal-warning',
+  ALTA: 'text-portal-danger',
 };
 
 const PROBABILITY_LABEL: Record<PortalCostProbability, string> = {
@@ -22,14 +22,14 @@ const PROBABILITY_LABEL: Record<PortalCostProbability, string> = {
 
 export function AdditionalCostsCard({ items }: { items: PortalAdditionalCost[] }) {
   return (
-    <section className="rounded-md border bg-background p-4">
-      <header className="flex items-start gap-2 mb-3">
-        <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
+    <section className="portal-card-muted p-6">
+      <header className="flex items-start gap-2 mb-4">
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-portal-danger" />
         <div>
-          <h3 className="text-base font-semibold text-rose-700">
+          <h2 className="portal-h3 text-portal-danger">
             Possíveis Custos Adicionais
-          </h3>
-          <p className="text-xs text-muted-foreground">
+          </h2>
+          <p className="portal-small text-portal-neutral">
             Custos que podem ocorrer dependendo da operação.
           </p>
         </div>
@@ -45,7 +45,7 @@ export function AdditionalCostsCard({ items }: { items: PortalAdditionalCost[] }
                 </p>
               ) : null}
               {cost.note ? (
-                <p className="text-xs text-muted-foreground">{cost.note}</p>
+                <p className="portal-small text-portal-neutral">{cost.note}</p>
               ) : null}
             </div>
             <p className="text-sm whitespace-nowrap">{formatCostRange(cost)}</p>

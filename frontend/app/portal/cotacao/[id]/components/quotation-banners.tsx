@@ -9,7 +9,7 @@ import type { PortalProposal, PortalQuotation } from '@/types/portal';
 
 export function EmptyProposalsBlock() {
   return (
-    <div className="rounded-md border bg-amber-50 px-4 py-6 text-sm text-amber-900">
+    <div className="rounded-xl border bg-portal-warning/8 px-4 py-6 text-sm text-portal-warning">
       Estamos buscando propostas com os agentes. Você será avisado quando elas chegarem.
     </div>
   );
@@ -18,14 +18,14 @@ export function EmptyProposalsBlock() {
 export function BestArrivalBanner({ proposal }: { proposal: PortalProposal }) {
   const arrival = addDays(proposal.transit_time ?? 0);
   return (
-    <div className="rounded-md border-l-4 border-rose-400 bg-rose-50 p-4 flex items-center gap-3">
-      <Calendar className="h-5 w-5 text-rose-500" />
+    <div className="rounded-xl border-l-4 border-portal-danger/60 bg-portal-danger/8 p-4 flex items-center gap-3">
+      <Calendar className="h-5 w-5 text-portal-danger" />
       <div>
-        <p className="text-sm">
+        <p className="portal-body">
           Se fechar hoje com{' '}
           <span className="font-medium">{proposal.agent?.name ?? '—'}</span>
         </p>
-        <p className="text-base font-semibold text-rose-700">
+        <p className="portal-h3 text-portal-danger">
           Chega na sua fábrica em {proposal.transit_time} dias ({formatDate(arrival)})
         </p>
       </div>
@@ -36,13 +36,13 @@ export function BestArrivalBanner({ proposal }: { proposal: PortalProposal }) {
 export function FinalizedApprovedBanner({ proposal }: { proposal: PortalProposal }) {
   const arrival = addDays(proposal.transit_time ?? 0);
   return (
-    <div className="rounded-md border-l-4 border-emerald-500 bg-emerald-50 p-4 flex items-start gap-3">
-      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+    <div className="rounded-xl border-l-4 border-portal-success bg-portal-success/8 p-4 flex items-start gap-3">
+      <CheckCircle2 className="h-5 w-5 text-portal-success shrink-0 mt-0.5" />
       <div className="space-y-0.5">
-        <p className="text-base font-semibold text-emerald-800">
+        <p className="portal-h3 text-portal-success">
           Cotação aprovada com {proposal.agent?.name ?? '—'}
         </p>
-        <p className="text-sm text-emerald-700">
+        <p className="portal-body text-foreground/75">
           Valor fechado:{' '}
           <span className="font-semibold">{formatBRL(proposal.total_brl)}</span>{' '}
           · Chegada estimada em {proposal.transit_time} dias ({formatDate(arrival)})
@@ -54,13 +54,13 @@ export function FinalizedApprovedBanner({ proposal }: { proposal: PortalProposal
 
 export function NeedsMoreInfoBanner({ quotation }: { quotation: PortalQuotation }) {
   return (
-    <div className="rounded-md border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
-      <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+    <div className="rounded-xl border border-portal-warning/30 bg-portal-warning/8 p-4 flex items-start gap-3">
+      <AlertCircle className="h-5 w-5 text-portal-warning shrink-0 mt-0.5" />
       <div className="flex-1 space-y-0.5">
-        <p className="text-base font-semibold text-amber-900">
+        <p className="portal-h3 text-portal-warning">
           Precisamos de mais informações
         </p>
-        <p className="text-sm text-amber-800">
+        <p className="portal-body text-foreground/75">
           Nossa equipe precisa de dados adicionais para continuar. Verifique seu
           e-mail ou entre em contato.
         </p>
@@ -81,16 +81,16 @@ export function FinalizedDeclinedBanner({
 }) {
   const reasonLabel = getDeclineReasonLabel(reason);
   return (
-    <div className="rounded-md border-l-4 border-rose-500 bg-rose-50 p-4 flex items-start gap-3">
-      <XCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+    <div className="rounded-xl border-l-4 border-portal-danger bg-portal-danger/8 p-4 flex items-start gap-3">
+      <XCircle className="h-5 w-5 text-portal-danger shrink-0 mt-0.5" />
       <div className="space-y-0.5">
-        <p className="text-base font-semibold text-rose-800">Cotação recusada</p>
+        <p className="portal-h3 text-portal-danger">Cotação recusada</p>
         {reasonLabel ? (
-          <p className="text-sm text-rose-700">
+          <p className="portal-body text-portal-danger">
             Motivo: <span className="font-semibold">{reasonLabel}</span>
           </p>
         ) : null}
-        {note ? <p className="text-sm text-rose-700 mt-1">Descrição: {note}</p> : null}
+        {note ? <p className="portal-body text-portal-danger mt-1">Descrição: {note}</p> : null}
       </div>
     </div>
   );
@@ -102,13 +102,13 @@ export function PendingAnalystReviewBanner({
   proposal?: PortalProposal;
 }) {
   return (
-    <div className="rounded-md border-l-4 border-amber-500 bg-amber-50 p-4 flex items-start gap-3">
-      <Clock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+    <div className="rounded-xl border-l-4 border-portal-warning bg-portal-warning/8 p-4 flex items-start gap-3">
+      <Clock className="h-5 w-5 text-portal-warning shrink-0 mt-0.5" />
       <div className="space-y-0.5">
-        <p className="text-base font-semibold text-amber-900">
+        <p className="portal-h3 text-portal-warning">
           Sua seleção está em análise pela Freitas
         </p>
-        <p className="text-sm text-amber-800">
+        <p className="portal-body text-foreground/75">
           {proposal?.agent?.name
             ? `Você selecionou a proposta de ${proposal.agent.name}. `
             : ''}
@@ -126,13 +126,13 @@ export function SelectionApprovedBanner({
   proposal?: PortalProposal;
 }) {
   return (
-    <div className="rounded-md border-l-4 border-emerald-500 bg-emerald-50 p-4 flex items-start gap-3">
-      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+    <div className="rounded-xl border-l-4 border-portal-success bg-portal-success/8 p-4 flex items-start gap-3">
+      <CheckCircle2 className="h-5 w-5 text-portal-success shrink-0 mt-0.5" />
       <div className="space-y-0.5">
-        <p className="text-base font-semibold text-emerald-800">
+        <p className="portal-h3 text-portal-success">
           Sua escolha foi aprovada pela Freitas
         </p>
-        <p className="text-sm text-emerald-700">
+        <p className="portal-body text-foreground/75">
           {proposal?.agent?.name
             ? `A proposta de ${proposal.agent.name} foi confirmada. `
             : ''}
@@ -146,13 +146,13 @@ export function SelectionApprovedBanner({
 
 export function GuardRailBlockBanner({ reason }: { reason: string }) {
   return (
-    <div className="rounded-md border-l-4 border-amber-500 bg-amber-50 p-4 flex items-start gap-3">
-      <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+    <div className="rounded-xl border-l-4 border-portal-warning bg-portal-warning/8 p-4 flex items-start gap-3">
+      <AlertCircle className="h-5 w-5 text-portal-warning shrink-0 mt-0.5" />
       <div className="space-y-0.5">
-        <p className="text-base font-semibold text-amber-900">
+        <p className="portal-h3 text-portal-warning">
           Proposta em revisão pela Freitas
         </p>
-        <p className="text-sm text-amber-800">Mensagem: {reason}</p>
+        <p className="portal-body text-foreground/75">Mensagem: {reason}</p>
       </div>
     </div>
   );
@@ -160,13 +160,13 @@ export function GuardRailBlockBanner({ reason }: { reason: string }) {
 
 export function FinalizedCancelledBanner() {
   return (
-    <div className="rounded-md border-l-4 border-slate-400 bg-slate-50 p-4 flex items-start gap-3">
+    <div className="rounded-xl border-l-4 border-slate-400 bg-slate-50 p-4 flex items-start gap-3">
       <Ban className="h-5 w-5 text-slate-500 shrink-0 mt-0.5" />
       <div className="space-y-0.5">
-        <p className="text-base font-semibold text-slate-700">
+        <p className="portal-h3 text-slate-700">
           Cotação cancelada
         </p>
-        <p className="text-sm text-slate-600">
+        <p className="portal-body text-slate-600">
           Esta cotação foi cancelada e não está mais em andamento.
         </p>
       </div>
