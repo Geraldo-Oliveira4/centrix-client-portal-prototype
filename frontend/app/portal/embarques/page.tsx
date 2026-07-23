@@ -27,6 +27,7 @@ import {
 import { PagePortalHeader, SectionHeading } from '../_shared/page-header';
 import { ModalIcon } from '../_shared/modal-icon';
 import { EstadoBadge } from './components/estado-badge';
+import { ShipmentQuickCheck } from './components/shipment-quick-check';
 import { ShipmentWorldMap } from './components/shipment-world-map';
 
 // Summary strip: shipments per state, nothing else. The GE "Torre de Controle"
@@ -86,6 +87,11 @@ export default function PortalEmbarquesPage() {
         <EmptyState message="Seus embarques aparecem aqui assim que uma cotação aprovada é fechada pela Freitas." />
       ) : (
         <>
+          {/* Direct lookup by reference — the "just check one shipment" shortcut,
+              above everything else. Client-side search over the already-owned
+              list, so it cannot reach another client's shipment. */}
+          <ShipmentQuickCheck />
+
           {/* World-map overview: the origins fanning into Brazil, coloured by
               state. Illustrative (see caption in the component) — it sits above
               the list as the quick read before the precise one. */}

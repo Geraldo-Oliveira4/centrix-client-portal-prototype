@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogOut, Menu } from 'lucide-react';
+import { LogOut, Menu, PackageSearch } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { portalSession } from '@/lib/portal-session';
@@ -61,6 +62,13 @@ export function PortalHeader() {
         </div>
       </div>
       <div className="flex items-center gap-3">
+        {/* Global shortcut to the direct shipment lookup on the tracking page. */}
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/portal/embarques#verificar">
+            <PackageSearch className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Verificar embarque</span>
+          </Link>
+        </Button>
         <Avatar className="h-9 w-9">
           <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
             {initials || '??'}
