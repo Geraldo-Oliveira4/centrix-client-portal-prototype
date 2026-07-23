@@ -15,7 +15,9 @@ import { useQuotationUploadFlow } from '@/hooks/use-quotation-upload-flow';
 import { ManualForm } from '@/app/cotacao/nova-cotacao/components/manual-form';
 import { UploadZone } from '@/app/cotacao/nova-cotacao/components/upload-zone';
 import { RfqDispatchCard } from '@/app/portal/cotacao/[id]/components/rfq-dispatch-card';
+import { PortalExporterSelect } from '@/app/portal/components/portal-exporter-select';
 import type { Quotation } from '@/types/quotation';
+import type { Exporter } from '@/types/exporter';
 
 type PagePhase = 'idle' | 'submitting' | 'done';
 
@@ -25,6 +27,10 @@ export default function PortalNovaCotacaoPage() {
   const [createdQuotation, setCreatedQuotation] = useState<Quotation | null>(null);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  // Only the manual form carries an exporter: the upload flow creates the
+  // quotation from the extracted documents, where the exporter comes from the
+  // extraction (not exercised in this prototype).
+  const [exporter, setExporter] = useState<Exporter | null>(null);
 
   const { uploadAndCreate } = useQuotationUploadFlow({
     createFn: createMyQuotation,
@@ -120,6 +126,14 @@ export default function PortalNovaCotacaoPage() {
             attachmentFiles={attachmentFiles}
             onAttachmentFilesChange={setAttachmentFiles}
             createFn={createMyQuotation}
+            exporterId={exporter?.id ?? null}
+            exporterSection={
+              <PortalExporterSelect
+                value={exporter?.id ?? null}
+                onChange={setExporter}
+                disabled={phase === 'submitting'}
+              />
+            }
           />
         </TabsContent>
 

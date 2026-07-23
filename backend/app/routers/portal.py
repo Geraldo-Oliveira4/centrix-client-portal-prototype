@@ -5,11 +5,14 @@ handler and invokes it through the event shim. Handlers are unchanged from Centr
 """
 
 import importlib
+import json
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 
+from app.audit_preview import lambda_handler as audit_preview_handler
 from app.event_shim import invoke
 from app.prototype_flow import auto_close_approved_quotation
+from app.quotation_exporter import link_exporter
 
 router = APIRouter(prefix="/portal", tags=["portal"])
 
@@ -38,6 +41,10 @@ h = {
         "get_my_quotation_documents",
         "add_my_quotation_document",
         "trigger_my_quotation_extraction",
+        "list_my_exporters",
+        "create_my_exporter",
+        "list_my_shipments",
+        "get_my_shipment",
     )
 }
 
@@ -48,6 +55,17 @@ async def get_my_client(request: Request):
     return await invoke(h["get_my_client"], request)
 
 
+# --- Exporters --------------------------------------------------------------
+@router.get("/exporters")
+async def list_my_exporters(request: Request):
+    return await invoke(h["list_my_exporters"], request)
+
+
+@router.post("/exporters")
+async def create_my_exporter(request: Request):
+    return await invoke(h["create_my_exporter"], request)
+
+
 # --- Quotations -------------------------------------------------------------
 @router.get("/quotations")
 async def list_my_quotations(request: Request):
@@ -56,7 +74,23 @@ async def list_my_quotations(request: Request):
 
 @router.post("/quotations")
 async def create_my_quotation(request: Request):
-    return await invoke(h["create_my_quotation"], request)
+    body = await request.json() if await request.body() else {}
+    resp = await invoke(h["create_my_quotation"], request)
+
+    # The copied handler ignores exporter_id (Centrix attaches the exporter later,
+    # via the analyst). Link it here so the portal's "select exporter" step on the
+    # new-quotation form actually persists. See app/quotation_exporter.py.
+    exporter_id = body.get("exporter_id") if isinstance(body, dict) else None
+    if resp.status_code == 201 and exporter_id:
+        payload = json.loads(resp.body)
+        if link_exporter(payload["quotation"]["id"], exporter_id):
+            payload["quotation"]["exporter_id"] = exporter_id
+            return Response(
+                content=json.dumps(payload),
+                status_code=201,
+                media_type="application/json",
+            )
+    return resp
 
 
 @router.get("/quotations/{id}")
@@ -129,3 +163,27 @@ async def add_my_quotation_document(request: Request, id: str):
 @router.post("/quotations/{id}/trigger-extraction")
 async def trigger_my_quotation_extraction(request: Request, id: str):
     return await invoke(h["trigger_my_quotation_extraction"], request, {"id": id})
+
+
+# --- Audit preview (MOCK) ---------------------------------------------------
+# MOCK - Auditoria real (Camada de Auditoria de Frete/Fatura) é produto separado,
+# sequenciado após GE go-live. Este preview existe apenas para visualização
+# conceitual no debate de produto. O handler mora em `app/audit_preview.py`, e
+# não em `lambdas/client_portal/`, justamente porque fabrica o valor realizado —
+# ver a docstring de lá.
+@router.get("/quotations/{id}/audit-preview")
+async def get_my_quotation_audit_preview(request: Request, id: str):
+    return await invoke(audit_preview_handler, request, {"id": id})
+
+
+# --- Shipments (GE) ---------------------------------------------------------
+# Read-only: the client follows the shipment its approved quotation generated,
+# but every operational change stays with the analyst's GE module.
+@router.get("/shipments")
+async def list_my_shipments(request: Request):
+    return await invoke(h["list_my_shipments"], request)
+
+
+@router.get("/shipments/{id}")
+async def get_my_shipment(request: Request, id: str):
+    return await invoke(h["get_my_shipment"], request, {"id": id})

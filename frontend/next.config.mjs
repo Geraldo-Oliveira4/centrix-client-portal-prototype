@@ -14,6 +14,21 @@ const nextConfig = {
   poweredByHeader: false,
   compress: true,
 
+  // Root goes straight to the client portal. This repo is the portal prototype:
+  // the analyst app was copied along with it, but nobody demoing this is meant
+  // to land on the internal login. Kept temporary (permanent: false, HTTP 307)
+  // so browsers do not cache it — the analyst routes still work when typed
+  // directly, and re-syncing this frontend with Centrix stays cheap.
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/portal/cotacoes',
+        permanent: false,
+      },
+    ];
+  },
+
   // Security headers
   async headers() {
     return [

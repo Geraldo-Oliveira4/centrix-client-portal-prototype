@@ -27,6 +27,7 @@ import type { PortalProposal } from '@/types/portal';
 
 import { ModalIcon } from '../../_shared/modal-icon';
 import { AdditionalCostsCard } from './components/additional-costs-card';
+import { AuditPreviewSection } from './components/audit-preview-section';
 import { ApproveDialog } from './components/approve-dialog';
 import { CancelDialog } from './components/cancel-dialog';
 import { DeclineDialog } from './components/decline-dialog';
@@ -169,6 +170,15 @@ export default function PortalCotacaoDetailPage() {
         />
       ) : selected ? (
         <BestArrivalBanner proposal={selected} />
+      ) : null}
+
+      {/* MOCK - Auditoria real (Camada de Auditoria de Frete/Fatura) é produto
+          separado, sequenciado após GE go-live. Este preview existe apenas para
+          visualização conceitual no debate de produto. Só aparece em cotação
+          FECHADA, que é quando existe proposta vencedora com valor real para
+          servir de base ao comparativo. */}
+      {isApproved(quotation.state) ? (
+        <AuditPreviewSection quotationId={quotation.id} />
       ) : null}
 
       {showShipmentInstruction ? (

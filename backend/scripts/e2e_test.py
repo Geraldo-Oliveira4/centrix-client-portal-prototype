@@ -104,6 +104,82 @@ def _make_foreign_quotation() -> str:
         return str(qid)
 
 
+def _make_foreign_exporter() -> str:
+    """An exporter owned by another client, plus a global (analyst-managed,
+    client_id NULL) one. Neither may ever surface in the portal's exporter list.
+    Returns the foreign client's exporter id.
+    """
+    from shared.database.connection import get_session
+    from shared.database.models.quotation.client import QuotationClient
+    from shared.database.models.quotation.enums import ClientTier, ExporterCargoProfile
+    from shared.database.models.quotation.exporter import Exporter
+
+    with get_session() as session:
+        other = (
+            session.query(QuotationClient)
+            .filter(QuotationClient.name == "OUTRO CLIENTE")
+            .first()
+        )
+        if other is None:
+            other_id = uuid.uuid4()
+            session.add(QuotationClient(
+                id=other_id, name="OUTRO CLIENTE", email="outro@x.local",
+                company_code="OUTRO", tier=ClientTier.MANTER, is_vip=False,
+            ))
+            session.flush()
+        else:
+            other_id = other.id
+
+        eid = uuid.uuid4()
+        session.add(Exporter(
+            id=eid, client_id=other_id, name=f"EXPORTADOR RIVAL {str(eid)[:8]}",
+            cargo_profile=ExporterCargoProfile.GERAL,
+        ))
+        session.add(Exporter(
+            id=uuid.uuid4(), client_id=None,
+            name=f"EXPORTADOR GLOBAL {str(uuid.uuid4())[:8]}",
+            cargo_profile=ExporterCargoProfile.GERAL,
+        ))
+        return str(eid)
+
+
+def _make_foreign_shipment() -> str:
+    """A Processo + Embarque owned by another client. It must never surface in
+    the portal's shipment list, and fetching it by id must 404 exactly like a
+    non-existent one. Returns the foreign processo id (the portal's `id`).
+    """
+    from shared.database.connection import get_session
+    from shared.database.models.quotation.client import QuotationClient
+    from shared.database.models.quotation.enums import ClientTier
+    from shared.database.models.shipment.enums import EmbarqueState
+    from shared.database.repositories import (
+        embarque_repository,
+        processo_repository,
+    )
+
+    with get_session() as session:
+        other = (
+            session.query(QuotationClient)
+            .filter(QuotationClient.name == "OUTRO CLIENTE")
+            .first()
+        )
+        if other is None:
+            other_id = uuid.uuid4()
+            session.add(QuotationClient(
+                id=other_id, name="OUTRO CLIENTE", email="outro@x.local",
+                company_code="OUTRO", tier=ClientTier.MANTER, is_vip=False,
+            ))
+            session.flush()
+        else:
+            other_id = other.id
+
+        processo = processo_repository.create(session, client_id=other_id)
+        embarque_repository.create(
+            session, processo_id=processo.id, estado=EmbarqueState.SOLICITADO
+        )
+        return str(processo.id)
+
+
 # ---------------------------------------------------------------------------
 # Test suite
 # ---------------------------------------------------------------------------
@@ -292,6 +368,217 @@ def run():
           st == 200 and tok.get("access_token") and "user" in tok, str(list(tok.keys())))
     st, _ = req("POST", "/portal/auth/refresh-token", {"refresh_token": "x"})
     check("M2 auth/refresh-token stub -> 200", st == 200, str(st))
+
+    # --- N. Exporters (portal self-service registration) ------------------
+    st, exp_list = req("GET", "/portal/exporters")
+    check("N1 GET /exporters -> 200 empty for fresh seed",
+          st == 200 and exp_list.get("total") == 0, str(exp_list))
+
+    st, created = req("POST", "/portal/exporters", {
+        "name": "Exportador E2E",
+        "endereco": "Rua Teste 100",
+        "particularidades": "Coleta com agendamento",
+        "cargo_profile": "PERIGOSA",
+        "contact_email": "e2e@exportador.local",
+    })
+    exporter = created.get("exporter", {})
+    exporter_id = exporter.get("id")
+    check("N2 POST /exporters -> 201", st == 201, str(st))
+    check("N3 created exporter echoes fields",
+          exporter.get("name") == "Exportador E2E"
+          and exporter.get("cargo_profile") == "PERIGOSA"
+          and exporter.get("contact_email") == "e2e@exportador.local",
+          str(exporter))
+    check("N4 exporter payload omits client_id (owner never leaks)",
+          "client_id" not in exporter, str(list(exporter.keys())))
+
+    st, exp_list = req("GET", "/portal/exporters")
+    check("N5 GET /exporters lists the new exporter",
+          st == 200 and exp_list.get("total") == 1
+          and exp_list["items"][0]["id"] == exporter_id,
+          str(exp_list))
+
+    st, _ = req("POST", "/portal/exporters", {"name": "exportador e2e"})
+    check("N6 duplicate name (case-insensitive) -> 409", st == 409, str(st))
+    st, _ = req("POST", "/portal/exporters", {"name": "   "})
+    check("N7 blank name -> 400", st == 400, str(st))
+    st, _ = req("POST", "/portal/exporters", {"name": "X", "cargo_profile": "NUCLEAR"})
+    check("N8 invalid cargo_profile -> 400", st == 400, str(st))
+
+    # Ownership: another client's exporter and the analyst-managed global rows
+    # must be invisible to this portal user.
+    foreign_exporter = _make_foreign_exporter()
+    st, exp_list = req("GET", "/portal/exporters")
+    names = [i["name"] for i in exp_list.get("items", [])]
+    check("N9 foreign + global exporters excluded from list",
+          st == 200 and exp_list.get("total") == 1
+          and not any(n.startswith(("EXPORTADOR RIVAL", "EXPORTADOR GLOBAL")) for n in names),
+          str(names))
+
+    # Linking on quotation creation (app/quotation_exporter.py).
+    st, q = req("POST", "/portal/quotations", {
+        "source": "manual", "modal": "MARITIMO", "product": "Carga E2E exportador",
+        "exporter_id": exporter_id,
+    })
+    check("N10 create quotation with own exporter -> 201 and linked",
+          st == 201 and q.get("quotation", {}).get("exporter_id") == exporter_id,
+          str(q.get("quotation", {}).get("exporter_id")))
+
+    st, q = req("POST", "/portal/quotations", {
+        "source": "manual", "modal": "AEREO", "product": "Carga E2E rival",
+        "exporter_id": foreign_exporter,
+    })
+    check("N11 foreign exporter is refused but quotation still created",
+          st == 201 and q.get("quotation", {}).get("exporter_id") is None,
+          str(q.get("quotation", {}).get("exporter_id")))
+
+    st, q = req("POST", "/portal/quotations", {
+        "source": "manual", "modal": "AEREO", "product": "Carga E2E sem exportador",
+    })
+    check("N12 quotation without exporter still works -> 201",
+          st == 201 and q.get("quotation", {}).get("exporter_id") is None, str(st))
+
+    # --- O. Shipments / GE (read-only tracking) ---------------------------
+    st, sh = req("GET", "/portal/shipments")
+    items = sh.get("items", [])
+    seeded = [i for i in items if i["referencia"].startswith("EMB-")]
+    check("O1 GET /shipments -> 200 with the seeded shipments",
+          st == 200 and len(seeded) >= 3, f"{st} {len(items)}")
+
+    # The seed plants one shipment per primary/exception state family; every item
+    # must carry a state from the real EmbarqueState enum.
+    valid_states = {
+        "solicitado", "aguardando_prontidao", "coletado", "analise_booking",
+        "embarcado", "postergado", "booking_divergente",
+    }
+    check("O2 every estado belongs to EmbarqueState",
+          all(i["estado"] in valid_states for i in items),
+          str([i["estado"] for i in items]))
+
+    check("O3 by_estado counts match the item list",
+          sh.get("by_estado", {}).get("embarcado", 0) >= 1
+          and sum(sh.get("by_estado", {}).values()) == len(items),
+          str(sh.get("by_estado")))
+
+    # Urgent cargo sorts first (Processo.carga_urgente desc, created_at desc).
+    urgent_positions = [n for n, i in enumerate(items) if i["carga_urgente"]]
+    check("O4 urgent shipments sort first",
+          urgent_positions == list(range(len(urgent_positions))),
+          str(urgent_positions))
+
+    # Ponte 1: approving a proposal (section H) closes the quotation, and the
+    # state machine provisions a Processo + Embarque from it. That shipment must
+    # now be visible to the client that approved it.
+    from_approval = [i for i in items if i.get("quotation_id") == q_approve]
+    check("O5 approving a quotation provisioned a visible shipment",
+          len(from_approval) == 1 and from_approval[0]["estado"] == "solicitado",
+          str(from_approval))
+
+    # Internal ERP routing id is never exposed to the client.
+    check("O6 inova_processo_id omitted from the portal payload",
+          all("inova_processo_id" not in i for i in items), str(items[:1]))
+
+    shipment_id = items[0]["id"]
+    st, det = req("GET", f"/portal/shipments/{shipment_id}")
+    ship = det.get("shipment", {})
+    check("O7 GET /shipments/{id} -> 200 with detail fields",
+          st == 200 and ship.get("id") == shipment_id
+          and "containers" in ship and "agente" in ship,
+          f"{st} {list(ship)}")
+
+    check("O8 detail carries no transition history (none exists in the DB)",
+          "history" not in ship and "timeline" not in ship, str(list(ship)))
+
+    st, _ = req("GET", f"/portal/shipments/{uuid.uuid4()}")
+    check("O9 unknown shipment -> 404", st == 404, str(st))
+    st, _ = req("GET", "/portal/shipments/not-a-uuid")
+    check("O10 malformed shipment id -> 400", st == 400, str(st))
+
+    # Anti-enumeration: another client's shipment is indistinguishable from a
+    # non-existent one, and never leaks into the list.
+    foreign_shipment = _make_foreign_shipment()
+    st, _ = req("GET", f"/portal/shipments/{foreign_shipment}")
+    check("O11 foreign shipment -> 404 (anti-enumeration)", st == 404, str(st))
+    st, sh2 = req("GET", "/portal/shipments")
+    check("O12 foreign shipment excluded from the list",
+          st == 200 and all(i["id"] != foreign_shipment for i in sh2.get("items", [])),
+          str(len(sh2.get("items", []))))
+
+    # --- P. Audit preview (MOCK, conceptual only) -------------------------
+    # Guards the honesty contract of app/audit_preview.py: the quoted value is
+    # real, everything derived from the fabricated "realized" value is flagged.
+    st, ap1 = req("GET", f"/portal/quotations/{q_approve}/audit-preview")
+    preview = ap1.get("audit_preview", {})
+    check("P1 audit-preview on a closed quotation -> 200",
+          st == 200 and preview.get("is_mock") is True, f"{st} {preview}")
+
+    check("P2 every fabricated field is prefixed mock_",
+          {"mock_realized_value_brl", "mock_variation_pct", "mock_difference_brl",
+           "mock_divergence_detected"}.issubset(preview)
+          and "realized_value_brl" not in preview,
+          str(sorted(preview)))
+
+    check("P3 quoted value comes from the winning proposal (real data)",
+          preview.get("quoted_value_source") == "winning_proposal"
+          and preview.get("quoted_value_brl", 0) > 0,
+          str(preview.get("quoted_value_brl")))
+
+    # The quoted value must equal the total_brl the detail screen already shows
+    # for the winner — a mismatch would print two different R$ on one page.
+    st, det = req("GET", f"/portal/quotations/{q_approve}")
+    winner_brl = next(
+        (p["total_brl"] for p in det["quotation"]["proposals"] if p.get("is_winner")),
+        None,
+    )
+    check("P4 quoted value matches the winner total_brl on the detail screen",
+          winner_brl is not None
+          and abs(winner_brl - preview.get("quoted_value_brl", 0)) < 0.01,
+          f"{winner_brl} vs {preview.get('quoted_value_brl')}")
+
+    # Fabricated variation stays inside the declared band and is arithmetically
+    # consistent with the quoted value.
+    pct = preview.get("mock_variation_pct")
+    expected_realized = round(
+        preview["quoted_value_brl"] * (1 + pct / 100.0), 2
+    )
+    check("P5 mock variation within the -3%..+8% band and arithmetically consistent",
+          -3.0 <= pct <= 8.0
+          and abs(preview["mock_realized_value_brl"] - expected_realized) < 0.01,
+          f"{pct} {preview.get('mock_realized_value_brl')} vs {expected_realized}")
+
+    check("P6 divergence flag agrees with the 5% threshold",
+          preview["mock_divergence_detected"] == (abs(pct) > preview["divergence_threshold_pct"]),
+          f"{pct} {preview['mock_divergence_detected']}")
+
+    check("P7 disclaimer states the value is illustrative",
+          "ilustrativo" in preview.get("disclaimer", "").lower(),
+          preview.get("disclaimer", ""))
+
+    # Deterministic: same quotation, same numbers on every call. A demo that
+    # reshuffles the figure on refresh reads as a live measurement.
+    st, ap2 = req("GET", f"/portal/quotations/{q_approve}/audit-preview")
+    check("P8 preview is deterministic across calls",
+          ap2.get("audit_preview") == preview, str(ap2.get("audit_preview")))
+
+    # Not-closed quotations have no winning proposal to compare against.
+    st, _ = req("GET", f"/portal/quotations/{q_cotando}/audit-preview")
+    check("P9 audit-preview on a non-closed quotation -> 409", st == 409, str(st))
+
+    st, _ = req("GET", f"/portal/quotations/{foreign}/audit-preview")
+    check("P10 audit-preview on a foreign quotation -> 404 (anti-enumeration)",
+          st == 404, str(st))
+    st, _ = req("GET", f"/portal/quotations/{uuid.uuid4()}/audit-preview")
+    check("P11 audit-preview on an unknown quotation -> 404", st == 404, str(st))
+
+    # The seeded closed quotation must land above the threshold, so the
+    # "Divergência detectada" badge is guaranteed on screen for the demo. This
+    # is why the mock is seeded from the reference (stable across seeds) and not
+    # from the UUID (redrawn on every `make seed`) — see app/audit_preview.py.
+    st, ap3 = req("GET", f"/portal/quotations/{q_fechada}/audit-preview")
+    seeded = ap3.get("audit_preview", {})
+    check("P12 seeded closed quotation deterministically shows a divergence",
+          st == 200 and seeded.get("mock_divergence_detected") is True,
+          f"{st} {seeded.get('mock_variation_pct')}")
 
     # --- Summary ----------------------------------------------------------
     passed = sum(1 for ok, _, _ in _results if ok)

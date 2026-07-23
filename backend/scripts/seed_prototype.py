@@ -42,6 +42,8 @@ from shared.database.models.quotation.proposal import Proposal
 from shared.database.models.quotation.proposal_score import ProposalScore
 from shared.database.models.quotation.quotation import Quotation
 from shared.database.models.quotation.quotation_log import QuotationLog
+from shared.database.models.shipment.enums import EmbarqueState, TipoDespacho
+from shared.database.repositories import embarque_repository, processo_repository
 
 DEMO_SUB = os.environ.get("DEMO_PORTAL_SUB", "demo-portal-user-sub")
 DEMO_EMAIL = os.environ.get("DEMO_PORTAL_EMAIL", "demo@cliente.local")
@@ -252,7 +254,57 @@ def seed() -> None:
             _log(q6.id, "client_cancelled_quotation", "CANCELADO"),
         ])
 
-        print(f"Seeded demo client {client_id} with 6 quotations and 3 agents.")
+        # --- Shipments / GE (level 4) --------------------------------------
+        # Without these the "Meus Embarques" screen is empty on a fresh demo:
+        # shipments are only provisioned when the client approves a proposal
+        # (quotation_state_machine -> provision_processo_from_quotation), and the
+        # seed writes quotation rows directly, bypassing the state machine.
+        #
+        # Only q4 is FECHADA, so only the first shipment carries a quotation_id.
+        # The other two are left unlinked (Processo.quotation_id is nullable by
+        # design) rather than promoting more quotations to FECHADA, which would
+        # shift the portal bucket counts the e2e suite asserts. They stand for
+        # processes the analyst opened outside the portal — a real case, and the
+        # only way to show more than one state in the progress indicator.
+        shipments = [
+            # (quotation_id, agent, estado, carga_urgente, containers, observacao)
+            (q4.id, agents[0], EmbarqueState.EMBARCADO, False,
+             [{"numero": "MSKU7412589", "tipo": "40HC", "tara": 3750}],
+             "Embarcado no navio MAERSK SELETAR."),
+            (None, agents[1], EmbarqueState.AGUARDANDO_PRONTIDAO, True,
+             None, "Aguardando prontidão da carga na origem."),
+            (None, agents[2], EmbarqueState.BOOKING_DIVERGENTE, False,
+             [{"numero": "TCLU9983261", "tipo": "20GP", "tara": 2200}],
+             "Booking divergente do aprovado — em tratativa com o armador."),
+        ]
+        for age, (quotation_id, agent, estado, urgente, containers, observacao) in enumerate(
+            shipments
+        ):
+            processo = processo_repository.create(
+                session,
+                client_id=client_id,
+                quotation_id=quotation_id,
+                incoterm="FOB",
+                modal=Modal.MARITIMO,
+                tipo_embarque=TipoEmbarque.FCL,
+                tipo_despacho=TipoDespacho.DIRETO,
+                carga_urgente=urgente,
+                agente_id=agent.id,
+                containers=containers,
+                observacao=observacao,
+            )
+            # created_at defaults to now() for every row in this transaction, which
+            # would leave the list ordering (urgent first, then newest first) to
+            # chance. Stagger it so the demo list is deterministic.
+            processo.created_at = _now - timedelta(days=age)
+            embarque_repository.create(
+                session, processo_id=processo.id, estado=estado
+            )
+
+        print(
+            f"Seeded demo client {client_id} with 6 quotations, 3 agents "
+            f"and {len(shipments)} shipments."
+        )
 
 
 if __name__ == "__main__":

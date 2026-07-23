@@ -109,9 +109,18 @@ interface ManualFormProps {
   attachmentFiles?: File[];
   onAttachmentFilesChange?: (files: File[]) => void;
   createFn?: typeof createQuotation;
+  /**
+   * Optional exporter step. The portal renders its own self-service selector
+   * here (pick an existing exporter or register a new one); the analyst screen
+   * passes nothing and the block is omitted entirely. Kept as a slot so this
+   * shared form does not have to import portal-only components.
+   */
+  exporterSection?: React.ReactNode;
+  /** Exporter chosen in `exporterSection`, submitted as `exporter_id`. */
+  exporterId?: string | null;
 }
 
-export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation }: ManualFormProps) {
+export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId }: ManualFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraggingAttachments, setIsDraggingAttachments] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -260,6 +269,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
     const result = await createFn({
       source: 'manual',
       client_id: clientId ?? undefined,
+      exporter_id: exporterId || undefined,
       tipo_cotacao: values.tipo_cotacao as TipoCotacao | undefined,
       data_cotacao: values.data_cotacao || undefined,
       service_type: values.service_type as ServiceType | undefined,
@@ -333,6 +343,13 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
             title="Embarque"
             subtitle="Origem, destino e informações de transporte"
           >
+            {exporterSection ? (
+              <div className="mb-4 flex flex-col gap-2">
+                <Label>Exportador</Label>
+                {exporterSection}
+              </div>
+            ) : null}
+
             <div className="grid grid-cols-2 gap-3">
               <FormField
                 control={form.control}

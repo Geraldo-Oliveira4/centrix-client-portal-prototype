@@ -2,7 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, FileText, PanelLeft, PanelLeftClose, X } from 'lucide-react';
+import {
+  Building2,
+  FileText,
+  PanelLeft,
+  PanelLeftClose,
+  Ship,
+  Warehouse,
+  X,
+} from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import {
@@ -19,6 +27,16 @@ const NAV_ITEMS = [
     href: '/portal/cotacoes',
     label: 'Minhas Cotações',
     icon: FileText,
+  },
+  {
+    href: '/portal/embarques',
+    label: 'Meus Embarques',
+    icon: Ship,
+  },
+  {
+    href: '/portal/exportadores',
+    label: 'Meus Exportadores',
+    icon: Warehouse,
   },
 ];
 

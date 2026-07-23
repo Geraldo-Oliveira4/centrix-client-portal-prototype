@@ -23,16 +23,18 @@ backend/                         # FastAPI (substitui AWS Lambda + API Gateway)
     event_shim.py                # Request HTTP -> evento API Gateway v2 + auto-login (DEMO_SUB)
     mocks.py                     # S3 -> filesystem local; Graph/e-mail -> no-op
     prototype_flow.py            # auto-aprovação (analista simulado) — ver abaixo
+    audit_preview.py             # MOCK do comparativo de auditoria — ver abaixo
     routers/
-      portal.py                  # 15 rotas /portal/* -> handlers client_portal
+      portal.py                  # rotas /portal/* -> handlers client_portal (+ audit_preview)
       auth.py                    # /portal/auth/* -> stubs (sem Cognito)
       local_s3.py                # PUT/GET /_local_s3/{key} no filesystem
   shared/                        # COPIADO do Centrix quase sem alteração (models, repos, domain, services)
-  lambdas/client_portal*/        # COPIADO do Centrix — os handlers originais, intactos
-  alembic/                       # COPIADO — migrations 001..089
+  lambdas/client_portal*/        # COPIADO do Centrix — handlers originais intactos
+                                 #   (+2 novos de exportador, +2 novos de embarque)
+  alembic/                       # COPIADO — migrations 001..089 (+090, do protótipo)
   scripts/
-    seed_prototype.py            # cliente demo + 6 cotações + agentes + DNA
-    e2e_test.py                  # suíte E2E (52 checagens)
+    seed_prototype.py            # cliente demo + 6 cotações + agentes + DNA + 3 embarques
+    e2e_test.py                  # suíte E2E (88 checagens)
 frontend/                        # CÓPIA do app Next.js do Centrix (só /portal ligado ao backend)
   vendor/arboria-ui, arboria-config   # deps @arboria-tech vendorizadas (file:), sem GitHub Packages
 docker-compose.yml               # Postgres 16 local
@@ -45,14 +47,45 @@ do protótipo vive na camada `app/`** (shim, mocks, routers, prototype_flow). Is
 mantém a paridade comportamental com o original e facilita re-sincronizar com o
 Centrix no futuro. Ao corrigir algo, prefira ajustar `app/` a editar `shared/`.
 
-O único ajuste feito em código copiado foi `shared/database/connection.py`
-(string do Postgres local + pool maior, em vez do pool tunado p/ Lambda).
+Divergências conhecidas em relação ao Centrix (mantenha esta lista curta e
+atualizada — é o que dificulta um futuro re-sync):
+
+- `shared/database/connection.py` — string do Postgres local + pool maior, em
+  vez do pool tunado p/ Lambda.
+- **Cadastro de exportador pelo portal** (não existe no Centrix, onde o
+  exportador é catálogo global do analista):
+  - `alembic/versions/090_add_client_id_to_exporters.py` — coluna `client_id`
+    (nullable) em `centrix_exporters`. NULL = exportador global do analista;
+    preenchido = cadastrado por aquele cliente no portal.
+  - `shared/database/models/quotation/exporter.py` — mapeia a coluna acima.
+  - `shared/database/repositories/portal_exporter_repository.py` — **arquivo
+    novo**, queries escopadas ao cliente (o `exporter_repository` do analista é
+    global e não filtra).
+  - `lambdas/client_portal/{list_my_exporters,create_my_exporter}/` — handlers
+    novos, sem contrapartida no Centrix.
+  - `app/quotation_exporter.py` — vincula o exportador à cotação depois do
+    create, porque `create_quotation_core` (copiado) não conhece `exporter_id`.
+- **Acompanhamento de embarque pelo portal** (no Centrix, GE é tela de analista;
+  o cliente não enxerga o Processo/Embarque). Só leitura — nenhuma escrita de GE
+  pelo portal:
+  - `shared/database/repositories/portal_shipment_repository.py` — **arquivo
+    novo**, queries escopadas ao cliente (o `processo_repository.list_for_kanban`
+    do analista é global e não filtra).
+  - `shared/portal_shipment_helpers.py` — **arquivo novo**, serializers com
+    projeção reduzida (sem `inova_processo_id`, sem `client_id`).
+  - `lambdas/client_portal/{list_my_shipments,get_my_shipment}/` — handlers
+    novos, sem contrapartida no Centrix.
+  - Nada do módulo GE do analista (`lambdas/shipment*`, rotas `/shipments`) foi
+    copiado: as tabelas e repositories existem, os handlers não.
 
 ## Fronteiras mockadas (por design)
 
 | Real (Postgres local) | Mockado / simplificado |
 |---|---|
 | kanban, detalhe, propostas, histórico, recomendação (score determinístico) | extração PDF/e-mail (IA/OpenRouter) — não exercida |
+| cadastro de exportador pelo cliente + vínculo na nova cotação | — |
+| acompanhamento de embarque (Processo/Embarque criados na aprovação) | histórico de transições do embarque (não existe tabela) e ETA/SLA (`processos.datas` fica NULL) |
+| valor cotado na seção Auditoria (proposta vencedora) | **valor realizado** — fabricado em `app/audit_preview.py`; não existe fatura/BL neste repo |
 | aprovar/recusar/cancelar, montar+disparar RFQ | envio de e-mail (Microsoft Graph) -> log |
 | upload de documentos | S3 -> `backend/storage/` via `/_local_s3` |
 | — | Cognito -> auto-login (sem login real); guard rail -> simplificado |
@@ -68,6 +101,38 @@ analista fechar (guard rail, ARB-2449). Aqui, `app/prototype_flow.py` faz o
 **analista automático**: após o handler original de aprovação ter sucesso, o
 router avança `APROVADA_PELO_CLIENTE -> FECHADA`, e o card vai para "Aprovadas".
 Está todo comentado lá. Guard rail e etapa manual do analista ficam de fora.
+
+Efeito colateral (do Centrix, não do protótipo): a transição para `FECHADA` passa
+pelo `quotation_state_machine`, que chama
+`shipment_service.provision_processo_from_quotation`. Ou seja, toda aprovação no
+portal cria um Processo + Embarque (`solicitado`) de verdade — é o que alimenta a
+tela "Meus Embarques".
+
+## Seção "Auditoria" da cotação (MOCK, casca conceitual)
+
+`app/audit_preview.py` + `GET /portal/quotations/{id}/audit-preview` servem um
+comparativo cotado × realizado na tela de detalhe da cotação FECHADA. **Metade
+é inventada**: o valor cotado é real (proposta vencedora), o valor realizado
+não existe em tabela nenhuma — é uma variação determinística (-3% a +8%)
+derivada do hash da `reference` da cotação.
+
+A auditoria de verdade (Camada de Auditoria de Frete/Fatura) é produto
+separado, sequenciado depois do go-live do GE. Isto aqui é só para o cliente
+enxergar a ideia num debate de produto.
+
+Convenções que sustentam o aviso — mantenha se mexer nisso:
+
+- O handler vive em `app/` (camada do protótipo), **não** em
+  `lambdas/client_portal/`: endpoint que fabrica número não mora junto dos
+  handlers reais.
+- Todo campo fabricado da resposta tem prefixo `mock_`, e `is_mock: true` vai
+  no topo do payload.
+- A UI emoldura a seção inteira como ilustrativa (borda tracejada + selo
+  "Pré-visualização"), rotula o card fabricado como "Valor estimado — dado
+  ilustrativo" e imprime o disclaimer que vem do backend.
+- A semente do hash é a `reference` (estável entre seeds), não o UUID
+  (sorteado a cada `make seed`) — assim a COT-2026-0004 semeada sempre cai
+  acima do limite de 5% e o selo "Divergência detectada" aparece na demo.
 
 ## Como rodar
 
@@ -89,7 +154,7 @@ elegibilidade de RFQ, 404 anti-enumeração, mocks). Rode com banco recém-semea
 ```bash
 docker compose down -v && docker compose up -d
 cd backend && make migrate && make seed && make run &
-.venv/bin/python -m scripts.e2e_test     # -> 52/52 ALL PASS
+.venv/bin/python -m scripts.e2e_test     # -> 88/88 ALL PASS
 ```
 
 Ao adicionar comportamento, adicione uma checagem correspondente no e2e_test.py.

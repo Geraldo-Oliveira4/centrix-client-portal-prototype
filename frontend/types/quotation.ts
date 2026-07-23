@@ -425,6 +425,7 @@ export interface CreateVolumeItem {
 export interface CreateQuotationManualPayload {
   source: 'manual';
   client_id?: string;
+  exporter_id?: string;
   service_type?: ServiceType;
   modal?: QuotationModal;
   tipo_embarque?: TipoEmbarque;
