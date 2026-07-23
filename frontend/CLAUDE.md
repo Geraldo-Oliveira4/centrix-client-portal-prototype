@@ -387,6 +387,64 @@ Do not introduce `p-3`, `gap-3`, `space-y-5` or other off-grid steps in `/portal
 > Class names composed in `types/` are only picked up because
 > `./types/**/*.{ts,tsx}` is in the Tailwind `content` globs. Keep it there.
 
+## Client Portal modules — Inteligência & Auditoria
+
+Two `/portal` modules that surface product answers under one **honesty
+discipline**: nothing real wears the preview badge, nothing fabricated is shown
+without it. The shared badge is `ProvenanceBadge`
+(`app/portal/_shared/provenance-badge.tsx`) — `real` (green "Dado real") vs
+`preview` (dashed "Pré-visualização", the same seal already used by the
+per-quotation Auditoria section). Reuse it on any new portal surface that mixes
+real and illustrative data; do not invent a second badge style.
+
+Both modules are **read-only** and add **no backend endpoint** — they compose
+existing `GET` routes. Their sidebar entries live in
+`app/portal/components/portal-sidebar.tsx` (`Sparkles` → Inteligência,
+`Scale` → Auditoria).
+
+### Inteligência (`/portal/inteligencia/`)
+
+Six blocks, one per Business Model Canvas question. Each block self-fetches via
+existing SWR hooks (deduped by key, so the six blocks share one
+`/portal/quotations` request), and is wrapped in `IntelBlock`
+(`components/intel-block.tsx`) — it renders the surface (`.portal-card` for
+`real`, dashed frame for `preview`) + `ProvenanceBadge` + footnote. Pure helpers
+in `lib/intel-helpers.ts` (`flattenQuotations`, `pickDecisionCandidate`,
+`seededInt` for stable illustrative numbers, `daysUntilDate`). Keep the blocks
+presentational; put logic in the helpers.
+
+| Bloco (arquivo) | Pergunta do canvas | Fonte (hooks / endpoint) | Badge | Real vs Mockado |
+|---|---|---|---|---|
+| Decisão (`decision-block.tsx`) | Estou tomando a melhor decisão? | `useMyQuotations`, `useMyRecommendation` (`/portal/quotations/{id}/recommendation`) | `real` | **Real:** recomendação por IA (score determinístico) da cotação mais recente com propostas |
+| Confiabilidade (`reliability-block.tsx`) | Esse agente é confiável? | `useMyQuotations` | `preview` | **Real:** nomes dos agentes (das propostas). **Mock:** scores de confiabilidade + média (`seededInt`) |
+| Mercado (`market-block.tsx`) | O preço está competitivo? | `useMyQuotations` | `preview` | **Real:** seu preço médio (média das propostas). **Mock:** benchmark do setor (`avg × 1.08`) |
+| Risco (`risk-block.tsx`) | Quais riscos aparecem depois? | `useMyQuotations` | `preview` | **Real:** sinais de campos reais (moeda ≠ BRL, validade perto de vencer, urgência) + refs reais. **Mock:** a "análise de risco" como produto |
+| Prazo (`deadline-block.tsx`) | A carga chega no prazo? | `useMyShipments` | `preview` | **Real:** contagem de embarques (denominador). **Mock:** % no prazo (constante 87%) — não há ETA/histórico |
+| Evidência (`evidence-block.tsx`) | O que ocorreu em embarques similares? | `useMyShipments` | `real` | **Real:** cards de embarques do histórico. **Mock:** só o critério de "semelhança de rota" (sem matching) |
+
+Ao mexer num bloco, mantenha o `provenance` coerente com o **headline**: se o
+número em destaque é fabricado, o bloco é `preview` (mesmo que use nomes/valores
+reais em volta) e a footnote deve dizer o que é real e o que é ilustrativo.
+
+### Auditoria agregada (`/portal/auditoria/`)
+
+Eleva a Auditoria por cotação (`AuditPreviewSection` no detalhe) a uma lista
+agregada de **todas as cotações FECHADAS**. Usa `useAuditPreviews(ids)`
+(`hooks/use-portal-audit-preview.ts`), que faz fan-out do **mesmo** endpoint por
+cotação `GET /portal/quotations/{id}/audit-preview` sobre cada fechada — um GET
+por id, cada um com `try/catch` para um 409 isolado (fechada sem proposta
+vencedora) virar `null` naquela linha em vez de derrubar o lote. Chave SWR
+`['portal-audit-previews', ...ids]` (ids ordenados). **Sem endpoint agregado
+novo:** os números batem exatamente com o detalhe de cada cotação.
+
+Honestidade: só `quoted_value_brl` é real (proposta aprovada); `valor estimado`,
+`diferença` e `divergência` são os mesmos campos `mock_*` fabricados
+deterministicamente no backend (`app/audit_preview.py`), então a página inteira
+fica na moldura tracejada de pré-visualização. O resumo conta divergências sobre
+**todas** as fechadas e rotula como "no período" — **não** filtra por mês (o
+portal não expõe `closed_at`; um recorte mensal real exigiria adicionar esse
+campo ao serializer, leitura aditiva ainda não feita).
+
 ## Quotation field utilities — `utils/quotation-fields.ts`
 
 All shared logic for quotation field handling lives in `utils/quotation-fields.ts`. **Do not duplicate any of this in component or page files.**
