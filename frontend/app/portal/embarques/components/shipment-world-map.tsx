@@ -14,6 +14,7 @@ import {
 } from '@/types/portal-shipment';
 
 import { EstadoBadge } from './estado-badge';
+import { DESTINATION, ORIGINS, originIndex } from '../lib/shipment-origins';
 
 // Illustrative world map. NOT geographically exact and NOT a tracking feed:
 // there is no GPS/AIS/carrier position in this repo. Each active shipment is
@@ -21,6 +22,9 @@ import { EstadoBadge } from './estado-badge';
 // its EMB reference (so it stays put between renders) and drawn as an arc to
 // Brazil, the single import destination. The arc colour is the real state; the
 // origin is decorative. Same honesty caption as ShipmentRoute — keep it.
+//
+// ORIGINS / DESTINATION / originIndex live in lib/shipment-origins.ts so the
+// tracking panel names the same POL this map plots for a given shipment.
 
 const VIEW_W = 1000;
 const VIEW_H = 500;
@@ -30,29 +34,6 @@ const VIEW_H = 500;
 function project(lon: number, lat: number): { x: number; y: number } {
   return { x: ((lon + 180) / 360) * VIEW_W, y: ((90 - lat) / 180) * VIEW_H };
 }
-
-interface Hub {
-  name: string;
-  lon: number;
-  lat: number;
-}
-
-// Approximate positions of common export hubs across Asia, Europe and North
-// America. Fixed and illustrative — not the shipment's real port of loading.
-const ORIGINS: Hub[] = [
-  { name: 'Shanghai', lon: 121.5, lat: 31.2 },
-  { name: 'Hamburg', lon: 10.0, lat: 53.5 },
-  { name: 'Los Angeles', lon: -118.2, lat: 34.0 },
-  { name: 'Busan', lon: 129.0, lat: 35.1 },
-  { name: 'Rotterdam', lon: 4.5, lat: 51.9 },
-  { name: 'New York', lon: -74.0, lat: 40.7 },
-  { name: 'Shenzhen', lon: 114.1, lat: 22.5 },
-  { name: 'Genova', lon: 8.9, lat: 44.4 },
-  { name: 'Singapura', lon: 103.8, lat: 1.35 },
-  { name: 'Houston', lon: -95.4, lat: 29.8 },
-];
-
-const DESTINATION: Hub = { name: 'Brasil (Santos)', lon: -46.33, lat: -23.95 };
 
 // Rough, stylised continent outlines ([lon, lat] rings). Deliberately low-detail
 // — the map is a backdrop for the routes, not a reference atlas.
@@ -100,23 +81,6 @@ function continentPath(ring: Array<[number, number]>): string {
       })
       .join(' ') + ' Z'
   );
-}
-
-// Stable index into ORIGINS. Uses the numeric suffix of the EMB reference when
-// present (so sequential seeded shipments spread across regions), else a simple
-// string hash.
-function originIndex(reference: string): number {
-  const match = reference.match(/(\d+)\s*$/);
-  let n: number;
-  if (match) {
-    n = parseInt(match[1], 10) - 1;
-  } else {
-    n = 0;
-    for (let i = 0; i < reference.length; i += 1) {
-      n = (n * 31 + reference.charCodeAt(i)) >>> 0;
-    }
-  }
-  return ((n % ORIGINS.length) + ORIGINS.length) % ORIGINS.length;
 }
 
 interface Placed {

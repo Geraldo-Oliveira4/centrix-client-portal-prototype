@@ -27,6 +27,7 @@ import { SectionHeading } from '../../_shared/page-header';
 import { EstadoBadge } from '../components/estado-badge';
 import { ShipmentProgress } from '../components/shipment-progress';
 import { ShipmentRoute } from '../components/shipment-route';
+import { ShipmentTrackingPanel } from '../components/shipment-tracking-panel';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -99,6 +100,15 @@ export default function PortalEmbarqueDetailPage() {
           <ShipmentProgress estado={shipment.estado} />
         </div>
       </section>
+
+      {/* Maritime tracking: the ShipsGo-style fields (vessel, POL/POD, ETD/ETA)
+          sit next to the route as part of "where is my cargo". Illustrative —
+          the panel carries its own preview seal and the POL matches the port the
+          world map plots for this shipment. Only for maritime (or unset) modal;
+          air freight tracks differently. */}
+      {shipment.modal !== 'AEREO' && (
+        <ShipmentTrackingPanel shipment={shipment} />
+      )}
 
       {/* Supporting detail, deliberately quieter than the block above and
           collapsed by default: only "Situação atual" stays open on load, so the
