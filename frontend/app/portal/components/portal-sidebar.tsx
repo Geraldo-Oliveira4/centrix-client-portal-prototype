@@ -7,7 +7,9 @@ import {
   FileText,
   PanelLeft,
   PanelLeftClose,
+  Scale,
   Ship,
+  Sparkles,
   Warehouse,
   X,
 } from 'lucide-react';
@@ -32,6 +34,16 @@ const NAV_ITEMS = [
     href: '/portal/embarques',
     label: 'Meus Embarques',
     icon: Ship,
+  },
+  {
+    href: '/portal/inteligencia',
+    label: 'Inteligência',
+    icon: Sparkles,
+  },
+  {
+    href: '/portal/auditoria',
+    label: 'Auditoria',
+    icon: Scale,
   },
   {
     href: '/portal/exportadores',
