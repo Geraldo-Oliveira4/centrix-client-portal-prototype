@@ -100,10 +100,10 @@ export default function PortalEmbarquesPage() {
                   <TableHead className="portal-small font-medium text-portal-neutral">
                     Modal
                   </TableHead>
-                  <TableHead className="portal-small font-medium text-portal-neutral">
+                  <TableHead className="portal-small hidden font-medium text-portal-neutral md:table-cell">
                     Incoterm
                   </TableHead>
-                  <TableHead className="portal-small font-medium text-portal-neutral">
+                  <TableHead className="portal-small hidden font-medium text-portal-neutral lg:table-cell">
                     Agente
                   </TableHead>
                   <TableHead className="portal-small font-medium text-portal-neutral">
@@ -144,10 +144,10 @@ export default function PortalEmbarquesPage() {
                         {shipment.modal ? MODAL_LABELS[shipment.modal] : '—'}
                       </span>
                     </TableCell>
-                    <TableCell className="portal-body text-portal-neutral">
+                    <TableCell className="portal-body hidden text-portal-neutral md:table-cell">
                       {shipment.incoterm ?? '—'}
                     </TableCell>
-                    <TableCell className="portal-body text-portal-neutral">
+                    <TableCell className="portal-body hidden text-portal-neutral lg:table-cell">
                       {shipment.agente_nome ?? '—'}
                     </TableCell>
                     <TableCell className="portal-body text-portal-neutral">

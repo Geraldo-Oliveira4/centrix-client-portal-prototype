@@ -9,9 +9,10 @@ import { useMyQuotations } from '@/hooks/use-portal-quotations';
 import { Button } from '@/components/ui';
 import type { PortalBucketKey } from '@/types/portal';
 
-import { PagePortalHeader } from '../_shared/page-header';
+import { PagePortalHeader, SectionHeading } from '../_shared/page-header';
 import { Bucket } from './components/bucket';
 import { KanbanColumn } from './components/kanban-column';
+import { KpiCards } from './components/kpi-cards';
 import { SummaryCards } from './components/summary-cards';
 import {
   PortalFilters,
@@ -54,6 +55,13 @@ export default function PortalCotacoesPage() {
     0,
   );
 
+  // KPI counts derived from the same buckets the kanban renders. "finalizadas"
+  // holds both closed (approved) and declined quotations; the closed ones are
+  // FECHADA. Cancelled quotations live in their own bucket and count in neither.
+  const finalizadas = data.buckets.finalizadas ?? [];
+  const approvedCount = finalizadas.filter((q) => q.state === 'FECHADA').length;
+  const declinedCount = finalizadas.length - approvedCount;
+
   const filteredBuckets = Object.fromEntries(
     allBucketKeys.map((key) => [
       key,
@@ -85,50 +93,72 @@ export default function PortalCotacoesPage() {
       {totalAcrossBuckets === 0 ? (
         <EmptyState message="Nenhuma cotação. Quando a Freitas registrar uma cotação para sua empresa, ela aparecerá aqui." />
       ) : (
-        <div className="space-y-4">
-          <SummaryCards
-            awaitingApproval={data.buckets.aguardando_aprovacao ?? []}
-            awaitingProposals={data.buckets.buscando_propostas ?? []}
-          />
-
-          <PortalFilters values={filters} onChange={setFilters} />
-
-          {filteredTotal === 0 ? (
-            <EmptyState message="Nenhuma cotação corresponde aos filtros aplicados." />
-          ) : (
-            <div className="space-y-6">
-              <div className="flex gap-4 overflow-x-auto pb-4">
-                {data.bucket_order.map((bucket) => (
-                  <KanbanColumn
-                    key={bucket}
-                    bucket={bucket}
-                    quotations={filteredBuckets[bucket] ?? []}
-                  />
-                ))}
-                <KanbanColumn
-                  key="finalizadas-aprovadas"
-                  bucket="finalizadas"
-                  quotations={(filteredBuckets.finalizadas ?? []).filter((q) => q.state === 'FECHADA')}
-                  label="Aprovadas"
-                  accentColor="border-t-portal-success"
-                />
-                <KanbanColumn
-                  key="finalizadas-recusadas"
-                  bucket="finalizadas"
-                  quotations={(filteredBuckets.finalizadas ?? []).filter((q) => q.state !== 'FECHADA')}
-                  label="Recusadas"
-                  accentColor="border-t-portal-danger"
-                />
-              </div>
-              {cancelledCount > 0 ? (
-                <Bucket
-                  bucket="cancelada"
-                  quotations={filteredBuckets.cancelada ?? []}
-                />
-              ) : null}
+        <>
+          {/* Indicators: a self-contained overview block, visually distinct from
+              the funnel below. The KPI card is the pulse of the account (counts
+              only); the SummaryCards are the priority shortlists to act on. */}
+          <section className="space-y-4">
+            <div className="portal-card space-y-4 p-6">
+              <SectionHeading title="Indicadores" />
+              <KpiCards
+                total={totalAcrossBuckets}
+                awaitingProposals={data.buckets.buscando_propostas?.length ?? 0}
+                awaitingApproval={data.buckets.aguardando_aprovacao?.length ?? 0}
+                approved={approvedCount}
+                declined={declinedCount}
+              />
             </div>
-          )}
-        </div>
+
+            <SummaryCards
+              awaitingApproval={data.buckets.aguardando_aprovacao ?? []}
+              awaitingProposals={data.buckets.buscando_propostas ?? []}
+            />
+          </section>
+
+          {/* Funnel: the kanban, unchanged, now under its own section heading so
+              it reads as separate from the indicators above. */}
+          <section className="space-y-4">
+            <SectionHeading title="Funil de Cotações" />
+
+            <PortalFilters values={filters} onChange={setFilters} />
+
+            {filteredTotal === 0 ? (
+              <EmptyState message="Nenhuma cotação corresponde aos filtros aplicados." />
+            ) : (
+              <div className="space-y-6">
+                <div className="flex gap-4 overflow-x-auto pb-4">
+                  {data.bucket_order.map((bucket) => (
+                    <KanbanColumn
+                      key={bucket}
+                      bucket={bucket}
+                      quotations={filteredBuckets[bucket] ?? []}
+                    />
+                  ))}
+                  <KanbanColumn
+                    key="finalizadas-aprovadas"
+                    bucket="finalizadas"
+                    quotations={(filteredBuckets.finalizadas ?? []).filter((q) => q.state === 'FECHADA')}
+                    label="Aprovadas"
+                    accentColor="border-t-portal-success"
+                  />
+                  <KanbanColumn
+                    key="finalizadas-recusadas"
+                    bucket="finalizadas"
+                    quotations={(filteredBuckets.finalizadas ?? []).filter((q) => q.state !== 'FECHADA')}
+                    label="Recusadas"
+                    accentColor="border-t-portal-danger"
+                  />
+                </div>
+                {cancelledCount > 0 ? (
+                  <Bucket
+                    bucket="cancelada"
+                    quotations={filteredBuckets.cancelada ?? []}
+                  />
+                ) : null}
+              </div>
+            )}
+          </section>
+        </>
       )}
     </div>
   );

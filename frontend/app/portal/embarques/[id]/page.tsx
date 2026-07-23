@@ -7,6 +7,10 @@ import { LoaderComponent, ErrorComponent } from '@arboria-tech/arboria-ui';
 
 import { Button } from '@/components/ui/button';
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
   Table,
   TableBody,
   TableCell,
@@ -96,87 +100,112 @@ export default function PortalEmbarqueDetailPage() {
         </div>
       </section>
 
-      {/* Supporting detail, deliberately quieter than the block above. */}
-      <section className="portal-card-muted space-y-4 p-6">
-        <SectionHeading title="Dados do embarque" />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <Field label="Modal">
-            <span className="inline-flex items-center gap-2">
-              <ModalIcon modal={shipment.modal} className="h-5 w-5" />
-              {shipment.modal ? MODAL_LABELS[shipment.modal] : '—'}
-            </span>
-          </Field>
-          <Field label="Tipo de embarque">
-            {shipment.tipo_embarque
-              ? TIPO_EMBARQUE_LABELS[shipment.tipo_embarque]
-              : '—'}
-          </Field>
-          <Field label="Incoterm">{shipment.incoterm ?? '—'}</Field>
-          <Field label="Agente de carga">{shipment.agente?.nome ?? '—'}</Field>
-          <Field label="Estilo de processo">
-            {shipment.tipo_despacho === 'CONSOLIDADO'
-              ? 'Consolidado'
-              : shipment.tipo_despacho === 'DIRETO'
-                ? 'Direto'
-                : '—'}
-          </Field>
-          <Field label="Última atualização">
-            {shipment.updated_at ? formatShortDate(shipment.updated_at) : '—'}
-          </Field>
-        </div>
-      </section>
+      {/* Supporting detail, deliberately quieter than the block above and
+          collapsed by default: only "Situação atual" stays open on load, so the
+          screen leads with the status/route and the rest is available on demand
+          instead of exposed all at once. */}
+      <section className="portal-card-muted px-6">
+        <Accordion
+          type="multiple"
+          className="[&>*:last-child]:border-b-0"
+        >
+          <AccordionItem value="dados">
+            <AccordionTrigger className="text-base font-semibold text-foreground hover:no-underline">
+              Dados do embarque
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <Field label="Modal">
+                  <span className="inline-flex items-center gap-2">
+                    <ModalIcon modal={shipment.modal} className="h-5 w-5" />
+                    {shipment.modal ? MODAL_LABELS[shipment.modal] : '—'}
+                  </span>
+                </Field>
+                <Field label="Tipo de embarque">
+                  {shipment.tipo_embarque
+                    ? TIPO_EMBARQUE_LABELS[shipment.tipo_embarque]
+                    : '—'}
+                </Field>
+                <Field label="Incoterm">{shipment.incoterm ?? '—'}</Field>
+                <Field label="Agente de carga">{shipment.agente?.nome ?? '—'}</Field>
+                <Field label="Estilo de processo">
+                  {shipment.tipo_despacho === 'CONSOLIDADO'
+                    ? 'Consolidado'
+                    : shipment.tipo_despacho === 'DIRETO'
+                      ? 'Direto'
+                      : '—'}
+                </Field>
+                <Field label="Última atualização">
+                  {shipment.updated_at ? formatShortDate(shipment.updated_at) : '—'}
+                </Field>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
 
-      <section className="portal-card-muted space-y-4 p-6">
-        <SectionHeading
-          title="Containers"
-          icon={<Container className="h-5 w-5" />}
-        />
-        {shipment.containers.length === 0 ? (
-          <p className="portal-body text-portal-neutral">
-            Nenhum container informado até o momento.
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="portal-small font-medium text-portal-neutral">
-                  Número
-                </TableHead>
-                <TableHead className="portal-small font-medium text-portal-neutral">
-                  Tipo
-                </TableHead>
-                <TableHead className="portal-small font-medium text-portal-neutral">
-                  Tara (kg)
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {shipment.containers.map((container, index) => (
-                <TableRow key={container.numero ?? index} className="hover:bg-transparent">
-                  <TableCell className="portal-body font-medium">
-                    {container.numero ?? '—'}
-                  </TableCell>
-                  <TableCell className="portal-body text-portal-neutral">
-                    {container.tipo ?? '—'}
-                  </TableCell>
-                  <TableCell className="portal-body text-portal-neutral">
-                    {container.tara ?? '—'}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </section>
+          <AccordionItem value="containers">
+            <AccordionTrigger className="text-base font-semibold text-foreground hover:no-underline">
+              <span className="flex items-center gap-2">
+                <Container className="h-5 w-5 text-portal-neutral" />
+                Containers
+                <span className="portal-small text-portal-neutral">
+                  {shipment.containers.length}
+                </span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              {shipment.containers.length === 0 ? (
+                <p className="portal-body text-portal-neutral">
+                  Nenhum container informado até o momento.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="portal-small font-medium text-portal-neutral">
+                        Número
+                      </TableHead>
+                      <TableHead className="portal-small font-medium text-portal-neutral">
+                        Tipo
+                      </TableHead>
+                      <TableHead className="portal-small font-medium text-portal-neutral">
+                        Tara (kg)
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {shipment.containers.map((container, index) => (
+                      <TableRow key={container.numero ?? index} className="hover:bg-transparent">
+                        <TableCell className="portal-body font-medium">
+                          {container.numero ?? '—'}
+                        </TableCell>
+                        <TableCell className="portal-body text-portal-neutral">
+                          {container.tipo ?? '—'}
+                        </TableCell>
+                        <TableCell className="portal-body text-portal-neutral">
+                          {container.tara ?? '—'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </AccordionContent>
+          </AccordionItem>
 
-      {shipment.observacao && (
-        <section className="portal-card-muted space-y-2 p-6">
-          <SectionHeading title="Observação da Freitas" />
-          <p className="portal-body whitespace-pre-line text-foreground/80">
-            {shipment.observacao}
-          </p>
-        </section>
-      )}
+          {shipment.observacao && (
+            <AccordionItem value="observacao">
+              <AccordionTrigger className="text-base font-semibold text-foreground hover:no-underline">
+                Observação da Freitas
+              </AccordionTrigger>
+              <AccordionContent>
+                <p className="portal-body whitespace-pre-line text-foreground/80">
+                  {shipment.observacao}
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+        </Accordion>
+      </section>
     </div>
   );
 }
