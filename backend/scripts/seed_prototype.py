@@ -5,6 +5,13 @@ Creates:
   - 3 freight agents
   - 1 import DNA with those agents as default_agents (needed for RFQ montage)
   - ~6 quotations spanning the portal kanban buckets, some with proposals + scores
+  - 7 shipments covering every GE state (5 happy-path + 2 exceptions), so the
+    "Meus Embarques" list and its illustrative world map show a full spread of
+    states and origin regions.
+
+ALL data here is fictional and exists purely to demonstrate the prototype. No
+real Freitas client, cargo or route is represented; the shipment origins are
+suggested only in free-text notes and the map positions are approximate.
 
 Idempotent: if the demo client already exists, the script exits without changes.
 
@@ -261,21 +268,43 @@ def seed() -> None:
         # seed writes quotation rows directly, bypassing the state machine.
         #
         # Only q4 is FECHADA, so only the first shipment carries a quotation_id.
-        # The other two are left unlinked (Processo.quotation_id is nullable by
-        # design) rather than promoting more quotations to FECHADA, which would
+        # Every other shipment is left unlinked (Processo.quotation_id is nullable
+        # by design) rather than promoting more quotations to FECHADA, which would
         # shift the portal bucket counts the e2e suite asserts. They stand for
         # processes the analyst opened outside the portal — a real case, and the
-        # only way to show more than one state in the progress indicator.
+        # only way to show every state at once in the progress indicator.
+        #
+        # All fictional demo data. The whole spread exists so the "Meus Embarques"
+        # list and the illustrative world map above it have variety to show: the
+        # five happy-path states (solicitado -> embarcado), plus both exception
+        # states (postergado, booking_divergente), across a few origin regions
+        # (Asia, Europe, North America). The map pins each shipment to an
+        # approximate export hub derived from its EMB reference — the regions
+        # named in the notes below are illustrative, not stored coordinates.
         shipments = [
             # (quotation_id, agent, estado, carga_urgente, containers, observacao)
             (q4.id, agents[0], EmbarqueState.EMBARCADO, False,
              [{"numero": "MSKU7412589", "tipo": "40HC", "tara": 3750}],
-             "Embarcado no navio MAERSK SELETAR."),
+             "Embarcado no navio MAERSK SELETAR, com origem na Asia (Shanghai)."),
             (None, agents[1], EmbarqueState.AGUARDANDO_PRONTIDAO, True,
-             None, "Aguardando prontidão da carga na origem."),
+             None, "Aguardando prontidao da carga na origem, na Europa (Hamburgo)."),
             (None, agents[2], EmbarqueState.BOOKING_DIVERGENTE, False,
              [{"numero": "TCLU9983261", "tipo": "20GP", "tara": 2200}],
-             "Booking divergente do aprovado — em tratativa com o armador."),
+             "Booking divergente do aprovado — em tratativa com o armador "
+             "(rota da America do Norte, Los Angeles)."),
+            (None, agents[0], EmbarqueState.SOLICITADO, False,
+             None, "Embarque aberto — coletando dados de booking na Asia (Busan)."),
+            (None, agents[1], EmbarqueState.COLETADO, False,
+             [{"numero": "HLCU4471902", "tipo": "40GP", "tara": 3680}],
+             "Carga coletada, seguindo para o porto de embarque na Europa "
+             "(Roterda)."),
+            (None, agents[2], EmbarqueState.ANALISE_BOOKING, True,
+             [{"numero": "CMAU5590017", "tipo": "40HC", "tara": 3800}],
+             "Conferindo os dados do booking com o armador — rota da America do "
+             "Norte (Nova York)."),
+            (None, agents[0], EmbarqueState.POSTERGADO, False,
+             None, "Embarque postergado pelo armador — reprogramando a saida na "
+             "Asia (Shenzhen)."),
         ]
         for age, (quotation_id, agent, estado, urgente, containers, observacao) in enumerate(
             shipments

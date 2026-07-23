@@ -24,9 +24,10 @@ import {
   type EmbarqueEstado,
 } from '@/types/portal-shipment';
 
-import { PagePortalHeader } from '../_shared/page-header';
+import { PagePortalHeader, SectionHeading } from '../_shared/page-header';
 import { ModalIcon } from '../_shared/modal-icon';
 import { EstadoBadge } from './components/estado-badge';
+import { ShipmentWorldMap } from './components/shipment-world-map';
 
 // Summary strip: shipments per state, nothing else. The GE "Torre de Controle"
 // KPIs (SLA em risco, documentos pendentes) are not shown because no column
@@ -84,8 +85,17 @@ export default function PortalEmbarquesPage() {
       {shipments.length === 0 ? (
         <EmptyState message="Seus embarques aparecem aqui assim que uma cotação aprovada é fechada pela Freitas." />
       ) : (
-        <div className="space-y-4">
-          <EstadoSummary byEstado={byEstado} />
+        <>
+          {/* World-map overview: the origins fanning into Brazil, coloured by
+              state. Illustrative (see caption in the component) — it sits above
+              the list as the quick read before the precise one. */}
+          <section className="portal-card space-y-4 p-6">
+            <SectionHeading title="Rota dos embarques" />
+            <ShipmentWorldMap shipments={shipments} />
+          </section>
+
+          <div className="space-y-4">
+            <EstadoSummary byEstado={byEstado} />
 
           <div className="portal-card overflow-hidden">
             <Table>
@@ -166,7 +176,8 @@ export default function PortalEmbarquesPage() {
               </TableBody>
             </Table>
           </div>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

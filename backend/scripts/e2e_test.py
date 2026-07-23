@@ -445,8 +445,8 @@ def run():
     check("O1 GET /shipments -> 200 with the seeded shipments",
           st == 200 and len(seeded) >= 3, f"{st} {len(items)}")
 
-    # The seed plants one shipment per primary/exception state family; every item
-    # must carry a state from the real EmbarqueState enum.
+    # The seed plants a shipment for every GE state family; every item must carry
+    # a state from the real EmbarqueState enum.
     valid_states = {
         "solicitado", "aguardando_prontidao", "coletado", "analise_booking",
         "embarcado", "postergado", "booking_divergente",
@@ -454,6 +454,18 @@ def run():
     check("O2 every estado belongs to EmbarqueState",
           all(i["estado"] in valid_states for i in items),
           str([i["estado"] for i in items]))
+
+    # The enriched demo seed covers the full spread so the world map and list
+    # show variety: all five happy-path states plus at least one exception.
+    seeded_states = {i["estado"] for i in items}
+    happy_path = {
+        "solicitado", "aguardando_prontidao", "coletado",
+        "analise_booking", "embarcado",
+    }
+    check("O2b seed covers all happy-path states + an exception",
+          happy_path.issubset(seeded_states)
+          and bool(seeded_states & {"postergado", "booking_divergente"}),
+          str(sorted(seeded_states)))
 
     check("O3 by_estado counts match the item list",
           sh.get("by_estado", {}).get("embarcado", 0) >= 1
