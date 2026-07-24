@@ -26,6 +26,10 @@ import { formatRoute } from '@/lib/portal-formatters';
 import type { PortalProposal } from '@/types/portal';
 
 import { ModalIcon } from '../../_shared/modal-icon';
+import { ReliabilityBlock } from '../../inteligencia/components/reliability-block';
+import { MarketBlock } from '../../inteligencia/components/market-block';
+import { RiskBlock } from '../../inteligencia/components/risk-block';
+import { EvidenceBlock } from '../../inteligencia/components/evidence-block';
 import { AdditionalCostsCard } from './components/additional-costs-card';
 import { AuditPreviewSection } from './components/audit-preview-section';
 import { ApproveDialog } from './components/approve-dialog';
@@ -178,7 +182,13 @@ export default function PortalCotacaoDetailPage() {
           FECHADA, que é quando existe proposta vencedora com valor real para
           servir de base ao comparativo. */}
       {isApproved(quotation.state) ? (
-        <AuditPreviewSection quotationId={quotation.id} />
+        <>
+          <AuditPreviewSection quotationId={quotation.id} />
+          {/* Risco (bloco do canvas, relocado) — vive junto da Auditoria porque
+              trata dos riscos que aparecem depois do fechamento. Preview: os
+              sinais vêm de campos reais, a análise consolidada é ilustrativa. */}
+          <RiskBlock />
+        </>
       ) : null}
 
       {showShipmentInstruction ? (
@@ -191,8 +201,21 @@ export default function PortalCotacaoDetailPage() {
         />
       ) : null}
 
+      {/* Decisao: coberta pelo painel "Recomendacao por IA" abaixo (nao duplicada). */}
       {!needsInfo && !isCancelled(quotation.state) && proposals.length > 0 ? (
         <RecommendationPanel quotationId={quotation.id} />
+      ) : null}
+
+      {/* Inteligencia da cotacao (blocos do canvas, relocados) — decisao
+          apoiada por Confiabilidade dos agentes, Mercado (preco) e Evidencia
+          de embarques semelhantes, ao lado da comparacao de propostas. Cada
+          bloco mantem seu ProvenanceBadge (real vs pre-visualizacao). */}
+      {!needsInfo && !isCancelled(quotation.state) && proposals.length > 0 ? (
+        <div className="grid items-start gap-4 lg:grid-cols-2">
+          <ReliabilityBlock proposals={proposals} />
+          <MarketBlock proposals={proposals} />
+          <EvidenceBlock quotation={quotation} />
+        </div>
       ) : null}
 
       {showProposalDetails ? (

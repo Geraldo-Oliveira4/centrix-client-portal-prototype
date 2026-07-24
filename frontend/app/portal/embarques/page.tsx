@@ -26,6 +26,7 @@ import {
 
 import { PagePortalHeader, SectionHeading } from '../_shared/page-header';
 import { ModalIcon } from '../_shared/modal-icon';
+import { DeadlineBlock } from '../inteligencia/components/deadline-block';
 import { EstadoBadge } from './components/estado-badge';
 import { ShipmentQuickCheck } from './components/shipment-quick-check';
 import { ShipmentWorldMap } from './components/shipment-world-map';
@@ -91,6 +92,11 @@ export default function PortalEmbarquesPage() {
               above everything else. Client-side search over the already-owned
               list, so it cannot reach another client's shipment. */}
           <ShipmentQuickCheck />
+
+          {/* Prazo (bloco do canvas, relocado) — o tracking e o contexto
+              natural do "a carga chega no prazo?". Preview: base real (nº de
+              embarques), percentual ilustrativo (nao ha ETA neste prototipo). */}
+          <DeadlineBlock />
 
           {/* World-map overview: the origins fanning into Brazil, coloured by
               state. Illustrative (see caption in the component) — it sits above

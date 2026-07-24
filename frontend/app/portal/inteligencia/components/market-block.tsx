@@ -1,36 +1,52 @@
 'use client';
 
 import { TrendingUp } from 'lucide-react';
-import { LoadingState } from '@arboria-tech/arboria-ui';
 
-import { useMyQuotations } from '@/hooks/use-portal-quotations';
+import type { PortalProposal } from '@/types/portal';
 import { formatBRL } from '@/lib/portal-formatters';
 
 import { IntelBlock } from './intel-block';
-import { flattenQuotations, withProposal } from '../lib/intel-helpers';
 
-// MOCK factor: the illustrative sector benchmark sits 8% above the client's own
-// average, so the reading is a favourable "below market". No price-index feed
+// MOCK factor: the illustrative sector benchmark sits 8% above this quotation's
+// value, so the reading is a favourable "below market". No price-index feed
 // exists in this prototype.
 const BENCHMARK_FACTOR = 1.08;
 
 /**
- * MIXED, headline is MOCK. "Seu preço médio" is real (mean of the proposal
- * totals the client received); the sector benchmark it is compared against is
- * fabricated.
+ * Picks the proposal that represents "this quotation's price": the winner if the
+ * quotation is closed, otherwise the recommended proposal, otherwise the
+ * cheapest. Mirrors what the client is actually looking at in the proposals
+ * table.
  */
-export function MarketBlock() {
-  const { data, isLoading } = useMyQuotations();
+function referenceProposal(
+  proposals: PortalProposal[],
+): PortalProposal | undefined {
+  const priced = proposals.filter((p) => (p.total_brl ?? 0) > 0);
+  if (priced.length === 0) return undefined;
+  return (
+    priced.find((p) => p.is_winner) ??
+    priced.find((p) => p.is_recommended) ??
+    [...priced].sort((a, b) => a.total_brl - b.total_brl)[0]
+  );
+}
 
-  const totals = withProposal(flattenQuotations(data))
-    .map((q) => q.best_proposal?.total_brl ?? 0)
-    .filter((v) => v > 0);
-  const yourAvg = totals.length
-    ? Math.round(totals.reduce((sum, v) => sum + v, 0) / totals.length)
-    : null;
-  const benchmark = yourAvg != null ? Math.round(yourAvg * BENCHMARK_FACTOR) : null;
+/**
+ * MIXED, headline is MOCK. Scoped to a SINGLE quotation: it compares THIS
+ * quotation's value (winning proposal, or the recommended/cheapest one while it
+ * is still open) against a fabricated sector benchmark. The value is real; the
+ * benchmark it is measured against is illustrative.
+ */
+export function MarketBlock({ proposals }: { proposals: PortalProposal[] }) {
+  const ref = referenceProposal(proposals);
+  const value = ref?.total_brl ?? null;
+  const benchmark = value != null ? Math.round(value * BENCHMARK_FACTOR) : null;
   const deltaPct =
-    yourAvg != null && benchmark ? Math.round((1 - yourAvg / benchmark) * 100) : null;
+    value != null && benchmark ? Math.round((1 - value / benchmark) * 100) : null;
+  const refLabel = ref?.is_winner
+    ? 'proposta vencedora'
+    : ref?.is_recommended
+      ? 'proposta recomendada'
+      : 'proposta mais barata';
 
   return (
     <IntelBlock
@@ -38,21 +54,21 @@ export function MarketBlock() {
       title="Mercado"
       question="O preço está competitivo?"
       provenance="preview"
-      footnote="Seu preço médio é real (média das propostas recebidas). O benchmark do setor é ilustrativo — não há base de preços de mercado neste protótipo."
+      footnote="O valor desta cotação é real (proposta recebida). O benchmark do setor é ilustrativo — não há base de preços de mercado neste protótipo."
     >
-      {isLoading ? (
-        <LoadingState />
-      ) : yourAvg == null ? (
+      {value == null ? (
         <p className="portal-body text-portal-neutral">
-          Sem propostas suficientes para calcular seu preço médio.
+          Esta cotação ainda não tem proposta com valor para comparar.
         </p>
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="portal-card-muted space-y-1 p-3">
-              <p className="portal-small text-portal-neutral">Seu preço médio</p>
+              <p className="portal-small text-portal-neutral">
+                Esta cotação ({refLabel})
+              </p>
               <p className="portal-body font-semibold text-foreground">
-                {formatBRL(yourAvg)}
+                {formatBRL(value)}
               </p>
               <p className="portal-small text-portal-success">Dado real</p>
             </div>
@@ -66,7 +82,7 @@ export function MarketBlock() {
           </div>
           {deltaPct != null ? (
             <p className="portal-body text-foreground">
-              Estimativa: seu preço está{' '}
+              Estimativa: esta cotação está{' '}
               <span className="font-semibold text-portal-success">
                 {deltaPct}% abaixo
               </span>{' '}

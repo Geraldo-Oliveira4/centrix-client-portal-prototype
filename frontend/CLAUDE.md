@@ -404,23 +404,38 @@ existing `GET` routes. Their sidebar entries live in
 
 ### Inteligência (`/portal/inteligencia/`)
 
-Six blocks, one per Business Model Canvas question. Each block self-fetches via
-existing SWR hooks (deduped by key, so the six blocks share one
-`/portal/quotations` request), and is wrapped in `IntelBlock`
-(`components/intel-block.tsx`) — it renders the surface (`.portal-card` for
-`real`, dashed frame for `preview`) + `ProvenanceBadge` + footnote. Pure helpers
-in `lib/intel-helpers.ts` (`flattenQuotations`, `pickDecisionCandidate`,
-`seededInt` for stable illustrative numbers, `daysUntilDate`). Keep the blocks
-presentational; put logic in the helpers.
+`/portal/inteligencia` é um **dashboard de performance agregado**, não mais as 6
+perguntas do canvas. As 6 perguntas foram **distribuídas** para onde respondem em
+contexto (ver tabela abaixo); os blocos continuam em
+`app/portal/inteligencia/components/` e são **importados** pelas telas de destino
+(cross-import, como `evidence-block` já importava `estado-badge`).
 
-| Bloco (arquivo) | Pergunta do canvas | Fonte (hooks / endpoint) | Badge | Real vs Mockado |
-|---|---|---|---|---|
-| Decisão (`decision-block.tsx`) | Estou tomando a melhor decisão? | `useMyQuotations`, `useMyRecommendation` (`/portal/quotations/{id}/recommendation`) | `real` | **Real:** recomendação por IA (score determinístico) da cotação mais recente com propostas |
-| Confiabilidade (`reliability-block.tsx`) | Esse agente é confiável? | `useMyQuotations` | `preview` | **Real:** nomes dos agentes (das propostas). **Mock:** scores de confiabilidade + média (`seededInt`) |
-| Mercado (`market-block.tsx`) | O preço está competitivo? | `useMyQuotations` | `preview` | **Real:** seu preço médio (média das propostas). **Mock:** benchmark do setor (`avg × 1.08`) |
-| Risco (`risk-block.tsx`) | Quais riscos aparecem depois? | `useMyQuotations` | `preview` | **Real:** sinais de campos reais (moeda ≠ BRL, validade perto de vencer, urgência) + refs reais. **Mock:** a "análise de risco" como produto |
-| Prazo (`deadline-block.tsx`) | A carga chega no prazo? | `useMyShipments` | `preview` | **Real:** contagem de embarques (denominador). **Mock:** % no prazo (constante 87%) — não há ETA/histórico |
-| Evidência (`evidence-block.tsx`) | O que ocorreu em embarques similares? | `useMyShipments` | `real` | **Real:** cards de embarques do histórico. **Mock:** só o critério de "semelhança de rota" (sem matching) |
+O dashboard deriva tudo de `computePerformanceMetrics(data)`
+(`lib/performance-helpers.ts`) sobre `useMyQuotations` + o total de
+`useMyShipments` — **sem endpoint novo**. Métricas **reais**: volume de cotações,
+taxa de aprovação (fechadas / fechadas+recusadas), tempo médio de resposta
+(`created_at` → `best_proposal.received_at`), embarques em andamento, cotações
+vencidas por agente (vencedor de cada FECHADA), cotações por status.
+**Ilustrativo** (badge `preview`, moldura tracejada): "Economia estimada" =
+`Σ(fechadas.total_brl) × 0.08`, mesmo fator de benchmark do MarketBlock — não há
+base de preços de mercado neste protótipo.
+
+Cada bloco continua auto-fetchando via SWR (deduped por key), embrulhado em
+`IntelBlock` (`components/intel-block.tsx`: `.portal-card` para `real`, moldura
+tracejada para `preview`, + `ProvenanceBadge` + footnote). Helpers puros em
+`lib/intel-helpers.ts` e `lib/performance-helpers.ts`. Mantenha os blocos
+presentacionais; lógica nos helpers.
+
+Distribuição dos blocos (o `provenance` de cada um **não muda** com o local):
+
+| Bloco (arquivo) | Onde vive agora | Badge | Real vs Mockado |
+|---|---|---|---|
+| Decisão (`decision-block.tsx`) | **Coberta** pelo painel "Recomendação por IA" (`recommendation-panel.tsx`) no detalhe da cotação — o bloco não é mais renderizado (arquivo mantido) | `real` | **Real:** recomendação por IA (score determinístico) |
+| Confiabilidade (`reliability-block.tsx`) | Detalhe da cotação, painel ao lado das propostas | `preview` | **Real:** nomes dos agentes. **Mock:** scores + média (`seededInt`) |
+| Mercado (`market-block.tsx`) | Detalhe da cotação, painel ao lado das propostas | `preview` | **Real:** seu preço médio. **Mock:** benchmark do setor (`avg × 1.08`) |
+| Evidência (`evidence-block.tsx`) | Detalhe da cotação, painel ao lado das propostas ("embarques semelhantes") | `real` | **Real:** cards de embarques do histórico. **Mock:** critério de semelhança de rota |
+| Risco (`risk-block.tsx`) | Detalhe da cotação, junto da seção Auditoria (só FECHADA) | `preview` | **Real:** sinais de campos reais + refs. **Mock:** a "análise de risco" consolidada |
+| Prazo (`deadline-block.tsx`) | `/portal/embarques` (topo da lista) | `preview` | **Real:** contagem de embarques. **Mock:** % no prazo (constante 87%) |
 
 Ao mexer num bloco, mantenha o `provenance` coerente com o **headline**: se o
 número em destaque é fabricado, o bloco é `preview` (mesmo que use nomes/valores
