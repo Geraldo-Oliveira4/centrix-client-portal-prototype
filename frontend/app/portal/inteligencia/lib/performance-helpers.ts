@@ -22,7 +22,12 @@ export interface PerformanceMetrics {
   inProgress: number;
   /** REAL. Closed / (closed + declined), 0..100, or null when nothing decided. */
   approvalRate: number | null;
-  /** REAL. Mean days from created_at to the best proposal's received_at. */
+  /**
+   * REAL. Mean days from created_at to the best proposal's received_at. Kept as
+   * an unrounded float so the UI can render sub-day values ("< 1 dia") instead
+   * of a misleading "0 d" — the seed inserts quotation and proposal in the same
+   * transaction, so real gaps are milliseconds.
+   */
   avgResponseDays: number | null;
   /** REAL. Winning agent per closed quotation, most wins first. */
   agentWins: AgentWins[];
@@ -61,9 +66,7 @@ export function computePerformanceMetrics(
     })
     .filter((v): v is number => v != null);
   const avgResponseDays = responseDays.length
-    ? Math.round(
-        (responseDays.reduce((sum, v) => sum + v, 0) / responseDays.length) * 10,
-      ) / 10
+    ? responseDays.reduce((sum, v) => sum + v, 0) / responseDays.length
     : null;
 
   const winCounts = new Map<string, number>();

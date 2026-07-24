@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import {
+  Award,
   CheckCircle2,
   Clock,
   FileText,
@@ -9,6 +10,7 @@ import {
   TrendingDown,
   Trophy,
 } from 'lucide-react';
+import { Cell, Pie, PieChart } from 'recharts';
 import { LoadingState } from '@arboria-tech/arboria-ui';
 
 import { useMyQuotations } from '@/hooks/use-portal-quotations';
@@ -30,6 +32,24 @@ import { computePerformanceMetrics } from './lib/performance-helpers';
  * data already loaded elsewhere — no new endpoint. Every figure is real except
  * the illustrative "Economia estimada", which keeps the preview badge.
  */
+
+// Semantic portal palette (styles/globals.css) as hex, for the recharts fills —
+// recharts needs colour strings, not Tailwind classes. Kept in sync with the
+// legend's text classes below so the donut and its legend cannot drift.
+const STATUS_COLORS = {
+  success: '#00B050',
+  info: '#2E5CFF',
+  danger: '#FF3B30',
+  neutral: '#8E8E93',
+} as const;
+
+/** Sub-day averages render as "< 1 dia" so a synthetic ~0 gap never reads "0 d". */
+function formatResponseTime(days: number | null): string {
+  if (days == null) return '—';
+  if (days < 1) return '< 1 dia';
+  return `${Math.round(days * 10) / 10} d`;
+}
+
 function StatTile({
   icon,
   label,
@@ -59,14 +79,23 @@ export default function InteligenciaPage() {
   const { data, isLoading } = useMyQuotations();
   const { total: shipmentsTotal, isLoading: shipmentsLoading } = useMyShipments();
   const m = computePerformanceMetrics(data);
-  const maxWins = m.agentWins.reduce((max, a) => Math.max(max, a.wins), 0);
+
+  const totalWins = m.agentWins.reduce((sum, a) => sum + a.wins, 0);
+  // A "parceiro mais frequente" only when someone is strictly ahead (or is the
+  // sole agent with wins). No badge on a tie — that would overclaim.
+  const leader =
+    m.agentWins.length > 0 &&
+    (m.agentWins.length === 1 || m.agentWins[0].wins > m.agentWins[1].wins)
+      ? m.agentWins[0]
+      : null;
 
   const statusBreakdown = [
-    { label: 'Aprovadas', count: m.approved, className: 'text-portal-success' },
-    { label: 'Em andamento', count: m.inProgress, className: 'text-portal-info' },
-    { label: 'Recusadas', count: m.declined, className: 'text-portal-neutral' },
-    { label: 'Canceladas', count: m.cancelled, className: 'text-portal-neutral' },
+    { label: 'Aprovadas', count: m.approved, color: STATUS_COLORS.success },
+    { label: 'Em andamento', count: m.inProgress, color: STATUS_COLORS.info },
+    { label: 'Recusadas', count: m.declined, color: STATUS_COLORS.danger },
+    { label: 'Canceladas', count: m.cancelled, color: STATUS_COLORS.neutral },
   ];
+  const pieData = statusBreakdown.filter((s) => s.count > 0);
 
   return (
     <div className="space-y-8">
@@ -112,9 +141,7 @@ export default function InteligenciaPage() {
             <StatTile
               icon={<Clock className="h-5 w-5" />}
               label="Tempo médio de resposta"
-              value={
-                m.avgResponseDays != null ? `${m.avgResponseDays} d` : '—'
-              }
+              value={formatResponseTime(m.avgResponseDays)}
               caption="Da abertura à primeira proposta"
             />
             <StatTile
@@ -126,7 +153,7 @@ export default function InteligenciaPage() {
           </div>
 
           <div className="grid items-start gap-4 lg:grid-cols-2">
-            {/* Real: winning agent per closed quotation. */}
+            {/* Real: winning agent per closed quotation, as a proportional bar. */}
             <section className="portal-card space-y-4 p-6">
               <SectionHeading
                 title="Cotações vencidas por agente"
@@ -139,51 +166,108 @@ export default function InteligenciaPage() {
                   assim que a primeira cotação é fechada.
                 </p>
               ) : (
-                <ul className="space-y-3">
-                  {m.agentWins.map((a) => (
-                    <li key={a.name} className="flex items-center gap-3">
-                      <span className="portal-body min-w-0 flex-1 truncate text-foreground">
-                        {a.name}
-                      </span>
-                      <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-portal-success"
-                          style={{
-                            width: `${maxWins ? (a.wins / maxWins) * 100 : 0}%`,
-                          }}
-                        />
-                      </div>
-                      <span className="portal-small w-14 text-right font-medium text-portal-neutral">
-                        {a.wins} {a.wins === 1 ? 'cot.' : 'cots.'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="space-y-4">
+                  {leader ? (
+                    <div className="inline-flex items-center gap-2 rounded-lg border border-portal-success/25 bg-portal-success/10 px-3 py-2">
+                      <Award className="h-5 w-5 shrink-0 text-portal-success" />
+                      <p className="portal-body text-foreground">
+                        <span className="font-semibold">{leader.name}</span> é seu
+                        parceiro mais frequente
+                      </p>
+                    </div>
+                  ) : null}
+                  <ul className="space-y-3">
+                    {m.agentWins.map((a) => {
+                      const share = totalWins ? a.wins / totalWins : 0;
+                      return (
+                        <li key={a.name} className="space-y-1">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="portal-body min-w-0 truncate font-medium text-foreground">
+                              {a.name}
+                            </span>
+                            <span className="portal-small shrink-0 text-portal-neutral">
+                              {a.wins} {a.wins === 1 ? 'cotação' : 'cotações'} ·{' '}
+                              {Math.round(share * 100)}%
+                            </span>
+                          </div>
+                          <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full bg-portal-success"
+                              style={{ width: `${Math.max(share * 100, 3)}%` }}
+                            />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               )}
             </section>
 
-            {/* Real: quotations by status. */}
+            {/* Real: quotations by status, as a donut with the counts as legend. */}
             <section className="portal-card space-y-4 p-6">
               <SectionHeading
                 title="Cotações por status"
                 icon={<FileText className="h-5 w-5" />}
                 action={<ProvenanceBadge provenance="real" />}
               />
-              <div className="grid grid-cols-2 gap-3">
-                {statusBreakdown.map((s) => (
-                  <div key={s.label} className="portal-card-muted space-y-1 p-4">
-                    <p
-                      className={cn(
-                        'text-2xl font-semibold leading-none',
-                        s.className,
-                      )}
-                    >
-                      {s.count}
-                    </p>
-                    <p className="portal-small text-portal-neutral">{s.label}</p>
+              {m.totalQuotations === 0 ? (
+                <p className="portal-body text-portal-neutral">
+                  Nenhuma cotação no histórico ainda.
+                </p>
+              ) : (
+                <div className="flex flex-wrap items-center gap-6">
+                  {/* Fixed 160x160 PieChart (no ResponsiveContainer): the size is
+                      known, so we skip the ResizeObserver measurement, which
+                      renders more reliably and avoids a first-paint empty ring. */}
+                  <div className="relative h-40 w-40 shrink-0">
+                    <PieChart width={160} height={160}>
+                      <Pie
+                        data={pieData}
+                        dataKey="count"
+                        nameKey="label"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={48}
+                        outerRadius={72}
+                        paddingAngle={2}
+                        strokeWidth={0}
+                      >
+                        {pieData.map((s) => (
+                          <Cell key={s.label} fill={s.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-2xl font-semibold leading-none text-foreground">
+                        {m.totalQuotations}
+                      </span>
+                      <span className="portal-small text-portal-neutral">total</span>
+                    </div>
                   </div>
-                ))}
-              </div>
+                  <ul className="min-w-40 flex-1 space-y-2">
+                    {statusBreakdown.map((s) => (
+                      <li
+                        key={s.label}
+                        className="flex items-center justify-between gap-3"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: s.color }}
+                          />
+                          <span className="portal-body text-foreground">
+                            {s.label}
+                          </span>
+                        </span>
+                        <span className="portal-body font-medium text-portal-neutral">
+                          {s.count}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </section>
           </div>
 

@@ -211,9 +211,14 @@ export default function PortalCotacaoDetailPage() {
           de embarques semelhantes, ao lado da comparacao de propostas. Cada
           bloco mantem seu ProvenanceBadge (real vs pre-visualizacao). */}
       {!needsInfo && !isCancelled(quotation.state) && proposals.length > 0 ? (
-        <div className="grid items-start gap-4 lg:grid-cols-2">
-          <ReliabilityBlock proposals={proposals} />
-          <MarketBlock proposals={proposals} />
+        <div className="space-y-4">
+          {/* Linha 1: Confiabilidade e Mercado lado a lado (blocos curtos).
+              Linha 2: Evidencia em largura total (bloco mais alto). Evita o vao
+              a direita que o grid unico de 2 colunas criava. */}
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            <ReliabilityBlock proposals={proposals} />
+            <MarketBlock proposals={proposals} />
+          </div>
           <EvidenceBlock quotation={quotation} />
         </div>
       ) : null}
