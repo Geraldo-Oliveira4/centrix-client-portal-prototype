@@ -139,7 +139,7 @@ Convenções que sustentam o aviso — mantenha se mexer nisso:
 ```bash
 docker compose up -d
 cd backend && cp .env.example .env && make setup && make migrate && make seed && make run
-cd frontend && npm install && npm run dev   # http://localhost:3000/portal/cotacoes
+cd frontend && cp .env.local.example .env.local && npm install && npm run dev   # http://localhost:3000/portal/cotacoes
 ```
 
 CORS aceita qualquer origem local (o Next pode subir em 3001 se 3000 estiver em uso).

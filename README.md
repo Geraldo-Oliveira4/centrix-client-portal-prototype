@@ -69,9 +69,13 @@ make run                      # API em http://localhost:8000
 
 ```bash
 cd frontend
+cp .env.local.example .env.local   # aponta o app para o backend em :8000
 npm install
 npm run dev                   # http://localhost:3000/portal/cotacoes
 ```
+
+Sem o `.env.local` o app chama a própria origem (`:3000`) em vez do backend, e a
+tela fica presa em "Aguarde o servidor inicializar".
 
 Abra **http://localhost:3000/portal/cotacoes** — o portal abre já logado como
 "Cliente Demo" com as cotações semeadas.
