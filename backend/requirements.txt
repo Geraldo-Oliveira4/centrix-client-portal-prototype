@@ -9,3 +9,7 @@ alembic>=1.13
 psycopg2-binary>=2.9
 aws-lambda-powertools[tracer]>=3.0
 boto3>=1.34
+
+# Windows has no system tz database, so ZoneInfo("America/Sao_Paulo") in
+# bacen_ptax_service fails at import time without this.
+tzdata>=2024.1; platform_system == "Windows"
