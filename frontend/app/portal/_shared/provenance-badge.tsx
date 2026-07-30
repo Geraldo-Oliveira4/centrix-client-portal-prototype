@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, FlaskConical } from 'lucide-react';
+import { CheckCircle2, FlaskConical, PlugZap } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -12,11 +12,15 @@ import { cn } from '@/lib/utils';
  * `preview` — the headline value is fabricated or illustrative; reuses the exact
  * same "Pré-visualização" seal already used in the per-quotation Auditoria
  * section, so the two read identically across the portal.
+ * `pending` — the value is not fabricated, it simply has no data source yet in
+ * this prototype (an integration that does not exist: ETA feed, invoice/BL,
+ * exception engine). Grey, so it reads as "coming, not made up" — distinct from
+ * the pink `preview` (which IS a made-up number).
  *
  * The rule the whole task rests on: nothing real should wear the preview badge,
  * and nothing fabricated should be shown without it.
  */
-export type Provenance = 'real' | 'preview';
+export type Provenance = 'real' | 'preview' | 'pending';
 
 export function ProvenanceBadge({
   provenance,
@@ -35,6 +39,19 @@ export function ProvenanceBadge({
       >
         <CheckCircle2 className="h-3.5 w-3.5" />
         Dado real
+      </span>
+    );
+  }
+  if (provenance === 'pending') {
+    return (
+      <span
+        className={cn(
+          'portal-small inline-flex items-center gap-1.5 rounded border border-border bg-muted px-2 py-0.5 font-medium text-portal-neutral',
+          className,
+        )}
+      >
+        <PlugZap className="h-3.5 w-3.5" />
+        Pendente integração
       </span>
     );
   }

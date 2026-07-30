@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertTriangle, ArrowLeft, Container, FileText } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Container, FileText, RefreshCw } from 'lucide-react';
 import { LoaderComponent, ErrorComponent } from '@arboria-tech/arboria-ui';
 
 import { Button } from '@/components/ui/button';
@@ -19,15 +19,18 @@ import {
   TableRow,
 } from '@/components/ui';
 import { formatShortDate } from '@/lib/portal-formatters';
+import { buildShipmentUpdateMailto } from '@/lib/portal-state';
 import { useMyShipment } from '@/hooks/use-portal-shipments';
 import { MODAL_LABELS, TIPO_EMBARQUE_LABELS } from '@/types/quotation';
 
 import { ModalIcon } from '../../_shared/modal-icon';
 import { SectionHeading } from '../../_shared/page-header';
+import { ProvenanceBadge } from '../../_shared/provenance-badge';
 import { EstadoBadge } from '../components/estado-badge';
-import { ShipmentProgress } from '../components/shipment-progress';
+import { ShipmentTimeline } from '../components/shipment-timeline';
 import { ShipmentRoute } from '../components/shipment-route';
 import { ShipmentTrackingPanel } from '../components/shipment-tracking-panel';
+import { ORIGINS, originIndex } from '../lib/shipment-origins';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -47,6 +50,9 @@ export default function PortalEmbarqueDetailPage() {
   // A shipment owned by another client answers 404 exactly like a non-existent
   // one (anti-enumeration), so both land here.
   if (isError || !shipment) return <ErrorComponent />;
+
+  // Illustrative origin hub (same source the map and tracking panel use).
+  const origin = ORIGINS[originIndex(shipment.referencia)];
 
   return (
     <div className="space-y-8">
@@ -77,28 +83,67 @@ export default function PortalEmbarqueDetailPage() {
               Aberto em {formatShortDate(shipment.created_at)}
             </p>
           </div>
-          {shipment.quotation_id && (
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" asChild>
-              <Link href={`/portal/cotacao/${shipment.quotation_id}`}>
-                <FileText className="mr-2 h-5 w-5" />
-                Ver cotação de origem
-              </Link>
+              <a href={buildShipmentUpdateMailto(shipment.referencia)}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Solicitar atualização
+              </a>
             </Button>
-          )}
+            {shipment.quotation_id && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/portal/cotacao/${shipment.quotation_id}`}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Ver documentos
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Primary: the reason the client opened this screen. The route track sits
-          above the steps as the quick read ("where is my cargo, roughly"), with
-          the steps below as the precise one. Both are driven by the same
-          `estado` — the track adds no information, only legibility, which is why
-          it carries an explicit "not GPS" caption. */}
-      <section className="portal-card space-y-6 p-6">
-        <SectionHeading title="Situação atual" />
-        <ShipmentRoute estado={shipment.estado} modal={shipment.modal} />
-        <div className="border-t pt-6">
-          <ShipmentProgress estado={shipment.estado} />
+      {/* Resumo: rota (origem ilustrativa), modal e ETA (sem fonte de dado).
+          Supporting card — quieter than the timeline below, which is the one
+          dominant element on this screen. */}
+      <section className="portal-card-muted space-y-4 p-6">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-1">
+            <p className="portal-small text-portal-neutral">Rota</p>
+            <p className="portal-body font-medium text-foreground">
+              {origin.name}, {origin.country} → Brasil
+            </p>
+            <p className="portal-small text-portal-neutral">
+              Origem aproximada (ilustrativa)
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="portal-small text-portal-neutral">Modal</p>
+            <p className="portal-body font-medium text-foreground">
+              <span className="inline-flex items-center gap-2">
+                <ModalIcon modal={shipment.modal} className="h-5 w-5" />
+                {shipment.modal ? MODAL_LABELS[shipment.modal] : '—'}
+              </span>
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="portal-small text-portal-neutral">Chegada estimada (ETA)</p>
+            <ProvenanceBadge provenance="pending" />
+            <p className="portal-small text-portal-neutral">
+              Sem rastreamento integrado
+            </p>
+          </div>
         </div>
+        <div className="border-t pt-4">
+          <ShipmentRoute estado={shipment.estado} modal={shipment.modal} />
+        </div>
+      </section>
+
+      {/* Primary: the journey timeline — the reason the client opened this screen.
+          Real operational states up to the current one, then the downstream
+          stages the client cares about, marked "Pendente integração". */}
+      <section className="portal-card space-y-6 p-6">
+        <SectionHeading title="Acompanhamento" />
+        <ShipmentTimeline estado={shipment.estado} />
       </section>
 
       {/* Maritime tracking: the ShipsGo-style fields (vessel, POL/POD, ETD/ETA)

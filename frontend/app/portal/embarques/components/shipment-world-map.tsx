@@ -9,7 +9,8 @@ import { cn } from '@/lib/utils';
 import {
   ESTADO_ACCENT_CLASS,
   ESTADO_LABELS,
-  type EmbarqueEstado,
+  SEMAFORO_DOT_CLASS,
+  type SemaforoTone,
   type PortalShipment,
 } from '@/types/portal-shipment';
 
@@ -90,15 +91,16 @@ interface Placed {
 }
 
 interface LegendEntry {
-  estado: EmbarqueEstado;
+  tone: SemaforoTone;
   label: string;
 }
 
+// 3-colour semáforo legend (health), matching ESTADO_SEMAFORO: green while the
+// shipment progresses normally, orange for a delay, red for a divergence.
 const LEGEND: LegendEntry[] = [
-  { estado: 'solicitado', label: 'Em andamento' },
-  { estado: 'aguardando_prontidao', label: 'Atenção / aguardando' },
-  { estado: 'embarcado', label: 'Embarcado' },
-  { estado: 'booking_divergente', label: 'Exceção' },
+  { tone: 'success', label: 'Em andamento' },
+  { tone: 'warning', label: 'Atenção / atraso' },
+  { tone: 'danger', label: 'Exceção' },
 ];
 
 export function ShipmentWorldMap({ shipments }: { shipments: PortalShipment[] }) {
@@ -292,13 +294,10 @@ export function ShipmentWorldMap({ shipments }: { shipments: PortalShipment[] })
       {/* Legend + illustrative caption */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          {LEGEND.map(({ estado, label }) => (
-            <span key={estado} className="inline-flex items-center gap-1.5">
+          {LEGEND.map(({ tone, label }) => (
+            <span key={tone} className="inline-flex items-center gap-1.5">
               <span
-                className={cn(
-                  'h-2.5 w-2.5 rounded-full bg-current',
-                  ESTADO_ACCENT_CLASS[estado],
-                )}
+                className={cn('h-2.5 w-2.5 rounded-full', SEMAFORO_DOT_CLASS[tone])}
               />
               <span className="portal-small text-portal-neutral">{label}</span>
             </span>

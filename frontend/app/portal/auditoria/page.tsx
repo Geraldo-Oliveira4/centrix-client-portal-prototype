@@ -1,10 +1,19 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, FlaskConical } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  FileUp,
+  FlaskConical,
+  type LucideIcon,
+} from 'lucide-react';
 import { LoaderComponent, ErrorComponent, EmptyState } from '@arboria-tech/arboria-ui';
 
 import {
+  Button,
   Table,
   TableBody,
   TableCell,
@@ -18,15 +27,38 @@ import { useMyQuotations } from '@/hooks/use-portal-quotations';
 import { useAuditPreviews } from '@/hooks/use-portal-audit-preview';
 import type { PortalAuditPreview } from '@/types/portal-audit';
 import type { PortalQuotation } from '@/types/portal';
+import type { SemaforoTone } from '@/types/portal-shipment';
 
 import { PagePortalHeader } from '../_shared/page-header';
+import { AuditDocumentModal } from './components/audit-document-modal';
+import { resolveAuditStatus } from './lib/audit-journey';
+
+const SUBMITTED_KEY = 'portal:audit:submitted';
+
+const STATUS_ICON: Record<SemaforoTone, LucideIcon> = {
+  success: CheckCircle2,
+  warning: Clock,
+  danger: AlertTriangle,
+};
+
+const STATUS_CLASS: Record<SemaforoTone, string> = {
+  success: 'border-portal-success/25 bg-portal-success/10 text-portal-success',
+  warning: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning',
+  danger: 'border-portal-danger/30 bg-portal-danger/10 text-portal-danger',
+};
+
+interface SelectedRow {
+  id: string;
+  reference: string;
+  preview: PortalAuditPreview | null;
+}
 
 /**
- * Auditoria — the per-quotation audit-preview (MOCK "realized value") lifted to
- * an aggregated list over every closed quotation. Same honesty discipline as the
- * per-quotation section: only "Valor cotado" is real; the estimated value, the
- * difference and the divergence flag are illustrative, so the whole comparison
- * sits inside a dashed "Pré-visualização" frame.
+ * Auditoria — the consolidated panel (journey step 2.1). Per closed quotation it
+ * shows cotado (real) vs estimado (mock), a 3-colour semáforo status
+ * (Auditado / Em conferência / Divergência) and the journey origin, plus the
+ * "Enviar documentação" action (step 2.2). Same honesty discipline: only the
+ * quoted value is real, so the whole comparison stays in a dashed preview frame.
  */
 export default function AuditoriaPage() {
   const { data, isLoading, isError } = useMyQuotations();
@@ -37,6 +69,38 @@ export default function AuditoriaPage() {
   const { previews, isLoading: loadingPreviews } = useAuditPreviews(
     fechadas.map((q) => q.id),
   );
+
+  // Which quotations the client sent documents for -> "em conferência". Client
+  // side only (no backend audit engine); seeded from localStorage after mount.
+  const [submittedList, setSubmittedList] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SUBMITTED_KEY);
+      if (raw) setSubmittedList(JSON.parse(raw));
+    } catch {
+      // ignore
+    }
+  }, []);
+  const submittedIds = useMemo(() => new Set(submittedList), [submittedList]);
+
+  const [selected, setSelected] = useState<SelectedRow | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const handleSubmitted = (quotationId: string) => {
+    if (submittedIds.has(quotationId)) return;
+    const next = [...submittedList, quotationId];
+    setSubmittedList(next);
+    try {
+      localStorage.setItem(SUBMITTED_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  };
+
+  const openModal = (q: PortalQuotation) => {
+    setSelected({ id: q.id, reference: q.reference, preview: previews[q.id] ?? null });
+    setModalOpen(true);
+  };
 
   if (isLoading) return <LoaderComponent />;
   if (isError || !data) return <ErrorComponent />;
@@ -103,27 +167,27 @@ export default function AuditoriaPage() {
             </div>
             <p className="portal-small text-portal-neutral">
               Coluna <span className="font-medium text-foreground">Valor cotado</span>{' '}
-              é real (proposta aprovada). Valor estimado, diferença e status de
-              divergência são ilustrativos.
+              é real (proposta aprovada). Valor estimado, diferença, status e
+              conferência são ilustrativos.
               {disclaimer ? ` ${disclaimer}` : ''}
             </p>
           </section>
 
           {/* Aggregated table */}
-          <div className="portal-card overflow-hidden">
+          <div className="portal-card overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="portal-small font-medium text-portal-neutral">
                     Cotação
                   </TableHead>
-                  <TableHead className="portal-small hidden font-medium text-portal-neutral md:table-cell">
+                  <TableHead className="portal-small hidden font-medium text-portal-neutral lg:table-cell">
                     Rota
                   </TableHead>
                   <TableHead className="portal-small font-medium text-portal-neutral">
                     Valor cotado
                   </TableHead>
-                  <TableHead className="portal-small font-medium text-portal-neutral">
+                  <TableHead className="portal-small hidden font-medium text-portal-neutral sm:table-cell">
                     Valor estimado
                   </TableHead>
                   <TableHead className="portal-small font-medium text-portal-neutral">
@@ -131,6 +195,9 @@ export default function AuditoriaPage() {
                   </TableHead>
                   <TableHead className="portal-small font-medium text-portal-neutral">
                     Status
+                  </TableHead>
+                  <TableHead className="portal-small font-medium text-portal-neutral">
+                    Documentação
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -140,6 +207,11 @@ export default function AuditoriaPage() {
                   const divergent = preview?.mock_divergence_detected ?? false;
                   const difference = preview?.mock_difference_brl ?? 0;
                   const higher = difference > 0;
+                  const rowStatus = resolveAuditStatus(
+                    divergent,
+                    submittedIds.has(q.id),
+                  );
+                  const StatusIcon = STATUS_ICON[rowStatus.tone];
                   return (
                     <TableRow key={q.id} className="hover:bg-muted/40">
                       <TableCell>
@@ -150,13 +222,13 @@ export default function AuditoriaPage() {
                           {q.reference}
                         </Link>
                       </TableCell>
-                      <TableCell className="portal-body hidden text-portal-neutral md:table-cell">
+                      <TableCell className="portal-body hidden text-portal-neutral lg:table-cell">
                         {formatRoute(q)}
                       </TableCell>
                       <TableCell className="portal-body font-medium text-foreground">
                         {preview ? formatBRL(preview.quoted_value_brl) : '—'}
                       </TableCell>
-                      <TableCell className="portal-body text-portal-neutral">
+                      <TableCell className="portal-body hidden text-portal-neutral sm:table-cell">
                         {preview ? formatBRL(preview.mock_realized_value_brl) : '—'}
                       </TableCell>
                       <TableCell
@@ -173,19 +245,35 @@ export default function AuditoriaPage() {
                       </TableCell>
                       <TableCell>
                         {preview ? (
-                          divergent ? (
-                            <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-danger/30 bg-portal-danger/10 px-2 py-0.5 font-medium text-portal-danger">
-                              <AlertTriangle className="h-3.5 w-3.5" />
-                              Divergência
+                          <div className="space-y-1">
+                            <span
+                              className={cn(
+                                'portal-small inline-flex items-center gap-1 rounded border px-2 py-0.5 font-medium',
+                                STATUS_CLASS[rowStatus.tone],
+                              )}
+                            >
+                              <StatusIcon className="h-3.5 w-3.5" />
+                              {rowStatus.label}
                             </span>
-                          ) : (
-                            <span className="portal-small text-portal-neutral">
-                              Dentro do limite
-                            </span>
-                          )
+                            <p className="portal-small text-portal-neutral">
+                              {rowStatus.originLabel}
+                            </p>
+                          </div>
                         ) : (
                           <span className="portal-small text-portal-neutral">—</span>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          disabled={!preview}
+                          onClick={() => openModal(q)}
+                        >
+                          <FileUp className="h-4 w-4" />
+                          Enviar
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -195,6 +283,15 @@ export default function AuditoriaPage() {
           </div>
         </>
       )}
+
+      <AuditDocumentModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        quotationId={selected?.id ?? null}
+        reference={selected?.reference ?? ''}
+        preview={selected?.preview ?? null}
+        onSubmitted={handleSubmitted}
+      />
     </div>
   );
 }

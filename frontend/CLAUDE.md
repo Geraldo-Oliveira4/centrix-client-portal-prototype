@@ -392,10 +392,14 @@ Do not introduce `p-3`, `gap-3`, `space-y-5` or other off-grid steps in `/portal
 Two `/portal` modules that surface product answers under one **honesty
 discipline**: nothing real wears the preview badge, nothing fabricated is shown
 without it. The shared badge is `ProvenanceBadge`
-(`app/portal/_shared/provenance-badge.tsx`) — `real` (green "Dado real") vs
-`preview` (dashed "Pré-visualização", the same seal already used by the
-per-quotation Auditoria section). Reuse it on any new portal surface that mixes
-real and illustrative data; do not invent a second badge style.
+(`app/portal/_shared/provenance-badge.tsx`) — three variants: `real` (green "Dado
+real"), `preview` (pink dashed "Pré-visualização" — a fabricated number, same seal
+as the per-quotation Auditoria section) and `pending` (grey "Pendente integração"
+— NOT fabricated, just has no data source yet: ETA feed, exception engine,
+invoice/BL). Reuse it on any new portal surface that mixes real and illustrative
+data; do not invent a second badge style. The distinction matters: `preview` = a
+made-up value; `pending` = a real value that will arrive when an integration
+lands.
 
 Both modules are **read-only** and add **no backend endpoint** — they compose
 existing `GET` routes. Their sidebar entries live in
@@ -435,7 +439,7 @@ Distribuição dos blocos (o `provenance` de cada um **não muda** com o local):
 | Mercado (`market-block.tsx`) | Detalhe da cotação, painel ao lado das propostas | `preview` | **Real:** seu preço médio. **Mock:** benchmark do setor (`avg × 1.08`) |
 | Evidência (`evidence-block.tsx`) | Detalhe da cotação, painel ao lado das propostas ("embarques semelhantes") | `real` | **Real:** cards de embarques do histórico. **Mock:** critério de semelhança de rota |
 | Risco (`risk-block.tsx`) | Detalhe da cotação, junto da seção Auditoria (só FECHADA) | `preview` | **Real:** sinais de campos reais + refs. **Mock:** a "análise de risco" consolidada |
-| Prazo (`deadline-block.tsx`) | `/portal/embarques` (topo da lista) | `preview` | **Real:** contagem de embarques. **Mock:** % no prazo (constante 87%) |
+| Prazo (`deadline-block.tsx`) | **Removido** de `/portal/embarques` (a aba Mapa não tem cards; o "Prazo 87%" não tinha lastro). Arquivo mantido, sem uso — candidato a remoção | `preview` | **Real:** contagem de embarques. **Mock:** % no prazo (constante 87%) |
 
 Ao mexer num bloco, mantenha o `provenance` coerente com o **headline**: se o
 número em destaque é fabricado, o bloco é `preview` (mesmo que use nomes/valores

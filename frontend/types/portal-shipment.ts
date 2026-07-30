@@ -90,38 +90,81 @@ export const ESTADO_DESCRIPTIONS: Record<EmbarqueEstado, string> = {
 };
 
 /**
- * Semantic colour per state. The palette carries the meaning, so the same state
- * reads identically in the badge, the summary tile and the progress steps:
+ * Health semáforo — 3 colours only (green / orange / red), no 4th status colour.
+ * A shipment is GREEN whenever it is progressing normally (whatever the internal
+ * stage), and only lights up when something needs the client's attention:
  *
- *   portal-info    — moving, nothing required from the client (solicitado, coletado)
- *   portal-warning — waiting or under review (aguardando_prontidao, analise_booking,
- *                    postergado: a delay is attention, not a failure)
- *   portal-success — done (embarcado)
- *   portal-danger  — divergence the client should know about (booking_divergente)
+ *   portal-success (green)  — proceeding normally: solicitado, aguardando_prontidao,
+ *                             coletado, analise_booking, embarcado
+ *   portal-warning (orange) — attention: postergado (a delay)
+ *   portal-danger  (red)    — critical: booking_divergente (divergence)
  *
- * Brand pink is deliberately absent: it means "action" in this app, and a
- * shipment state is never an action the client can take here.
+ * The old blue "info" tone was dropped: the portal status rule is a 3-colour
+ * semáforo, so the internal progress stages all read as green health. Brand pink
+ * stays absent — it means "action", and a shipment state is never a client action.
  */
-export const ESTADO_BADGE_CLASS: Record<EmbarqueEstado, string> = {
-  solicitado: 'bg-portal-info/10 text-portal-info border-portal-info/25',
-  aguardando_prontidao:
-    'bg-portal-warning/10 text-portal-warning border-portal-warning/30',
-  coletado: 'bg-portal-info/10 text-portal-info border-portal-info/25',
-  analise_booking:
-    'bg-portal-warning/10 text-portal-warning border-portal-warning/30',
-  embarcado: 'bg-portal-success/10 text-portal-success border-portal-success/25',
-  postergado: 'bg-portal-warning/10 text-portal-warning border-portal-warning/30',
-  booking_divergente:
-    'bg-portal-danger/10 text-portal-danger border-portal-danger/30',
+export type SemaforoTone = 'success' | 'warning' | 'danger';
+
+export const ESTADO_SEMAFORO: Record<EmbarqueEstado, SemaforoTone> = {
+  solicitado: 'success',
+  aguardando_prontidao: 'success',
+  coletado: 'success',
+  analise_booking: 'success',
+  embarcado: 'success',
+  postergado: 'warning',
+  booking_divergente: 'danger',
 };
 
-/** Solid colour per state, for the progress dots and the summary tile numbers. */
-export const ESTADO_ACCENT_CLASS: Record<EmbarqueEstado, string> = {
-  solicitado: 'text-portal-info',
-  aguardando_prontidao: 'text-portal-warning',
-  coletado: 'text-portal-info',
-  analise_booking: 'text-portal-warning',
-  embarcado: 'text-portal-success',
-  postergado: 'text-portal-warning',
-  booking_divergente: 'text-portal-danger',
+const SEMAFORO_BADGE_CLASS: Record<SemaforoTone, string> = {
+  success: 'bg-portal-success/10 text-portal-success border-portal-success/25',
+  warning: 'bg-portal-warning/10 text-portal-warning border-portal-warning/30',
+  danger: 'bg-portal-danger/10 text-portal-danger border-portal-danger/30',
+};
+
+const SEMAFORO_ACCENT_CLASS: Record<SemaforoTone, string> = {
+  success: 'text-portal-success',
+  warning: 'text-portal-warning',
+  danger: 'text-portal-danger',
+};
+
+/** Semáforo badge classes per state (bg + text + border). */
+export const ESTADO_BADGE_CLASS: Record<EmbarqueEstado, string> =
+  Object.fromEntries(
+    (Object.keys(ESTADO_SEMAFORO) as EmbarqueEstado[]).map((estado) => [
+      estado,
+      SEMAFORO_BADGE_CLASS[ESTADO_SEMAFORO[estado]],
+    ]),
+  ) as Record<EmbarqueEstado, string>;
+
+/** Solid semáforo colour per state, for map arcs, dots and tile numbers. */
+export const ESTADO_ACCENT_CLASS: Record<EmbarqueEstado, string> =
+  Object.fromEntries(
+    (Object.keys(ESTADO_SEMAFORO) as EmbarqueEstado[]).map((estado) => [
+      estado,
+      SEMAFORO_ACCENT_CLASS[ESTADO_SEMAFORO[estado]],
+    ]),
+  ) as Record<EmbarqueEstado, string>;
+
+// Counts per semáforo tone, for the "🟢 N · 🟠 N · 🔴 N" strip. Derives from the
+// same ESTADO_SEMAFORO map, so the counter and the dots can never disagree.
+export interface SemaforoCounts {
+  success: number;
+  warning: number;
+  danger: number;
+}
+
+export const countBySemaforo = (
+  shipments: { estado: EmbarqueEstado }[],
+): SemaforoCounts => {
+  const counts: SemaforoCounts = { success: 0, warning: 0, danger: 0 };
+  shipments.forEach((s) => {
+    counts[ESTADO_SEMAFORO[s.estado]] += 1;
+  });
+  return counts;
+};
+
+export const SEMAFORO_DOT_CLASS: Record<SemaforoTone, string> = {
+  success: 'bg-portal-success',
+  warning: 'bg-portal-warning',
+  danger: 'bg-portal-danger',
 };

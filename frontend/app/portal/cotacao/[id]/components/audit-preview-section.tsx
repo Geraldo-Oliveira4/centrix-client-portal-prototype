@@ -2,9 +2,10 @@
 
 import { AlertTriangle, FlaskConical } from 'lucide-react';
 
-import { cn } from '@/lib/utils';
 import { formatBRL } from '@/lib/portal-formatters';
 import { useAuditPreview } from '@/hooks/use-portal-audit-preview';
+
+import { AuditResult } from '../../../auditoria/components/audit-result';
 
 /**
  * MOCK - Auditoria real (Camada de Auditoria de Frete/Fatura) é produto separado,
@@ -32,7 +33,6 @@ export function AuditPreviewSection({ quotationId }: { quotationId: string }) {
 
   const divergent = preview.mock_divergence_detected;
   const difference = preview.mock_difference_brl;
-  const higher = difference > 0;
 
   return (
     <section className="space-y-4 rounded-xl border border-dashed border-border bg-muted/20 p-6">
@@ -52,48 +52,9 @@ export function AuditPreviewSection({ quotationId }: { quotationId: string }) {
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {/* Real — vem da proposta aprovada. Único bloco com peso de card. */}
-        <div className="portal-card space-y-1 p-4">
-          <p className="portal-small text-portal-neutral">Valor cotado</p>
-          <p className="text-xl font-semibold text-foreground">
-            {formatBRL(preview.quoted_value_brl)}
-          </p>
-          <p className="portal-small text-portal-neutral">Proposta aprovada</p>
-        </div>
-
-        {/* Fabricado — o rótulo tem que dizer isso sem depender do disclaimer,
-            e o tratamento visual (tracejado + cinza) reforça a mesma mensagem. */}
-        <div className="space-y-1 rounded-xl border border-dashed border-border bg-transparent p-4">
-          <p className="portal-small text-portal-neutral">
-            Valor estimado — dado ilustrativo
-          </p>
-          <p className="text-xl font-medium text-portal-neutral">
-            {formatBRL(preview.mock_realized_value_brl)}
-          </p>
-          <p className="portal-small text-portal-neutral">
-            Não apurado — exemplo gerado
-          </p>
-        </div>
-
-        <div className="space-y-1 rounded-xl border border-dashed border-border bg-transparent p-4">
-          <p className="portal-small text-portal-neutral">Diferença</p>
-          <p
-            className={cn(
-              'text-xl font-semibold',
-              divergent ? 'text-portal-danger' : 'text-portal-neutral',
-            )}
-          >
-            {higher ? '+' : '−'}
-            {formatBRL(Math.abs(difference))}
-          </p>
-          <p className="portal-small text-portal-neutral">
-            {preview.mock_variation_pct > 0 ? '+' : ''}
-            {preview.mock_variation_pct}% sobre o cotado · limite{' '}
-            {preview.divergence_threshold_pct}%
-          </p>
-        </div>
-      </div>
+      {/* Shared result component — identical to the one used in the aggregated
+          panel and after document submission (unification rule 2.3). */}
+      <AuditResult preview={preview} />
 
       <p className="portal-small text-portal-neutral">{preview.disclaimer}</p>
     </section>

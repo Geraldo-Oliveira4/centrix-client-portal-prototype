@@ -63,3 +63,14 @@ export const buildNeedsInfoMailto = (reference: string): string => {
   );
   return `mailto:${FREITAS_CONTACT_EMAIL}?subject=${subject}&body=${body}`;
 };
+
+// "Solicitar atualização" on a shipment: there is no write endpoint for shipments
+// in the portal (read-only by design), so the request goes to Freitas by e-mail —
+// a real, working action, unlike a fake status write.
+export const buildShipmentUpdateMailto = (reference: string): string => {
+  const subject = encodeURIComponent(`${reference} - Atualização de embarque`);
+  const body = encodeURIComponent(
+    `Olá, equipe Freitas,\n\nGostaria de uma atualização sobre o andamento do embarque ${reference}.\n\n`,
+  );
+  return `mailto:${FREITAS_CONTACT_EMAIL}?subject=${subject}&body=${body}`;
+};
