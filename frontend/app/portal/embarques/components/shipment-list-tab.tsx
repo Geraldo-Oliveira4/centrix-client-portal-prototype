@@ -93,17 +93,25 @@ function ShipmentCard({ shipment }: { shipment: PortalShipment }) {
         <EstadoBadge estado={shipment.estado} />
       </div>
 
-      {/* Rota — origem ilustrativa (ver legenda). Chegada não tem fonte de dado. */}
+      {/* Rota — origem ilustrativa (ver legenda). Chegada e risco de atraso não
+          têm fonte de dado ainda (sem ETA/histórico de desvio) — o badge fica
+          pronto como "Pendente integração", sem número inventado no lugar. */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <span className="portal-small text-portal-neutral">
           {origin.name}, {origin.country}
           <span className="mx-1.5">→</span>
           Brasil
         </span>
-        <span className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
-          ETA
-          <ProvenanceBadge provenance="pending" />
-        </span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
+            ETA
+            <ProvenanceBadge provenance="pending" />
+          </span>
+          <span className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
+            Risco de atraso
+            <ProvenanceBadge provenance="pending" />
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center justify-between gap-2 border-t pt-3">
