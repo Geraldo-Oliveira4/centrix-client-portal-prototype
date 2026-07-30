@@ -15,12 +15,6 @@ import {
 
 import { cn } from '@/lib/utils';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui';
-import {
   addDays,
   formatBRL,
   formatRoute,
@@ -83,49 +77,17 @@ interface ScoreBadgeProps {
   score: PortalProposalScore | null | undefined;
 }
 
-function scoreColorClass(total: number | null): string {
-  if (total == null) return 'bg-slate-100 text-slate-600';
-  if (total >= 70) return 'bg-emerald-50 text-emerald-700';
-  if (total >= 50) return 'bg-amber-50 text-amber-700';
-  return 'bg-rose-50 text-rose-700';
-}
-
+// Qualitative "recommended" seal. The numeric AI score is deliberately NOT shown
+// to the client (product decision): the portal surfaces the recommendation, not
+// the model's number.
 function ScoreBadge({ score }: ScoreBadgeProps) {
   if (!score || score.total == null) return null;
 
-  const rows = [
-    { label: 'Preço', value: score.cost },
-    { label: 'Transit time', value: score.transit },
-    { label: 'Validade', value: score.validity },
-    { label: 'Frequência', value: score.frequency },
-  ];
-
   return (
-    <TooltipProvider delayDuration={150}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span
-            className={cn(
-              'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium cursor-default',
-              scoreColorClass(score.total),
-            )}
-          >
-            <Sparkles className="h-3 w-3" />
-            Score {score.total.toFixed(1)}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="space-y-1 text-xs">
-          {rows.map((row) => (
-            <div key={row.label} className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">{row.label}</span>
-              <span className="font-medium">
-                {row.value != null ? row.value.toFixed(1) : '—'}
-              </span>
-            </div>
-          ))}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+      <Sparkles className="h-3 w-3" />
+      Recomendada
+    </span>
   );
 }
 

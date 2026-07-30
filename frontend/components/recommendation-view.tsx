@@ -12,7 +12,13 @@ import type { ProposalScore, RecommendationResult } from '@/types/quotation';
 // score rows and card layout here is the single source of truth so the two
 // surfaces never drift.
 
-function ScoreBar({ value }: { value: number | null }) {
+function ScoreBar({
+  value,
+  showValue = true,
+}: {
+  value: number | null;
+  showValue?: boolean;
+}) {
   if (value == null)
     return <span className="text-xs text-muted-foreground">—</span>;
   const pct = Math.round(value);
@@ -31,7 +37,9 @@ function ScoreBar({ value }: { value: number | null }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-xs tabular-nums w-8 text-right">{pct}</span>
+      {showValue && (
+        <span className="text-xs tabular-nums w-8 text-right">{pct}</span>
+      )}
     </div>
   );
 }
@@ -39,9 +47,13 @@ function ScoreBar({ value }: { value: number | null }) {
 function ScoreRow({
   score,
   isRecommended,
+  hideNumericScore,
 }: {
   score: ProposalScore;
   isRecommended: boolean;
+  // Portal surface: the numeric AI score is hidden from the client (product
+  // decision). The comparative bars stay as a qualitative visual.
+  hideNumericScore: boolean;
 }) {
   return (
     <div
@@ -74,7 +86,7 @@ function ScoreRow({
             </Badge>
           )}
         </div>
-        {score.total_score != null && (
+        {!hideNumericScore && score.total_score != null && (
           <span className="text-sm font-bold tabular-nums">
             {Math.round(score.total_score)}
           </span>
@@ -94,25 +106,25 @@ function ScoreRow({
           <span>Prazo (22%)</span>
           <span>Rota (18%)</span>
           <div>
-            <ScoreBar value={score.cost_score} />
+            <ScoreBar value={score.cost_score} showValue={!hideNumericScore} />
           </div>
           <div>
-            <ScoreBar value={score.transit_score} />
+            <ScoreBar value={score.transit_score} showValue={!hideNumericScore} />
           </div>
           <div>
-            <ScoreBar value={score.route_score} />
+            <ScoreBar value={score.route_score} showValue={!hideNumericScore} />
           </div>
           <span>Frequência (14%)</span>
           <span>Free time (10%)</span>
           <span>Validade (8%)</span>
           <div>
-            <ScoreBar value={score.frequency_score} />
+            <ScoreBar value={score.frequency_score} showValue={!hideNumericScore} />
           </div>
           <div>
-            <ScoreBar value={score.free_time_score} />
+            <ScoreBar value={score.free_time_score} showValue={!hideNumericScore} />
           </div>
           <div>
-            <ScoreBar value={score.validity_score} />
+            <ScoreBar value={score.validity_score} showValue={!hideNumericScore} />
           </div>
         </div>
       )}
@@ -230,6 +242,7 @@ export function RecommendationView({
               isRecommended={
                 score.proposal_id === recommendation.recommended_proposal_id
               }
+              hideNumericScore={isPortal}
             />
           ))}
         </div>
