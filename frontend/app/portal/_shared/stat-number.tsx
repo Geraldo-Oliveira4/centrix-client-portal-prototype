@@ -55,6 +55,7 @@ export function StatNumber({
   caption,
   badge,
   icon,
+  size = 'default',
 }: {
   label: string;
   /** The big number. Omit when the metric has no data yet (show `badge` instead). */
@@ -67,20 +68,31 @@ export function StatNumber({
   /** e.g. a ProvenanceBadge — shown top-right, and used in place of a value when pending. */
   badge?: ReactNode;
   icon?: ReactNode;
+  /**
+   * Weight of the tile on the page. `hero` is for the one or two headline
+   * metrics of a dashboard; `compact` for the supporting row beneath them. A
+   * screen with every tile at the same size has no hierarchy — pick one level
+   * to dominate and drop the rest to `compact`.
+   */
+  size?: 'hero' | 'default' | 'compact';
 }) {
+  const valueClass =
+    size === 'hero' ? 'text-5xl' : size === 'compact' ? 'text-2xl' : 'text-3xl';
+
   return (
-    <div className="portal-card space-y-2 p-6">
+    <div className={cn('portal-card space-y-2', size === 'compact' ? 'p-4' : 'p-6')}>
       <div className="flex items-center justify-between gap-2 text-portal-neutral">
         <div className="flex items-center gap-2">
           {icon}
-          <p className="portal-small">{label}</p>
+          <p className={size === 'hero' ? 'portal-body' : 'portal-small'}>{label}</p>
         </div>
         {badge}
       </div>
       {value != null ? (
         <p
           className={cn(
-            'text-3xl font-semibold leading-none',
+            'font-semibold leading-none',
+            valueClass,
             tone ? TONE_TEXT[tone] : 'text-foreground',
           )}
         >

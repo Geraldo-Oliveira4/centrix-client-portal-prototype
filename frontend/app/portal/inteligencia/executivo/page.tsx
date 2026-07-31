@@ -29,6 +29,12 @@ import { volumeTrend } from '../lib/volume-helpers';
  * domínio dessa camada. The KPI set, the semáforo thresholds and which figures
  * belong in an executive view are his call; this is a first cut.
  *
+ * PAUTA ABERTA dessa validação: com a "Visão geral" fundida no Performance,
+ * cinco dos seis KPIs daqui (taxa de aprovação, tempo de resposta, cotações 30d,
+ * embarques 30d, on-time, economia estimada) passaram a existir também lá. Não é
+ * duplicação na mesma tela, mas é decisão de produto se o Executivo segue como
+ * resumo dos mesmos números ou vira outro recorte — não resolver isso por conta.
+ *
  * Data honesty: approval rate, response time, quotation/shipment counts are REAL.
  * Savings is ILLUSTRATIVE (benchmark +8%, no market baseline) and wears the
  * preview badge. On-time rate has no source -> "Pendente integração".

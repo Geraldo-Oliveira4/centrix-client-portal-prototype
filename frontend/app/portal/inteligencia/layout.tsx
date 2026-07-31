@@ -7,11 +7,15 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 // Secondary navigation for the Inteligência section. The portal sidebar has no
-// sub-items, so the sub-dashboards (Performance, Fornecedores, Executivo) are
+// sub-items, so the three dashboards (Performance, Fornecedores, Executivo) are
 // reached from this tab strip. The sidebar entry "Inteligência" stays active for
 // all of them (it matches on startsWith).
+//
+// There is no "Visão geral" tab: it read only the quotation side, and the
+// question it answered ("estou indo bem?") needs quotation AND shipment data in
+// the same place, so it was merged into Performance. `/portal/inteligencia`
+// itself redirects there.
 const TABS = [
-  { href: '/portal/inteligencia', label: 'Visão geral' },
   { href: '/portal/inteligencia/performance', label: 'Performance' },
   { href: '/portal/inteligencia/fornecedores', label: 'Fornecedores' },
   { href: '/portal/inteligencia/executivo', label: 'Executivo' },
