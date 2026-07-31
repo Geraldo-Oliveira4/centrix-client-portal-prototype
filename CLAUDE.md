@@ -144,6 +144,37 @@ Convenções que sustentam o aviso — mantenha se mexer nisso:
   (sorteado a cada `make seed`) — assim a COT-2026-0004 semeada sempre cai
   acima do limite de 5% e o selo "Divergência detectada" aparece na demo.
 
+## Comportamento conhecido: leitura que escreve
+
+`GET /portal/quotations/{id}/recommendation` reescreve `ProposalScore` a cada
+chamada — `recommendation_service.calculate_and_persist` chama
+`proposal_score_repository.upsert_for_quotation`, que faz DELETE + INSERT de
+todas as linhas de score da cotação. Abrir a tela de detalhe de uma cotação já
+altera o banco.
+
+Isso **não é bug** (vem do Centrix, onde o score é recalculado sob demanda), mas
+explica por que os scores podem divergir do que o seed criou mesmo sem nenhuma
+ação de negócio ter ocorrido. Consequências práticas:
+
+- Contagem de `centrix_quotation_proposal_scores` não é estável: basta alguém
+  navegar no portal para ela mudar. Ao auditar se um banco "está como o seed
+  deixou", use `centrix_quotation_logs` — esse sim só cresce por ação de
+  negócio (aprovar/recusar/cancelar/criar).
+- Os valores de score do seed são fabricados por `_score()` e não batem com o
+  cálculo real do `recommendation_service`; a primeira abertura da tela
+  substitui os do seed pelos calculados.
+
+## Utilitário fora do fluxo de seed
+
+`backend/scripts/topup_funnel_quotations.py` é um script de uma vez só, **não faz
+parte do fluxo normal**. `seed_prototype.py` é skip-if-exists (sai sem fazer nada
+se o CLIENTE DEMO já existir), então cotações acrescentadas ao seed depois que um
+banco já foi semeado nunca chegam nele. O top-up insere COT-2026-0007/0008/0009
+num banco já populado, sem tocar no que existe: só INSERT, dry-run por padrão,
+aborta se as referências já existirem e confere os deltas de linha antes de
+commitar. Foi aplicado uma vez no Supabase remoto; num banco limpo, `make seed`
+já cria as nove.
+
 ## Como rodar
 
 ```bash
