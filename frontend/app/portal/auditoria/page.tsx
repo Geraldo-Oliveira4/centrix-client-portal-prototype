@@ -1,97 +1,151 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, FileSearch, Receipt, ScrollText } from 'lucide-react';
+import { ArrowRight, PackageCheck, Wrench } from 'lucide-react';
 
 import { Button } from '@/components/ui';
 
-import { PagePortalHeader } from '../_shared/page-header';
+import { PagePortalHeader, SectionHeading } from '../_shared/page-header';
 import { ProvenanceBadge } from '../_shared/provenance-badge';
+import { ConciliationTable } from './components/conciliation-table';
+import { DisputeDraftModal } from './components/dispute-draft-modal';
+import {
+  CONCILIATION_EXAMPLES,
+  type ConciliationExample,
+  type EvaluatedLine,
+} from './lib/conciliation';
 
 /**
- * Auditoria — placeholder for the Camada de Auditoria de Frete/Fatura, a
- * separate product sequenced after the GE go-live. It has no data source in this
- * repository (no invoice, no BL, no audit engine), so this page shows NO number
- * at all: a fabricated figure here would read as the real product.
+ * Auditoria — planejado (cotação) × realizado (NF final), em três camadas:
  *
- * What used to live here — the cotado × estimado comparison with the divergence
- * badge — was never audit: it is the data-conference layer of the quotation
- * itself, and now lives inside Minhas Cotações > Histórico, next to the closed
- * quotation it belongs to.
+ *   1. Conciliação determinística — a tabela por embarque.
+ *   2. Árvore de decisão — if/else sobre o limite de divergência, marca a linha
+ *      com "Sugerimos contestar". Não é IA.
+ *   3. Rascunho de contestação — texto montado por template determinístico.
+ *
+ * A tela inteira é CONCEITUAL, e por dois motivos de schema, não de escopo:
+ *
+ *   - o gatilho é a chegada do embarque, e `EmbarqueState` termina em
+ *     `embarcado` (partida). Não existe estado de chegada confirmada, nem data
+ *     de chegada preenchida (`Processo.datas` fica NULL), então NENHUM embarque
+ *     real é elegível hoje — a lista de elegíveis é honestamente vazia;
+ *   - o lado "realizado" viria da NF final, e não existe model de nota fiscal
+ *     ou fatura no repositório.
+ *
+ * Por isso os embarques mostrados são exemplos declaradamente fictícios
+ * (prefixo EXEMPLO-), e não um embarque real do cliente com números fabricados
+ * pendurados nele. Se o módulo de Tracking passar a marcar a chegada e a NF
+ * final entrar no schema, o que muda aqui é a FONTE das linhas — a conciliação,
+ * a árvore de decisão e o template de contestação continuam válidos.
+ *
+ * A conferência cotado × valor de fechamento que morava nesta rota NÃO é
+ * auditoria: é conferência da própria cotação, e vive em Minhas Cotações >
+ * Histórico. Não traga aquele painel de volta para cá.
  */
-
-const SCOPE = [
-  {
-    icon: Receipt,
-    title: 'Fatura do agente × proposta aprovada',
-    description:
-      'Confronto linha a linha do que foi cobrado contra o que foi cotado, incluindo taxas que não estavam na proposta.',
-  },
-  {
-    icon: ScrollText,
-    title: 'BL e documentos do embarque',
-    description:
-      'Leitura dos documentos do embarque para apurar o valor efetivamente realizado, hoje inexistente em qualquer base.',
-  },
-  {
-    icon: FileSearch,
-    title: 'Trilha de divergências',
-    description:
-      'Histórico de divergências por agente e por rota, com o desfecho de cada contestação.',
-  },
-];
-
 export default function AuditoriaPage() {
+  const [selected, setSelected] = useState<{
+    example: ConciliationExample;
+    line: EvaluatedLine;
+  } | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const openDispute = (example: ConciliationExample) => (line: EvaluatedLine) => {
+    setSelected({ example, line });
+    setModalOpen(true);
+  };
+
   return (
     <div className="space-y-8">
       <PagePortalHeader
         title="Auditoria"
-        subtitle="Auditoria de frete e fatura — módulo em construção."
-        action={<ProvenanceBadge provenance="pending" />}
+        subtitle="Confere o que foi contratado na cotação contra o que foi cobrado no fechamento do embarque."
+        action={<ProvenanceBadge provenance="preview" />}
       />
 
-      <section className="space-y-6 rounded-xl border border-dashed border-border bg-muted/20 p-6">
-        <div className="space-y-2">
-          <p className="portal-h3 text-foreground">
-            Ainda não há dado de auditoria neste portal
-          </p>
-          <p className="portal-body max-w-3xl text-portal-neutral">
-            A auditoria compara o que foi cobrado com o que foi contratado, a
-            partir da fatura do agente e dos documentos do embarque. Essas fontes
-            ainda não estão integradas, então esta tela não exibe nenhum número —
-            preferimos deixá-la vazia a mostrar um valor que ninguém apurou.
-          </p>
-        </div>
+      {/* Banner de topo: a tela inteira é conceitual, não só um número. */}
+      <div className="flex items-start gap-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4">
+        <Wrench className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+        <p className="portal-body text-foreground">
+          <span className="font-medium">Conceitual</span> — aguarda conclusão do
+          módulo de Tracking. Exemplo abaixo com dado ilustrativo.
+        </p>
+      </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          {SCOPE.map((item) => (
-            <div key={item.title} className="space-y-2 rounded-xl border border-dashed border-border p-4">
-              <item.icon className="h-5 w-5 text-portal-neutral" />
-              <p className="portal-body font-medium text-foreground">{item.title}</p>
-              <p className="portal-small text-portal-neutral">{item.description}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
+      {/* Gatilho: o estado que dispara a auditoria ainda não existe no
+          acompanhamento de embarque, então nenhum embarque real entra na lista.
+          Badge `pending`, não `preview`: não é número inventado, é fonte que
+          ainda vai existir. */}
       <section className="portal-card space-y-4 p-6">
-        <div className="space-y-1">
-          <p className="portal-h3 text-foreground">
-            Procurando a conferência das cotações fechadas?
+        <SectionHeading
+          title="Quando a auditoria dispara"
+          icon={<PackageCheck className="h-5 w-5" />}
+          action={<ProvenanceBadge provenance="pending" />}
+        />
+        <p className="portal-body max-w-3xl text-portal-neutral">
+          A conferência só faz sentido depois que o embarque chega e a
+          documentação final é emitida — é aí que existe um realizado para
+          comparar com o planejado. O acompanhamento de embarque ainda não marca
+          a chegada confirmada, então nenhum embarque seu entra nesta lista por
+          enquanto.
+        </p>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-dashed pt-4">
+          <p className="text-3xl font-semibold leading-none text-portal-neutral">0</p>
+          <p className="portal-body text-portal-neutral">
+            embarques elegíveis hoje
           </p>
-          <p className="portal-body max-w-3xl text-portal-neutral">
-            O comparativo entre o valor cotado e o valor de fechamento é uma
-            conferência da própria cotação, não auditoria de fatura. Ele agora
-            fica no histórico, dentro de cada cotação fechada.
+          <p className="portal-small text-portal-neutral">
+            passam a aparecer aqui automaticamente quando a chegada for
+            confirmada
           </p>
         </div>
-        <Button asChild variant="outline" className="gap-1.5">
-          <Link href="/portal/cotacoes?tab=historico">
-            Ir para Minhas Cotações · Histórico
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Button>
       </section>
+
+      {/* Camada 1 + Camada 2 */}
+      <section className="space-y-4">
+        <SectionHeading
+          title="Conciliação por embarque"
+          hint="planejado × realizado"
+          action={<ProvenanceBadge provenance="preview" />}
+        />
+        <p className="portal-small max-w-3xl text-portal-neutral">
+          Os embarques abaixo são exemplos fictícios, criados só para mostrar a
+          leitura item a item. Nenhum número aqui vem de um embarque seu.
+        </p>
+        {CONCILIATION_EXAMPLES.map((example) => (
+          <ConciliationTable
+            key={example.reference}
+            example={example}
+            onDispute={openDispute(example)}
+          />
+        ))}
+      </section>
+
+      <section className="portal-card space-y-3 p-6">
+        <p className="portal-h3 text-foreground">
+          Procurando a conferência das cotações fechadas?
+        </p>
+        <p className="portal-body max-w-3xl text-portal-neutral">
+          O comparativo entre o valor cotado e o valor de fechamento é uma
+          conferência da própria cotação, não auditoria de fatura. Ele fica no
+          histórico, dentro de cada cotação fechada.
+        </p>
+        <div>
+          <Button asChild variant="outline" className="gap-1.5">
+            <Link href="/portal/cotacoes?tab=historico">
+              Ir para Minhas Cotações · Histórico
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      </section>
+
+      <DisputeDraftModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        example={selected?.example ?? null}
+        line={selected?.line ?? null}
+      />
     </div>
   );
 }

@@ -408,18 +408,38 @@ existing `GET` routes. Their sidebar entries live in
 
 ### Inteligência (`/portal/inteligencia/`)
 
-`/portal/inteligencia` é um **dashboard de performance agregado**, não mais as 6
-perguntas do canvas. As 6 perguntas foram **distribuídas** para onde respondem em
-contexto (ver tabela abaixo); os blocos continuam em
+**Três** dashboards, nada mais: `performance/`, `fornecedores/`, `executivo/`
+(tabs em `layout.tsx`). A raiz `/portal/inteligencia` é só um `redirect()` para
+`performance` — a antiga aba "Visão geral" **foi fundida** no Performance, porque
+"estou indo bem ou não?" só se responde cruzando cotação e embarque na mesma
+tela. Não recrie uma quarta aba de visão geral.
+
+`performance/page.tsx` tem três níveis de peso, e só três:
+
+1. **Par dominante**: "Taxa de aprovação" (real) + "On-time rate" (badge
+   `pending` — sem ETA/histórico de embarque, nunca um número fabricado).
+2. **Apoio** (`StatNumber size="compact"`): Cotações (30 dias), Tempo médio de
+   resposta, Embarques (30 dias), Embarques em andamento.
+3. **Visualizações** (`performance/components/`): `agent-wins-block`,
+   `status-donut-block`, `weekly-volume-chart`, `savings-block`.
+
+Duas regras que mantêm a tela coerente depois da fusão: as duas métricas de
+volume usam a **mesma janela de 30 dias** (senão "volume" significa duas coisas
+na mesma tela), e o **total histórico de cotações aparece uma única vez**, no
+centro do donut — por isso o nível 2 mostra "Cotações (30 dias)", não o total.
+
+As 6 perguntas do canvas foram **distribuídas** para onde respondem em contexto
+(ver tabela abaixo); os blocos continuam em
 `app/portal/inteligencia/components/` e são **importados** pelas telas de destino
 (cross-import, como `evidence-block` já importava `estado-badge`).
 
-O dashboard deriva tudo de `computePerformanceMetrics(data)`
-(`lib/performance-helpers.ts`) sobre `useMyQuotations` + o total de
-`useMyShipments` — **sem endpoint novo**. Métricas **reais**: volume de cotações,
-taxa de aprovação (fechadas / fechadas+recusadas), tempo médio de resposta
-(`created_at` → `best_proposal.received_at`), embarques em andamento, cotações
-vencidas por agente (vencedor de cada FECHADA), cotações por status.
+Tudo deriva de `computePerformanceMetrics(data)` (`lib/performance-helpers.ts`) +
+`volumeTrend`/`weeklyVolume` (`lib/volume-helpers.ts`) sobre `useMyQuotations` e
+`useMyShipments` — **sem endpoint novo**. Métricas **reais**: volume de cotações
+e de embarques (por `created_at`), taxa de aprovação (fechadas /
+fechadas+recusadas), tempo médio de resposta (`created_at` →
+`best_proposal.received_at`), embarques em andamento, cotações vencidas por
+agente (vencedor de cada FECHADA), cotações por status.
 **Ilustrativo** (badge `preview`, moldura tracejada): "Economia estimada" =
 `Σ(fechadas.total_brl) × 0.08`, mesmo fator de benchmark do MarketBlock — não há
 base de preços de mercado neste protótipo.
@@ -445,24 +465,94 @@ Ao mexer num bloco, mantenha o `provenance` coerente com o **headline**: se o
 número em destaque é fabricado, o bloco é `preview` (mesmo que use nomes/valores
 reais em volta) e a footnote deve dizer o que é real e o que é ilustrativo.
 
-### Auditoria agregada (`/portal/auditoria/`)
+### Minhas Cotações — Funil e Histórico (`/portal/cotacoes/`)
 
-Eleva a Auditoria por cotação (`AuditPreviewSection` no detalhe) a uma lista
-agregada de **todas as cotações FECHADAS**. Usa `useAuditPreviews(ids)`
-(`hooks/use-portal-audit-preview.ts`), que faz fan-out do **mesmo** endpoint por
-cotação `GET /portal/quotations/{id}/audit-preview` sobre cada fechada — um GET
-por id, cada um com `try/catch` para um 409 isolado (fechada sem proposta
-vencedora) virar `null` naquela linha em vez de derrubar o lote. Chave SWR
-`['portal-audit-previews', ...ids]` (ids ordenados). **Sem endpoint agregado
-novo:** os números batem exatamente com o detalhe de cada cotação.
+Duas abas, uma pergunta cada. **Funil** = cotação em andamento; **Histórico** =
+cotação fechada, só leitura. Nenhuma coluna de cotação fechada no kanban, nenhum
+número repetido entre topo e colunas.
+
+- **Funil** (`components/funnel-tab.tsx`): um único número dominante —
+  "X cotações aguardando sua ação" = soma de `PORTAL_CLIENT_ACTION_BUCKETS`
+  (`aguardando_aprovacao` + `aguardando_dados`, definido em `types/portal.ts`) —
+  com "N no total · N ativas" em texto secundário. As contagens por etapa já
+  estão nas colunas; **não** reintroduza tiles de KPI nem cards de atalho por
+  bucket (havia cinco tiles + dois cards dizendo o mesmo que o kanban).
+  A coluna "Preencher detalhes" (`aguardando_dados`) só renderiza quando tem
+  cotação: coluna vazia lê como pendência permanente.
+- **Histórico** (`components/history-tab.tsx` + `history-item.tsx`): lista, nunca
+  kanban — nada aqui se move nem pode ser aprovado/recusado. Filtra por situação
+  e por período de fechamento, ordena por data de fechamento desc.
+- **Toolbar** (`components/portal-filters.tsx`): busca só como ícone de lupa
+  (`PortalSearchInput`, mesmo padrão de Meus Embarques > Lista) + `Filtros` num
+  popover compacto (`PortalFiltersMenu`). `applyPortalFilters` continua sendo a
+  única implementação do filtro — a busca por referência/produto entra nela como
+  `query`.
+- **Labels do kanban** (`PORTAL_BUCKET_LABELS`): "Preencher detalhes",
+  "Aguardando agentes", "Escolha sua proposta" — sempre na perspectiva do
+  cliente. É o único lugar onde se renomeia etapa; não escreva label solto na
+  coluna.
+- **Data de fechamento**: `resolveClosedAt(q)` (`lib/portal-state.ts`) —
+  `closed_at` (FECHADA) → `declined_at` (DECLINADA) → `updated_at` →
+  `created_at`. CANCELADO não grava nenhum dos dois no state machine, daí o
+  fallback. Os dois campos foram adicionados ao serializer do portal
+  (`shared/portal_helpers.py` no backend).
+
+### Conferência de dados da cotação (aba Histórico) e `/portal/auditoria`
+
+O comparativo **valor cotado × valor de fechamento** com badge de divergência é
+conferência da própria cotação, **não** o produto de Auditoria de Frete/Fatura.
+Por isso ele mora dentro do item de cotação fechada no Histórico (expansão
+"Conferência de dados: sem divergência / divergência encontrada"), junto do envio
+de documentação (`components/audit-document-modal.tsx`) e do status da jornada
+(`lib/audit-journey.ts`). `AuditResult` vive em `app/portal/_shared/` porque é
+compartilhado com `AuditPreviewSection` no detalhe da cotação.
+
+Usa `useAuditPreviews(ids)` (`hooks/use-portal-audit-preview.ts`), fan-out do
+**mesmo** endpoint por cotação `GET /portal/quotations/{id}/audit-preview` sobre
+cada FECHADA — um GET por id, cada um com `try/catch` para um 409 isolado
+(fechada sem proposta vencedora) virar `null` naquele item ("conferência
+indisponível") em vez de derrubar o lote. Chave SWR
+`['portal-audit-previews', ...ids]` sobre **todas** as fechadas, não as
+filtradas, para filtrar não refazer fetch. **Sem endpoint novo:** os números
+batem exatamente com o detalhe de cada cotação.
 
 Honestidade: só `quoted_value_brl` é real (proposta aprovada); `valor estimado`,
-`diferença` e `divergência` são os mesmos campos `mock_*` fabricados
-deterministicamente no backend (`app/audit_preview.py`), então a página inteira
-fica na moldura tracejada de pré-visualização. O resumo conta divergências sobre
-**todas** as fechadas e rotula como "no período" — **não** filtra por mês (o
-portal não expõe `closed_at`; um recorte mensal real exigiria adicionar esse
-campo ao serializer, leitura aditiva ainda não feita).
+`diferença` e `divergência` são os campos `mock_*` fabricados deterministicamente
+no backend (`app/audit_preview.py`), então a expansão inteira fica na moldura
+tracejada com o selo `preview`.
+
+### Auditoria (`/portal/auditoria/`) — três camadas, tela inteira conceitual
+
+Planejado (cotação) × realizado (NF final), depois que o embarque chega. **Não**
+traga para cá o comparativo cotado × fechamento da cotação — é outro produto (ver
+seção acima).
+
+| Camada | Onde | O que é |
+|---|---|---|
+| 1 — Conciliação determinística | `components/conciliation-table.tsx` + `lib/conciliation.ts` | Tabela por embarque: Item · Planejado · Realizado · Diferença · Bate/Diverge |
+| 2 — Árvore de decisão | `evaluateLine` em `lib/conciliation.ts` | `if/else` sobre `DIVERGENCE_THRESHOLD_PCT` (5%, espelha `app/audit_preview.py`) → "Sugerimos contestar" quando a diferença é **para cima**. **Não é IA** |
+| 3 — Rascunho de contestação | `components/dispute-draft-modal.tsx` + `lib/dispute-draft.ts` | Para/Assunto/corpo por **template determinístico** (interpolação de string). Editar · Anexar · Enviar |
+
+A tela inteira é conceitual (banner de topo + badge `preview`) por **limitação de
+schema**, não por escopo — e é isso que a mantém honesta:
+
+- **Gatilho inexistente**: `EmbarqueState`
+  (`shared/database/models/shipment/enums.py`) termina em `embarcado`
+  (=partida). Não há estado de chegada confirmada nem data de chegada
+  (`Processo.datas` fica NULL), então o card "Quando a auditoria dispara" mostra
+  **0 embarques elegíveis** com badge `pending`. Não apelide `embarcado` de
+  chegada.
+- **Realizado inexistente**: não há model de NF/fatura/invoice no schema.
+
+Por isso os embarques da tabela são **exemplos fictícios** (`CONCILIATION_EXAMPLES`,
+prefixo `EXEMPLO-`), nunca a referência de um embarque real do cliente com
+números fabricados pendurados. Quando o Tracking marcar a chegada e a NF final
+entrar no schema, muda só a **fonte** das linhas — conciliação, árvore de decisão
+e template seguem válidos.
+
+O modal **não envia** nada (não há destinatário nem serviço de contestação): o
+botão Enviar encerra dizendo exatamente isso, e anexo fica local. Não troque por
+uma confirmação que sugira envio.
 
 ## Quotation field utilities — `utils/quotation-fields.ts`
 

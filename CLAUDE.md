@@ -123,9 +123,12 @@ derivada do hash da `reference` da cotação.
 
 Isso é conferência da própria cotação, não auditoria de fatura. A auditoria de
 verdade (Camada de Auditoria de Frete/Fatura) é produto separado, sequenciado
-depois do go-live do GE — `/portal/auditoria` é só um placeholder dela, **sem
-número nenhum** na tela. Este preview aqui é só para o cliente enxergar a ideia
-num debate de produto.
+depois do go-live do GE — `/portal/auditoria` mostra a casca dela em três
+camadas **conceituais** (conciliação planejado × realizado, árvore de decisão no
+limite de 5%, rascunho de contestação por template), com embarques de exemplo:
+o gatilho de chegada não existe em `EmbarqueState` e não há model de NF/fatura
+no schema. Este preview aqui é só para o cliente enxergar a ideia num debate de
+produto.
 
 Convenções que sustentam o aviso — mantenha se mexer nisso:
 
