@@ -371,6 +371,14 @@ takes `variant="portal"`, which swaps only its shell and header for
 default. Follow that pattern for any other shared component that has to sit on a
 portal screen.
 
+**`PortalSearchInput`** (`app/portal/_shared/portal-search-input.tsx`) is the
+portal's only search affordance: a lupa que expande num input. Minhas Cotações
+(Funil e Histórico) e Meus Embarques > Lista renderizam **o mesmo componente** —
+havia duas implementações idênticas e elas divergiram. `open`/`onOpenChange` são
+opcionais: sem eles o componente controla o próprio estado; com eles a página
+dirige (é como o atalho "Verificar embarque" do header abre a busca de
+embarques via `?tab=lista&busca=1`). Não inline uma terceira cópia.
+
 **`ShipmentRoute`** (`app/portal/embarques/components/shipment-route.tsx`) is an
 illustrative origin→destination track: the vehicle position is a fixed
 percentage per `estado`, NOT a location — there is no GPS/AIS/carrier feed in
@@ -428,6 +436,18 @@ volume usam a **mesma janela de 30 dias** (senão "volume" significa duas coisas
 na mesma tela), e o **total histórico de cotações aparece uma única vez**, no
 centro do donut — por isso o nível 2 mostra "Cotações (30 dias)", não o total.
 
+`fornecedores/page.tsx` é um **ranking ilustrativo** (painel inteiro na moldura
+tracejada + badge `preview`), montado por `lib/supplier-helpers.ts` sobre
+`useMyQuotations` — sem endpoint novo. **Real:** nome do agente, quantas
+cotações ele fechou com a melhor proposta e as rotas correspondentes (o payload
+da listagem só expõe a `best_proposal`, então a leitura é "melhor oferta", não
+"todos os agentes que responderam"). **Ilustrativo:** Preço e Prazo são
+relativos à média do **próprio cliente** (não é benchmark de mercado) e
+Confiabilidade é rótulo qualitativo Alta/Média/Baixa. A nota de metodologia no
+topo do arquivo é load-bearing: a versão real espera a correção do score de
+agentes (contador cumulativo → taxa de erro em janela móvel). **Nunca** exiba
+score numérico de agente aqui — mesma regra do `ScoreBadge` da cotação.
+
 As 6 perguntas do canvas foram **distribuídas** para onde respondem em contexto
 (ver tabela abaixo); os blocos continuam em
 `app/portal/inteligencia/components/` e são **importados** pelas telas de destino
@@ -478,15 +498,16 @@ número repetido entre topo e colunas.
   estão nas colunas; **não** reintroduza tiles de KPI nem cards de atalho por
   bucket (havia cinco tiles + dois cards dizendo o mesmo que o kanban).
   A coluna "Preencher detalhes" (`aguardando_dados`) só renderiza quando tem
-  cotação: coluna vazia lê como pendência permanente.
+  cotação: coluna vazia lê como pendência permanente. O seed do protótipo
+  popula as **três** colunas de propósito (`scripts/seed_prototype.py`, q7-q9,
+  com asserção no e2e) — sem isso a demo mostrava só duas e a etapa sumia.
 - **Histórico** (`components/history-tab.tsx` + `history-item.tsx`): lista, nunca
   kanban — nada aqui se move nem pode ser aprovado/recusado. Filtra por situação
   e por período de fechamento, ordena por data de fechamento desc.
 - **Toolbar** (`components/portal-filters.tsx`): busca só como ícone de lupa
-  (`PortalSearchInput`, mesmo padrão de Meus Embarques > Lista) + `Filtros` num
-  popover compacto (`PortalFiltersMenu`). `applyPortalFilters` continua sendo a
-  única implementação do filtro — a busca por referência/produto entra nela como
-  `query`.
+  (`PortalSearchInput`) + `Filtros` num popover compacto (`PortalFiltersMenu`).
+  `applyPortalFilters` continua sendo a única implementação do filtro — a busca
+  por referência/produto entra nela como `query`.
 - **Labels do kanban** (`PORTAL_BUCKET_LABELS`): "Preencher detalhes",
   "Aguardando agentes", "Escolha sua proposta" — sempre na perspectiva do
   cliente. É o único lugar onde se renomeia etapa; não escreva label solto na
@@ -549,6 +570,13 @@ prefixo `EXEMPLO-`), nunca a referência de um embarque real do cliente com
 números fabricados pendurados. Quando o Tracking marcar a chegada e a NF final
 entrar no schema, muda só a **fonte** das linhas — conciliação, árvore de decisão
 e template seguem válidos.
+
+Os cinco exemplos existem para cobrir **todos** os desfechos de `evaluateLine`,
+não para encher a tela: fechamento limpo (0002), diferença real abaixo do limite
+(0004 → "Bate" apesar de ≠ 0), divergência para baixo (0005 → "Diverge" **sem**
+botão de contestar) e divergência para cima (0001, 0003 → "Sugerimos contestar").
+Ao mexer nos números, mantenha os quatro casos representados — sem 0004 e 0005 a
+tela não mostra a diferença entre "diferente" e "contestável".
 
 O modal **não envia** nada (não há destinatário nem serviço de contestação): o
 botão Enviar encerra dizendo exatamente isso, e anexo fica local. Não troque por

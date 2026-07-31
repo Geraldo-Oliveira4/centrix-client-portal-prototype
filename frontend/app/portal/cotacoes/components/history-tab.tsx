@@ -19,9 +19,10 @@ import { useAuditPreviews } from '@/hooks/use-portal-audit-preview';
 import { isApproved, resolveClosedAt } from '@/lib/portal-state';
 import type { PortalQuotation } from '@/types/portal';
 
+import { PortalSearchInput } from '../../_shared/portal-search-input';
 import { AuditDocumentModal } from './audit-document-modal';
 import { HistoryItem } from './history-item';
-import { PortalSearchInput, applyPortalFilters, EMPTY_PORTAL_FILTERS } from './portal-filters';
+import { applyPortalFilters, EMPTY_PORTAL_FILTERS } from './portal-filters';
 
 // Same key the standalone Auditoria panel used, so a demo that already sent
 // documents keeps its "em conferência" rows after the move.
@@ -130,7 +131,12 @@ export function HistoryTab({ quotations }: { quotations: PortalQuotation[] }) {
         </p>
 
         <div className="flex items-center gap-2">
-          <PortalSearchInput value={query} onChange={setQuery} />
+          <PortalSearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Referência ou produto…"
+            label="Buscar cotação por referência ou produto"
+          />
 
           <Popover>
             <PopoverTrigger asChild>

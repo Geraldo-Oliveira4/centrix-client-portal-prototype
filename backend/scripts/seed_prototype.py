@@ -4,7 +4,9 @@ Creates:
   - 1 demo QuotationClient + 1 PortalUser (mapped to the auto-login DEMO_SUB)
   - 3 freight agents
   - 1 import DNA with those agents as default_agents (needed for RFQ montage)
-  - ~6 quotations spanning the portal kanban buckets, some with proposals + scores
+  - 9 quotations spanning the portal kanban buckets, some with proposals + scores
+    (the first 6 are the original fixed set; 7-9 exist so all three Funil columns
+    are populated in a demo — see the block that creates them)
   - 7 shipments covering every GE state (5 happy-path + 2 exceptions), so the
     "Meus Embarques" list and its illustrative world map show a full spread of
     states and origin regions.
@@ -95,14 +97,14 @@ class _Ref:
 
 
 def _quotation(ref: str, client_id, state: QuotationState, product: str, origin: str,
-               **extra) -> Quotation:
+               tipo_embarque: TipoEmbarque = TipoEmbarque.FCL, **extra) -> Quotation:
     return Quotation(
         id=uuid.uuid4(),
         reference=ref,
         state=state,
         service_type=ServiceType.IMPORTACAO,
         modal=Modal.MARITIMO,
-        tipo_embarque=TipoEmbarque.FCL,
+        tipo_embarque=tipo_embarque,
         origin=origin,
         product=product,
         client_id=client_id,
@@ -228,7 +230,25 @@ def seed() -> None:
                         decline_reason=DeclineReason.PRECO, declined_at=_now)
         q6 = _quotation(ref.next(), client_id, QuotationState.CANCELADO,
                         "Amostras", "Busan, South Korea")
-        session.add_all([q1, q2, q3, q4, q5, q6])
+
+        # COT-2026-0001..0006 above are the fixed set the e2e suite pins by
+        # reference (the audit-preview asserts depend on COT-2026-0004). Append
+        # new quotations here, never renumber those.
+        #
+        # The Funil has three columns and the original set left "Preencher
+        # detalhes" (AGUARDANDO_DADOS) empty, so a demo only ever showed two of
+        # them — the column is hidden when it has no card (funnel-tab.tsx), which
+        # made the funnel read as if the stage did not exist. q7/q8 fill it; q9
+        # gives "Aguardando agentes" a second card so the board is not a single
+        # card per column.
+        q7 = _quotation(ref.next(), client_id, QuotationState.AGUARDANDO_DADOS,
+                        "Componentes eletronicos", "Shenzhen, China",
+                        tipo_embarque=TipoEmbarque.LCL)
+        q8 = _quotation(ref.next(), client_id, QuotationState.AGUARDANDO_DADOS,
+                        "Piso vinilico", "Ho Chi Minh, Vietnam")
+        q9 = _quotation(ref.next(), client_id, QuotationState.COTANDO,
+                        "Bobinas de aco", "Izmir, Turkey")
+        session.add_all([q1, q2, q3, q4, q5, q6, q7, q8, q9])
         session.flush()
 
         # Proposals (level 2)
@@ -239,7 +259,11 @@ def seed() -> None:
         p3b = _proposal(q3.id, agents[2].id, 3100.0, 2700.0, 24)
         p4 = _proposal(q4.id, agents[0].id, 5100.0, 4400.0, 35, is_winner=True)
         p5 = _proposal(q5.id, agents[2].id, 6100.0, 5200.0, 40)
-        session.add_all([p1a, p1b, p2, p3a, p3b, p4, p5])
+        # q9 already has one agent answering; the other two are still out, which
+        # is what "Aguardando agentes" means. q7/q8 get none: the quotation is
+        # blocked on the client, so no RFQ went out yet.
+        p9 = _proposal(q9.id, agents[1].id, 3900.0, 3400.0, 29)
+        session.add_all([p1a, p1b, p2, p3a, p3b, p4, p5, p9])
         session.flush()
 
         # Scores + logs (level 3)
@@ -259,6 +283,15 @@ def seed() -> None:
                  {"agent_name": agents[0].name}),
             _log(q5.id, "client_declined_quotation", "DECLINADA", {"decline_reason": "PRECO"}),
             _log(q6.id, "client_cancelled_quotation", "CANCELADO"),
+            _log(q7.id, "created", "TRIAGEM_IA"),
+            _log(q7.id, "missing_data_requested", "AGUARDANDO_DADOS",
+                 {"missing_fields": ["peso_taxado", "porto_destino"]}),
+            _log(q8.id, "created", "TRIAGEM_IA"),
+            _log(q8.id, "missing_data_requested", "AGUARDANDO_DADOS",
+                 {"missing_fields": ["incoterm", "cubagem"]}),
+            _log(q9.id, "created", "TRIAGEM_IA"),
+            _log(q9.id, "proposal_received", "COTANDO",
+                 {"agent_name": agents[1].name, "freight_value": 3400.0, "freight_currency": "USD"}),
         ])
 
         # --- Shipments / GE (level 4) --------------------------------------
@@ -331,7 +364,7 @@ def seed() -> None:
             )
 
         print(
-            f"Seeded demo client {client_id} with 6 quotations, 3 agents "
+            f"Seeded demo client {client_id} with 9 quotations, 3 agents "
             f"and {len(shipments)} shipments."
         )
 

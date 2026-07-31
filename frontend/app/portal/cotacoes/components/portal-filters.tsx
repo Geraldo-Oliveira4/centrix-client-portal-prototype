@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal, X } from 'lucide-react';
 
 import {
   Button,
@@ -21,6 +20,9 @@ import type { PortalQuotation } from '@/types/portal';
 // Toolbar of Minhas Cotações. Six always-visible inputs used to sit above the
 // kanban and dominate the screen; the search is now a single icon and the rest
 // lives in a popover, mirroring the toolbar of Meus Embarques > Lista.
+//
+// The search icon itself lives in `_shared/portal-search-input.tsx` — both
+// screens render the same component now.
 export interface PortalFilterValues {
   /** Icon search — matches reference or product. */
   query: string;
@@ -55,54 +57,6 @@ export const countActivePortalFilters = (values: PortalFilterValues): number =>
     values.pais_procedencia,
     values.peso_taxado_min,
   ].filter((v) => v.trim() !== '').length;
-
-export function PortalSearchInput({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  if (!open) {
-    return (
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Buscar cotação"
-        onClick={() => setOpen(true)}
-      >
-        <Search className="h-5 w-5" />
-      </Button>
-    );
-  }
-
-  return (
-    <div className="relative">
-      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-portal-neutral" />
-      <Input
-        autoFocus
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Referência ou produto…"
-        aria-label="Buscar cotação por referência ou produto"
-        className="h-9 w-56 pl-8 pr-8"
-      />
-      <button
-        type="button"
-        aria-label="Fechar busca"
-        onClick={() => {
-          onChange('');
-          setOpen(false);
-        }}
-        className="absolute right-2 top-1/2 -translate-y-1/2 text-portal-neutral hover:text-foreground"
-      >
-        <X className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
 
 export function PortalFiltersMenu({
   values,

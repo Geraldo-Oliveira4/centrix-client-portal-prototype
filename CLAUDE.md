@@ -33,8 +33,8 @@ backend/                         # FastAPI (substitui AWS Lambda + API Gateway)
                                  #   (+2 novos de exportador, +2 novos de embarque)
   alembic/                       # COPIADO — migrations 001..089 (+090, do protótipo)
   scripts/
-    seed_prototype.py            # cliente demo + 6 cotações + agentes + DNA + 3 embarques
-    e2e_test.py                  # suíte E2E (88 checagens)
+    seed_prototype.py            # cliente demo + 9 cotações + agentes + DNA + 7 embarques
+    e2e_test.py                  # suíte E2E (92 checagens)
 frontend/                        # CÓPIA do app Next.js do Centrix (só /portal ligado ao backend)
   vendor/arboria-ui, arboria-config   # deps @arboria-tech vendorizadas (file:), sem GitHub Packages
 docker-compose.yml               # Postgres 16 local
@@ -164,7 +164,7 @@ elegibilidade de RFQ, 404 anti-enumeração, mocks). Rode com banco recém-semea
 ```bash
 docker compose down -v && docker compose up -d
 cd backend && make migrate && make seed && make run &
-.venv/bin/python -m scripts.e2e_test     # -> 89/89 ALL PASS
+.venv/bin/python -m scripts.e2e_test     # -> 92/92 ALL PASS
 ```
 
 A suíte **muta dados** (aprova, recusa, cancela cotações da semente) e exige um

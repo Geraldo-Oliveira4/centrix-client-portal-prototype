@@ -9,11 +9,11 @@ import {
   type PortalQuotationsResponse,
 } from '@/types/portal';
 
+import { PortalSearchInput } from '../../_shared/portal-search-input';
 import { KanbanColumn } from './kanban-column';
 import {
   EMPTY_PORTAL_FILTERS,
   PortalFiltersMenu,
-  PortalSearchInput,
   applyPortalFilters,
   type PortalFilterValues,
 } from './portal-filters';
@@ -88,6 +88,8 @@ export function FunnelTab({ data }: { data: PortalQuotationsResponse }) {
           <PortalSearchInput
             value={filters.query}
             onChange={(query) => setFilters((prev) => ({ ...prev, query }))}
+            placeholder="Referência ou produto…"
+            label="Buscar cotação por referência ou produto"
           />
           <PortalFiltersMenu values={filters} onChange={setFilters} />
         </div>

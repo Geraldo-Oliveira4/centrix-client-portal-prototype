@@ -2,17 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import {
-  AlertTriangle,
-  ChevronRight,
-  Info,
-  Search,
-  SlidersHorizontal,
-  X,
-} from 'lucide-react';
+import { AlertTriangle, ChevronRight, Info, SlidersHorizontal } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
@@ -35,6 +27,7 @@ import {
 } from '@/types/portal-shipment';
 
 import { ModalIcon } from '../../_shared/modal-icon';
+import { PortalSearchInput } from '../../_shared/portal-search-input';
 import { ProvenanceBadge } from '../../_shared/provenance-badge';
 import { EstadoBadge } from './estado-badge';
 import { ORIGINS, originIndex } from '../lib/shipment-origins';
@@ -149,11 +142,16 @@ function CardSkeleton() {
 export function ShipmentListTab({
   shipments,
   isLoading,
+  searchOpen,
+  onSearchOpenChange,
 }: {
   shipments: PortalShipment[];
   isLoading: boolean;
+  /** Driven by the page so the header's "Verificar embarque" can deep-link into
+      this tab with the field already expanded. */
+  searchOpen: boolean;
+  onSearchOpenChange: (open: boolean) => void;
 }) {
-  const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [origin, setOrigin] = useState<string>('all');
@@ -189,39 +187,14 @@ export function ShipmentListTab({
         <SemaforoCounter shipments={shipments} />
 
         <div className="flex items-center gap-2">
-          {searchOpen ? (
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-portal-neutral" />
-              <Input
-                autoFocus
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar referência…"
-                aria-label="Buscar embarque por referência"
-                className="h-9 w-52 pl-8 pr-8"
-              />
-              <button
-                type="button"
-                aria-label="Fechar busca"
-                onClick={() => {
-                  setQuery('');
-                  setSearchOpen(false);
-                }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-portal-neutral hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Buscar"
-              onClick={() => setSearchOpen(true)}
-            >
-              <Search className="h-5 w-5" />
-            </Button>
-          )}
+          <PortalSearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Buscar referência…"
+            label="Buscar embarque por referência"
+            open={searchOpen}
+            onOpenChange={onSearchOpenChange}
+          />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

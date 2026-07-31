@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Map as MapIcon, List, Bell, Plus } from 'lucide-react';
-import { ErrorComponent } from '@arboria-tech/arboria-ui';
+import { ErrorComponent, LoaderComponent } from '@arboria-tech/arboria-ui';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,8 +24,36 @@ import {
 const READ_KEY = 'portal:shipment-alerts:read';
 const TYPES_KEY = 'portal:shipment-alerts:types';
 
-export default function PortalEmbarquesPage() {
+const TABS = ['mapa', 'lista', 'alertas'] as const;
+type ShipmentTab = (typeof TABS)[number];
+
+const isShipmentTab = (value: string | null): value is ShipmentTab =>
+  value != null && (TABS as readonly string[]).includes(value);
+
+function PortalEmbarquesContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { shipments, isLoading, isError } = useMyShipments();
+
+  // Deep link from the header's "Verificar embarque" shortcut. It used to point
+  // at `#verificar`, an anchor that disappeared when this screen was rebuilt as
+  // three tabs — clicking it navigated here and did nothing. It now selects the
+  // Lista tab and expands its search field.
+  const tabParam = searchParams.get('tab');
+  const buscaParam = searchParams.get('busca');
+  const [tab, setTab] = useState<ShipmentTab>(
+    isShipmentTab(tabParam) ? tabParam : 'mapa',
+  );
+  const [searchOpen, setSearchOpen] = useState(buscaParam === '1');
+
+  useEffect(() => {
+    if (isShipmentTab(tabParam)) setTab(tabParam);
+    if (buscaParam !== '1') return;
+    setSearchOpen(true);
+    // Drop the flag so a second click on the shortcut is a real navigation and
+    // re-opens the field even if the user closed it in the meantime.
+    router.replace('/portal/embarques?tab=lista', { scroll: false });
+  }, [tabParam, buscaParam, router]);
 
   const alerts = useMemo(() => buildShipmentAlerts(shipments), [shipments]);
 
@@ -130,7 +159,11 @@ export default function PortalEmbarquesPage() {
           </Button>
         </div>
       ) : (
-        <Tabs defaultValue="mapa" className="space-y-6">
+        <Tabs
+          value={tab}
+          onValueChange={(v) => setTab(v as ShipmentTab)}
+          className="space-y-6"
+        >
           <TabsList>
             <TabsTrigger value="mapa" className="gap-1.5">
               <MapIcon className="h-4 w-4" />
@@ -159,7 +192,12 @@ export default function PortalEmbarquesPage() {
           </TabsContent>
 
           <TabsContent value="lista">
-            <ShipmentListTab shipments={shipments} isLoading={false} />
+            <ShipmentListTab
+              shipments={shipments}
+              isLoading={false}
+              searchOpen={searchOpen}
+              onSearchOpenChange={setSearchOpen}
+            />
           </TabsContent>
 
           <TabsContent value="alertas">
@@ -175,5 +213,15 @@ export default function PortalEmbarquesPage() {
         </Tabs>
       )}
     </div>
+  );
+}
+
+export default function PortalEmbarquesPage() {
+  // useSearchParams (the ?tab=lista&busca=1 deep link from the header) needs a
+  // Suspense boundary for the static prerender of this route.
+  return (
+    <Suspense fallback={<LoaderComponent />}>
+      <PortalEmbarquesContent />
+    </Suspense>
   );
 }

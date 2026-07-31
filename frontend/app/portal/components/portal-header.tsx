@@ -62,9 +62,12 @@ export function PortalHeader() {
         </div>
       </div>
       <div className="flex items-center gap-3">
-        {/* Global shortcut to the direct shipment lookup on the tracking page. */}
+        {/* Global shortcut to the shipment lookup. Points at the Lista tab with
+            the search field expanded (?busca=1) — the old `#verificar` anchor
+            was left dangling when Meus Embarques was rebuilt as three tabs, so
+            this button navigated and then did nothing. */}
         <Button variant="ghost" size="sm" asChild>
-          <Link href="/portal/embarques#verificar">
+          <Link href="/portal/embarques?tab=lista&busca=1">
             <PackageSearch className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Verificar embarque</span>
           </Link>

@@ -77,9 +77,19 @@ export const evaluateExample = (example: ConciliationExample): EvaluatedLine[] =
  * Exemplos fictícios. As referências usam o prefixo EXEMPLO- justamente para
  * nunca colidirem com uma referência real de embarque do cliente.
  *
- * O primeiro tem duas divergências (uma acima do limite para cima -> sugere
- * contestação, uma no prazo), o segundo fecha limpo — para a tela mostrar os
- * dois desfechos da árvore de decisão.
+ * Os cinco cobrem todos os desfechos possíveis da árvore de decisão, que é a
+ * razão de existirem — sem eles a tela mostra só um caminho e a leitura "bate x
+ * diverge x diverge e vale contestar" não fica visível:
+ *
+ *   0001  divergência para cima em duas linhas       -> Diverge + contestar
+ *   0002  fecha limpo, tudo igual ao planejado       -> Bate
+ *   0003  várias divergências grandes para cima      -> Diverge + contestar
+ *   0004  diferenças reais mas ABAIXO do limite      -> Bate (apesar de ≠ 0)
+ *   0005  divergência acima do limite para BAIXO     -> Diverge, SEM contestar
+ *
+ * 0004 e 0005 são os dois casos que separam "diferente" de "contestável": no
+ * primeiro a variação existe mas cabe no limite; no segundo passa do limite e
+ * mesmo assim não há o que contestar, porque veio a menos.
  */
 export const CONCILIATION_EXAMPLES: ConciliationExample[] = [
   {
@@ -100,6 +110,37 @@ export const CONCILIATION_EXAMPLES: ConciliationExample[] = [
       { item: 'Frete', kind: 'currency', planned: 15900, realized: 15900 },
       { item: 'Taxa THC', kind: 'currency', planned: 1250, realized: 1250 },
       { item: 'Prazo', kind: 'days', planned: 28, realized: 29 },
+    ],
+  },
+  {
+    reference: 'EXEMPLO-0003',
+    route: 'Shenzhen (CNSZX) → Paranaguá (BRPNG)',
+    agent: 'Agente de exemplo',
+    lines: [
+      { item: 'Frete', kind: 'currency', planned: 22000, realized: 25300 },
+      { item: 'Taxa THC', kind: 'currency', planned: 1400, realized: 1750 },
+      { item: 'Armazenagem', kind: 'currency', planned: 900, realized: 1440 },
+      { item: 'Prazo', kind: 'days', planned: 30, realized: 41 },
+    ],
+  },
+  {
+    reference: 'EXEMPLO-0004',
+    route: 'Hamburgo (DEHAM) → Santos (BRSSZ)',
+    agent: 'Agente de exemplo',
+    lines: [
+      { item: 'Frete', kind: 'currency', planned: 16800, realized: 17200 },
+      { item: 'Taxa THC', kind: 'currency', planned: 1250, realized: 1290 },
+      { item: 'Prazo', kind: 'days', planned: 30, realized: 31 },
+    ],
+  },
+  {
+    reference: 'EXEMPLO-0005',
+    route: 'Roterdã (NLRTM) → Itajaí (BRITJ)',
+    agent: 'Agente de exemplo',
+    lines: [
+      { item: 'Frete', kind: 'currency', planned: 19500, realized: 17600 },
+      { item: 'Taxa THC', kind: 'currency', planned: 1250, realized: 1250 },
+      { item: 'Prazo', kind: 'days', planned: 34, realized: 30 },
     ],
   },
 ];

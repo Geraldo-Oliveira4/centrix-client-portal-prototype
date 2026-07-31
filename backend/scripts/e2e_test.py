@@ -200,16 +200,26 @@ def run():
     buckets = lst.get("buckets", {})
     counts = {k: len(v) for k, v in buckets.items()}
     check("B1 GET /quotations -> 200", st == 200, str(st))
-    check("B2 total == 6", lst.get("total") == 6, str(lst.get("total")))
+    check("B2 total == 9", lst.get("total") == 9, str(lst.get("total")))
     check("B3 bucket counts match seed",
-          counts == {"aguardando_dados": 0, "buscando_propostas": 1,
+          counts == {"aguardando_dados": 2, "buscando_propostas": 2,
                      "aguardando_aprovacao": 2, "finalizadas": 2, "cancelada": 1},
           str(counts))
+    # Every Funil column must be populated: the portal hides an empty
+    # "Preencher detalhes" column, so a zero there silently drops a whole stage
+    # from the demo board.
+    check("B3b all three Funil columns populated",
+          all(counts.get(b, 0) > 0 for b in lst.get("bucket_order") or []),
+          str({b: counts.get(b) for b in lst.get("bucket_order") or []}))
+    check("B3c aguardando_dados cards carry no proposal",
+          all(c.get("proposals_count") == 0 and c.get("best_proposal") is None
+              for c in buckets["aguardando_dados"]),
+          str([(c.get("reference"), c.get("proposals_count")) for c in buckets["aguardando_dados"]]))
     check("B4 bucket_order",
           lst.get("bucket_order") == ["aguardando_dados", "buscando_propostas", "aguardando_aprovacao"],
           str(lst.get("bucket_order")))
     check("B5 summary counts",
-          lst.get("summary") == {"aprovar_propostas": 2, "aguardando_propostas": 1},
+          lst.get("summary") == {"aprovar_propostas": 2, "aguardando_propostas": 2},
           str(lst.get("summary")))
     aprov = buckets["aguardando_aprovacao"]
     card = aprov[0]
@@ -300,7 +310,7 @@ def run():
     check("G2 new quotation state TRIAGEM_IA + upload_urls present",
           newq.get("state") == "TRIAGEM_IA" and "upload_urls" in cr, str(newq.get("state")))
     st, lst2 = req("GET", "/portal/quotations")
-    check("G3 total incremented to 7", lst2.get("total") == 7, str(lst2.get("total")))
+    check("G3 total incremented to 10", lst2.get("total") == 10, str(lst2.get("total")))
     st, ag = req("GET", f"/portal/quotations/{new_id}/agents")
     agents = ag.get("agents", [])
     check("G4 agents from DNA (3), not dispatched",

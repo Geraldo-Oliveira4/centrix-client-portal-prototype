@@ -110,7 +110,10 @@ export default function AuditoriaPage() {
         />
         <p className="portal-small max-w-3xl text-portal-neutral">
           Os embarques abaixo são exemplos fictícios, criados só para mostrar a
-          leitura item a item. Nenhum número aqui vem de um embarque seu.
+          leitura item a item. Nenhum número aqui vem de um embarque seu. Eles
+          cobrem os quatro desfechos possíveis: fechamento limpo, diferença que
+          cabe no limite, divergência para baixo (diverge, mas não há o que
+          contestar) e divergência para cima (aí sim sugerimos contestar).
         </p>
         {CONCILIATION_EXAMPLES.map((example) => (
           <ConciliationTable
