@@ -1,9 +1,15 @@
 'use client';
 
-import { Search, X } from 'lucide-react';
+import { useState } from 'react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
+
 import {
   Button,
   Input,
+  Label,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   Select,
   SelectContent,
   SelectItem,
@@ -12,8 +18,12 @@ import {
 } from '@/components/ui';
 import type { PortalQuotation } from '@/types/portal';
 
+// Toolbar of Minhas Cotações. Six always-visible inputs used to sit above the
+// kanban and dominate the screen; the search is now a single icon and the rest
+// lives in a popover, mirroring the toolbar of Meus Embarques > Lista.
 export interface PortalFilterValues {
-  exporter: string;
+  /** Icon search — matches reference or product. */
+  query: string;
   route: string;
   agent: string;
   modal: string;
@@ -21,13 +31,8 @@ export interface PortalFilterValues {
   peso_taxado_min: string;
 }
 
-interface PortalFiltersProps {
-  values: PortalFilterValues;
-  onChange: (values: PortalFilterValues) => void;
-}
-
-const EMPTY: PortalFilterValues = {
-  exporter: '',
+export const EMPTY_PORTAL_FILTERS: PortalFilterValues = {
+  query: '',
   route: '',
   agent: '',
   modal: '',
@@ -41,99 +46,170 @@ const MODAL_OPTIONS = [
   { value: 'RODOVIARIO', label: 'Rodoviário' },
 ];
 
-export function PortalFilters({ values, onChange }: PortalFiltersProps) {
-  const hasAny =
-    values.exporter ||
-    values.route ||
-    values.agent ||
-    values.modal ||
-    values.pais_procedencia ||
-    values.peso_taxado_min;
+// The search term is not counted: it has its own visible affordance.
+export const countActivePortalFilters = (values: PortalFilterValues): number =>
+  [
+    values.route,
+    values.agent,
+    values.modal,
+    values.pais_procedencia,
+    values.peso_taxado_min,
+  ].filter((v) => v.trim() !== '').length;
 
-  const set =
+export function PortalSearchInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (!open) {
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Buscar cotação"
+        onClick={() => setOpen(true)}
+      >
+        <Search className="h-5 w-5" />
+      </Button>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-portal-neutral" />
+      <Input
+        autoFocus
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Referência ou produto…"
+        aria-label="Buscar cotação por referência ou produto"
+        className="h-9 w-56 pl-8 pr-8"
+      />
+      <button
+        type="button"
+        aria-label="Fechar busca"
+        onClick={() => {
+          onChange('');
+          setOpen(false);
+        }}
+        className="absolute right-2 top-1/2 -translate-y-1/2 text-portal-neutral hover:text-foreground"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+export function PortalFiltersMenu({
+  values,
+  onChange,
+}: {
+  values: PortalFilterValues;
+  onChange: (values: PortalFilterValues) => void;
+}) {
+  const active = countActivePortalFilters(values);
+
+  const setText =
     (key: keyof PortalFilterValues) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       onChange({ ...values, [key]: e.target.value });
 
-  const setModal = (value: string) => onChange({ ...values, modal: value });
-
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="relative">
-        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Produto / fornecedor..."
-          value={values.exporter}
-          onChange={set('exporter')}
-          className="pl-9 w-52"
-        />
-      </div>
-
-      <div className="relative">
-        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Rota (ex: TWKHH)"
-          value={values.route}
-          onChange={set('route')}
-          className="pl-9 w-44"
-        />
-      </div>
-
-      <div className="relative">
-        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Agente de cargas..."
-          value={values.agent}
-          onChange={set('agent')}
-          className="pl-9 w-48"
-        />
-      </div>
-
-      <Select value={values.modal} onValueChange={setModal}>
-        <SelectTrigger className="w-40">
-          <SelectValue placeholder="Modal" />
-        </SelectTrigger>
-        <SelectContent>
-          {MODAL_OPTIONS.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>
-              {opt.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <div className="relative">
-        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="País de procedência..."
-          value={values.pais_procedencia}
-          onChange={set('pais_procedencia')}
-          className="pl-9 w-48"
-        />
-      </div>
-
-      <Input
-        type="number"
-        min={0}
-        step={0.01}
-        placeholder="Peso taxado mín. (kg)"
-        value={values.peso_taxado_min}
-        onChange={set('peso_taxado_min')}
-        className="w-44"
-      />
-
-      {hasAny && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-9 gap-1.5 text-muted-foreground"
-          onClick={() => onChange(EMPTY)}
-        >
-          <X className="h-3.5 w-3.5" />
-          Limpar
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-1.5">
+          <SlidersHorizontal className="h-4 w-4" />
+          Filtros
+          {active > 0 && (
+            <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+              {active}
+            </span>
+          )}
         </Button>
-      )}
-    </div>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 space-y-4">
+        <div className="space-y-2">
+          <Label className="portal-small text-portal-neutral">Modal</Label>
+          <Select
+            value={values.modal || 'all'}
+            onValueChange={(v) => onChange({ ...values, modal: v === 'all' ? '' : v })}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {MODAL_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="portal-small text-portal-neutral">Rota</Label>
+          <Input
+            value={values.route}
+            onChange={setText('route')}
+            placeholder="Origem ou destino"
+            className="h-9"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label className="portal-small text-portal-neutral">Agente de cargas</Label>
+          <Input
+            value={values.agent}
+            onChange={setText('agent')}
+            placeholder="Nome do agente"
+            className="h-9"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label className="portal-small text-portal-neutral">País de procedência</Label>
+          <Input
+            value={values.pais_procedencia}
+            onChange={setText('pais_procedencia')}
+            placeholder="País"
+            className="h-9"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label className="portal-small text-portal-neutral">
+            Peso taxado mínimo (kg)
+          </Label>
+          <Input
+            type="number"
+            min={0}
+            step={0.01}
+            value={values.peso_taxado_min}
+            onChange={setText('peso_taxado_min')}
+            placeholder="0"
+            className="h-9"
+          />
+        </div>
+
+        {active > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full gap-1.5 text-portal-neutral"
+            onClick={() => onChange({ ...EMPTY_PORTAL_FILTERS, query: values.query })}
+          >
+            <X className="h-3.5 w-3.5" />
+            Limpar filtros
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -141,7 +217,7 @@ export function applyPortalFilters(
   quotations: PortalQuotation[],
   filters: PortalFilterValues,
 ): PortalQuotation[] {
-  const exporter = filters.exporter.trim().toLowerCase();
+  const query = filters.query.trim().toLowerCase();
   const route = filters.route.trim().toLowerCase();
   const agent = filters.agent.trim().toLowerCase();
   const modal = filters.modal.trim().toLowerCase();
@@ -149,7 +225,7 @@ export function applyPortalFilters(
   const pesoMin = parseFloat(filters.peso_taxado_min);
 
   if (
-    !exporter &&
+    !query &&
     !route &&
     !agent &&
     !modal &&
@@ -160,9 +236,9 @@ export function applyPortalFilters(
   }
 
   return quotations.filter((q) => {
-    if (exporter) {
-      const product = (q.product ?? '').toLowerCase();
-      if (!product.includes(exporter)) return false;
+    if (query) {
+      const haystack = `${q.reference} ${q.product ?? ''}`.toLowerCase();
+      if (!haystack.includes(query)) return false;
     }
 
     if (route) {
@@ -170,7 +246,9 @@ export function applyPortalFilters(
       const dest = [
         ...(q.porto_destino ?? []),
         ...(q.aeroporto_destino ?? []),
-      ].join(' ').toLowerCase();
+      ]
+        .join(' ')
+        .toLowerCase();
       if (!origin.includes(route) && !dest.includes(route)) return false;
     }
 

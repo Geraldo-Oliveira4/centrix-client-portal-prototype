@@ -42,6 +42,14 @@ export const isAwaitingInfo = (state: State): boolean =>
 export const isFinalized = (state: State): boolean =>
   isApproved(state) || isDeclined(state) || isCancelled(state);
 
+// When a finalized quotation was closed. The state machine writes closed_at on
+// FECHADA and declined_at on DECLINADA; CANCELADO writes neither, so the last
+// write (updated_at) is the only timestamp available for a cancelled quotation.
+// Never returns null for a finalized quotation, so the Histórico can always sort
+// and date an item.
+export const resolveClosedAt = (q: PortalQuotation): string =>
+  q.closed_at ?? q.declined_at ?? q.updated_at ?? q.created_at;
+
 // The client may cancel their own quotation from any non-terminal state. This
 // mirrors the analyst state machine, where CANCELADO is a valid target from
 // every state except the terminal ones (FECHADA / DECLINADA / CANCELADO).

@@ -224,7 +224,16 @@ def run():
     q_approve = enviada[0]["id"]
     q_decline = enviada[1]["id"]
     q_cotando = buckets["buscando_propostas"][0]["id"]
-    q_fechada = [c for c in buckets["finalizadas"] if c["state"] == "FECHADA"][0]["id"]
+    fechada_card = [c for c in buckets["finalizadas"] if c["state"] == "FECHADA"][0]
+    q_fechada = fechada_card["id"]
+
+    # Terminal timestamps: the portal "Histórico" tab dates and filters closed
+    # quotations by them (FECHADA -> closed_at, DECLINADA -> declined_at).
+    declinada_card = [c for c in buckets["finalizadas"] if c["state"] == "DECLINADA"][0]
+    check("B9 closed cards expose closed_at / declined_at",
+          fechada_card.get("closed_at") is not None
+          and declinada_card.get("declined_at") is not None,
+          f"closed_at={fechada_card.get('closed_at')} declined_at={declinada_card.get('declined_at')}")
 
     # --- C. Detail --------------------------------------------------------
     st, det = req("GET", f"/portal/quotations/{q_approve}")

@@ -15,7 +15,7 @@ import { addMyQuotationDocument } from '@/hooks/use-portal-quotations';
 import type { PortalAuditPreview } from '@/types/portal-audit';
 
 import { ProvenanceBadge } from '../../_shared/provenance-badge';
-import { AuditResult } from './audit-result';
+import { AuditResult } from '../../_shared/audit-result';
 
 // The document types the client sends for a freight/invoice audit. The backend
 // stores the file by name only (no type column), so the slot is UX labelling —

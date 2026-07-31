@@ -164,6 +164,10 @@ export interface PortalQuotation {
   peso_taxado: number | null;
   created_at: string;
   updated_at: string | null;
+  // Terminal timestamps written by the state machine. CANCELADO sets neither —
+  // callers fall back to updated_at (see resolveClosedAt in lib/portal-state).
+  closed_at: string | null;
+  declined_at: string | null;
   created_by_me?: boolean;
   // True when the quotation was created by the client via the portal. Gates the
   // self-service features (RFQ dispatch, document upload, history, cancel);
@@ -216,16 +220,26 @@ export interface PortalLoginResponse {
   refresh_token: string;
 }
 
-// Client-facing stage labels. The portal is self-service: the stage backed by
-// the internal ENVIADA_CLIENTE state (bucket `aguardando_aprovacao`) reads as a
+// Client-facing stage labels. The portal is self-service, so every label names
+// what is happening from the client's side: "Preencher detalhes" is their task,
+// "Aguardando agentes" is someone else working, and the stage backed by the
+// internal ENVIADA_CLIENTE state (bucket `aguardando_aprovacao`) reads as a
 // client action ("Escolha sua proposta"), never "Enviada ao cliente" (ARB-2452).
 export const PORTAL_BUCKET_LABELS: Record<PortalBucketKey, string> = {
-  aguardando_dados: 'Aguardando Dados',
-  buscando_propostas: 'Aguardando propostas',
+  aguardando_dados: 'Preencher detalhes',
+  buscando_propostas: 'Aguardando agentes',
   aguardando_aprovacao: 'Escolha sua proposta',
   finalizadas: 'Finalizadas',
   cancelada: 'Canceladas',
 };
+
+// The two buckets that are waiting on the CLIENT. Everything else is waiting on
+// Freitas or on the agents. Single source of truth for the "aguardando sua
+// ação" headline on the Funil tab.
+export const PORTAL_CLIENT_ACTION_BUCKETS: PortalBucketKey[] = [
+  'aguardando_aprovacao',
+  'aguardando_dados',
+];
 
 export type CreatePortalManualPayload = Omit<
   CreateQuotationManualPayload,

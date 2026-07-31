@@ -199,6 +199,11 @@ _QUOTATION_PORTAL_FIELDS = [
     "peso_taxado",
     "created_at",
     "updated_at",
+    # Terminal timestamps written by the state machine (FECHADA -> closed_at,
+    # DECLINADA -> declined_at). The portal "Histórico" tab dates and filters
+    # each closed quotation by them instead of guessing from updated_at.
+    "closed_at",
+    "declined_at",
 ]
 
 

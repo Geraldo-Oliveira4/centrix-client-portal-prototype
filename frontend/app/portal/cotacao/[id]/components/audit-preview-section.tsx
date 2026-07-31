@@ -5,7 +5,7 @@ import { AlertTriangle, FlaskConical } from 'lucide-react';
 import { formatBRL } from '@/lib/portal-formatters';
 import { useAuditPreview } from '@/hooks/use-portal-audit-preview';
 
-import { AuditResult } from '../../../auditoria/components/audit-result';
+import { AuditResult } from '../../../_shared/audit-result';
 
 /**
  * MOCK - Auditoria real (Camada de Auditoria de Frete/Fatura) é produto separado,
@@ -52,8 +52,8 @@ export function AuditPreviewSection({ quotationId }: { quotationId: string }) {
         )}
       </div>
 
-      {/* Shared result component — identical to the one used in the aggregated
-          panel and after document submission (unification rule 2.3). */}
+      {/* Shared result component — identical to the one used in the Histórico
+          conference expansion and after document submission (rule 2.3). */}
       <AuditResult preview={preview} />
 
       <p className="portal-small text-portal-neutral">{preview.disclaimer}</p>

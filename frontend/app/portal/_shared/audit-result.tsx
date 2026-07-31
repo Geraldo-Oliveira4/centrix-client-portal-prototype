@@ -6,10 +6,10 @@ import type { PortalAuditPreview } from '@/types/portal-audit';
 
 /**
  * The single, shared audit-result component (unification rule 2.3): the visual
- * result of an audit is the SAME whether it was produced automatically or after
- * the client submitted documentation. Used by:
+ * result of a conference is the SAME whether it was produced automatically or
+ * after the client submitted documentation. Used by:
  *  - the per-quotation AuditPreviewSection (quotation detail),
- *  - the aggregated Auditoria panel (expanded row),
+ *  - the "Conferência de dados" expansion in Minhas Cotações > Histórico,
  *  - the "Enviar documentação" flow (result step).
  *
  * Honesty is unchanged: only `quoted_value_brl` is real (winning proposal); the

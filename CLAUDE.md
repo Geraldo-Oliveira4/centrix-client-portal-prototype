@@ -77,6 +77,10 @@ atualizada — é o que dificulta um futuro re-sync):
     novos, sem contrapartida no Centrix.
   - Nada do módulo GE do analista (`lambdas/shipment*`, rotas `/shipments`) foi
     copiado: as tabelas e repositories existem, os handlers não.
+- `shared/portal_helpers.py` — `closed_at` e `declined_at` acrescentados a
+  `_QUOTATION_PORTAL_FIELDS`. Leitura aditiva de colunas que já existem no
+  modelo e que o state machine já grava; o Histórico do portal data e filtra a
+  cotação fechada por elas em vez de chutar pelo `updated_at`.
 
 ## Fronteiras mockadas (por design)
 
@@ -85,7 +89,7 @@ atualizada — é o que dificulta um futuro re-sync):
 | kanban, detalhe, propostas, histórico, recomendação (score determinístico) | extração PDF/e-mail (IA/OpenRouter) — não exercida |
 | cadastro de exportador pelo cliente + vínculo na nova cotação | — |
 | acompanhamento de embarque (Processo/Embarque criados na aprovação) | histórico de transições do embarque (não existe tabela) e ETA/SLA (`processos.datas` fica NULL) |
-| valor cotado na seção Auditoria (proposta vencedora) | **valor realizado** — fabricado em `app/audit_preview.py`; não existe fatura/BL neste repo |
+| valor cotado na conferência da cotação (proposta vencedora) | **valor realizado** — fabricado em `app/audit_preview.py`; não existe fatura/BL neste repo |
 | aprovar/recusar/cancelar, montar+disparar RFQ | envio de e-mail (Microsoft Graph) -> log |
 | upload de documentos | S3 -> `backend/storage/` via `/_local_s3` |
 | — | Cognito -> auto-login (sem login real); guard rail -> simplificado |
@@ -108,17 +112,20 @@ pelo `quotation_state_machine`, que chama
 portal cria um Processo + Embarque (`solicitado`) de verdade — é o que alimenta a
 tela "Meus Embarques".
 
-## Seção "Auditoria" da cotação (MOCK, casca conceitual)
+## Conferência de dados da cotação (MOCK, casca conceitual)
 
 `app/audit_preview.py` + `GET /portal/quotations/{id}/audit-preview` servem um
-comparativo cotado × realizado na tela de detalhe da cotação FECHADA. **Metade
+comparativo cotado × realizado na tela de detalhe da cotação FECHADA e na
+expansão "Conferência de dados" do Histórico (`/portal/cotacoes`). **Metade
 é inventada**: o valor cotado é real (proposta vencedora), o valor realizado
 não existe em tabela nenhuma — é uma variação determinística (-3% a +8%)
 derivada do hash da `reference` da cotação.
 
-A auditoria de verdade (Camada de Auditoria de Frete/Fatura) é produto
-separado, sequenciado depois do go-live do GE. Isto aqui é só para o cliente
-enxergar a ideia num debate de produto.
+Isso é conferência da própria cotação, não auditoria de fatura. A auditoria de
+verdade (Camada de Auditoria de Frete/Fatura) é produto separado, sequenciado
+depois do go-live do GE — `/portal/auditoria` é só um placeholder dela, **sem
+número nenhum** na tela. Este preview aqui é só para o cliente enxergar a ideia
+num debate de produto.
 
 Convenções que sustentam o aviso — mantenha se mexer nisso:
 
@@ -154,8 +161,13 @@ elegibilidade de RFQ, 404 anti-enumeração, mocks). Rode com banco recém-semea
 ```bash
 docker compose down -v && docker compose up -d
 cd backend && make migrate && make seed && make run &
-.venv/bin/python -m scripts.e2e_test     # -> 88/88 ALL PASS
+.venv/bin/python -m scripts.e2e_test     # -> 89/89 ALL PASS
 ```
+
+A suíte **muta dados** (aprova, recusa, cancela cotações da semente) e exige um
+banco recém-semeado. Confira antes o `DATABASE_URL` do `backend/.env`: se ele
+não apontar para o Postgres do `docker-compose`, `docker compose down -v` não
+limpa nada e a suíte roda contra o banco errado.
 
 Ao adicionar comportamento, adicione uma checagem correspondente no e2e_test.py.
 

@@ -4,12 +4,8 @@ import Link from 'next/link';
 import {
   AlertCircle,
   ArrowRight,
-  Ban,
-  Calendar,
-  CheckCircle2,
   Hourglass,
   Sparkles,
-  XCircle,
   Zap,
 } from 'lucide-react';
 
@@ -23,11 +19,8 @@ import {
 } from '@/lib/portal-formatters';
 import {
   buildNeedsInfoMailto,
-  isApproved,
   isAwaitingAgentProposals,
   isAwaitingInfo,
-  isCancelled,
-  isDeclined,
 } from '@/lib/portal-state';
 import type {
   PortalBucketKey,
@@ -37,40 +30,15 @@ import type {
 
 import { ModalIcon } from '../../_shared/modal-icon';
 
+// Cards only ever render inside the Funil columns now — the terminal buckets
+// are a read-only list in the Histórico tab — so there is no "Aprovada /
+// Recusada / Cancelada" outcome pill here anymore.
 const bucketAccentClass: Record<PortalBucketKey, string> = {
-  aguardando_dados: 'border-l-amber-500',
-  aguardando_aprovacao: 'border-l-emerald-500',
-  buscando_propostas: 'border-l-blue-500',
-  finalizadas: 'border-l-slate-400',
-  cancelada: 'border-l-slate-400',
-};
-
-type FinalizedOutcome = {
-  label: string;
-  icon: typeof CheckCircle2;
-  pillClass: string;
-  borderClass: string;
-};
-
-const FINALIZED_OUTCOMES: Record<string, FinalizedOutcome> = {
-  FECHADA: {
-    label: 'Aprovada',
-    icon: CheckCircle2,
-    pillClass: 'bg-emerald-50 text-emerald-700',
-    borderClass: 'border-l-emerald-500',
-  },
-  DECLINADA: {
-    label: 'Recusada',
-    icon: XCircle,
-    pillClass: 'bg-rose-50 text-rose-700',
-    borderClass: 'border-l-rose-500',
-  },
-  CANCELADO: {
-    label: 'Cancelada',
-    icon: Ban,
-    pillClass: 'bg-slate-100 text-slate-600',
-    borderClass: 'border-l-slate-400',
-  },
+  aguardando_dados: 'border-l-portal-warning',
+  aguardando_aprovacao: 'border-l-portal-success',
+  buscando_propostas: 'border-l-portal-info',
+  finalizadas: 'border-l-portal-neutral/40',
+  cancelada: 'border-l-portal-neutral/40',
 };
 
 interface ScoreBadgeProps {
@@ -84,7 +52,7 @@ function ScoreBadge({ score }: ScoreBadgeProps) {
   if (!score || score.total == null) return null;
 
   return (
-    <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+    <span className="portal-small inline-flex items-center gap-1 rounded bg-portal-success/10 px-1.5 py-0.5 font-medium text-portal-success">
       <Sparkles className="h-3 w-3" />
       Recomendada
     </span>
@@ -96,17 +64,16 @@ interface QuotationCardProps {
   bucket: PortalBucketKey;
 }
 
+/**
+ * Kanban card. Visual hierarchy is deliberate and single-peaked: the price is
+ * the one element with weight — it is what the client compares — and route,
+ * transit time, arrival and badges are secondary metadata around it.
+ */
 export function QuotationCard({ quotation, bucket }: QuotationCardProps) {
   const best = quotation.best_proposal;
   const remaining = daysUntil(best?.validity ?? quotation.data_limite_necessidade);
   const isUrgent = quotation.urgency === 'URGENTE' || quotation.urgency === 'VIP';
 
-  const outcome =
-    bucket === 'finalizadas' || bucket === 'cancelada'
-      ? FINALIZED_OUTCOMES[quotation.state]
-      : null;
-  const cancelled = isCancelled(quotation.state);
-  const declined = isDeclined(quotation.state);
   const needsInfo = isAwaitingInfo(quotation.state);
   // Only "waiting" until the first proposal arrives — once any proposal is in,
   // the card is no longer awaiting (even if still COTANDO for more).
@@ -114,15 +81,8 @@ export function QuotationCard({ quotation, bucket }: QuotationCardProps) {
     isAwaitingAgentProposals(quotation.state) &&
     (quotation.proposals_count ?? 0) === 0;
 
-  const showValue = !cancelled && best != null;
-  const valueClass = isApproved(quotation.state)
-    ? 'text-emerald-600'
-    : declined
-      ? 'text-muted-foreground line-through'
-      : 'text-emerald-600';
-
   const arrivalDateLabel =
-    best?.transit_time && showValue ? formatShortDate(addDays(best.transit_time)) : null;
+    best?.transit_time != null ? formatShortDate(addDays(best.transit_time)) : null;
 
   return (
     <Link
@@ -130,132 +90,84 @@ export function QuotationCard({ quotation, bucket }: QuotationCardProps) {
       className={cn(
         'block rounded-md border bg-background border-l-4 p-4 transition-all',
         'hover:shadow-md hover:bg-muted/30 focus-visible:shadow-md focus-visible:bg-muted/30 focus-visible:outline-none',
-        outcome?.borderClass ?? (needsInfo ? 'border-l-amber-500' : bucketAccentClass[bucket]),
+        bucketAccentClass[bucket],
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap min-w-0">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5 portal-small text-portal-neutral">
           <ModalIcon modal={quotation.modal} />
-          <span className="font-medium text-foreground whitespace-nowrap">{quotation.reference}</span>
-          {quotation.incoterm ? (
-            <span className="rounded border px-1.5 py-0.5 text-xs">
-              {quotation.incoterm}
-            </span>
-          ) : null}
-          {outcome ? (
-            <span
-              className={cn(
-                'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium',
-                outcome.pillClass,
-              )}
-            >
-              <outcome.icon className="h-3 w-3" />
-              {outcome.label}
-            </span>
-          ) : null}
-          {awaitingProposals ? (
-            <span className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700">
-              <Hourglass className="h-3 w-3" />
-              Aguardando propostas
-            </span>
-          ) : null}
-          {!outcome && isUrgent ? (
-            <span className="inline-flex items-center gap-1 rounded bg-rose-50 px-1.5 py-0.5 text-xs text-rose-700">
+          <span className="font-medium text-foreground">{quotation.reference}</span>
+          {quotation.incoterm ? <span>· {quotation.incoterm}</span> : null}
+          {isUrgent ? (
+            <span className="portal-small inline-flex items-center gap-1 rounded bg-portal-danger/10 px-1.5 py-0.5 font-medium text-portal-danger">
               <Zap className="h-3 w-3" />
               {quotation.urgency === 'VIP' ? 'VIP' : 'Urgente'}
             </span>
           ) : null}
-          {quotation.created_by_me ? (
-            <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700 border border-blue-200">
-              Criada por você
-            </span>
-          ) : null}
+          {quotation.created_by_me ? <span>· Criada por você</span> : null}
         </div>
         {needsInfo ? (
-          <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+          <AlertCircle className="h-4 w-4 shrink-0 text-portal-warning" />
         ) : (
-          <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          <ArrowRight className="h-4 w-4 shrink-0 text-portal-neutral" />
         )}
       </div>
 
-      {showValue && best ? (
-        <div className="mt-3 flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-baseline gap-6">
-            <div>
-              <p className={cn('text-xl font-semibold leading-none', valueClass)}>
-                {formatBRL(best.total_brl)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">preço all-in</p>
-            </div>
-            <div>
-              <p className="text-xl font-semibold leading-none">
-                {best.transit_time}d
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">transit time</p>
-            </div>
-          </div>
-          {arrivalDateLabel ? (
-            <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
-              <Calendar className="h-4 w-4 mt-0.5" />
-              <div>
-                <p className="font-medium text-foreground">{arrivalDateLabel}</p>
-                <p>chegada fábrica</p>
-              </div>
-            </div>
-          ) : null}
+      {/* The dominant element. Without a proposal there is no price yet, and the
+          card says what it is waiting for instead of showing an empty slot. */}
+      {best ? (
+        <div className="mt-3 space-y-1">
+          <p className="text-2xl font-semibold leading-none text-foreground">
+            {formatBRL(best.total_brl)}
+          </p>
+          <p className="portal-small text-portal-neutral">
+            preço all-in
+            {best.transit_time != null ? ` · ${best.transit_time}d de trânsito` : ''}
+            {arrivalDateLabel ? ` · chega ${arrivalDateLabel}` : ''}
+          </p>
         </div>
-      ) : null}
+      ) : (
+        <p className="portal-small mt-3 inline-flex items-center gap-1.5 text-portal-neutral">
+          <Hourglass className="h-3.5 w-3.5" />
+          {awaitingProposals
+            ? 'Agentes ainda não enviaram propostas'
+            : needsInfo
+              ? 'Aguardando os detalhes que faltam'
+              : 'Sem proposta recebida'}
+        </p>
+      )}
 
-      {!outcome && best ? (
-        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+      {best ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
           <ScoreBadge score={best.score} />
           {best.route_detail ? (
-            <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700">
+            <span className="portal-small rounded bg-muted px-1.5 py-0.5 text-portal-neutral">
               {best.route_detail}
             </span>
           ) : null}
           {best.carrier ? (
-            <span className="rounded border px-1.5 py-0.5 text-muted-foreground">
+            <span className="portal-small rounded border px-1.5 py-0.5 text-portal-neutral">
               {best.carrier}
-            </span>
-          ) : null}
-          {best.frequencia ? (
-            <span className="rounded border px-1.5 py-0.5 text-muted-foreground">
-              {best.frequencia}
             </span>
           ) : null}
         </div>
       ) : null}
 
-      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground gap-3 flex-wrap">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 portal-small text-portal-neutral">
         <span className="truncate">
-          {formatRoute(quotation)}{' '}
-          {quotation.product ? `· ${quotation.product}` : ''}
+          {formatRoute(quotation)}
+          {quotation.product ? ` · ${quotation.product}` : ''}
         </span>
-        <div className="flex items-center gap-3 shrink-0">
-          {needsInfo ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                window.location.href = buildNeedsInfoMailto(quotation.reference);
-              }}
-              className="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100"
-            >
-              Responder
-              <ArrowRight className="h-3 w-3" />
-            </button>
-          ) : null}
-          {quotation.proposals_count != null ? (
+        <div className="flex shrink-0 items-center gap-3">
+          {quotation.proposals_count ? (
             <span>{quotation.proposals_count} propostas</span>
           ) : null}
-          {!outcome && !needsInfo && remaining ? (
+          {!needsInfo && remaining ? (
             <span
               className={cn(
                 remaining === 'Expira hoje' || remaining === 'Expirou'
-                  ? 'text-rose-600 font-medium'
-                  : 'text-emerald-600',
+                  ? 'font-medium text-portal-danger'
+                  : 'text-portal-neutral',
               )}
             >
               {remaining}
@@ -263,6 +175,21 @@ export function QuotationCard({ quotation, bucket }: QuotationCardProps) {
           ) : null}
         </div>
       </div>
+
+      {needsInfo ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.location.href = buildNeedsInfoMailto(quotation.reference);
+          }}
+          className="portal-small mt-3 inline-flex items-center gap-1 rounded border border-portal-warning/40 bg-portal-warning/10 px-2 py-1 font-medium text-portal-warning hover:bg-portal-warning/20"
+        >
+          Enviar informações
+          <ArrowRight className="h-3 w-3" />
+        </button>
+      ) : null}
     </Link>
   );
 }
