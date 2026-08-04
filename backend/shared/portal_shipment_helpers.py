@@ -30,6 +30,28 @@ from typing import Any, Optional
 from shared.lambda_helpers import _coerce
 
 
+def serialize_tracking_for_portal(embarque: Any) -> dict:
+    """Carrier tracking block (migration 091) — all NULL until ShipsGo exists.
+
+    Passed through verbatim, never defaulted and never derived: an absent date
+    is what tells the portal to show "Pendente integração" instead of an ETA.
+    The delay risk is deliberately NOT computed here — it is a pure function on
+    the frontend (app/portal/embarques/lib/delay-risk.ts) so the threshold rule
+    lives next to the badge that renders it.
+
+    `data_status` distinguishes the two ways a shipment can lack an ETA:
+      None         -> we have not integrated the carrier feed yet
+      'INCOMPLETE' -> integrated, but the carrier did not report enough
+      'COMPLETE'   -> integrated and reported
+    """
+    return {
+        "first_eta": _coerce(embarque.tracking_first_eta),
+        "current_eta": _coerce(embarque.tracking_current_eta),
+        "eta_is_actual": embarque.tracking_eta_is_actual,
+        "data_status": embarque.tracking_data_status,
+    }
+
+
 def serialize_shipment_for_portal(
     processo: Any, embarque: Any, agente_nome: Optional[str]
 ) -> dict:
@@ -52,6 +74,9 @@ def serialize_shipment_for_portal(
         "quotation_id": _coerce(processo.quotation_id),
         "created_at": _coerce(processo.created_at),
         "updated_at": _coerce(embarque.updated_at or processo.updated_at),
+        # On the list too, not only the detail: the shipment card carries the
+        # same ETA / delay-risk badges the detail screen does.
+        "tracking": serialize_tracking_for_portal(embarque),
     }
 
 

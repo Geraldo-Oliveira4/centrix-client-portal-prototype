@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -52,6 +52,25 @@ class Embarque(Base):
     # Human-readable reference (e.g. EMB-2026-0001), unique per embarque.
     # Generated application-side — see class docstring.
     reference: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+
+    # Carrier tracking (migration 091, prototype-only). Nothing in this repo
+    # writes these: they are the plug for the ShipsGo integration and stay NULL
+    # until it exists. NULL means "not integrated yet" and the portal renders
+    # "Pendente integração" — it never derives an ETA or a delay from a guess.
+    # tracking_data_status = 'INCOMPLETE' is a different statement: integrated,
+    # but the carrier did not report enough for this shipment.
+    tracking_first_eta: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    tracking_current_eta: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    tracking_eta_is_actual: Mapped[Optional[bool]] = mapped_column(
+        Boolean, nullable=True
+    )
+    tracking_data_status: Mapped[Optional[str]] = mapped_column(
+        String(16), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=func.now()

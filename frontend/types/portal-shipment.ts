@@ -12,6 +12,32 @@ import type { QuotationModal, TipoEmbarque } from './quotation';
 
 export type { EmbarqueEstado };
 
+/**
+ * Carrier data sufficiency, as reported by the tracking source (ShipsGo).
+ * Three-valued on purpose, and the three are NOT interchangeable:
+ *   null         -> the integration does not exist yet ("Pendente integração")
+ *   'INCOMPLETE' -> integrated, but the carrier did not report enough data
+ *   'COMPLETE'   -> integrated and reported
+ */
+export type TrackingDataStatus = 'COMPLETE' | 'INCOMPLETE';
+
+/**
+ * Carrier tracking block (backend migration 091). Every field is NULL today —
+ * nothing in this prototype writes them, and nothing may fabricate them. They
+ * exist so the UI can be built against the real shape and light up when the
+ * ShipsGo integration lands.
+ *
+ * `first_eta` / `current_eta` are the two dates the delay risk is computed from
+ * (see app/portal/embarques/lib/delay-risk.ts); `eta_is_actual` is ShipsGo's
+ * IsActual — true when `current_eta` is the real arrival, not an estimate.
+ */
+export interface PortalShipmentTracking {
+  first_eta: string | null;
+  current_eta: string | null;
+  eta_is_actual: boolean | null;
+  data_status: TrackingDataStatus | null;
+}
+
 export interface PortalShipment {
   id: string;
   referencia: string;
@@ -25,6 +51,10 @@ export interface PortalShipment {
   quotation_id: string | null;
   created_at: string;
   updated_at: string | null;
+  // Optional so a payload predating migration 091 (or any caller building a
+  // shipment stub) is still a valid PortalShipment; absent reads the same as
+  // "not integrated".
+  tracking?: PortalShipmentTracking | null;
 }
 
 export interface PortalShipmentContainer {

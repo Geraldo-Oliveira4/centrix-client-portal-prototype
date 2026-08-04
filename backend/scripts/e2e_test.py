@@ -520,6 +520,25 @@ def run():
     check("O8 detail carries no transition history (none exists in the DB)",
           "history" not in ship and "timeline" not in ship, str(list(ship)))
 
+    # Carrier tracking (migration 091): the columns exist so the ShipsGo
+    # integration has somewhere to write, but nothing writes them yet. Every
+    # field must come back NULL — a populated one would mean something started
+    # fabricating ETAs, which is exactly what the portal badges promise it does
+    # not do.
+    tracking = ship.get("tracking")
+    check("O13 detail exposes the tracking block with every field null",
+          isinstance(tracking, dict)
+          and set(tracking) == {"first_eta", "current_eta", "eta_is_actual",
+                                "data_status"}
+          and all(v is None for v in tracking.values()),
+          str(tracking))
+
+    check("O14 list items carry the same empty tracking block",
+          all(isinstance(i.get("tracking"), dict)
+              and all(v is None for v in i["tracking"].values())
+              for i in items),
+          str([i.get("tracking") for i in items[:2]]))
+
     st, _ = req("GET", f"/portal/shipments/{uuid.uuid4()}")
     check("O9 unknown shipment -> 404", st == 404, str(st))
     st, _ = req("GET", "/portal/shipments/not-a-uuid")

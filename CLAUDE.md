@@ -31,10 +31,10 @@ backend/                         # FastAPI (substitui AWS Lambda + API Gateway)
   shared/                        # COPIADO do Centrix quase sem alteração (models, repos, domain, services)
   lambdas/client_portal*/        # COPIADO do Centrix — handlers originais intactos
                                  #   (+2 novos de exportador, +2 novos de embarque)
-  alembic/                       # COPIADO — migrations 001..089 (+090, do protótipo)
+  alembic/                       # COPIADO — migrations 001..089 (+090, +091, do protótipo)
   scripts/
     seed_prototype.py            # cliente demo + 9 cotações + agentes + DNA + 7 embarques
-    e2e_test.py                  # suíte E2E (92 checagens)
+    e2e_test.py                  # suíte E2E (94 checagens)
 frontend/                        # CÓPIA do app Next.js do Centrix (só /portal ligado ao backend)
   vendor/arboria-ui, arboria-config   # deps @arboria-tech vendorizadas (file:), sem GitHub Packages
 docker-compose.yml               # Postgres 16 local
@@ -77,6 +77,18 @@ atualizada — é o que dificulta um futuro re-sync):
     novos, sem contrapartida no Centrix.
   - Nada do módulo GE do analista (`lambdas/shipment*`, rotas `/shipments`) foi
     copiado: as tabelas e repositories existem, os handlers não.
+- **Campos de rastreamento da companhia marítima** (estrutura para a integração
+  ShipsGo, que ainda não existe — trabalho do Mauro, ago-out/2026):
+  - `alembic/versions/091_add_tracking_fields_to_embarques.py` — quatro colunas
+    nullable em `centrix_shipment_embarques`: `tracking_first_eta`,
+    `tracking_current_eta`, `tracking_eta_is_actual`, `tracking_data_status`
+    (CHECK: NULL | `COMPLETE` | `INCOMPLETE`).
+  - `shared/database/models/shipment/embarque.py` — mapeia as colunas acima.
+  - `shared/portal_shipment_helpers.py::serialize_tracking_for_portal` — expõe o
+    bloco `tracking` na lista e no detalhe.
+  - **Nada escreve nessas colunas**: nenhum seed, nenhum handler, nenhum script.
+    Elas ficam NULL até a integração real, e é isso que faz o portal mostrar
+    "Pendente integração" em vez de um ETA inventado. Não popular com mock.
 - `shared/portal_helpers.py` — `closed_at` e `declined_at` acrescentados a
   `_QUOTATION_PORTAL_FIELDS`. Leitura aditiva de colunas que já existem no
   modelo e que o state machine já grava; o Histórico do portal data e filtra a
@@ -89,6 +101,7 @@ atualizada — é o que dificulta um futuro re-sync):
 | kanban, detalhe, propostas, histórico, recomendação (score determinístico) | extração PDF/e-mail (IA/OpenRouter) — não exercida |
 | cadastro de exportador pelo cliente + vínculo na nova cotação | — |
 | acompanhamento de embarque (Processo/Embarque criados na aprovação) | histórico de transições do embarque (não existe tabela) e ETA/SLA (`processos.datas` fica NULL) |
+| — | rastreamento da companhia marítima (ShipsGo): colunas `tracking_*` existem e ficam NULL; ETA, risco de atraso e os marcos pós-embarque aparecem como "Pendente integração" |
 | valor cotado na conferência da cotação (proposta vencedora) | **valor realizado** — fabricado em `app/audit_preview.py`; não existe fatura/BL neste repo |
 | aprovar/recusar/cancelar, montar+disparar RFQ | envio de e-mail (Microsoft Graph) -> log |
 | upload de documentos | S3 -> `backend/storage/` via `/_local_s3` |
@@ -111,6 +124,37 @@ pelo `quotation_state_machine`, que chama
 `shipment_service.provision_processo_from_quotation`. Ou seja, toda aprovação no
 portal cria um Processo + Embarque (`solicitado`) de verdade — é o que alimenta a
 tela "Meus Embarques".
+
+## Rastreamento da companhia marítima (estrutura pronta, integração ausente)
+
+A integração ShipsGo **não existe** neste repo (e nem no Centrix ainda). O que
+existe é o lugar onde ela vai encaixar, e a regra de exibição enquanto não
+encaixa: **nenhum número fabricado**.
+
+- Colunas (migração 091, todas NULL): `tracking_first_eta`,
+  `tracking_current_eta`, `tracking_eta_is_actual`, `tracking_data_status`.
+  Mapeamento para o payload do ShipsGo está no docstring da migração.
+- Risco de atraso: **não é coluna**, é derivado. `delta_dias = ETA atual (ou
+  chegada real, se `IsActual`) − primeiro ETA`, com semáforo por **dia
+  absoluto** (≤0 no prazo · 1–3 atenção · >3 atraso) — percentual distorceria a
+  comparação entre rota curta e rota longa. A regra vive numa função pura no
+  frontend (`app/portal/embarques/lib/delay-risk.ts`), com teste unitário
+  (`npm run test:unit`), e por isso não há endpoint novo aqui.
+- Três estados de dado, que **não** são sinônimos e aparecem diferentes na tela:
+  `NULL` = não integramos ainda ("Pendente integração", cinza sólido);
+  `INCOMPLETE` = integramos e a companhia não reportou o suficiente
+  ("Sem dado suficiente", cinza tracejado, ⚪ neutro — nunca cor de semáforo,
+  porque é qualidade de dado, não saúde do embarque); `COMPLETE` = reportou.
+- Marcos pós-embarque na timeline (Em trânsito → Chegada → Descarregado →
+  Liberado) são os milestones do ShipsGo (Ocean Transit, Arrival at POD,
+  Discharge, Available for Pickup) e seguem "Pendente integração". Gate-in e
+  Vessel Loading não se repetem: já são os estados reais `coletado` e
+  `embarcado`.
+- "✓ Desembaraçado" é **etiqueta na Chegada**, não degrau, e vem de uma futura
+  Camada 2 (Inova / Portal Único) que também não existe. Sem o dado ele não
+  renderiza **nada** — nem "Pendente integração": o desembaraço não é garantido
+  em todo processo (depende do porto e do vínculo de cadastro), então ausência é
+  o estado correto, não lacuna a sinalizar.
 
 ## Conferência de dados da cotação (MOCK, casca conceitual)
 
@@ -195,7 +239,7 @@ elegibilidade de RFQ, 404 anti-enumeração, mocks). Rode com banco recém-semea
 ```bash
 docker compose down -v && docker compose up -d
 cd backend && make migrate && make seed && make run &
-.venv/bin/python -m scripts.e2e_test     # -> 92/92 ALL PASS
+.venv/bin/python -m scripts.e2e_test     # -> 94/94 ALL PASS
 ```
 
 A suíte **muta dados** (aprova, recusa, cancela cotações da semente) e exige um

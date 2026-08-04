@@ -16,6 +16,7 @@ import {
 
 import { EstadoBadge } from './estado-badge';
 import { DESTINATION, ORIGINS, originIndex } from '../lib/shipment-origins';
+import { INCOMPLETE_DATA_COPY } from '../lib/delay-risk';
 
 // Illustrative world map. NOT geographically exact and NOT a tracking feed:
 // there is no GPS/AIS/carrier position in this repo. Each active shipment is
@@ -135,6 +136,10 @@ export function ShipmentWorldMap({ shipments }: { shipments: PortalShipment[] })
     return result;
   }, [shipments]);
 
+  const hasIncomplete = shipments.some(
+    (s) => s.tracking?.data_status === 'INCOMPLETE',
+  );
+
   if (shipments.length === 0) return null;
 
   return (
@@ -179,7 +184,13 @@ export function ShipmentWorldMap({ shipments }: { shipments: PortalShipment[] })
             ))}
           </g>
 
-          {/* Routes: one dashed arc per shipment, coloured by state. */}
+          {/* Routes: one dashed arc per shipment, coloured by state. When the
+              carrier feed exists but reported too little for a shipment
+              (data_status INCOMPLETE), a small neutral marker sits at the apex
+              of its arc — grey on purpose: it is a statement about the data,
+              never about the health of the cargo, so it must not borrow the
+              semáforo colours. No vessel position is ever plotted: there is no
+              AIS in this repo, integrated or not. */}
           {placed.map(({ shipment, x, y }) => {
             const mx = (x + dest.x) / 2;
             const my = (y + dest.y) / 2;
@@ -190,21 +201,48 @@ export function ShipmentWorldMap({ shipments }: { shipments: PortalShipment[] })
             const cx = mx + (-dy / len) * lift;
             const cy = my + (dx / len) * lift;
             const active = hoveredId === shipment.id;
+            // Apex of the quadratic curve (t = 0.5), where the marker belongs.
+            const apexX = 0.25 * x + 0.5 * cx + 0.25 * dest.x;
+            const apexY = 0.25 * y + 0.5 * cy + 0.25 * dest.y;
+            const incomplete = shipment.tracking?.data_status === 'INCOMPLETE';
             return (
-              <path
-                key={shipment.id}
-                d={`M${x.toFixed(1)} ${y.toFixed(1)} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${dest.x.toFixed(1)} ${dest.y.toFixed(1)}`}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={active ? 3 : 1.75}
-                strokeDasharray="5 5"
-                strokeLinecap="round"
-                className={cn(
-                  ESTADO_ACCENT_CLASS[shipment.estado],
-                  'transition-opacity',
-                  active ? 'opacity-100' : 'opacity-60',
+              <g key={shipment.id}>
+                <path
+                  d={`M${x.toFixed(1)} ${y.toFixed(1)} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${dest.x.toFixed(1)} ${dest.y.toFixed(1)}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={active ? 3 : 1.75}
+                  strokeDasharray="5 5"
+                  strokeLinecap="round"
+                  className={cn(
+                    ESTADO_ACCENT_CLASS[shipment.estado],
+                    'transition-opacity',
+                    active ? 'opacity-100' : 'opacity-60',
+                  )}
+                />
+                {incomplete && (
+                  <g
+                    className="text-portal-neutral"
+                    transform={`translate(${apexX.toFixed(1)} ${apexY.toFixed(1)})`}
+                  >
+                    <title>{INCOMPLETE_DATA_COPY}</title>
+                    <circle
+                      r={7}
+                      className="fill-card"
+                      stroke="currentColor"
+                      strokeWidth={1.25}
+                      strokeDasharray="2.5 2.5"
+                    />
+                    <text
+                      textAnchor="middle"
+                      y={4}
+                      className="fill-portal-neutral text-[11px] font-medium"
+                    >
+                      ?
+                    </text>
+                  </g>
                 )}
-              />
+              </g>
             );
           })}
 
@@ -302,6 +340,16 @@ export function ShipmentWorldMap({ shipments }: { shipments: PortalShipment[] })
               <span className="portal-small text-portal-neutral">{label}</span>
             </span>
           ))}
+          {/* Only listed when at least one arc carries the marker — a legend
+              entry for something never drawn reads as a missing feature. */}
+          {hasIncomplete && (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full border border-dashed border-portal-neutral" />
+              <span className="portal-small text-portal-neutral">
+                Sem dado suficiente da companhia
+              </span>
+            </span>
+          )}
         </div>
         <span className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
           <Info className="h-3.5 w-3.5" />

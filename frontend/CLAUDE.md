@@ -386,6 +386,44 @@ this repo. Its "não é rastreamento por GPS" caption is load-bearing; keep it i
 you touch the component. Endpoints are labelled generically because the shipment
 payload carries no route (origin lives on the quotation).
 
+**Carrier tracking (ShipsGo) — structure only, no integration.** The backend
+ships a `tracking` block on every shipment payload (backend migration 091) whose
+four fields are ALL NULL today. Three rules hold this together; keep them if you
+touch Meus Embarques:
+
+- **One rule, one place.** The delay risk is a pure function,
+  `computeDelayRisk` / `delayRiskFromTracking` in
+  `app/portal/embarques/lib/delay-risk.ts`: `delta = ETA atual (ou chegada real,
+  se `IsActual`) − primeiro ETA`, semáforo por **dia absoluto** (≤0 no prazo ·
+  1–3 atenção · >3 atraso — percentual distorceria rota curta × rota longa).
+  Unit-tested in `delay-risk.test.ts` (`npm run test:unit`, Node test runner with
+  native TS stripping; the file is excluded from tsconfig). Components render
+  what the function returns — never re-implement the threshold in JSX.
+- **The number IS shown** next to the colour, unlike the AI score: this is
+  arithmetic over two carrier-published dates, reproducible by the client, not a
+  model estimate.
+- **Three data states, three visuals.** `null` → `ProvenanceBadge pending`
+  ("Pendente integração" — we have not integrated); `'INCOMPLETE'` →
+  `IncompleteDataBadge` (`app/portal/_shared/incomplete-data-badge.tsx`: dashed
+  neutral ⚪ "Sem dado suficiente" — integrated, the carrier stayed quiet);
+  `'COMPLETE'` → the real value. The INCOMPLETE state must NEVER borrow
+  `portal-success`/`warning`/`danger`: those three are the shipment's health
+  semáforo, and this badge is about data quality, not cargo. Copy is centralised
+  as `INCOMPLETE_DATA_COPY`. Surfaces already wired for it: list card (ETA +
+  risk), timeline (downstream steps go "travados"), world map (dashed neutral
+  marker at the arc apex + a legend entry that appears only when some shipment
+  is INCOMPLETE).
+
+`ShipmentTimeline` shows the real states then the four ShipsGo milestones (Em
+trânsito, Chegada, Descarregado, Liberado = Ocean Transit, Arrival at POD,
+Discharge, Available for Pickup); Gate-in and Vessel Loading are not repeated
+because they already are the real `coletado` / `embarcado`. Its
+`customsClearance` prop ("✓ Desembaraçado", a TAG on Chegada, not a step) comes
+from a future Camada 2 (Inova / Portal Único) and is never passed today — with
+no data it renders **nothing**, deliberately not even a `pending` badge, because
+clearance data is not guaranteed for every process and a permanent grey badge
+would read as a process gap.
+
 **Spacing** — 8px grid: `gap-1` (4) / `gap-2` (8, default) / `gap-4` (16, between
 sections) / `p-6` (24, card padding) / `space-y-8` (32, between page blocks).
 Do not introduce `p-3`, `gap-3`, `space-y-5` or other off-grid steps in `/portal`.

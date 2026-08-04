@@ -28,8 +28,9 @@ import {
 
 import { ModalIcon } from '../../_shared/modal-icon';
 import { PortalSearchInput } from '../../_shared/portal-search-input';
-import { ProvenanceBadge } from '../../_shared/provenance-badge';
+import { ShipmentDelayRiskBadge } from './delay-risk-badge';
 import { EstadoBadge } from './estado-badge';
+import { ShipmentEtaBadge } from './eta-badge';
 import { ORIGINS, originIndex } from '../lib/shipment-origins';
 
 // Normalise a reference for comparison: case- and whitespace-insensitive.
@@ -86,9 +87,11 @@ function ShipmentCard({ shipment }: { shipment: PortalShipment }) {
         <EstadoBadge estado={shipment.estado} />
       </div>
 
-      {/* Rota — origem ilustrativa (ver legenda). Chegada e risco de atraso não
-          têm fonte de dado ainda (sem ETA/histórico de desvio) — o badge fica
-          pronto como "Pendente integração", sem número inventado no lugar. */}
+      {/* Rota — origem ilustrativa (ver legenda). ETA e risco de atraso saem do
+          bloco `tracking` (ShipsGo): hoje todos os campos vêm NULL, então os
+          dois badges caem em "Pendente integração" — nenhum número inventado.
+          Três estados possíveis por badge: data real | Pendente integração |
+          Sem dado suficiente (a fonte respondeu, a companhia não reportou). */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <span className="portal-small text-portal-neutral">
           {origin.name}, {origin.country}
@@ -98,11 +101,11 @@ function ShipmentCard({ shipment }: { shipment: PortalShipment }) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
             ETA
-            <ProvenanceBadge provenance="pending" />
+            <ShipmentEtaBadge tracking={shipment.tracking} />
           </span>
           <span className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
             Risco de atraso
-            <ProvenanceBadge provenance="pending" />
+            <ShipmentDelayRiskBadge tracking={shipment.tracking} />
           </span>
         </div>
       </div>
@@ -248,8 +251,8 @@ export function ShipmentListTab({
 
       <p className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
         <Info className="h-3.5 w-3.5" />
-        Origem aproximada por região e chegada estimada são ilustrativas — o portal
-        ainda não integra rastreamento do agente.
+        Origem aproximada por região é ilustrativa. ETA e risco de atraso ficam
+        pendentes até a integração de rastreamento da companhia marítima.
       </p>
 
       {isLoading ? (

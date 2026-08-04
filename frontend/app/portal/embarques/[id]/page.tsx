@@ -23,13 +23,16 @@ import { buildShipmentUpdateMailto } from '@/lib/portal-state';
 import { useMyShipment } from '@/hooks/use-portal-shipments';
 import { MODAL_LABELS, TIPO_EMBARQUE_LABELS } from '@/types/quotation';
 
+import { IncompleteDataNote } from '../../_shared/incomplete-data-badge';
 import { ModalIcon } from '../../_shared/modal-icon';
 import { SectionHeading } from '../../_shared/page-header';
-import { ProvenanceBadge } from '../../_shared/provenance-badge';
+import { DelayRiskBadge } from '../components/delay-risk-badge';
 import { EstadoBadge } from '../components/estado-badge';
+import { ShipmentEtaBadge } from '../components/eta-badge';
 import { ShipmentTimeline } from '../components/shipment-timeline';
 import { ShipmentRoute } from '../components/shipment-route';
 import { ShipmentTrackingPanel } from '../components/shipment-tracking-panel';
+import { INCOMPLETE_DATA_COPY, delayRiskFromTracking } from '../lib/delay-risk';
 import { ORIGINS, originIndex } from '../lib/shipment-origins';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -53,6 +56,26 @@ export default function PortalEmbarqueDetailPage() {
 
   // Illustrative origin hub (same source the map and tracking panel use).
   const origin = ORIGINS[originIndex(shipment.referencia)];
+
+  // Delay risk: pure computation over the two carrier ETAs, tested in
+  // lib/delay-risk.test.ts. Null tracking -> "pending", never a number.
+  const delayRisk = delayRiskFromTracking(shipment.tracking);
+
+  const etaFootnote =
+    delayRisk.status === 'pending'
+      ? 'Sem rastreamento integrado'
+      : delayRisk.status === 'incomplete'
+        ? 'A companhia não reportou'
+        : shipment.tracking?.eta_is_actual
+          ? 'Informado pela companhia'
+          : 'Previsão da companhia';
+
+  const riskFootnote =
+    delayRisk.status === 'pending'
+      ? 'Depende da previsão da companhia'
+      : delayRisk.status === 'incomplete'
+        ? 'Sem as duas previsões não há cálculo'
+        : 'Diferença em dias sobre a primeira previsão';
 
   return (
     <div className="space-y-8">
@@ -102,11 +125,17 @@ export default function PortalEmbarqueDetailPage() {
         </div>
       </div>
 
-      {/* Resumo: rota (origem ilustrativa), modal e ETA (sem fonte de dado).
+      {/* Resumo: rota (origem ilustrativa), modal, ETA e risco de atraso.
           Supporting card — quieter than the timeline below, which is the one
-          dominant element on this screen. */}
+          dominant element on this screen.
+
+          ETA e risco vêm do bloco `tracking` (ShipsGo, migração 091). Enquanto
+          os campos forem NULL os dois badges dizem "Pendente integração"; o
+          cálculo do risco (delta em dias entre a primeira previsão e a previsão
+          atual/chegada real) já está pronto em lib/delay-risk.ts e passa a
+          mostrar o número exato assim que a fonte existir. */}
       <section className="portal-card-muted space-y-4 p-6">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1">
             <p className="portal-small text-portal-neutral">Rota</p>
             <p className="portal-body font-medium text-foreground">
@@ -126,13 +155,23 @@ export default function PortalEmbarqueDetailPage() {
             </p>
           </div>
           <div className="space-y-1">
-            <p className="portal-small text-portal-neutral">Chegada estimada (ETA)</p>
-            <ProvenanceBadge provenance="pending" />
             <p className="portal-small text-portal-neutral">
-              Sem rastreamento integrado
+              {shipment.tracking?.eta_is_actual
+                ? 'Chegada confirmada'
+                : 'Chegada estimada (ETA)'}
             </p>
+            <ShipmentEtaBadge tracking={shipment.tracking} />
+            <p className="portal-small text-portal-neutral">{etaFootnote}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="portal-small text-portal-neutral">Risco de atraso</p>
+            <DelayRiskBadge risk={delayRisk} />
+            <p className="portal-small text-portal-neutral">{riskFootnote}</p>
           </div>
         </div>
+        {delayRisk.status === 'incomplete' && (
+          <IncompleteDataNote>{INCOMPLETE_DATA_COPY}</IncompleteDataNote>
+        )}
         <div className="border-t pt-4">
           <ShipmentRoute estado={shipment.estado} modal={shipment.modal} />
         </div>
@@ -140,10 +179,16 @@ export default function PortalEmbarqueDetailPage() {
 
       {/* Primary: the journey timeline — the reason the client opened this screen.
           Real operational states up to the current one, then the downstream
-          stages the client cares about, marked "Pendente integração". */}
+          carrier milestones (Em trânsito, Chegada, Descarregado, Liberado),
+          marked "Pendente integração" until the ShipsGo feed exists.
+
+          `customsClearance` is deliberately NOT passed: the "Desembaraçado" tag
+          comes from a future Camada 2 (Inova / Portal Único) that is not
+          integrated, and it is not guaranteed for every process — so it renders
+          nothing at all rather than a permanent grey placeholder. */}
       <section className="portal-card space-y-6 p-6">
         <SectionHeading title="Acompanhamento" />
-        <ShipmentTimeline estado={shipment.estado} />
+        <ShipmentTimeline estado={shipment.estado} tracking={shipment.tracking} />
       </section>
 
       {/* Maritime tracking: the ShipsGo-style fields (vessel, POL/POD, ETD/ETA)
