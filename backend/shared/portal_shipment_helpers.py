@@ -43,12 +43,20 @@ def serialize_tracking_for_portal(embarque: Any) -> dict:
       None         -> we have not integrated the carrier feed yet
       'INCOMPLETE' -> integrated, but the carrier did not report enough
       'COMPLETE'   -> integrated and reported
+
+    `is_mock` (migration 092) travels with the data: TRUE means these values
+    were fabricated for the demo by scripts/topup_tracking_demo.py, and the
+    portal must show the "Pre-visualizacao" seal wherever it renders them. It is
+    normalised to a real boolean here so the frontend never has to treat NULL as
+    "probably real".
     """
     return {
         "first_eta": _coerce(embarque.tracking_first_eta),
         "current_eta": _coerce(embarque.tracking_current_eta),
         "eta_is_actual": embarque.tracking_eta_is_actual,
         "data_status": embarque.tracking_data_status,
+        "last_milestone": embarque.tracking_last_milestone,
+        "is_mock": bool(embarque.tracking_is_mock),
     }
 
 

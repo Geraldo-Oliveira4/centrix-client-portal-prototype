@@ -71,6 +71,16 @@ class Embarque(Base):
     tracking_data_status: Mapped[Optional[str]] = mapped_column(
         String(16), nullable=True
     )
+    # Migration 092. `tracking_last_milestone` is the last carrier milestone
+    # (ShipsGo vocabulary) and drives the post-embarque steps of the portal
+    # timeline; `tracking_is_mock` marks the whole tracking block as demo data,
+    # which makes the portal show the "Pre-visualizacao" seal.
+    tracking_last_milestone: Mapped[Optional[str]] = mapped_column(
+        String(24), nullable=True
+    )
+    tracking_is_mock: Mapped[Optional[bool]] = mapped_column(
+        Boolean, nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=func.now()

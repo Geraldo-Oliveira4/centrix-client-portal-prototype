@@ -31,10 +31,10 @@ backend/                         # FastAPI (substitui AWS Lambda + API Gateway)
   shared/                        # COPIADO do Centrix quase sem alteração (models, repos, domain, services)
   lambdas/client_portal*/        # COPIADO do Centrix — handlers originais intactos
                                  #   (+2 novos de exportador, +2 novos de embarque)
-  alembic/                       # COPIADO — migrations 001..089 (+090, +091, do protótipo)
+  alembic/                       # COPIADO — migrations 001..089 (+090..092, do protótipo)
   scripts/
     seed_prototype.py            # cliente demo + 9 cotações + agentes + DNA + 7 embarques
-    e2e_test.py                  # suíte E2E (94 checagens)
+    e2e_test.py                  # suíte E2E (95 checagens)
 frontend/                        # CÓPIA do app Next.js do Centrix (só /portal ligado ao backend)
   vendor/arboria-ui, arboria-config   # deps @arboria-tech vendorizadas (file:), sem GitHub Packages
 docker-compose.yml               # Postgres 16 local
@@ -83,12 +83,17 @@ atualizada — é o que dificulta um futuro re-sync):
     nullable em `centrix_shipment_embarques`: `tracking_first_eta`,
     `tracking_current_eta`, `tracking_eta_is_actual`, `tracking_data_status`
     (CHECK: NULL | `COMPLETE` | `INCOMPLETE`).
+  - `alembic/versions/092_add_tracking_milestone_and_mock_flag.py` — mais duas:
+    `tracking_last_milestone` (CHECK: NULL | `OCEAN_TRANSIT` | `ARRIVAL` |
+    `DISCHARGE` | `AVAILABLE`), que move os degraus pós-embarque da timeline, e
+    `tracking_is_mock`, que marca a linha como dado de demonstração.
   - `shared/database/models/shipment/embarque.py` — mapeia as colunas acima.
   - `shared/portal_shipment_helpers.py::serialize_tracking_for_portal` — expõe o
     bloco `tracking` na lista e no detalhe.
-  - **Nada escreve nessas colunas**: nenhum seed, nenhum handler, nenhum script.
-    Elas ficam NULL até a integração real, e é isso que faz o portal mostrar
-    "Pendente integração" em vez de um ETA inventado. Não popular com mock.
+  - **Nenhum handler e nenhum seed escreve nessas colunas**: num banco recém
+    semeado elas ficam NULL e o portal mostra "Pendente integração" em vez de um
+    ETA inventado. A única coisa que grava é o top-up de demonstração (seção
+    abaixo), e ele sempre grava `tracking_is_mock = TRUE` junto.
 - `shared/portal_helpers.py` — `closed_at` e `declined_at` acrescentados a
   `_QUOTATION_PORTAL_FIELDS`. Leitura aditiva de colunas que já existem no
   modelo e que o state machine já grava; o Histórico do portal data e filtra a
@@ -156,6 +161,35 @@ encaixa: **nenhum número fabricado**.
   em todo processo (depende do porto e do vínculo de cadastro), então ausência é
   o estado correto, não lacuna a sinalizar.
 
+### Dado de rastreamento para demonstração (`tracking_is_mock`)
+
+O protótipo precisa **mostrar** os três caminhos visuais da tela, e com as
+colunas todas NULL só existe um ("Pendente integração"). Por isso
+`backend/scripts/topup_tracking_demo.py` popula três embarques com tracking
+**inventado**, e a honestidade fica ancorada num flag que viaja com o dado:
+
+| Embarque | Cenário | O que a tela mostra |
+|---|---|---|
+| EMB-2026-0001 (existente, UPDATE) | `COMPLETE`, ETAs iguais, milestone `OCEAN_TRANSIT` | 🟢 "No prazo"; timeline com "Em trânsito" como etapa atual |
+| EMB-2026-0008 (novo, INSERT) | `COMPLETE`, ETA atual 5 dias depois da primeira, `IsActual`, milestone `DISCHARGE` | 🔴 "Atraso, +5 dias"; timeline com "Descarregado" preenchido |
+| EMB-2026-0009 (novo, INSERT) | `INCOMPLETE`, ETAs NULL | ⚪ "Sem dado suficiente" na Lista, na Timeline e no Mapa |
+
+Regras que sustentam isso — **não popular tracking sem elas**:
+
+- Toda linha gravada pelo script leva `tracking_is_mock = TRUE`, e o frontend
+  desenha o selo "Pré-visualização" em cima de qualquer valor com esse flag
+  (card da Lista, resumo do detalhe e seção Acompanhamento). É o mesmo contrato
+  do `is_mock` de `app/audit_preview.py`.
+- O flag é **coluna**, não lista de referências chumbada no frontend: quando um
+  desses embarques ganhar tracking real, ele perde o selo limpando o flag, não
+  dependendo de alguém lembrar de editar uma lista.
+- O e2e trava isso: `O14` falha se algum embarque expuser valor de tracking sem
+  `is_mock`, e `O15` garante que um banco recém-semeado (sem top-up) continua
+  100% "Pendente integração".
+- Os cenários 2 e 3 são embarques **novos**, não promoção de embarques
+  existentes: mudar o `estado` de um embarque semeado quebraria a variedade de
+  estados que a demo mostra e que o `O2b` do e2e cobre.
+
 ## Conferência de dados da cotação (MOCK, casca conceitual)
 
 `app/audit_preview.py` + `GET /portal/quotations/{id}/audit-preview` servem um
@@ -208,7 +242,17 @@ ação de negócio ter ocorrido. Consequências práticas:
   cálculo real do `recommendation_service`; a primeira abertura da tela
   substitui os do seed pelos calculados.
 
-## Utilitário fora do fluxo de seed
+## Utilitários fora do fluxo de seed
+
+Dois scripts de uma vez só, com o mesmo contrato: dry-run por padrão, `--apply`
+para gravar, abortam se o efeito já tiver sido aplicado e conferem os deltas de
+linha antes de commitar.
+
+`backend/scripts/topup_tracking_demo.py` popula o rastreamento ilustrativo dos
+três cenários (seção "Dado de rastreamento para demonstração"). Diferente do
+outro top-up, ele faz **um** UPDATE — só nas colunas `tracking_*` do
+EMB-2026-0001, e apenas se elas estiverem NULL — além dos dois INSERTs. Não
+mexe em campo de negócio de embarque nenhum.
 
 `backend/scripts/topup_funnel_quotations.py` é um script de uma vez só, **não faz
 parte do fluxo normal**. `seed_prototype.py` é skip-if-exists (sai sem fazer nada
@@ -239,7 +283,7 @@ elegibilidade de RFQ, 404 anti-enumeração, mocks). Rode com banco recém-semea
 ```bash
 docker compose down -v && docker compose up -d
 cd backend && make migrate && make seed && make run &
-.venv/bin/python -m scripts.e2e_test     # -> 94/94 ALL PASS
+.venv/bin/python -m scripts.e2e_test     # -> 95/95 ALL PASS
 ```
 
 A suíte **muta dados** (aprova, recusa, cancela cotações da semente) e exige um

@@ -520,24 +520,42 @@ def run():
     check("O8 detail carries no transition history (none exists in the DB)",
           "history" not in ship and "timeline" not in ship, str(list(ship)))
 
-    # Carrier tracking (migration 091): the columns exist so the ShipsGo
-    # integration has somewhere to write, but nothing writes them yet. Every
-    # field must come back NULL — a populated one would mean something started
-    # fabricating ETAs, which is exactly what the portal badges promise it does
-    # not do.
+    # Carrier tracking (migrations 091/092): the columns exist so the ShipsGo
+    # integration has somewhere to write. On a freshly seeded database nothing
+    # writes them, so every field is NULL; the demo top-up
+    # (scripts/topup_tracking_demo.py) may populate a few shipments, and every
+    # row it writes carries is_mock=True.
     tracking = ship.get("tracking")
-    check("O13 detail exposes the tracking block with every field null",
-          isinstance(tracking, dict)
-          and set(tracking) == {"first_eta", "current_eta", "eta_is_actual",
-                                "data_status"}
-          and all(v is None for v in tracking.values()),
+    TRACKING_FIELDS = {"first_eta", "current_eta", "eta_is_actual",
+                       "data_status", "last_milestone", "is_mock"}
+    check("O13 detail exposes the full tracking block",
+          isinstance(tracking, dict) and set(tracking) == TRACKING_FIELDS,
           str(tracking))
 
-    check("O14 list items carry the same empty tracking block",
-          all(isinstance(i.get("tracking"), dict)
-              and all(v is None for v in i["tracking"].values())
+    # The invariant that actually matters, and the one a future change is most
+    # likely to break: no tracking value may be shown without the label that
+    # makes the portal seal it as illustrative. Either the block is empty (no
+    # integration) or it is explicitly flagged as demo data. A populated block
+    # with is_mock false would be a fabricated ETA passing as a carrier feed.
+    def _unlabelled(t: dict) -> bool:
+        values = [t.get(f) for f in TRACKING_FIELDS - {"is_mock"}]
+        return any(v is not None for v in values) and t.get("is_mock") is not True
+
+    check("O14 no shipment carries unlabelled tracking data",
+          all(isinstance(i.get("tracking"), dict) and not _unlabelled(i["tracking"])
               for i in items),
-          str([i.get("tracking") for i in items[:2]]))
+          str([i["referencia"] for i in items
+               if isinstance(i.get("tracking"), dict) and _unlabelled(i["tracking"])]))
+
+    # A freshly seeded database (what this suite requires) has run no top-up, so
+    # every block is still empty. This is what keeps `make seed` honest.
+    check("O15 a freshly seeded database has no tracking data at all",
+          all(all(v is None for k, v in i["tracking"].items() if k != "is_mock")
+              and i["tracking"]["is_mock"] is False
+              for i in items),
+          "embarques com tracking (rodou scripts/topup_tracking_demo.py neste "
+          "banco? a suite exige banco recem-semeado): "
+          + str([i["referencia"] for i in items if i["tracking"]["is_mock"]]))
 
     st, _ = req("GET", f"/portal/shipments/{uuid.uuid4()}")
     check("O9 unknown shipment -> 404", st == 404, str(st))

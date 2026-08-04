@@ -28,6 +28,7 @@ import {
 
 import { ModalIcon } from '../../_shared/modal-icon';
 import { PortalSearchInput } from '../../_shared/portal-search-input';
+import { ProvenanceBadge } from '../../_shared/provenance-badge';
 import { ShipmentDelayRiskBadge } from './delay-risk-badge';
 import { EstadoBadge } from './estado-badge';
 import { ShipmentEtaBadge } from './eta-badge';
@@ -98,7 +99,16 @@ function ShipmentCard({ shipment }: { shipment: PortalShipment }) {
           <span className="mx-1.5">→</span>
           Brasil
         </span>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div
+          className={cn(
+            'flex flex-wrap items-center gap-x-3 gap-y-1',
+            // Demo tracking is framed like every other illustrative surface in
+            // the portal: dashed border + the "Pré-visualização" seal, so the
+            // dates below can never be mistaken for a carrier feed.
+            shipment.tracking?.is_mock &&
+              'rounded-lg border border-dashed border-primary/40 bg-primary/[0.03] px-2 py-1',
+          )}
+        >
           <span className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
             ETA
             <ShipmentEtaBadge tracking={shipment.tracking} />
@@ -107,6 +117,7 @@ function ShipmentCard({ shipment }: { shipment: PortalShipment }) {
             Risco de atraso
             <ShipmentDelayRiskBadge tracking={shipment.tracking} />
           </span>
+          {shipment.tracking?.is_mock && <ProvenanceBadge provenance="preview" />}
         </div>
       </div>
 

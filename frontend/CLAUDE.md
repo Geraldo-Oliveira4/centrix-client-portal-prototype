@@ -402,6 +402,19 @@ touch Meus Embarques:
 - **The number IS shown** next to the colour, unlike the AI score: this is
   arithmetic over two carrier-published dates, reproducible by the client, not a
   model estimate.
+- **Demo data wears the seal.** `tracking.is_mock` (backend migration 092) marks
+  a shipment whose tracking was fabricated by
+  `backend/scripts/topup_tracking_demo.py` so the prototype can show all three
+  visual paths. Every surface that renders a tracking value must check it and
+  draw `ProvenanceBadge preview` — today the list card, the detail summary and
+  the "Acompanhamento" section do. Never render a tracking value without that
+  check, and never seal a value whose `is_mock` is false.
+- **Downstream steps move only from `tracking.last_milestone`** (ShipsGo:
+  `OCEAN_TRANSIT` | `ARRIVAL` | `DISCHARGE` | `AVAILABLE`). The rule lives in
+  `lib/timeline-steps.ts` (`buildTimelineSteps`, unit-tested) — steps before the
+  milestone are done, the milestone is the current stage, and nothing past it is
+  claimed. `ShipmentTimeline` is presentational over that helper; do not put
+  step logic back in the component.
 - **Three data states, three visuals.** `null` → `ProvenanceBadge pending`
   ("Pendente integração" — we have not integrated); `'INCOMPLETE'` →
   `IncompleteDataBadge` (`app/portal/_shared/incomplete-data-badge.tsx`: dashed

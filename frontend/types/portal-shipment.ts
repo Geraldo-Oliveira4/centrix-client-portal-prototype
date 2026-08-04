@@ -22,20 +22,38 @@ export type { EmbarqueEstado };
 export type TrackingDataStatus = 'COMPLETE' | 'INCOMPLETE';
 
 /**
- * Carrier tracking block (backend migration 091). Every field is NULL today —
- * nothing in this prototype writes them, and nothing may fabricate them. They
- * exist so the UI can be built against the real shape and light up when the
- * ShipsGo integration lands.
+ * Last carrier milestone, in the ShipsGo vocabulary. Maps 1:1 onto the four
+ * post-embarque steps of the timeline. Gate-in and Vessel Loading are absent
+ * because they are the real states `coletado` / `embarcado`.
+ */
+export type TrackingMilestone =
+  | 'OCEAN_TRANSIT'
+  | 'ARRIVAL'
+  | 'DISCHARGE'
+  | 'AVAILABLE';
+
+/**
+ * Carrier tracking block (backend migrations 091 + 092). No real integration
+ * writes it yet: in production-shaped data every field is NULL. The demo
+ * top-up (backend/scripts/topup_tracking_demo.py) populates a few shipments to
+ * exercise the three visual states, and every one of those rows carries
+ * `is_mock: true`.
  *
  * `first_eta` / `current_eta` are the two dates the delay risk is computed from
  * (see app/portal/embarques/lib/delay-risk.ts); `eta_is_actual` is ShipsGo's
  * IsActual — true when `current_eta` is the real arrival, not an estimate.
+ *
+ * `is_mock` is the honesty switch: whenever it is true the surfaces that render
+ * these values must show the `preview` ProvenanceBadge. Never render a tracking
+ * value without checking it.
  */
 export interface PortalShipmentTracking {
   first_eta: string | null;
   current_eta: string | null;
   eta_is_actual: boolean | null;
   data_status: TrackingDataStatus | null;
+  last_milestone: TrackingMilestone | null;
+  is_mock: boolean;
 }
 
 export interface PortalShipment {

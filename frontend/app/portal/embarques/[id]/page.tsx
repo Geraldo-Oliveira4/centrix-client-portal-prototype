@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui';
+import { cn } from '@/lib/utils';
 import { formatShortDate } from '@/lib/portal-formatters';
 import { buildShipmentUpdateMailto } from '@/lib/portal-state';
 import { useMyShipment } from '@/hooks/use-portal-shipments';
@@ -66,6 +67,10 @@ export default function PortalEmbarqueDetailPage() {
   // named in the Freitas note. Null when the note names none — the field then
   // does not render at all, rather than showing a guessed vessel.
   const vessel = parseVesselFromObservacao(shipment.observacao);
+
+  // Demo tracking (backend/scripts/topup_tracking_demo.py). Every surface that
+  // renders a value from `tracking` must seal it when this is true.
+  const isMockTracking = shipment.tracking?.is_mock === true;
 
   const etaFootnote =
     delayRisk.status === 'pending'
@@ -160,19 +165,39 @@ export default function PortalEmbarqueDetailPage() {
               </span>
             </p>
           </div>
-          <div className="space-y-1">
-            <p className="portal-small text-portal-neutral">
-              {shipment.tracking?.eta_is_actual
-                ? 'Chegada confirmada'
-                : 'Chegada estimada (ETA)'}
-            </p>
-            <ShipmentEtaBadge tracking={shipment.tracking} />
-            <p className="portal-small text-portal-neutral">{etaFootnote}</p>
-          </div>
-          <div className="space-y-1">
-            <p className="portal-small text-portal-neutral">Risco de atraso</p>
-            <DelayRiskBadge risk={delayRisk} />
-            <p className="portal-small text-portal-neutral">{riskFootnote}</p>
+          <div
+            className={cn(
+              'space-y-1 sm:col-span-2',
+              // Demo tracking wears the same dashed frame + seal as every other
+              // illustrative surface in the portal.
+              isMockTracking &&
+                'rounded-lg border border-dashed border-primary/40 bg-primary/[0.03] p-3',
+            )}
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1">
+                <p className="portal-small text-portal-neutral">
+                  {shipment.tracking?.eta_is_actual
+                    ? 'Chegada confirmada'
+                    : 'Chegada estimada (ETA)'}
+                </p>
+                <ShipmentEtaBadge tracking={shipment.tracking} />
+                <p className="portal-small text-portal-neutral">{etaFootnote}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="portal-small text-portal-neutral">Risco de atraso</p>
+                <DelayRiskBadge risk={delayRisk} />
+                <p className="portal-small text-portal-neutral">{riskFootnote}</p>
+              </div>
+            </div>
+            {isMockTracking && (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <ProvenanceBadge provenance="preview" />
+                <span className="portal-small text-portal-neutral">
+                  Rastreamento de demonstração — não vem da companhia marítima.
+                </span>
+              </div>
+            )}
           </div>
         </div>
         {delayRisk.status === 'incomplete' && (
@@ -193,7 +218,12 @@ export default function PortalEmbarqueDetailPage() {
           integrated, and it is not guaranteed for every process — so it renders
           nothing at all rather than a permanent grey placeholder. */}
       <section className="portal-card space-y-6 p-6">
-        <SectionHeading title="Acompanhamento" />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <SectionHeading title="Acompanhamento" />
+          {/* The post-embarque steps only advance from tracking data, so when
+              that data is demo data the whole timeline carries the seal. */}
+          {isMockTracking && <ProvenanceBadge provenance="preview" />}
+        </div>
         <ShipmentTimeline estado={shipment.estado} tracking={shipment.tracking} />
       </section>
 

@@ -18,6 +18,11 @@ import {
 } from '../../_shared/incomplete-data-badge';
 import { ProvenanceBadge } from '../../_shared/provenance-badge';
 import { INCOMPLETE_DATA_COPY } from '../lib/delay-risk';
+import {
+  buildTimelineSteps,
+  firstBlockedKey,
+  type StepStatus,
+} from '../lib/timeline-steps';
 
 /**
  * Vertical, linear timeline of a shipment's journey.
@@ -28,10 +33,13 @@ import { INCOMPLETE_DATA_COPY } from '../lib/delay-risk';
  *    upcoming. There are still no per-step dates (the schema stores only the
  *    current `estado`, no transition log), so no step carries a timestamp.
  *  - The DOWNSTREAM stages the client cares about (Em trânsito -> Chegada ->
- *    Descarregado -> Liberado), which no data source in this prototype can
- *    confirm — there is no ETA feed and no customs-release signal. They are
- *    always inactive and wear a "Pendente integração" badge, never a fabricated
- *    date.
+ *    Descarregado -> Liberado). They advance only from `tracking.last_milestone`
+ *    (the carrier's own milestone), and with no feed they stay inactive under a
+ *    "Pendente integração" badge — never a fabricated date. When a milestone IS
+ *    present, the steps before it are done and the milestone itself becomes the
+ *    current stage; the caller is responsible for showing the `preview` seal if
+ *    `tracking.is_mock` (demo data), which is why this component does not draw
+ *    it per step.
  *
  * The downstream four are the carrier milestones the ShipsGo integration will
  * report, in its own vocabulary: Ocean Transit, Arrival at POD, Discharge,
@@ -47,40 +55,6 @@ import { INCOMPLETE_DATA_COPY } from '../lib/delay-risk';
  * than sit on it: the state that preceded the exception is not stored, so marking
  * any step done would be a guess presented as fact.
  */
-
-type StepStatus = 'done' | 'current' | 'upcoming' | 'pending' | 'blocked';
-
-interface TimelineStep {
-  key: string;
-  label: string;
-  description: string;
-  status: StepStatus;
-  /** Chegada is the anchor for the customs-clearance tag (Camada 2). */
-  isArrival?: boolean;
-}
-
-const DOWNSTREAM: { key: string; label: string; description: string }[] = [
-  {
-    key: 'em_transito',
-    label: 'Em trânsito',
-    description: 'A carga segue em trânsito internacional até o destino.',
-  },
-  {
-    key: 'chegada',
-    label: 'Chegada',
-    description: 'Chegada ao porto ou aeroporto de destino.',
-  },
-  {
-    key: 'descarregado',
-    label: 'Descarregado',
-    description: 'A carga foi descarregada do navio no porto de destino.',
-  },
-  {
-    key: 'liberado',
-    label: 'Liberado',
-    description: 'Carga liberada para retirada no destino.',
-  },
-];
 
 /**
  * Customs clearance (desembaraço) enrichment — a future Camada 2 over
@@ -99,41 +73,12 @@ export interface CustomsClearance {
   clearedAt?: string | null;
 }
 
-function buildSteps(
-  estado: EmbarqueEstado,
-  downstreamStatus: StepStatus,
-): TimelineStep[] {
-  const exception = isExceptionState(estado);
-  const currentIndex = SHIPMENT_STEPS.indexOf(estado);
-
-  const real: TimelineStep[] = SHIPMENT_STEPS.map((step, index) => {
-    let status: StepStatus;
-    if (exception) {
-      // Prior stage is unknown once an exception is raised — nothing is "done".
-      status = 'upcoming';
-    } else if (index < currentIndex) {
-      status = 'done';
-    } else if (index === currentIndex) {
-      status = 'current';
-    } else {
-      status = 'upcoming';
-    }
-    return {
-      key: step,
-      label: ESTADO_LABELS[step],
-      description: ESTADO_DESCRIPTIONS[step],
-      status,
-    };
-  });
-
-  const downstream: TimelineStep[] = DOWNSTREAM.map((d) => ({
-    ...d,
-    status: downstreamStatus,
-    isArrival: d.key === 'chegada',
-  }));
-
-  return [...real, ...downstream];
-}
+/** The five real operational steps, with the client-facing wording. */
+const REAL_STEPS = SHIPMENT_STEPS.map((step) => ({
+  key: step,
+  label: ESTADO_LABELS[step],
+  description: ESTADO_DESCRIPTIONS[step],
+}));
 
 function StepDot({ status }: { status: StepStatus }) {
   if (status === 'done') {
@@ -186,9 +131,16 @@ export function ShipmentTimeline({
   customsClearance?: CustomsClearance | null;
 }) {
   const exception = isExceptionState(estado);
-  const incomplete = tracking?.data_status === 'INCOMPLETE';
-  const steps = buildSteps(estado, incomplete ? 'blocked' : 'pending');
-  const firstBlockedKey = incomplete ? DOWNSTREAM[0].key : null;
+  const steps = buildTimelineSteps({
+    estado,
+    realSteps: REAL_STEPS,
+    isException: exception,
+    dataStatus: tracking?.data_status,
+    milestone: tracking?.last_milestone,
+  });
+  // The explanation goes on the first step that is actually blocked, which is
+  // not necessarily the first downstream step once milestones have advanced.
+  const blockedKey = firstBlockedKey(steps);
 
   return (
     <div className="space-y-6">
@@ -245,7 +197,7 @@ export function ShipmentTimeline({
                   )}
                   {/* One badge for the whole blocked stretch — repeating it on
                       four consecutive steps says the same thing four times. */}
-                  {step.status === 'blocked' && step.key === firstBlockedKey && (
+                  {step.status === 'blocked' && step.key === blockedKey && (
                     <IncompleteDataBadge label="Sem atualização da companhia" />
                   )}
                   {step.isArrival && (
@@ -255,7 +207,7 @@ export function ShipmentTimeline({
                 <p className="portal-small text-portal-neutral">
                   {step.description}
                 </p>
-                {step.status === 'blocked' && step.key === firstBlockedKey && (
+                {step.status === 'blocked' && step.key === blockedKey && (
                   <IncompleteDataNote className="pt-1">
                     {INCOMPLETE_DATA_COPY}
                   </IncompleteDataNote>
