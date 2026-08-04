@@ -22,7 +22,14 @@ import {
 } from './lib/shipment-alerts';
 
 const READ_KEY = 'portal:shipment-alerts:read';
-const TYPES_KEY = 'portal:shipment-alerts:types';
+// Versioned on purpose. A preference list stored before "Risco de
+// demurrage/detention" existed names only the first three types, and restoring
+// it verbatim would leave the new type OFF for every returning client — the one
+// type with a direct financial cost, silently disabled by a storage artefact.
+// Bumping the key drops those stale lists so the default (all four on) applies
+// once; from then on the client's own choice persists. Bump again if a future
+// type must not inherit an old opt-out.
+const TYPES_KEY = 'portal:shipment-alerts:types:v2';
 
 const TABS = ['mapa', 'lista', 'alertas'] as const;
 type ShipmentTab = (typeof TABS)[number];
@@ -58,7 +65,8 @@ function PortalEmbarquesContent() {
   const alerts = useMemo(() => buildShipmentAlerts(shipments), [shipments]);
 
   // Read-state and alert-type preferences are client-side only (no backend feed):
-  // seeded from localStorage after mount to avoid a hydration mismatch.
+  // seeded from localStorage after mount to avoid a hydration mismatch. Every
+  // type starts enabled, including `demurrage` (see TYPES_KEY above).
   const [readList, setReadList] = useState<string[]>([]);
   const [enabledList, setEnabledList] = useState<AlertType[]>(ALL_ALERT_TYPES);
 

@@ -56,6 +56,10 @@ def serialize_tracking_for_portal(embarque: Any) -> dict:
         "eta_is_actual": embarque.tracking_eta_is_actual,
         "data_status": embarque.tracking_data_status,
         "last_milestone": embarque.tracking_last_milestone,
+        # Migration 093: when that milestone happened, as reported by the
+        # carrier. NULL even when the milestone itself is known, so the portal
+        # states the fact ("liberado") without dating it.
+        "last_milestone_at": _coerce(embarque.tracking_last_milestone_at),
         "is_mock": bool(embarque.tracking_is_mock),
     }
 

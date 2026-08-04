@@ -1,9 +1,11 @@
 'use client';
 
+import { useMemo } from 'react';
 import {
   AlertTriangle,
   CheckCheck,
   CheckCircle2,
+  Container,
   Navigation,
   type LucideIcon,
 } from 'lucide-react';
@@ -15,6 +17,7 @@ import { formatShortDate } from '@/lib/portal-formatters';
 import type { SemaforoTone } from '@/types/portal-shipment';
 
 import { ProvenanceBadge } from '../../_shared/provenance-badge';
+import { isPriorityType, sortAlertsForFeed } from '../lib/alert-priority';
 import {
   ALERT_TYPE_LABELS,
   ALL_ALERT_TYPES,
@@ -26,6 +29,7 @@ const TYPE_ICON: Record<AlertType, LucideIcon> = {
   confirmado: CheckCircle2,
   eta: Navigation,
   excecao: AlertTriangle,
+  demurrage: Container,
 };
 
 const TONE_TEXT: Record<SemaforoTone, string> = {
@@ -57,7 +61,16 @@ export function ShipmentAlertsTab({
   onMarkRead,
   onMarkAllRead,
 }: ShipmentAlertsTabProps) {
-  const visible = alerts.filter((a) => enabledTypes.has(a.type));
+  // Priority (unread demurrage) first, then chronological — the rule lives in
+  // lib/alert-priority.ts, not here.
+  const visible = useMemo(
+    () =>
+      sortAlertsForFeed(
+        alerts.filter((a) => enabledTypes.has(a.type)),
+        readIds,
+      ),
+    [alerts, enabledTypes, readIds],
+  );
   const unread = visible.filter((a) => !readIds.has(a.id)).length;
 
   return (
@@ -118,6 +131,9 @@ export function ShipmentAlertsTab({
           {visible.map((alert) => {
             const Icon = TYPE_ICON[alert.type];
             const isRead = readIds.has(alert.id);
+            // Only the priority type gets the red frame, and only while unread:
+            // the same "see it once" logic that lifts it to the top.
+            const isUrgent = isPriorityType(alert.type) && !isRead;
             return (
               <li key={alert.id}>
                 <button
@@ -126,9 +142,12 @@ export function ShipmentAlertsTab({
                   disabled={isRead}
                   className={cn(
                     'flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors',
-                    isRead
-                      ? 'border-border bg-transparent'
-                      : 'border-primary/20 bg-primary/[0.03] hover:bg-primary/5',
+                    isRead && 'border-border bg-transparent',
+                    !isRead &&
+                      !isUrgent &&
+                      'border-primary/20 bg-primary/[0.03] hover:bg-primary/5',
+                    isUrgent &&
+                      'border-portal-danger/30 bg-portal-danger/[0.04] hover:bg-portal-danger/10',
                   )}
                 >
                   <span
@@ -151,8 +170,16 @@ export function ShipmentAlertsTab({
                         {alert.title}
                       </p>
                       {!isRead && (
-                        <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+                        <span
+                          className={cn(
+                            'h-2 w-2 shrink-0 rounded-full',
+                            isUrgent ? 'bg-portal-danger' : 'bg-primary',
+                          )}
+                        />
                       )}
+                      {/* Derived from a tracking block flagged as demo data:
+                          same seal the list card and the detail screen show. */}
+                      {alert.isMock && <ProvenanceBadge provenance="preview" />}
                     </div>
                     <p className="portal-small text-portal-neutral">
                       {alert.description}

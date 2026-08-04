@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "test:unit": "node --test app/portal/embarques/lib/delay-risk.test.ts app/portal/embarques/lib/timeline-steps.test.ts",
+    "test:unit": "node --test app/portal/embarques/lib/delay-risk.test.ts app/portal/embarques/lib/timeline-steps.test.ts app/portal/embarques/lib/alert-priority.test.ts",
     "format": "prettier --write ."
   },
   "overrides": {

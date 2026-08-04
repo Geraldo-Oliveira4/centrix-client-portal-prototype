@@ -415,6 +415,10 @@ touch Meus Embarques:
   milestone are done, the milestone is the current stage, and nothing past it is
   claimed. `ShipmentTimeline` is presentational over that helper; do not put
   step logic back in the component.
+- **`tracking.last_milestone_at` dates that milestone** (backend migration 093)
+  and is the ONLY source for "liberado em". It is null whenever the carrier
+  named a stage without dating it — never backfill it from `current_eta`, which
+  is the arrival at POD and therefore earlier than every milestone after it.
 - **Three data states, three visuals.** `null` → `ProvenanceBadge pending`
   ("Pendente integração" — we have not integrated); `'INCOMPLETE'` →
   `IncompleteDataBadge` (`app/portal/_shared/incomplete-data-badge.tsx`: dashed
@@ -426,6 +430,34 @@ touch Meus Embarques:
   risk), timeline (downstream steps go "travados"), world map (dashed neutral
   marker at the arc apex + a legend entry that appears only when some shipment
   is INCOMPLETE).
+
+**Aba Alertas — quatro tipos, e o quarto não é como os outros.** O feed é
+ilustrativo (`lib/shipment-alerts.ts`, selo `preview` no topo da aba), montado
+sobre os embarques que o cliente já tem. Três tipos são informativos
+(`confirmado`, `eta`, `excecao`); `demurrage` é o único com custo financeiro
+direto, e por isso é o único que:
+
+- é **sempre** `danger`, nunca o `ESTADO_SEMAFORO` do embarque — a saúde da carga
+  é verde (ela chegou bem) enquanto a exposição do cliente é vermelha;
+- **fura a ordem cronológica** enquanto não lido (`sortAlertsForFeed` em
+  `lib/alert-priority.ts`, pura e unit-testada). Depois de lido volta para o
+  lugar cronológico: a exceção existe para o cliente VER uma vez, não para fixar
+  no topo. Adicionar um segundo tipo prioritário é uma afirmação forte — de que
+  o cliente perde dinheiro lendo o feed em ordem;
+- nasce de `tracking.last_milestone === 'AVAILABLE'`, não de `estado`: os
+  estados do GE param em `embarcado` (partida), então só o rastreamento sabe que
+  a carga está parada no terminal de destino.
+
+O que ele **não** diz: prazo, contagem regressiva, "vence em X dias". Free time
+é cláusula comercial que mora no Inova e não vem no feed da companhia — sem essa
+integração o alerta afirma a liberação (com a data, quando existe) e para aí.
+Como o alerta deriva de `tracking`, ele carrega `isMock` e desenha o selo
+`preview` quando o embarque é dado de demonstração, igual a todo o resto.
+
+O toggle do tipo nasce **ligado** como os outros, mas a chave de preferências é
+versionada (`portal:shipment-alerts:types:v2` em `embarques/page.tsx`) porque uma
+lista salva antes deste tipo existir o deixaria desligado sem o cliente saber.
+Bump de novo se um tipo futuro não puder herdar opt-out antigo.
 
 There is **no illustrative tracking panel**. An earlier "Rastreamento marítimo"
 card on the detail screen showed a fabricated voyage / MBL / carrier / POL / POD

@@ -31,10 +31,10 @@ backend/                         # FastAPI (substitui AWS Lambda + API Gateway)
   shared/                        # COPIADO do Centrix quase sem alteração (models, repos, domain, services)
   lambdas/client_portal*/        # COPIADO do Centrix — handlers originais intactos
                                  #   (+2 novos de exportador, +2 novos de embarque)
-  alembic/                       # COPIADO — migrations 001..089 (+090..092, do protótipo)
+  alembic/                       # COPIADO — migrations 001..089 (+090..093, do protótipo)
   scripts/
     seed_prototype.py            # cliente demo + 9 cotações + agentes + DNA + 7 embarques
-    e2e_test.py                  # suíte E2E (95 checagens)
+    e2e_test.py                  # suíte E2E (96 checagens)
 frontend/                        # CÓPIA do app Next.js do Centrix (só /portal ligado ao backend)
   vendor/arboria-ui, arboria-config   # deps @arboria-tech vendorizadas (file:), sem GitHub Packages
 docker-compose.yml               # Postgres 16 local
@@ -87,6 +87,12 @@ atualizada — é o que dificulta um futuro re-sync):
     `tracking_last_milestone` (CHECK: NULL | `OCEAN_TRANSIT` | `ARRIVAL` |
     `DISCHARGE` | `AVAILABLE`), que move os degraus pós-embarque da timeline, e
     `tracking_is_mock`, que marca a linha como dado de demonstração.
+  - `alembic/versions/093_add_tracking_last_milestone_at.py` — mais uma:
+    `tracking_last_milestone_at`, **quando** o milestone acima aconteceu. Existe
+    porque o alerta de demurrage precisa dizer "liberado em [data]"; derivar do
+    `tracking_current_eta` seria errado (aquilo é a chegada no POD, e a
+    liberação vem depois dela). NULL mesmo com milestone conhecido é legal — a
+    companhia pode reportar o estágio sem datar.
   - `shared/database/models/shipment/embarque.py` — mapeia as colunas acima.
   - `shared/portal_shipment_helpers.py::serialize_tracking_for_portal` — expõe o
     bloco `tracking` na lista e no detalhe.
@@ -155,6 +161,12 @@ encaixa: **nenhum número fabricado**.
   Discharge, Available for Pickup) e seguem "Pendente integração". Gate-in e
   Vessel Loading não se repetem: já são os estados reais `coletado` e
   `embarcado`.
+- **Free time (dias livres de demurrage/detention) não existe e não é derivável.**
+  O ShipsGo diz **quando** o container ficou disponível (milestone `AVAILABLE`),
+  nunca quantos dias livres o cliente tem — isso é cláusula comercial, mora no
+  Inova, e não está integrado. Por isso o alerta de demurrage (abaixo) afirma o
+  fato da liberação e **para aí**: nada de "vence em X dias", contagem regressiva
+  ou prazo. É a mesma distinção de fonte do "✓ Desembaraçado".
 - "✓ Desembaraçado" é **etiqueta na Chegada**, não degrau, e vem de uma futura
   Camada 2 (Inova / Portal Único) que também não existe. Sem o dado ele não
   renderiza **nada** — nem "Pendente integração": o desembaraço não é garantido
@@ -173,6 +185,7 @@ colunas todas NULL só existe um ("Pendente integração"). Por isso
 | EMB-2026-0001 (existente, UPDATE) | `COMPLETE`, ETAs iguais, milestone `OCEAN_TRANSIT` | 🟢 "No prazo"; timeline com "Em trânsito" como etapa atual |
 | EMB-2026-0008 (novo, INSERT) | `COMPLETE`, ETA atual 5 dias depois da primeira, `IsActual`, milestone `DISCHARGE` | 🔴 "Atraso, +5 dias"; timeline com "Descarregado" preenchido |
 | EMB-2026-0009 (novo, INSERT) | `INCOMPLETE`, ETAs NULL | ⚪ "Sem dado suficiente" na Lista, na Timeline e no Mapa |
+| EMB-2026-0010 (novo, INSERT) | `COMPLETE`, chegada no prazo, milestone `AVAILABLE` + `last_milestone_at` | timeline fechada em "Liberado" e o alerta 🔴 "Container liberado" no topo da aba Alertas |
 
 Regras que sustentam isso — **não popular tracking sem elas**:
 
@@ -184,11 +197,17 @@ Regras que sustentam isso — **não popular tracking sem elas**:
   desses embarques ganhar tracking real, ele perde o selo limpando o flag, não
   dependendo de alguém lembrar de editar uma lista.
 - O e2e trava isso: `O14` falha se algum embarque expuser valor de tracking sem
-  `is_mock`, e `O15` garante que um banco recém-semeado (sem top-up) continua
-  100% "Pendente integração".
-- Os cenários 2 e 3 são embarques **novos**, não promoção de embarques
-  existentes: mudar o `estado` de um embarque semeado quebraria a variedade de
-  estados que a demo mostra e que o `O2b` do e2e cobre.
+  `is_mock`, `O15` garante que um banco recém-semeado (sem top-up) continua
+  100% "Pendente integração", e `O16` proíbe data de milestone sem o milestone
+  que ela data (o contrário é legal).
+- Os cenários 2, 3 e 4 são embarques **novos**, não promoção de embarques
+  existentes: mudar o `estado` ou o milestone de um embarque semeado quebraria a
+  variedade que a demo mostra e que o `O2b` do e2e cobre. O cenário 4 chega **no
+  prazo** de propósito — o alerta nasce da liberação, não de atraso, e empilhar
+  as duas coisas esconderia isso.
+- O script **pula** cenário já aplicado em vez de abortar tudo (ver Utilitários).
+  Foi o que permitiu acrescentar o cenário 4 num banco que já tinha os três
+  primeiros; sem isso, cenário novo só num banco limpo.
 
 ## Conferência de dados da cotação (MOCK, casca conceitual)
 
@@ -249,10 +268,14 @@ para gravar, abortam se o efeito já tiver sido aplicado e conferem os deltas de
 linha antes de commitar.
 
 `backend/scripts/topup_tracking_demo.py` popula o rastreamento ilustrativo dos
-três cenários (seção "Dado de rastreamento para demonstração"). Diferente do
+quatro cenários (seção "Dado de rastreamento para demonstração"). Diferente do
 outro top-up, ele faz **um** UPDATE — só nas colunas `tracking_*` do
-EMB-2026-0001, e apenas se elas estiverem NULL — além dos dois INSERTs. Não
-mexe em campo de negócio de embarque nenhum.
+EMB-2026-0001, e apenas se elas estiverem NULL — além dos três INSERTs. Não
+mexe em campo de negócio de embarque nenhum. Também diferente do outro: cenário
+já aplicado é **pulado**, não aborta o lote (só aborta se não sobrar nada a
+fazer), e ele confere que cada embarque novo nasceu com o `reference` anunciado
+no plano antes de commitar — a referência é gerada pelo repositório, não
+escolhida aqui.
 
 `backend/scripts/topup_funnel_quotations.py` é um script de uma vez só, **não faz
 parte do fluxo normal**. `seed_prototype.py` é skip-if-exists (sai sem fazer nada
@@ -283,7 +306,7 @@ elegibilidade de RFQ, 404 anti-enumeração, mocks). Rode com banco recém-semea
 ```bash
 docker compose down -v && docker compose up -d
 cd backend && make migrate && make seed && make run &
-.venv/bin/python -m scripts.e2e_test     # -> 95/95 ALL PASS
+.venv/bin/python -m scripts.e2e_test     # -> 96/96 ALL PASS
 ```
 
 A suíte **muta dados** (aprova, recusa, cancela cotações da semente) e exige um

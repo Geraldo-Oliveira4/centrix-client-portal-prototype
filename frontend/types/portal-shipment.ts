@@ -53,6 +53,13 @@ export interface PortalShipmentTracking {
   eta_is_actual: boolean | null;
   data_status: TrackingDataStatus | null;
   last_milestone: TrackingMilestone | null;
+  /**
+   * When the carrier says `last_milestone` happened (backend migration 093).
+   * Null even when the milestone is known — a carrier may report the stage
+   * without dating it. Never fall back to `current_eta` to fill it: that is the
+   * arrival at POD, and every milestone after ARRIVAL happens later than it.
+   */
+  last_milestone_at: string | null;
   is_mock: boolean;
 }
 

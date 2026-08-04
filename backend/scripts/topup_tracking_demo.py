@@ -1,19 +1,22 @@
-"""Top-up: dado ILUSTRATIVO de rastreamento em 3 embarques, para a demo.
+"""Top-up: dado ILUSTRATIVO de rastreamento em 4 embarques, para a demo.
 
 Por que este script existe
 --------------------------
-As colunas `tracking_*` (migrations 091/092) existem para a integracao ShipsGo,
-que ainda nao foi feita, e por isso ficam NULL: o portal responde "Pendente
-integracao" em todo embarque. Isso e honesto, mas deixa tres caminhos visuais da
-tela sem nada para mostrar numa demo:
+As colunas `tracking_*` (migrations 091/092/093) existem para a integracao
+ShipsGo, que ainda nao foi feita, e por isso ficam NULL: o portal responde
+"Pendente integracao" em todo embarque. Isso e honesto, mas deixa os caminhos
+visuais da tela sem nada para mostrar numa demo:
 
     1. no prazo            -> delta 0 dia,  badge verde
     2. atraso              -> delta +5 dias, badge vermelho, e a timeline com
                               "Descarregado" preenchido (milestone DISCHARGE)
     3. sem dado suficiente -> data_status INCOMPLETE, badge neutro na Lista,
                               na Timeline e no Mapa
+    4. liberado            -> milestone AVAILABLE, que fecha a timeline e e o
+                              unico gatilho do alerta de risco de demurrage na
+                              aba Alertas
 
-Este script popula exatamente esses tres cenarios. Todo valor que ele grava e
+Este script popula exatamente esses quatro cenarios. Todo valor que ele grava e
 inventado, e por isso toda linha vai com `tracking_is_mock = TRUE` — a flag que
 faz o portal desenhar o selo "Pre-visualizacao" em cima desses numeros. Sem a
 flag, o dado ilustrativo passaria por real, que e o problema que o Prompt 7 ja
@@ -35,8 +38,14 @@ Contrato de seguranca
   estados que a demo e a suite e2e dependem (O2b cobre os cinco estados do
   happy path).
 - Aborta se o CLIENTE DEMO, os agentes ou o EMB alvo nao existirem.
-- Aborta se os embarques novos ja existirem (nao duplica) ou se o alvo do
-  cenario 1 ja tiver tracking.
+- Cenario ja aplicado e PULADO, nao duplicado nem sobrescrito: o embarque novo
+  cujo reference ja existe sai do plano, e o UPDATE do cenario 1 so roda se as
+  colunas `tracking_*` do alvo estiverem NULL. Se nao sobrar nada a fazer, o
+  script aborta dizendo isso. E o que permite acrescentar um cenario novo
+  (o 4 veio depois dos outros tres) e roda-lo num banco que ja recebeu o
+  top-up, sem tocar no que ja esta la.
+- Confere que cada embarque novo nasceu com o reference esperado; se a sequencia
+  do repositorio produzir outro, e ROLLBACK.
 - Confere os deltas de linha das tabelas envolvidas antes de commitar; delta
   inesperado vira ROLLBACK, mesmo com `--apply`.
 
@@ -71,10 +80,10 @@ DEMO_CLIENT_NAME = "CLIENTE DEMO"
 # em que uma previsao de chegada faz sentido sem mexer em nada de negocio.
 ON_TIME_TARGET = "EMB-2026-0001"
 
-# Cenarios 2 e 3 sao embarques novos (ver contrato acima).
+# Cenarios 2, 3 e 4 sao embarques novos (ver contrato acima).
 DELAYED_REFERENCE = "EMB-2026-0008"
 INCOMPLETE_REFERENCE = "EMB-2026-0009"
-NEW_REFERENCES = (DELAYED_REFERENCE, INCOMPLETE_REFERENCE)
+RELEASED_REFERENCE = "EMB-2026-0010"
 
 DELAY_DAYS = 5
 
@@ -106,6 +115,7 @@ def _describe(label: str, embarque: Embarque) -> None:
     print(f"    eta_is_actual  = {embarque.tracking_eta_is_actual}")
     print(f"    data_status    = {embarque.tracking_data_status}")
     print(f"    last_milestone = {embarque.tracking_last_milestone}")
+    print(f"    milestone_at   = {_fmt(embarque.tracking_last_milestone_at)}")
     print(f"    is_mock        = {embarque.tracking_is_mock}")
 
 
@@ -124,22 +134,14 @@ def run(apply: bool) -> None:
         if not agents:
             _fail("nenhum agente de carga encontrado. Rode o seed antes.")
 
-        existing = session.execute(
-            select(Embarque).where(Embarque.reference.in_(NEW_REFERENCES))
-        ).scalars().all()
-        if existing:
-            _fail(
-                "estas referencias ja existem: "
-                + ", ".join(e.reference for e in existing)
-                + ". O top-up ja foi aplicado."
-            )
-
         target = session.execute(
             select(Embarque).where(Embarque.reference == ON_TIME_TARGET)
         ).scalar_one_or_none()
         if target is None:
             _fail(f"{ON_TIME_TARGET} nao encontrado. Rode o seed antes.")
-        if any(
+        # Ja tem tracking nao e erro: e o cenario 1 ja aplicado numa rodada
+        # anterior. Pula, nunca sobrescreve.
+        do_update = not any(
             v is not None
             for v in (
                 target.tracking_first_eta,
@@ -147,11 +149,7 @@ def run(apply: bool) -> None:
                 target.tracking_data_status,
                 target.tracking_last_milestone,
             )
-        ):
-            _fail(
-                f"{ON_TIME_TARGET} ja tem dado de tracking. Nao sobrescrevo — "
-                "limpe a mao se a intencao for regravar."
-            )
+        )
         target_processo = session.get(Processo, target.processo_id)
         if target_processo.client_id != client.id:
             _fail(f"{ON_TIME_TARGET} nao pertence ao cliente demo.")
@@ -168,22 +166,29 @@ def run(apply: bool) -> None:
         base = target_processo.created_at
 
         # --- Cenario 1: no prazo (UPDATE, so colunas tracking_*) -------------
-        eta = now + timedelta(days=12)
-        target.tracking_first_eta = eta
-        target.tracking_current_eta = eta
-        target.tracking_eta_is_actual = False
-        target.tracking_data_status = "COMPLETE"
-        target.tracking_last_milestone = "OCEAN_TRANSIT"
-        target.tracking_is_mock = True
+        if do_update:
+            eta = now + timedelta(days=12)
+            target.tracking_first_eta = eta
+            target.tracking_current_eta = eta
+            target.tracking_eta_is_actual = False
+            target.tracking_data_status = "COMPLETE"
+            target.tracking_last_milestone = "OCEAN_TRANSIT"
+            target.tracking_is_mock = True
 
-        # --- Cenarios 2 e 3: embarques novos (INSERT) ------------------------
-        # created_at continua a escada do seed (age 7 e 8) para nao embaralhar a
-        # ordenacao da lista, que e urgente-primeiro e depois created_at desc.
-        new_specs = [
+        # --- Cenarios 2, 3 e 4: embarques novos (INSERT) ---------------------
+        # created_at continua a escada do seed para nao embaralhar a ordenacao
+        # da lista, que e urgente-primeiro e depois created_at desc.
+        #
+        # `last_milestone_at` (migration 093) so e preenchido no cenario 4: e o
+        # unico milestone que o portal datiza na tela (o alerta de demurrage diz
+        # "liberado em"). Nos outros a data do milestone nao e renderizada em
+        # lugar nenhum, e inventa-la seria dado morto.
+        all_specs = [
             {
                 # Ja descarregado: o embarque e antigo e as duas datas ficam no
                 # passado, senao a "chegada real" cairia no futuro.
                 "label": "cenario 2 — atraso +5 dias, descarregado",
+                "reference": DELAYED_REFERENCE,
                 "age": 40,
                 "agent": agents[1 % len(agents)],
                 "containers": [{"numero": "MSCU6620481", "tipo": "40HC", "tara": 3820}],
@@ -201,6 +206,7 @@ def run(apply: bool) -> None:
             },
             {
                 "label": "cenario 3 — sem dado suficiente da companhia",
+                "reference": INCOMPLETE_REFERENCE,
                 "age": 8,
                 "agent": agents[2 % len(agents)],
                 "containers": [{"numero": "OOLU3318740", "tipo": "20GP", "tara": 2250}],
@@ -216,10 +222,51 @@ def run(apply: bool) -> None:
                     "last_milestone": None,
                 },
             },
+            {
+                # Container ja liberado para retirada: e o unico cenario que
+                # dispara o alerta de risco de demurrage. Chegou no prazo de
+                # proposito — o alerta nasce da liberacao, nao de atraso, e
+                # empilhar as duas coisas esconderia isso na demo.
+                "label": "cenario 4 — liberado para retirada (demurrage)",
+                "reference": RELEASED_REFERENCE,
+                "age": 45,
+                "agent": agents[0],
+                "containers": [{"numero": "TCLU7742096", "tipo": "40HC", "tara": 3750}],
+                "observacao": (
+                    "Container liberado para retirada no porto de destino "
+                    "(rota da Asia, Xangai)."
+                ),
+                "tracking": {
+                    "first_eta_days": -6,
+                    "current_eta_days": -6,
+                    "eta_is_actual": True,
+                    "data_status": "COMPLETE",
+                    "last_milestone": "AVAILABLE",
+                    # Depois da chegada, como no mundo real: descarga e
+                    # liberacao levam alguns dias.
+                    "last_milestone_at_days": -3,
+                },
+            },
         ]
 
+        pending_specs = [
+            spec
+            for spec in all_specs
+            if session.execute(
+                select(Embarque.id).where(Embarque.reference == spec["reference"])
+            ).first()
+            is None
+        ]
+        skipped = [s["reference"] for s in all_specs if s not in pending_specs]
+        if skipped:
+            print(f"Ja aplicados, pulando: {', '.join(skipped)}")
+        if not do_update:
+            print(f"Ja aplicado, pulando: {ON_TIME_TARGET} (cenario 1)")
+        if not pending_specs and not do_update:
+            _fail("nada a fazer — todos os cenarios ja foram aplicados neste banco.")
+
         created: list[tuple[str, Embarque]] = []
-        for spec in new_specs:
+        for spec in pending_specs:
             processo = processo_repository.create(
                 session,
                 client_id=client.id,
@@ -247,20 +294,42 @@ def run(apply: bool) -> None:
             embarque.tracking_eta_is_actual = t["eta_is_actual"]
             embarque.tracking_data_status = t["data_status"]
             embarque.tracking_last_milestone = t["last_milestone"]
+            if t.get("last_milestone_at_days") is not None:
+                embarque.tracking_last_milestone_at = now + timedelta(
+                    days=t["last_milestone_at_days"]
+                )
             embarque.tracking_is_mock = True
-            created.append((spec["label"], embarque))
+            created.append((spec, embarque))
 
         session.flush()
 
+        # A referencia e gerada pelo repositorio (sequencial), nao escolhida
+        # aqui: se a sequencia do banco nao produzir o que este script anuncia,
+        # o plano impresso mente e nada deve ser gravado.
+        wrong = [
+            (spec["reference"], embarque.reference)
+            for spec, embarque in created
+            if embarque.reference != spec["reference"]
+        ]
+
         after = _counts(session)
         deltas = {k: after[k] - before[k] for k in before}
-        expected = {"processos": 2, "embarques": 2}
+        expected = {"processos": len(pending_specs), "embarques": len(pending_specs)}
 
         print("Plano:")
-        _describe("cenario 1 — no prazo (UPDATE)", target)
-        for label, embarque in created:
-            _describe(f"{label} (INSERT)", embarque)
+        if do_update:
+            _describe("cenario 1 — no prazo (UPDATE)", target)
+        for spec, embarque in created:
+            _describe(f"{spec['label']} (INSERT)", embarque)
         print(f"\nDeltas de linha: {deltas} (esperado {expected})")
+
+        if wrong:
+            session.rollback()
+            _fail(
+                "referencia gerada diferente da esperada: "
+                + ", ".join(f"esperava {e}, veio {g}" for e, g in wrong)
+                + ". Nada foi gravado."
+            )
 
         if deltas != expected:
             session.rollback()
@@ -273,7 +342,10 @@ def run(apply: bool) -> None:
             return
 
         session.commit()
-        print("\nAPLICADO: 1 UPDATE de tracking + 2 embarques novos, todos is_mock=TRUE.")
+        print(
+            f"\nAPLICADO: {1 if do_update else 0} UPDATE de tracking + "
+            f"{len(created)} embarques novos, todos is_mock=TRUE."
+        )
 
 
 if __name__ == "__main__":

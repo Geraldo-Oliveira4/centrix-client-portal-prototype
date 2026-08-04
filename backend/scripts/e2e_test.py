@@ -527,7 +527,8 @@ def run():
     # row it writes carries is_mock=True.
     tracking = ship.get("tracking")
     TRACKING_FIELDS = {"first_eta", "current_eta", "eta_is_actual",
-                       "data_status", "last_milestone", "is_mock"}
+                       "data_status", "last_milestone", "last_milestone_at",
+                       "is_mock"}
     check("O13 detail exposes the full tracking block",
           isinstance(tracking, dict) and set(tracking) == TRACKING_FIELDS,
           str(tracking))
@@ -556,6 +557,19 @@ def run():
           "embarques com tracking (rodou scripts/topup_tracking_demo.py neste "
           "banco? a suite exige banco recem-semeado): "
           + str([i["referencia"] for i in items if i["tracking"]["is_mock"]]))
+
+    # Migration 093. The date only means something as the date OF a milestone:
+    # dated-but-nameless would let the portal say "liberado em" about a shipment
+    # whose last reported stage is unknown. The reverse is legal — the carrier
+    # may name a milestone without dating it, and the portal then states the
+    # fact without a date.
+    check("O16 no tracking date without the milestone it dates",
+          all(i["tracking"].get("last_milestone_at") is None
+              or i["tracking"].get("last_milestone") is not None
+              for i in items),
+          str([i["referencia"] for i in items
+               if i["tracking"].get("last_milestone_at") is not None
+               and i["tracking"].get("last_milestone") is None]))
 
     st, _ = req("GET", f"/portal/shipments/{uuid.uuid4()}")
     check("O9 unknown shipment -> 404", st == 404, str(st))

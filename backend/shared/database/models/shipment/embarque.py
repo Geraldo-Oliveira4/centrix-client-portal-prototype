@@ -81,6 +81,12 @@ class Embarque(Base):
     tracking_is_mock: Mapped[Optional[bool]] = mapped_column(
         Boolean, nullable=True
     )
+    # Migration 093. When the milestone above happened. Only the carrier knows,
+    # so it stays NULL without the integration; it is never derived from the
+    # ETAs (`tracking_current_eta` is the arrival at POD, not the release).
+    tracking_last_milestone_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=func.now()

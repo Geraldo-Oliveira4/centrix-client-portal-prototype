@@ -1,14 +1,16 @@
 // Illustrative notification feed for the shipment "Alertas" tab.
 //
-// PREVIEW, by design: there is no exception-detection engine and no ETA feed in
-// this prototype (see backend/shared/portal_shipment_helpers.py — the payload
-// carries only `estado`, no dates). So this module fabricates a plausible, stable
-// alert stream deterministically from the shipments the client already owns. The
-// whole tab wears the "Pré-visualização" badge; nothing here is a real push.
+// PREVIEW, by design: there is no push service and no exception-detection engine
+// in this prototype. So this module derives a plausible, stable alert stream
+// deterministically from the shipments the client already owns. The whole tab
+// wears the "Pré-visualização" badge; nothing here is a real notification.
 //
-// The timestamps ARE real (created_at / updated_at of the shipment) — only the
-// framing as "notifications" is illustrative, so we never invent a date.
+// What is illustrative is the FRAMING, never the content: every timestamp comes
+// from the shipment (created_at / updated_at) or from the carrier tracking block
+// (last_milestone_at), so no date is ever invented. An alert built on tracking
+// carries `isMock` when that tracking is demo data.
 
+import { formatDate } from '@/lib/portal-formatters';
 import {
   ESTADO_DESCRIPTIONS,
   ESTADO_SEMAFORO,
@@ -17,15 +19,35 @@ import {
   type SemaforoTone,
 } from '@/types/portal-shipment';
 
-export type AlertType = 'confirmado' | 'eta' | 'excecao';
+import { compareByTimestampDesc } from './alert-priority';
+
+export type AlertType = 'confirmado' | 'eta' | 'excecao' | 'demurrage';
 
 export const ALERT_TYPE_LABELS: Record<AlertType, string> = {
   confirmado: 'Embarque confirmado',
   eta: 'Mudança de estimativa de chegada',
   excecao: 'Exceção detectada',
+  demurrage: 'Risco de demurrage/detention',
 };
 
-export const ALL_ALERT_TYPES: AlertType[] = ['confirmado', 'eta', 'excecao'];
+export const ALL_ALERT_TYPES: AlertType[] = [
+  'confirmado',
+  'eta',
+  'excecao',
+  'demurrage',
+];
+
+// `demurrage` is the odd one out of the four, and deliberately so: the other
+// three tell the client what happened, this one says money starts running if
+// they do nothing. That single difference drives three rules no other type
+// gets — always `danger` (never softened by the shipment's health semáforo),
+// first in the feed while unread (`sortAlertsForFeed` in lib/alert-priority.ts),
+// and on by default in the preferences (see TYPES_KEY in embarques/page.tsx).
+//
+// Deliberately absent: any countdown. Free time (demurrage/detention free days)
+// is a commercial clause that lives in Inova, not in the carrier feed, so
+// "vence em X dias" has no source — inventing one would hang a fake deadline on
+// the one alert with a real cost attached.
 
 export interface ShipmentAlert {
   id: string;
@@ -37,6 +59,12 @@ export interface ShipmentAlert {
   description: string;
   // Real ISO timestamp from the shipment; the alert framing is illustrative.
   timestamp: string;
+  /**
+   * True when this alert was derived from a tracking block flagged as demo data
+   * (`tracking.is_mock`). The surface that renders it must show the
+   * "Pré-visualização" seal, same contract as every other tracking value.
+   */
+  isMock?: boolean;
 }
 
 // Build the (illustrative) alert stream from the owned shipments. Deterministic:
@@ -91,8 +119,33 @@ export function buildShipmentAlerts(
         timestamp: moved,
       });
     }
+
+    // 4. Container released for pickup: storage/demurrage starts running.
+    //    The trigger is the carrier milestone, not the EmbarqueState — the GE
+    //    module's states stop at `embarcado` (departure), so nothing but
+    //    tracking knows the cargo is sitting at the destination terminal.
+    if (s.tracking?.last_milestone === 'AVAILABLE') {
+      const releasedAt = s.tracking.last_milestone_at;
+      alerts.push({
+        id: `${s.id}:demurrage`,
+        type: 'demurrage',
+        // Always danger. Not ESTADO_SEMAFORO[s.estado]: the shipment's health
+        // is green (it arrived fine) while the client's exposure is red.
+        tone: 'danger',
+        shipmentId: s.id,
+        referencia: s.referencia,
+        title: 'Atenção — Container liberado',
+        // The carrier may report the milestone without dating it, so the date
+        // is stated only when it exists. The fact is the alert; the date is not
+        // load-bearing and is never guessed from the ETA.
+        description: releasedAt
+          ? `${s.referencia} foi liberado em ${formatDate(releasedAt)}. Providencie a retirada para evitar custos de armazenagem/demurrage.`
+          : `${s.referencia} foi liberado para retirada. Providencie a retirada para evitar custos de armazenagem/demurrage.`,
+        timestamp: releasedAt ?? moved,
+        isMock: s.tracking.is_mock,
+      });
+    }
   });
 
-  // Newest first. String compare is fine for ISO-8601 timestamps.
-  return alerts.sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+  return alerts.sort(compareByTimestampDesc);
 }
