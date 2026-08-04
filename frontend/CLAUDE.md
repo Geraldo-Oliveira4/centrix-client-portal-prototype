@@ -414,6 +414,17 @@ touch Meus Embarques:
   marker at the arc apex + a legend entry that appears only when some shipment
   is INCOMPLETE).
 
+There is **no illustrative tracking panel**. An earlier "Rastreamento marítimo"
+card on the detail screen showed a fabricated voyage / MBL / carrier / POL / POD
+/ ETD / ETA grid (hashed from the reference) under a `preview` seal; it was
+removed because its made-up ETA ("26 de ago") contradicted the "Pendente
+integração" the same screen gives at the top — one screen, one answer per
+question. The only real value it held, the vessel named in the Freitas note,
+survives as `parseVesselFromObservacao` (`lib/vessel.ts`) and renders as "Navio"
+inside "Dados do embarque" with a `real` badge, and only when the note names
+one. Do not reintroduce the panel: those fields belong to the `tracking` block
+when the feed exists.
+
 `ShipmentTimeline` shows the real states then the four ShipsGo milestones (Em
 trânsito, Chegada, Descarregado, Liberado = Ocean Transit, Arrival at POD,
 Discharge, Available for Pickup); Gate-in and Vessel Loading are not repeated

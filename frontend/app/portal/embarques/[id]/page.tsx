@@ -26,14 +26,15 @@ import { MODAL_LABELS, TIPO_EMBARQUE_LABELS } from '@/types/quotation';
 import { IncompleteDataNote } from '../../_shared/incomplete-data-badge';
 import { ModalIcon } from '../../_shared/modal-icon';
 import { SectionHeading } from '../../_shared/page-header';
+import { ProvenanceBadge } from '../../_shared/provenance-badge';
 import { DelayRiskBadge } from '../components/delay-risk-badge';
 import { EstadoBadge } from '../components/estado-badge';
 import { ShipmentEtaBadge } from '../components/eta-badge';
 import { ShipmentTimeline } from '../components/shipment-timeline';
 import { ShipmentRoute } from '../components/shipment-route';
-import { ShipmentTrackingPanel } from '../components/shipment-tracking-panel';
 import { INCOMPLETE_DATA_COPY, delayRiskFromTracking } from '../lib/delay-risk';
 import { ORIGINS, originIndex } from '../lib/shipment-origins';
+import { parseVesselFromObservacao } from '../lib/vessel';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -60,6 +61,11 @@ export default function PortalEmbarqueDetailPage() {
   // Delay risk: pure computation over the two carrier ETAs, tested in
   // lib/delay-risk.test.ts. Null tracking -> "pending", never a number.
   const delayRisk = delayRiskFromTracking(shipment.tracking);
+
+  // Real signal, kept from the removed "Rastreamento marítimo" panel: the ship
+  // named in the Freitas note. Null when the note names none — the field then
+  // does not render at all, rather than showing a guessed vessel.
+  const vessel = parseVesselFromObservacao(shipment.observacao);
 
   const etaFootnote =
     delayRisk.status === 'pending'
@@ -191,15 +197,6 @@ export default function PortalEmbarqueDetailPage() {
         <ShipmentTimeline estado={shipment.estado} tracking={shipment.tracking} />
       </section>
 
-      {/* Maritime tracking: the ShipsGo-style fields (vessel, POL/POD, ETD/ETA)
-          sit next to the route as part of "where is my cargo". Illustrative —
-          the panel carries its own preview seal and the POL matches the port the
-          world map plots for this shipment. Only for maritime (or unset) modal;
-          air freight tracks differently. */}
-      {shipment.modal !== 'AEREO' && (
-        <ShipmentTrackingPanel shipment={shipment} />
-      )}
-
       {/* Supporting detail, deliberately quieter than the block above and
           collapsed by default: only "Situação atual" stays open on load, so the
           screen leads with the status/route and the rest is available on demand
@@ -238,6 +235,14 @@ export default function PortalEmbarqueDetailPage() {
                 <Field label="Última atualização">
                   {shipment.updated_at ? formatShortDate(shipment.updated_at) : '—'}
                 </Field>
+                {vessel && (
+                  <Field label="Navio">
+                    <span className="inline-flex flex-wrap items-center gap-2">
+                      {vessel}
+                      <ProvenanceBadge provenance="real" />
+                    </span>
+                  </Field>
+                )}
               </div>
             </AccordionContent>
           </AccordionItem>
