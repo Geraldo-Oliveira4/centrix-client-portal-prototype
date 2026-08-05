@@ -17,15 +17,21 @@ import { useMyQuotations } from '@/hooks/use-portal-quotations';
 import { PagePortalHeader } from '../../_shared/page-header';
 import { ProvenanceBadge } from '../../_shared/provenance-badge';
 import {
-  buildSupplierRanking,
+  buildAgentRanking,
   type ReliabilityLabel,
   type RelativeTone,
-  type SupplierRow,
-} from '../lib/supplier-helpers';
+  type AgentRow,
+} from '../lib/agent-helpers';
 
 /**
- * Dashboard 2 — Fornecedores / Agentes. RANKING ILUSTRATIVO, painel inteiro
- * atrás do selo "Pré-visualização".
+ * Dashboard 2 — Agentes. RANKING ILUSTRATIVO, painel inteiro atrás do selo
+ * "Pré-visualização".
+ *
+ * Chamava-se "Fornecedores" e foi renomeado (05/08/2026, revisão do Victor
+ * Orsi): numa importação, "fornecedor" é o exportador — quem fabrica e embarca
+ * a carga. Usar a mesma palavra para o agente de frete embaralha dois papéis que
+ * o cliente enxerga separados no portal (Meus Exportadores × Meus Agentes). Não
+ * reintroduza "fornecedor" para se referir a agente de frete.
  *
  * NOTA DE METODOLOGIA (não apagar): a versão real deste painel continua
  * bloqueada por uma correção no score de agentes — ele precisa sair de um
@@ -92,7 +98,7 @@ function RelativeCell({
   );
 }
 
-function SupplierTable({ rows }: { rows: SupplierRow[] }) {
+function AgentTable({ rows }: { rows: AgentRow[] }) {
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -159,19 +165,19 @@ function SupplierTable({ rows }: { rows: SupplierRow[] }) {
   );
 }
 
-export default function FornecedoresPage() {
+export default function AgentesPage() {
   const { data, isLoading, isError } = useMyQuotations();
 
   if (isLoading) return <LoaderComponent />;
   if (isError || !data) return <ErrorComponent />;
 
-  const rows = buildSupplierRanking(data);
+  const rows = buildAgentRanking(data);
 
   return (
     <div className="space-y-8">
       <PagePortalHeader
-        title="Fornecedores e Agentes"
-        subtitle="Desempenho dos parceiros de frete."
+        title="Agentes"
+        subtitle="Desempenho dos seus agentes de frete."
         action={<ProvenanceBadge provenance="preview" />}
       />
 
@@ -202,7 +208,7 @@ export default function FornecedoresPage() {
         {rows.length === 0 ? (
           <EmptyState message="Nenhum agente com proposta nas suas cotações ainda." />
         ) : (
-          <SupplierTable rows={rows} />
+          <AgentTable rows={rows} />
         )}
 
         <div className="space-y-1 border-t border-dashed pt-4">

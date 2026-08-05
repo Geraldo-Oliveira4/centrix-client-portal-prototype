@@ -73,6 +73,30 @@ export function evaluateLine(line: ConciliationLine): EvaluatedLine {
 export const evaluateExample = (example: ConciliationExample): EvaluatedLine[] =>
   example.lines.map(evaluateLine);
 
+export interface ConciliationSummary {
+  example: ConciliationExample;
+  /** Linhas com status `divergent` — o número que o badge da lista mostra. */
+  divergences: number;
+  /** Alguma linha divergiu PARA CIMA, isto é, existe o que contestar. */
+  hasContestable: boolean;
+}
+
+/**
+ * Resumo por embarque para a lista compacta. Roda a mesma `evaluateLine` do
+ * detalhe de propósito: o badge da lista e a leitura da tabela não podem
+ * discordar, então nenhum dos dois recalcula o limite por conta própria.
+ */
+export const summarizeExample = (
+  example: ConciliationExample,
+): ConciliationSummary => {
+  const lines = evaluateExample(example);
+  return {
+    example,
+    divergences: lines.filter((l) => l.status === 'divergent').length,
+    hasContestable: lines.some((l) => l.suggestContest),
+  };
+};
+
 /**
  * Exemplos fictícios. As referências usam o prefixo EXEMPLO- justamente para
  * nunca colidirem com uma referência real de embarque do cliente.

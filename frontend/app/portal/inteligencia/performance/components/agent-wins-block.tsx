@@ -10,7 +10,7 @@ import type { AgentWins } from '../../lib/performance-helpers';
  * REAL — the winning agent of each closed quotation, as a proportional bar.
  * Migrated intact from the old "Visão geral" tab when it merged into
  * Performance. No score and no ranking of reliability: only how many quotations
- * each agent actually won (see the Fornecedores placeholder for why a score is
+ * each agent actually won (see the Agentes dashboard for why a score is
  * deliberately absent).
  */
 export function AgentWinsBlock({ agentWins }: { agentWins: AgentWins[] }) {

@@ -31,6 +31,8 @@ from .enums import (
 from .exporter import Exporter
 from .freight_agent import FreightAgent
 from .freight_agent_contact import FreightAgentContact
+# Portal-only (não existe no Centrix) — ver migração 094.
+from .portal_client_preferences import PortalClientPreferences
 from .proposal import Proposal
 from .quotation import Quotation
 from .quotation_equipment import QuotationEquipment
@@ -65,6 +67,7 @@ __all__ = [
     "LogisticsType",
     "Modal",
     "PesoUnidade",
+    "PortalClientPreferences",
     "PriceOrPerformance",
     "Proposal",
     "Quotation",

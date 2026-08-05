@@ -200,6 +200,8 @@ Types live in `types/` — one file per domain. Shared / cross-domain types go i
 | `useShipmentKanban({ search?, modal?, cargaUrgente? })` | `hooks/use-shipments.ts` | `/shipments/kanban` — GE kanban; all filters server-side, polls every 30 s |
 | `useShipment(id)` | `hooks/use-shipments.ts` | `/shipments/{id}` — GE workspace detail |
 | `useShipmentDocumentos(processId)` | `hooks/use-shipments.ts` | `/shipments/{id}/documentos` — list + curated Inova file types. `uploadShipmentDocumento()` does a 2-phase upload (presigned S3 PUT via `uploadFileToS3`, then `/confirm`). `deleteShipmentDocumento()` — DB-only delete |
+| `useMyAgents()` | `hooks/use-portal-agents.ts` | `/portal/agents` — agentes pré-aprovados do cliente + contadores. Payload sem score de agente (o backend não o devolve) |
+| `useMyPreferences()` | `hooks/use-portal-agents.ts` | `/portal/preferences` — perfil de operação + agentes pausados. `updateMyPreferences()` é PATCH (só as chaves enviadas gravam); `setAgentActive()` recebe a lista de pausados atual porque o backend grava a lista inteira, não um delta, e revalida **as duas** chaves SWR |
 
 `hooks/use-quotations.ts` holds only quotation-level CRUD, kanban, logs, audit, notes, documents, and transitions. Proposal-, RFQ-, client-link-, and shipment-instruction-specific mutations (`createProposal`, `selectWinner`, `dispatchRFQ`, `generateClientLink`, `createShipmentInstruction`, etc.) live in their respective domain files above — do not add new domain logic back into `use-quotations.ts`.
 
@@ -455,9 +457,18 @@ Como o alerta deriva de `tracking`, ele carrega `isMock` e desenha o selo
 `preview` quando o embarque é dado de demonstração, igual a todo o resto.
 
 O toggle do tipo nasce **ligado** como os outros, mas a chave de preferências é
-versionada (`portal:shipment-alerts:types:v2` em `embarques/page.tsx`) porque uma
-lista salva antes deste tipo existir o deixaria desligado sem o cliente saber.
-Bump de novo se um tipo futuro não puder herdar opt-out antigo.
+versionada (`portal:shipment-alerts:types:v2`, em
+`_shared/alert-type-preferences.ts`) porque uma lista salva antes deste tipo
+existir o deixaria desligado sem o cliente saber. Bump de novo se um tipo futuro
+não puder herdar opt-out antigo. Esse módulo é a **única** implementação da
+preferência: a aba Alertas e Minhas Preferências > Notificações editam a mesma
+coisa e o consomem juntas — não releia o localStorage numa terceira tela.
+
+**Ordem das abas: [Lista][Alertas][Mapa]**, com Lista como padrão. É prioridade
+de uso, não de impacto visual: Lista é a tela do dia a dia, Alertas é o que
+exige ação, e o Mapa ilustra bem mas não responde nenhuma pergunta operacional
+que a Lista já não responda melhor. O deep link `?tab=lista&busca=1` do header
+continua valendo; `TABS` em `embarques/page.tsx` é quem define ordem e padrão.
 
 There is **no illustrative tracking panel**. An earlier "Rastreamento marítimo"
 card on the detail screen showed a fabricated voyage / MBL / carrier / POL / POD
@@ -506,11 +517,19 @@ lands.
 Both modules are **read-only** and add **no backend endpoint** — they compose
 existing `GET` routes. Their sidebar entries live in
 `app/portal/components/portal-sidebar.tsx` (`Sparkles` → Inteligência,
-`Scale` → Auditoria).
+`Scale` → Auditoria). Meus Agentes (`Users`) e Minhas Preferências (`Settings`)
+moram lá também, mas **não** são read-only: são as duas únicas telas de conta
+que escrevem no backend (ver a seção delas adiante).
+
+Uma nota sobre o `preview` que vale para todo o portal: ele marca **número
+fabricado**. A única exceção documentada é o bloco "Perfil de operação" de
+Minhas Preferências, onde o selo marca um bloco funcional cujo efeito a jusante
+ainda não existe — e a exceção só se sustenta porque o texto do bloco explica
+isso. Não abra uma segunda.
 
 ### Inteligência (`/portal/inteligencia/`)
 
-**Três** dashboards, nada mais: `performance/`, `fornecedores/`, `executivo/`
+**Três** dashboards, nada mais: `performance/`, `agentes/`, `executivo/`
 (tabs em `layout.tsx`). A raiz `/portal/inteligencia` é só um `redirect()` para
 `performance` — a antiga aba "Visão geral" **foi fundida** no Performance, porque
 "estou indo bem ou não?" só se responde cruzando cotação e embarque na mesma
@@ -530,9 +549,13 @@ volume usam a **mesma janela de 30 dias** (senão "volume" significa duas coisas
 na mesma tela), e o **total histórico de cotações aparece uma única vez**, no
 centro do donut — por isso o nível 2 mostra "Cotações (30 dias)", não o total.
 
-`fornecedores/page.tsx` é um **ranking ilustrativo** (painel inteiro na moldura
-tracejada + badge `preview`), montado por `lib/supplier-helpers.ts` sobre
-`useMyQuotations` — sem endpoint novo. **Real:** nome do agente, quantas
+`agentes/page.tsx` é um **ranking ilustrativo** (painel inteiro na moldura
+tracejada + badge `preview`), montado por `lib/agent-helpers.ts` sobre
+`useMyQuotations` — sem endpoint novo. Chamava-se "Fornecedores" e foi renomeado
+(05/08/2026): numa importação, **fornecedor é o exportador** — quem fabrica e
+embarca a carga —, e usar a mesma palavra para o agente de frete embaralha dois
+papéis que o cliente vê separados no portal (Meus Exportadores × Meus Agentes).
+Não reintroduza "fornecedor" para agente de frete. **Real:** nome do agente, quantas
 cotações ele fechou com a melhor proposta e as rotas correspondentes (o payload
 da listagem só expõe a `best_proposal`, então a leitura é "melhor oferta", não
 "todos os agentes que responderam"). **Ilustrativo:** Preço e Prazo são
@@ -644,7 +667,7 @@ seção acima).
 
 | Camada | Onde | O que é |
 |---|---|---|
-| 1 — Conciliação determinística | `components/conciliation-table.tsx` + `lib/conciliation.ts` | Tabela por embarque: Item · Planejado · Realizado · Diferença · Bate/Diverge |
+| 1 — Conciliação determinística | `components/conciliation-list.tsx` (resumo) → `conciliation-table.tsx` (detalhe) + `lib/conciliation.ts` | Lista compacta por embarque (referência · rota · badge de desfecho · "Ver detalhe") que abre a tabela Item · Planejado · Realizado · Diferença · Bate/Diverge |
 | 2 — Árvore de decisão | `evaluateLine` em `lib/conciliation.ts` | `if/else` sobre `DIVERGENCE_THRESHOLD_PCT` (5%, espelha `app/audit_preview.py`) → "Sugerimos contestar" quando a diferença é **para cima**. **Não é IA** |
 | 3 — Rascunho de contestação | `components/dispute-draft-modal.tsx` + `lib/dispute-draft.ts` | Para/Assunto/corpo por **template determinístico** (interpolação de string). Editar · Anexar · Enviar |
 
@@ -675,6 +698,62 @@ tela não mostra a diferença entre "diferente" e "contestável".
 O modal **não envia** nada (não há destinatário nem serviço de contestação): o
 botão Enviar encerra dizendo exatamente isso, e anexo fica local. Não troque por
 uma confirmação que sugira envio.
+
+A Camada 1 é **resumo → detalhe**, o mesmo padrão de Meus Embarques > Lista: a
+lista compacta responde "algum embarque divergiu?" e o "Ver detalhe" abre a
+tabela item a item de UM embarque. As cinco tabelas já ficaram abertas ao mesmo
+tempo e a leitura de desfecho sumia atrás de ~20 linhas de item — não volte
+àquilo. O badge de desfecho é `components/divergence-badge.tsx`, **um só**
+componente para a lista e o cabeçalho do detalhe: dois desenhos independentes
+poderiam discordar sobre a mesma contagem. Nada disso muda o status conceitual —
+banner "Conceitual" e selos `preview` seguem intactos.
+
+### Meus Agentes (`/portal/agentes/`) e Minhas Preferências (`/portal/preferencias/`)
+
+Duas telas de conta, ao lado de Meus Exportadores na sidebar. **Exportador e
+agente são papéis distintos** e ficam separados de propósito: o exportador
+fabrica e embarca a carga, o agente move o frete.
+
+`agentes/page.tsx` — os agentes que a Freitas pré-aprovou, via `useMyAgents()`
+(`hooks/use-portal-agents.ts` → `GET /portal/agents`). Três regras:
+
+- **O cliente não cadastra agente**, seleciona entre os pré-aprovados. O CTA
+  "Solicitar novo agente" (`components/request-agent-modal.tsx`) é PEDIDO: não
+  existe fila de avaliação neste repo, então o botão de envio encerra dizendo
+  que nada foi enviado — mesmo contrato do `dispute-draft-modal` da Auditoria.
+- **O toggle ativo/pausado não é decorativo**: `setAgentActive` grava em
+  `PUT /portal/preferences` e o backend (`app/agent_pause.py`) tira o agente
+  pausado da montagem da RFQ. Vale para as **próximas** cotações — RFQ já
+  montada não perde a seleção que o cliente fez antes.
+- **O indicador de plano mostra o número real de ativos e só o LIMITE leva o
+  selo** `pending`: `plan_limit`/`plan_name` vêm sempre nulos porque não há
+  modelo de planos no schema. Não faça fallback para uma constante ("10", "Plano
+  Free") — seria o único número inventado da tela.
+
+`preferencias/page.tsx` — dois blocos com estatutos diferentes, e a tela mostra
+isso:
+
+- **Notificações** (sem selo, real): as mesmas quatro chaves da aba Alertas,
+  lidas de `_shared/alert-type-preferences.ts`. Esse módulo é a **única**
+  implementação da leitura/escrita da preferência; as duas telas o usam, porque
+  duas cópias divergiriam no primeiro tipo novo de alerta e o cliente veria um
+  switch ligado numa tela e desligado na outra. Continua em localStorage: o feed
+  é montado no frontend e não há disparo de e-mail/push por trás.
+- **Perfil de operação (DNA)** (moldura tracejada + selo `preview` no bloco
+  inteiro): as escolhas são gravadas de verdade (migração 094), mas ainda não
+  realimentam a cotação. É a **única** vez no portal em que `preview` não marca
+  número fabricado — marca um bloco funcional cujo efeito a jusante não existe.
+  O parágrafo do bloco é quem sustenta o selo; não o apague ao mexer no layout.
+  Contatos internos, acordos comerciais e restrições contratuais **não** entram
+  aqui (o backend nem aceita esses campos).
+- "Agentes bloqueados" é a **mesma lista** do toggle de Meus Agentes (uma coluna
+  só) e por isso leva selo `real` próprio dentro do bloco `preview`: bloquear
+  ali tem efeito imediato na RFQ, e não pode parecer ensaio.
+
+`preferencias/lib/operation-options.ts` guarda as opções de porto e incoterm.
+São listas de **conveniência**, não catálogo — o backend grava texto livre e não
+valida contra elas. Acrescentar item é seguro; remover um que algum cliente já
+salvou some com o valor da tela (o dado continua no banco).
 
 ## Quotation field utilities — `utils/quotation-fields.ts`
 

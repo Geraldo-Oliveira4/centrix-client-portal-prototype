@@ -662,6 +662,104 @@ def run():
           st == 200 and seeded.get("mock_divergence_detected") is True,
           f"{st} {seeded.get('mock_variation_pct')}")
 
+    # --- Q. Agents + client preferences (portal-only, migration 094) -------
+    # A tela "Meus Agentes" existe para o cliente ESCOLHER entre os agentes
+    # pré-aprovados pela Freitas — não para cadastrar um. As checagens abaixo
+    # travam as duas metades disso: o que o portal devolve sobre um agente, e o
+    # que ele aceita gravar.
+    st, ag = req("GET", "/portal/agents")
+    agent_items = ag.get("items", [])
+    check("Q1 agents list -> 200 with the DNA pre-set agents",
+          st == 200 and len(agent_items) == 3, f"{st} {len(agent_items)}")
+
+    # O portal NUNCA expõe score de agente ao cliente (mesma regra do ScoreBadge
+    # da cotação e do dashboard Inteligência > Agentes). Não basta o frontend
+    # não renderizar: o número não pode sair do backend, senão a próxima tela
+    # que consumir este payload o expõe sem querer.
+    SCORE_FIELDS = {"reliability_score", "total_quotations", "error_count"}
+    check("Q2 agent payload carries no score field",
+          all(SCORE_FIELDS.isdisjoint(a) for a in agent_items),
+          str([sorted(SCORE_FIELDS & set(a)) for a in agent_items]))
+
+    # Não há model de planos no schema. Nulo é a resposta honesta; um número
+    # aqui seria o único dado inventado da tela, e sem selo nenhum.
+    check("Q3 plan limit is null (no plan model exists)",
+          ag.get("plan_limit") is None and ag.get("plan_name") is None,
+          f"{ag.get('plan_limit')} {ag.get('plan_name')}")
+    check("Q4 a freshly seeded database has every agent active",
+          ag.get("active_count") == 3 and all(a["active"] for a in agent_items),
+          str(ag.get("active_count")))
+
+    st, pr = req("GET", "/portal/preferences")
+    prefs = pr.get("preferences", {})
+    # Cliente sem linha na tabela é o estado NORMAL de quem nunca editou nada.
+    # Um 404 aqui obrigaria a tela a tratar isso como falha.
+    check("Q5 preferences on an untouched client -> 200, all empty",
+          st == 200 and prefs.get("paused_agent_ids") == []
+          and all(prefs.get(f) is None for f in
+                  ("preferred_port", "default_incoterm", "uses_insurance",
+                   "cargo_particularities")),
+          f"{st} {prefs}")
+
+    agent_id = agent_items[0]["id"]
+    st, pr = req("PUT", "/portal/preferences", {
+        "paused_agent_ids": [agent_id],
+        "preferred_port": "Santos (BRSSZ)",
+    })
+    check("Q6 pausing an agent persists",
+          st == 200 and pr["preferences"]["paused_agent_ids"] == [agent_id],
+          f"{st} {pr.get('preferences')}")
+
+    st, ag2 = req("GET", "/portal/agents")
+    check("Q7 the paused agent reads back as inactive",
+          ag2.get("active_count") == 2
+          and next(a["active"] for a in ag2["items"] if a["id"] == agent_id) is False,
+          str(ag2.get("active_count")))
+
+    # O TOGGLE NÃO É DECORATIVO. Esta é a checagem que prova que "não participa
+    # das próximas cotações" é verdade e não texto de tela: o agente pausado
+    # some da lista de montagem da RFQ (filtro em app/agent_pause.py).
+    st, qa = req("GET", f"/portal/quotations/{q_cotando}/agents")
+    check("Q8 a paused agent is dropped from RFQ assembly",
+          st == 200 and agent_id not in [a["id"] for a in qa.get("agents", [])],
+          str([a["id"] for a in qa.get("agents", [])]))
+
+    # PATCH semântico: a tela de agentes manda só `paused_agent_ids`, e isso não
+    # pode apagar o porto que o cliente salvou na tela de preferências.
+    st, pr = req("PUT", "/portal/preferences", {"default_incoterm": "FOB"})
+    check("Q9 a partial update preserves untouched fields",
+          st == 200
+          and pr["preferences"]["preferred_port"] == "Santos (BRSSZ)"
+          and pr["preferences"]["paused_agent_ids"] == [agent_id],
+          str(pr.get("preferences")))
+
+    # A regra que impede o toggle de virar cadastro de agente pelas costas: só
+    # id da lista pré-aprovada pela Freitas pode ser pausado.
+    st, _ = req("PUT", "/portal/preferences",
+                {"paused_agent_ids": [str(uuid.uuid4())]})
+    check("Q10 pausing an agent outside the pre-approved list -> 400",
+          st == 400, str(st))
+
+    st, _ = req("PUT", "/portal/preferences", {"uses_insurance": "sim"})
+    check("Q11 a non-boolean uses_insurance -> 400", st == 400, str(st))
+
+    # Campos internos da Freitas (contato, acordo comercial, analista) não são
+    # editáveis pelo cliente: o handler os ignora em vez de gravar.
+    st, pr = req("PUT", "/portal/preferences",
+                 {"contact_email": "invasor@exemplo.com",
+                  "assigned_analyst": "alguem"})
+    check("Q12 internal Freitas fields are not writable from the portal",
+          st == 200 and "contact_email" not in pr.get("preferences", {})
+          and "assigned_analyst" not in pr.get("preferences", {}),
+          str(pr.get("preferences")))
+
+    # Deixa o banco como estava para a suíte poder rodar de novo sem o toggle
+    # herdado atrapalhar Q4/Q8.
+    req("PUT", "/portal/preferences", {
+        "paused_agent_ids": [], "preferred_port": None,
+        "default_incoterm": None, "uses_insurance": None,
+    })
+
     # --- Summary ----------------------------------------------------------
     passed = sum(1 for ok, _, _ in _results if ok)
     total = len(_results)

@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, PackageCheck, Wrench } from 'lucide-react';
+import { ArrowLeft, ArrowRight, PackageCheck, Wrench } from 'lucide-react';
 
 import { Button } from '@/components/ui';
 
 import { PagePortalHeader, SectionHeading } from '../_shared/page-header';
 import { ProvenanceBadge } from '../_shared/provenance-badge';
+import { ConciliationList } from './components/conciliation-list';
 import { ConciliationTable } from './components/conciliation-table';
 import { DisputeDraftModal } from './components/dispute-draft-modal';
 import {
@@ -42,6 +43,12 @@ import {
  * A conferência cotado × valor de fechamento que morava nesta rota NÃO é
  * auditoria: é conferência da própria cotação, e vive em Minhas Cotações >
  * Histórico. Não traga aquele painel de volta para cá.
+ *
+ * A Camada 1 é resumo -> detalhe (mesmo padrão de Meus Embarques > Lista): a
+ * lista compacta responde "algum embarque divergiu?" e o "Ver detalhe" abre a
+ * tabela item a item de UM embarque. As cinco tabelas já ficaram abertas ao
+ * mesmo tempo; não volte àquilo — a leitura de desfecho sumia atrás de ~20
+ * linhas de item.
  */
 export default function AuditoriaPage() {
   const [selected, setSelected] = useState<{
@@ -49,6 +56,13 @@ export default function AuditoriaPage() {
     line: EvaluatedLine;
   } | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  // Drill-in da Camada 1: lista compacta -> detalhe de um embarque. Guarda a
+  // referência, não o objeto, para o estado não segurar uma cópia velha do
+  // exemplo se `CONCILIATION_EXAMPLES` mudar.
+  const [openReference, setOpenReference] = useState<string | null>(null);
+
+  const openExample =
+    CONCILIATION_EXAMPLES.find((e) => e.reference === openReference) ?? null;
 
   const openDispute = (example: ConciliationExample) => (line: EvaluatedLine) => {
     setSelected({ example, line });
@@ -115,13 +129,29 @@ export default function AuditoriaPage() {
           cabe no limite, divergência para baixo (diverge, mas não há o que
           contestar) e divergência para cima (aí sim sugerimos contestar).
         </p>
-        {CONCILIATION_EXAMPLES.map((example) => (
-          <ConciliationTable
-            key={example.reference}
-            example={example}
-            onDispute={openDispute(example)}
+
+        {openExample ? (
+          <div className="space-y-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 -ml-2"
+              onClick={() => setOpenReference(null)}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar para a lista
+            </Button>
+            <ConciliationTable
+              example={openExample}
+              onDispute={openDispute(openExample)}
+            />
+          </div>
+        ) : (
+          <ConciliationList
+            examples={CONCILIATION_EXAMPLES}
+            onOpen={(example) => setOpenReference(example.reference)}
           />
-        ))}
+        )}
       </section>
 
       <section className="portal-card space-y-3 p-6">

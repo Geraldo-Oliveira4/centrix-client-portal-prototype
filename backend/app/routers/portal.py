@@ -9,6 +9,7 @@ import json
 
 from fastapi import APIRouter, Request, Response
 
+from app.agent_pause import filter_paused_agents
 from app.audit_preview import lambda_handler as audit_preview_handler
 from app.event_shim import invoke
 from app.prototype_flow import auto_close_approved_quotation
@@ -43,6 +44,9 @@ h = {
         "trigger_my_quotation_extraction",
         "list_my_exporters",
         "create_my_exporter",
+        "list_my_agents",
+        "get_my_preferences",
+        "update_my_preferences",
         "list_my_shipments",
         "get_my_shipment",
     )
@@ -64,6 +68,24 @@ async def list_my_exporters(request: Request):
 @router.post("/exporters")
 async def create_my_exporter(request: Request):
     return await invoke(h["create_my_exporter"], request)
+
+
+# --- Agents e preferências (novos no protótipo) ------------------------------
+# Não existem no Centrix: lá o cliente não tem tela de agentes nem edita o
+# próprio perfil de operação. Ver as docstrings dos handlers e a migração 094.
+@router.get("/agents")
+async def list_my_agents(request: Request):
+    return await invoke(h["list_my_agents"], request)
+
+
+@router.get("/preferences")
+async def get_my_preferences(request: Request):
+    return await invoke(h["get_my_preferences"], request)
+
+
+@router.put("/preferences")
+async def update_my_preferences(request: Request):
+    return await invoke(h["update_my_preferences"], request)
 
 
 # --- Quotations -------------------------------------------------------------
@@ -126,7 +148,11 @@ async def cancel_quotation(request: Request, id: str):
 # --- RFQ --------------------------------------------------------------------
 @router.get("/quotations/{id}/agents")
 async def list_quotation_agents(request: Request, id: str):
-    return await invoke(h["list_quotation_agents"], request, {"id": id})
+    # O handler copiado devolve todos os agentes pré-aprovados no DNA. O filtro
+    # de pausados entra depois dele, no `app/` — é o que torna o toggle de "Meus
+    # Agentes" real em vez de decorativo. Ver `app/agent_pause.py`.
+    response = await invoke(h["list_quotation_agents"], request, {"id": id})
+    return filter_paused_agents(request, response)
 
 
 @router.put("/quotations/{id}/rfq")

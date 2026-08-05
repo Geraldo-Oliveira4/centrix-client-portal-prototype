@@ -20,6 +20,7 @@ import {
   type ConciliationExample,
   type EvaluatedLine,
 } from '../lib/conciliation';
+import { DivergenceBadge } from './divergence-badge';
 
 const formatValue = (value: number, kind: EvaluatedLine['kind']): string =>
   kind === 'currency' ? formatBRL(value) : `${value} dias`;
@@ -28,6 +29,10 @@ const formatValue = (value: number, kind: EvaluatedLine['kind']): string =>
  * Camada 1 (conciliação planejado × realizado) + Camada 2 (árvore de decisão)
  * de UM embarque de exemplo. A leitura de cada linha vem de `evaluateLine`:
  * if/else sobre o limite de divergência, nada de IA.
+ *
+ * É a VIEW DE DETALHE da Conciliação: chega-se aqui pelo "Ver detalhe" da lista
+ * compacta (`conciliation-list.tsx`), não mais como uma de cinco tabelas
+ * empilhadas na página.
  */
 export function ConciliationTable({
   example,
@@ -48,27 +53,7 @@ export function ConciliationTable({
             {example.route} · {example.agent}
           </p>
         </div>
-        <span
-          className={cn(
-            'portal-small inline-flex items-center gap-1.5 rounded border px-2 py-0.5 font-medium',
-            divergences > 0
-              ? 'border-portal-danger/30 bg-portal-danger/10 text-portal-danger'
-              : 'border-portal-success/25 bg-portal-success/10 text-portal-success',
-          )}
-        >
-          {divergences > 0 ? (
-            <>
-              <AlertTriangle className="h-3.5 w-3.5" />
-              {divergences}{' '}
-              {divergences === 1 ? 'divergência' : 'divergências'}
-            </>
-          ) : (
-            <>
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Sem divergência
-            </>
-          )}
-        </span>
+        <DivergenceBadge divergences={divergences} />
       </header>
 
       <div className="overflow-x-auto">

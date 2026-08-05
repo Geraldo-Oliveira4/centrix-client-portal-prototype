@@ -8,8 +8,10 @@ import {
   PanelLeft,
   PanelLeftClose,
   Scale,
+  Settings,
   Ship,
   Sparkles,
+  Users,
   Warehouse,
   X,
 } from 'lucide-react';
@@ -49,6 +51,20 @@ const NAV_ITEMS = [
     href: '/portal/exportadores',
     label: 'Meus Exportadores',
     icon: Warehouse,
+  },
+  // Exportador e agente são papéis distintos e ficam lado a lado de propósito:
+  // o exportador é quem fabrica e embarca a carga (o "fornecedor" do cliente),
+  // o agente é quem move o frete. Foi por confundir os dois que o dashboard de
+  // Inteligência deixou de se chamar "Fornecedores".
+  {
+    href: '/portal/agentes',
+    label: 'Meus Agentes',
+    icon: Users,
+  },
+  {
+    href: '/portal/preferencias',
+    label: 'Minhas Preferências',
+    icon: Settings,
   },
 ];
 

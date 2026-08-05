@@ -30,11 +30,12 @@ backend/                         # FastAPI (substitui AWS Lambda + API Gateway)
       local_s3.py                # PUT/GET /_local_s3/{key} no filesystem
   shared/                        # COPIADO do Centrix quase sem alteração (models, repos, domain, services)
   lambdas/client_portal*/        # COPIADO do Centrix — handlers originais intactos
-                                 #   (+2 novos de exportador, +2 novos de embarque)
-  alembic/                       # COPIADO — migrations 001..089 (+090..093, do protótipo)
+                                 #   (+2 novos de exportador, +2 de embarque,
+                                 #    +3 de agentes/preferências)
+  alembic/                       # COPIADO — migrations 001..089 (+090..094, do protótipo)
   scripts/
     seed_prototype.py            # cliente demo + 9 cotações + agentes + DNA + 7 embarques
-    e2e_test.py                  # suíte E2E (96 checagens)
+    e2e_test.py                  # suíte E2E (108 checagens)
 frontend/                        # CÓPIA do app Next.js do Centrix (só /portal ligado ao backend)
   vendor/arboria-ui, arboria-config   # deps @arboria-tech vendorizadas (file:), sem GitHub Packages
 docker-compose.yml               # Postgres 16 local
@@ -100,10 +101,75 @@ atualizada — é o que dificulta um futuro re-sync):
     semeado elas ficam NULL e o portal mostra "Pendente integração" em vez de um
     ETA inventado. A única coisa que grava é o top-up de demonstração (seção
     abaixo), e ele sempre grava `tracking_is_mock = TRUE` junto.
+- **Seleção de agentes e preferências do cliente pelo portal** (no Centrix o
+  cliente não tem tela de agentes nem edita o próprio perfil de operação — ver
+  a seção "DNA editável pelo cliente" abaixo):
+  - `alembic/versions/094_add_portal_client_preferences.py` — tabela nova
+    `centrix_portal_client_preferences`, uma linha por cliente, tudo nullable:
+    `paused_agent_ids` (JSONB), `preferred_port`, `default_incoterm`,
+    `uses_insurance`, `cargo_particularities`. **Ausência de linha é o estado
+    normal** e nenhum seed a popula.
+  - `shared/database/models/quotation/portal_client_preferences.py` e
+    `shared/database/repositories/portal_client_preferences_repository.py` —
+    **arquivos novos**, escopados ao cliente como o `portal_exporter_repository`.
+  - `shared/portal_agent_helpers.py` — **arquivo novo**, projeção reduzida do
+    agente: sem `reliability_score`, `total_quotations` nem `error_count`. O
+    portal não expõe score de agente ao cliente, e a regra vale no backend, não
+    só no que a tela renderiza (travado por `Q2` no e2e).
+  - `lambdas/client_portal/{list_my_agents,get_my_preferences,update_my_preferences}/`
+    — handlers novos, sem contrapartida no Centrix.
+  - `app/agent_pause.py` — filtra os agentes pausados da resposta de
+    `GET /portal/quotations/{id}/agents`. Vive em `app/` porque
+    `list_quotation_agents` é copiado do Centrix, que não conhece "pausado". É o
+    que faz o toggle ser real em vez de decorativo (travado por `Q8`); **não**
+    remove agente já selecionado numa RFQ montada — pausar vale para as
+    próximas.
 - `shared/portal_helpers.py` — `closed_at` e `declined_at` acrescentados a
   `_QUOTATION_PORTAL_FIELDS`. Leitura aditiva de colunas que já existem no
   modelo e que o state machine já grava; o Histórico do portal data e filtra a
   cotação fechada por elas em vez de chutar pelo `updated_at`.
+
+## DNA editável pelo cliente (mudança de direção — 05/08/2026)
+
+**Isto não é regressão a corrigir: é extensão intencional de escopo.** A regra
+antiga do checklist de não-regressão dizia que não existe fluxo de DNA do
+Cliente dentro do portal — ela está **superada**. Direção confirmada pelo Victor
+Orsi (dono do processo, Freitas) na revisão do protótipo de 05/08/2026: o DNA
+hoje é planilha mantida só pela Freitas, e o cliente passa a editar a parte
+operacional dele direto no portal.
+
+Regra que substitui a antiga:
+
+> O DNA do Cliente é editável pelo cliente em **Minhas Preferências**, mas só os
+> campos operacionais/logísticos (porto/aeroporto preferido, incoterm padrão,
+> uso de seguro, particularidades de carga, agentes bloqueados) — **nunca** os
+> dados internos da Freitas: contatos, acordos comerciais, restrições
+> contratuais, analista designado.
+
+Como isso é sustentado no código, e o que não pode afrouxar:
+
+- O que o cliente edita **não** vai para `centrix_quotation_client_dna`. Aquele
+  model é do analista e copiado do Centrix; escrever nele pelo portal
+  sobrescreveria campo de analista e divergiria do original. A camada do cliente
+  é a tabela nova da migração 094, ao lado do DNA e sem tocá-lo. Quando o DNA
+  editável for implementado de verdade, o merge das duas fontes é decisão de
+  produto — aqui elas continuam distinguíveis.
+- `update_my_preferences` aceita uma **lista fechada** de campos; qualquer outra
+  chave é ignorada em silêncio. Um PUT com `contact_email` ou
+  `assigned_analyst` retorna 200 sem gravar nada (travado por `Q12` no e2e).
+- O bloco "Perfil de operação" leva selo "Pré-visualização" na tela. É a única
+  vez no portal em que `preview` **não** marca número fabricado: marca um bloco
+  funcional cujo efeito a jusante ainda não existe (as escolhas ficam salvas mas
+  ainda não preenchem a próxima cotação). O texto do bloco diz isso — é ele que
+  sustenta o selo, não apague ao mexer no layout.
+- **Agente continua sendo curadoria da Freitas.** O cliente seleciona entre os
+  pré-aprovados (`default_agents` do DNA), nunca cadastra: `paused_agent_ids` só
+  aceita id que já esteja nessa lista (400 caso contrário, travado por `Q10`), e
+  o CTA "Solicitar novo agente" é pedido, não self-service. Marketplace aberto
+  segue descartado.
+- "Pausado" (Meus Agentes) e "bloqueado" (Minhas Preferências) são **uma coluna
+  só**, exposta em duas telas. Duas listas criariam um estado contraditório sem
+  desempate ("pausado mas não bloqueado" vale qual?).
 
 ## Fronteiras mockadas (por design)
 
@@ -111,6 +177,7 @@ atualizada — é o que dificulta um futuro re-sync):
 |---|---|
 | kanban, detalhe, propostas, histórico, recomendação (score determinístico) | extração PDF/e-mail (IA/OpenRouter) — não exercida |
 | cadastro de exportador pelo cliente + vínculo na nova cotação | — |
+| seleção de agentes pelo cliente (toggle ativo/pausado filtra a montagem da RFQ) e preferências operacionais salvas (migração 094) | **limite de agentes por plano** — não existe modelo de planos ("Pendente integração"); **fila de avaliação** do CTA "Solicitar novo agente" — não há destinatário; **efeito do perfil de operação** na próxima cotação — o DNA que a Freitas usa ainda vive fora do portal |
 | acompanhamento de embarque (Processo/Embarque criados na aprovação) | histórico de transições do embarque (não existe tabela) e ETA/SLA (`processos.datas` fica NULL) |
 | — | rastreamento da companhia marítima (ShipsGo): colunas `tracking_*` existem e ficam NULL; ETA, risco de atraso e os marcos pós-embarque aparecem como "Pendente integração" |
 | valor cotado na conferência da cotação (proposta vencedora) | **valor realizado** — fabricado em `app/audit_preview.py`; não existe fatura/BL neste repo |
@@ -306,7 +373,7 @@ elegibilidade de RFQ, 404 anti-enumeração, mocks). Rode com banco recém-semea
 ```bash
 docker compose down -v && docker compose up -d
 cd backend && make migrate && make seed && make run &
-.venv/bin/python -m scripts.e2e_test     # -> 96/96 ALL PASS
+.venv/bin/python -m scripts.e2e_test     # -> 108/108 ALL PASS
 ```
 
 A suíte **muta dados** (aprova, recusa, cancela cotações da semente) e exige um

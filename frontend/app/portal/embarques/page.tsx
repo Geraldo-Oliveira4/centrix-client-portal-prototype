@@ -11,27 +11,20 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMyShipments } from '@/hooks/use-portal-shipments';
 
+import { useAlertTypePreferences } from '../_shared/alert-type-preferences';
 import { PagePortalHeader } from '../_shared/page-header';
 import { ShipmentWorldMap } from './components/shipment-world-map';
 import { ShipmentListTab } from './components/shipment-list-tab';
 import { ShipmentAlertsTab } from './components/shipment-alerts-tab';
-import {
-  ALL_ALERT_TYPES,
-  buildShipmentAlerts,
-  type AlertType,
-} from './lib/shipment-alerts';
+import { buildShipmentAlerts } from './lib/shipment-alerts';
 
 const READ_KEY = 'portal:shipment-alerts:read';
-// Versioned on purpose. A preference list stored before "Risco de
-// demurrage/detention" existed names only the first three types, and restoring
-// it verbatim would leave the new type OFF for every returning client — the one
-// type with a direct financial cost, silently disabled by a storage artefact.
-// Bumping the key drops those stale lists so the default (all four on) applies
-// once; from then on the client's own choice persists. Bump again if a future
-// type must not inherit an old opt-out.
-const TYPES_KEY = 'portal:shipment-alerts:types:v2';
 
-const TABS = ['mapa', 'lista', 'alertas'] as const;
+// Ordem = prioridade de uso, não de impacto visual. Lista primeiro (é a tela do
+// dia a dia e por isso a aba padrão), Alertas em segundo (é o que exige ação),
+// Mapa por último: ele ilustra bem, mas não responde nenhuma pergunta
+// operacional que a Lista já não responda melhor.
+const TABS = ['lista', 'alertas', 'mapa'] as const;
 type ShipmentTab = (typeof TABS)[number];
 
 const isShipmentTab = (value: string | null): value is ShipmentTab =>
@@ -49,7 +42,7 @@ function PortalEmbarquesContent() {
   const tabParam = searchParams.get('tab');
   const buscaParam = searchParams.get('busca');
   const [tab, setTab] = useState<ShipmentTab>(
-    isShipmentTab(tabParam) ? tabParam : 'mapa',
+    isShipmentTab(tabParam) ? tabParam : 'lista',
   );
   const [searchOpen, setSearchOpen] = useState(buscaParam === '1');
 
@@ -64,39 +57,30 @@ function PortalEmbarquesContent() {
 
   const alerts = useMemo(() => buildShipmentAlerts(shipments), [shipments]);
 
-  // Read-state and alert-type preferences are client-side only (no backend feed):
-  // seeded from localStorage after mount to avoid a hydration mismatch. Every
-  // type starts enabled, including `demurrage` (see TYPES_KEY above).
+  // Quais tipos o cliente quer receber: mesma preferência editável em Minhas
+  // Preferências > Notificações, por isso vem do módulo compartilhado e não de
+  // um estado local (ver `_shared/alert-type-preferences.ts`).
+  const { enabledTypes, toggleType } = useAlertTypePreferences();
+
+  // O que já foi lido é local desta tela — não é configuração de conta.
+  // Semeado do localStorage após o mount para evitar hydration mismatch.
   const [readList, setReadList] = useState<string[]>([]);
-  const [enabledList, setEnabledList] = useState<AlertType[]>(ALL_ALERT_TYPES);
 
   useEffect(() => {
     try {
       const r = localStorage.getItem(READ_KEY);
       if (r) setReadList(JSON.parse(r));
-      const t = localStorage.getItem(TYPES_KEY);
-      if (t) setEnabledList(JSON.parse(t));
     } catch {
       // ignore corrupt/unavailable storage — defaults stand
     }
   }, []);
 
   const readIds = useMemo(() => new Set(readList), [readList]);
-  const enabledTypes = useMemo(() => new Set(enabledList), [enabledList]);
 
   const persistRead = (next: string[]) => {
     setReadList(next);
     try {
       localStorage.setItem(READ_KEY, JSON.stringify(next));
-    } catch {
-      // ignore
-    }
-  };
-
-  const persistTypes = (next: AlertType[]) => {
-    setEnabledList(next);
-    try {
-      localStorage.setItem(TYPES_KEY, JSON.stringify(next));
     } catch {
       // ignore
     }
@@ -112,14 +96,6 @@ function PortalEmbarquesContent() {
       .filter((a) => enabledTypes.has(a.type))
       .map((a) => a.id);
     persistRead(Array.from(new Set([...readList, ...visibleIds])));
-  };
-
-  const handleToggleType = (type: AlertType) => {
-    persistTypes(
-      enabledTypes.has(type)
-        ? enabledList.filter((t) => t !== type)
-        : [...enabledList, type],
-    );
   };
 
   const unreadCount = alerts.filter(
@@ -173,10 +149,6 @@ function PortalEmbarquesContent() {
           className="space-y-6"
         >
           <TabsList>
-            <TabsTrigger value="mapa" className="gap-1.5">
-              <MapIcon className="h-4 w-4" />
-              Mapa
-            </TabsTrigger>
             <TabsTrigger value="lista" className="gap-1.5">
               <List className="h-4 w-4" />
               Lista
@@ -190,14 +162,11 @@ function PortalEmbarquesContent() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="mapa" className="gap-1.5">
+              <MapIcon className="h-4 w-4" />
+              Mapa
+            </TabsTrigger>
           </TabsList>
-
-          {/* Mapa — só o mapa mundi e a legenda, nada mais (sem cards/contador/busca). */}
-          <TabsContent value="mapa">
-            <section className="portal-card p-6">
-              <ShipmentWorldMap shipments={shipments} />
-            </section>
-          </TabsContent>
 
           <TabsContent value="lista">
             <ShipmentListTab
@@ -213,10 +182,17 @@ function PortalEmbarquesContent() {
               alerts={alerts}
               readIds={readIds}
               enabledTypes={enabledTypes}
-              onToggleType={handleToggleType}
+              onToggleType={toggleType}
               onMarkRead={handleMarkRead}
               onMarkAllRead={handleMarkAllRead}
             />
+          </TabsContent>
+
+          {/* Mapa — só o mapa mundi e a legenda, nada mais (sem cards/contador/busca). */}
+          <TabsContent value="mapa">
+            <section className="portal-card p-6">
+              <ShipmentWorldMap shipments={shipments} />
+            </section>
           </TabsContent>
         </Tabs>
       )}

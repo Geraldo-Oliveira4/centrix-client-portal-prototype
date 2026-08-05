@@ -2,7 +2,7 @@ import type { PortalQuotation, PortalQuotationsResponse } from '@/types/portal';
 
 import { flattenQuotations, seededInt } from './intel-helpers';
 
-// Ranking ilustrativo de agentes para o dashboard Fornecedores.
+// Ranking ilustrativo de agentes para o dashboard Agentes da Inteligência.
 //
 // O que é REAL aqui: o nome do agente, quantas cotações dele chegaram com a
 // melhor proposta e as rotas (origens) em que ele apareceu. Tudo isso sai do
@@ -13,7 +13,7 @@ import { flattenQuotations, seededInt } from './intel-helpers';
 // O que é ILUSTRATIVO: as colunas comparativas. Preço e prazo são relativos à
 // média do próprio cliente sobre uma amostra pequena (não é benchmark de
 // mercado), e a Confiabilidade é um rótulo qualitativo determinístico — ver a
-// nota de metodologia em `fornecedores/page.tsx`.
+// nota de metodologia em `agentes/page.tsx`.
 
 /** Faixa de tolerância em torno da média antes de chamar de acima/abaixo. */
 const AVERAGE_BAND_PCT = 5;
@@ -21,7 +21,7 @@ const AVERAGE_BAND_PCT = 5;
 export type RelativeTone = 'below' | 'average' | 'above';
 export type ReliabilityLabel = 'Alta' | 'Média' | 'Baixa';
 
-export interface SupplierRow {
+export interface AgentRow {
   name: string;
   /** REAL. Cotações em que este agente trouxe a melhor proposta. */
   quotations: number;
@@ -83,9 +83,9 @@ const routeOf = (q: PortalQuotation): string | null => {
  * linhas ordenadas por volume (mais cotações primeiro), depois por nome para
  * empate — nada de ordenar por um score, que é justamente o que está bloqueado.
  */
-export function buildSupplierRanking(
+export function buildAgentRanking(
   data?: PortalQuotationsResponse,
-): SupplierRow[] {
+): AgentRow[] {
   const withAgent = flattenQuotations(data).filter(
     (q) => q.best_proposal?.agent?.name,
   );
