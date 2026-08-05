@@ -11,6 +11,7 @@ import { ProvenanceBadge } from '../_shared/provenance-badge';
 import { ConciliationList } from './components/conciliation-list';
 import { ConciliationTable } from './components/conciliation-table';
 import { DisputeDraftModal } from './components/dispute-draft-modal';
+import { DivergenceCausesBlock } from './components/divergence-causes-block';
 import {
   CONCILIATION_EXAMPLES,
   type ConciliationExample,
@@ -114,6 +115,10 @@ export default function AuditoriaPage() {
           </p>
         </div>
       </section>
+
+      {/* Leitura agregada da Camada 1, antes do embarque a embarque: a lista diz
+          QUAIS embarques divergiram, este bloco diz O QUE costuma divergir. */}
+      <DivergenceCausesBlock examples={CONCILIATION_EXAMPLES} />
 
       {/* Camada 1 + Camada 2 */}
       <section className="space-y-4">

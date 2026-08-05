@@ -97,6 +97,55 @@ export const summarizeExample = (
   };
 };
 
+export interface DivergenceCause {
+  /** "Taxa THC", "Prazo", "Frete"... — o item conciliado. */
+  item: string;
+  /** Embarques em que ESTE item divergiu. */
+  count: number;
+  /** Participação sobre o total de divergências, 0-100, uma casa decimal. */
+  sharePct: number;
+}
+
+/**
+ * Camada 1, leitura agregada: quais itens mais divergem.
+ *
+ * DENOMINADOR = total de linhas divergentes, não de embarques. A pergunta é
+ * "das divergências que aconteceram, quais itens as causaram", então as fatias
+ * somam 100% e as barras são comparáveis entre si. Usar "embarques" como
+ * denominador daria percentuais que não somam nada e um mesmo embarque com três
+ * itens divergentes contaria três vezes contra um universo de um.
+ *
+ * GENÉRICA DE PROPÓSITO: recebe os exemplos como argumento e reusa
+ * `evaluateLine`, o mesmo if/else da tabela de detalhe. Nada aqui conhece
+ * `CONCILIATION_EXAMPLES`, o prefixo EXEMPLO- ou a quantidade de itens — quando
+ * a fonte virar embarque real com NF final, troca-se o argumento e a função
+ * continua correta. Ela também não sabe quais itens existem: item novo
+ * ("Armazenagem", "Sobrestadia") entra sozinho no ranking.
+ *
+ * Empate é resolvido pelo nome do item, para a ordem não oscilar entre renders.
+ */
+export function computeDivergenceCauses(
+  examples: ConciliationExample[],
+): DivergenceCause[] {
+  const counts = new Map<string, number>();
+
+  for (const example of examples) {
+    for (const line of evaluateExample(example)) {
+      if (line.status !== 'divergent') continue;
+      counts.set(line.item, (counts.get(line.item) ?? 0) + 1);
+    }
+  }
+
+  const total = Array.from(counts.values()).reduce((sum, n) => sum + n, 0);
+  if (total === 0) return [];
+
+  return Array.from(counts, ([item, count]) => ({
+    item,
+    count,
+    sharePct: Math.round((count / total) * 1000) / 10,
+  })).sort((a, b) => b.count - a.count || a.item.localeCompare(b.item));
+}
+
 /**
  * Exemplos fictícios. As referências usam o prefixo EXEMPLO- justamente para
  * nunca colidirem com uma referência real de embarque do cliente.

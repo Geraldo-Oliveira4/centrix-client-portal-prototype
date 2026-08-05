@@ -1,11 +1,6 @@
 import type { PortalQuotationsResponse } from '@/types/portal';
 
-import { flattenQuotations, withProposal } from './intel-helpers';
-
-// Same illustrative factor the (now relocated) MarketBlock uses: the sector
-// benchmark sits 8% above what the client actually paid. There is no price-index
-// feed in this prototype, so any "economia" derived from it is illustrative.
-const BENCHMARK_FACTOR = 1.08;
+import { flattenQuotations } from './intel-helpers';
 
 export interface AgentWins {
   name: string;
@@ -31,15 +26,24 @@ export interface PerformanceMetrics {
   avgResponseDays: number | null;
   /** REAL. Winning agent per closed quotation, most wins first. */
   agentWins: AgentWins[];
-  /** ILLUSTRATIVE. closedSum * (benchmark - 1) — no real market baseline. */
-  estimatedSavingsBRL: number | null;
 }
+
+// Havia aqui um `estimatedSavingsBRL` = Σ(fechadas.total_brl) × 0,08, o único
+// campo fabricado deste helper. Foi removido em 05/08/2026 junto com seus dois
+// consumidores (o bloco "Economia estimada" do Performance e o KPI "Economia" do
+// Executivo), que passaram a responder "Pendente integração" — não há base de
+// preço de mercado neste protótipo, e as duas telas chegaram a dar respostas
+// contraditórias para a mesma métrica.
+//
+// Não reintroduza o campo aqui: um número fabricado disponível no helper volta
+// para a tela na primeira pessoa que procurar "savings". O fator +8% continua
+// vivo, deliberadamente, apenas no `components/market-block.tsx`, que declara o
+// próprio `BENCHMARK_FACTOR` e emoldura o resultado como ilustrativo.
 
 /**
  * Derives the client's performance dashboard entirely from the existing
- * /portal/quotations payload — no new endpoint. Every field except
- * estimatedSavingsBRL is real; the savings figure reuses the illustrative
- * benchmark factor and must be shown behind the preview badge.
+ * /portal/quotations payload — no new endpoint. Every field here is REAL; this
+ * helper no longer produces any fabricated figure (see the note above).
  */
 export function computePerformanceMetrics(
   data?: PortalQuotationsResponse,
@@ -78,13 +82,6 @@ export function computePerformanceMetrics(
     (a, b) => b.wins - a.wins,
   );
 
-  const closedSum = withProposal(approved)
-    .map((q) => q.best_proposal?.total_brl ?? 0)
-    .filter((v) => v > 0)
-    .reduce((sum, v) => sum + v, 0);
-  const estimatedSavingsBRL =
-    closedSum > 0 ? Math.round(closedSum * (BENCHMARK_FACTOR - 1)) : null;
-
   return {
     totalQuotations: all.length,
     approved: approved.length,
@@ -94,6 +91,5 @@ export function computePerformanceMetrics(
     approvalRate,
     avgResponseDays,
     agentWins,
-    estimatedSavingsBRL,
   };
 }

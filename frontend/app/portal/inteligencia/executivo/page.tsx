@@ -12,7 +12,6 @@ import { LoadingState } from '@arboria-tech/arboria-ui';
 
 import { useMyQuotations } from '@/hooks/use-portal-quotations';
 import { useMyShipments } from '@/hooks/use-portal-shipments';
-import { formatBRL } from '@/lib/portal-formatters';
 
 import { PagePortalHeader } from '../../_shared/page-header';
 import { ProvenanceBadge } from '../../_shared/provenance-badge';
@@ -36,8 +35,20 @@ import { volumeTrend } from '../lib/volume-helpers';
  * resumo dos mesmos números ou vira outro recorte — não resolver isso por conta.
  *
  * Data honesty: approval rate, response time, quotation/shipment counts are REAL.
- * Savings is ILLUSTRATIVE (benchmark +8%, no market baseline) and wears the
- * preview badge. On-time rate has no source -> "Pendente integração".
+ * On-time rate and Economia have no source -> "Pendente integração", sem valor.
+ *
+ * Economia deixou de exibir número em 05/08/2026. Ela mostrava
+ * `Σ(fechadas.total_brl) × 0,08` sob selo `preview`, enquanto o Performance —
+ * corrigido antes, no mesmo dia — já respondia "não temos como saber" para a
+ * MESMA métrica. Duas telas do mesmo módulo, duas respostas contraditórias na
+ * mesma sessão: é o erro do card "Rastreamento marítimo" e do antigo "Economia
+ * estimada" do Performance, agora fechado nos três lugares. **Não reintroduza um
+ * valor aqui** enquanto não houver base de preço de mercado. O fator +8%
+ * continua vivo só no `MarketBlock` do detalhe da cotação, que é outra tela,
+ * outra pergunta e tem o próprio `BENCHMARK_FACTOR`.
+ *
+ * O selo "Rascunho · Em validação" da página permanece: Economia/Savings entra
+ * como pauta da cocriação com o Victor Orsi junto com o resto do dashboard.
  */
 
 function formatResponseTime(days: number | null): string {
@@ -140,12 +151,14 @@ export default function ExecutivoPage() {
           badge={<ProvenanceBadge provenance="pending" />}
           caption="Sem fonte de ETA/embarque integrada."
         />
+        {/* Sem `value`, igual ao On-time rate acima: o KPI existe, a fonte não.
+            Mostrava `Σ(fechadas.total_brl) × 0,08` sob selo `preview` até
+            05/08/2026 — ver o bloco de honestidade no topo do arquivo. */}
         <StatNumber
-          label="Economia estimada"
+          label="Economia"
           icon={<PiggyBank className="h-4 w-4" />}
-          badge={<ProvenanceBadge provenance="preview" />}
-          value={m.estimatedSavingsBRL != null ? formatBRL(m.estimatedSavingsBRL) : '—'}
-          caption="Benchmark ilustrativo (+8%) — sem base de preço de mercado."
+          badge={<ProvenanceBadge provenance="pending" />}
+          caption="Depende de base de preço de mercado (Data Lake) — ainda não integrada."
         />
       </div>
     </div>

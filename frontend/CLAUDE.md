@@ -399,8 +399,13 @@ touch Meus Embarques:
   se `IsActual`) − primeiro ETA`, semáforo por **dia absoluto** (≤0 no prazo ·
   1–3 atenção · >3 atraso — percentual distorceria rota curta × rota longa).
   Unit-tested in `delay-risk.test.ts` (`npm run test:unit`, Node test runner with
-  native TS stripping; the file is excluded from tsconfig). Components render
-  what the function returns — never re-implement the threshold in JSX.
+  native TS stripping; `*.test.ts` is excluded from tsconfig). Components render
+  what the function returns — never re-implement the threshold in JSX. A novo
+  arquivo de teste precisa ser acrescentado ao script `test:unit` do
+  `package.json`: ele lista os arquivos um a um, não faz glob.
+  `inteligencia/lib/shipment-dimensions.ts` **consome** esta função para agregar
+  desvio por rota e on-time por armador — é o caminho certo para qualquer
+  agregação de atraso, em vez de recalcular o delta.
 - **The number IS shown** next to the colour, unlike the AI score: this is
   arithmetic over two carrier-published dates, reproducible by the client, not a
   model estimate.
@@ -542,12 +547,53 @@ tela. Não recrie uma quarta aba de visão geral.
 2. **Apoio** (`StatNumber size="compact"`): Cotações (30 dias), Tempo médio de
    resposta, Embarques (30 dias), Embarques em andamento.
 3. **Visualizações** (`performance/components/`): `agent-wins-block`,
-   `status-donut-block`, `weekly-volume-chart`, `savings-block`.
+   `status-donut-block`, `weekly-volume-chart`.
+4. **Dimensões do embarque e o que falta** (fecham a tela): `route-deviations-block`,
+   `carrier-usage-block`, `savings-benchmark-block`.
 
 Duas regras que mantêm a tela coerente depois da fusão: as duas métricas de
 volume usam a **mesma janela de 30 dias** (senão "volume" significa duas coisas
 na mesma tela), e o **total histórico de cotações aparece uma única vez**, no
 centro do donut — por isso o nível 2 mostra "Cotações (30 dias)", não o total.
+
+#### Dimensões do embarque: rota e armador (`lib/shipment-dimensions.ts`)
+
+`computeRouteDeviations` e `computeCarrierUsage` são puras e unit-testadas
+(`shipment-dimensions.test.ts`). Três coisas que precisam continuar valendo:
+
+- **O join é com a COTAÇÃO, e é obrigatório.** O payload do embarque não carrega
+  rota nem armador: a rota real mora em `quotation.origin`/`porto_destino` e o
+  armador em `best_proposal.carrier`. O elo é `shipment.quotation_id`. **Não**
+  use a origem de `embarques/lib/shipment-origins.ts` para agregar — aquilo é um
+  hash da referência, ilustrativo por design, e viraria um ranking de rotas
+  inventadas com cara de medição.
+- **`porto_destino` é LISTA.** A cotação pode nomear vários portos candidatos; só
+  nomeamos o destino quando há exatamente um. Com dois, a rota agrega em
+  "Brasil" — pegar o primeiro inventaria um destino.
+- **Sem dado, a linha sai da conta; nunca vira zero.** Embarque sem rastreamento
+  não entra na média de desvio, e `onTimePct` é `null` (renderizado "—"), não 0%.
+  "0% no prazo" é uma acusação ao armador, não uma lacuna. Por isso os dois
+  blocos mostram quantos embarques foram MEDIDOS ao lado do número.
+
+**Armador ≠ Agente.** Armador/cia (Maersk, ONE) opera o navio ou o avião e vem de
+`Proposal.carrier`; agente de frete intermedia e cota, tem tela própria ("Meus
+Agentes") e ranking próprio (`lib/agent-helpers.ts`). Um agente cota vários
+armadores e vice-versa — são duas perguntas distintas ("com quem contrato" ×
+"em que navio a carga vai"). Não unifique os dois rankings nem renomeie um pelo
+outro; há teste cobrindo justamente o join acidental por `best_proposal.agent`.
+
+Os dois blocos levam `pending` por **volume**, não por cálculo: hoje só os
+embarques do top-up de demonstração têm rastreamento, então a média sai de uma ou
+duas observações. Quando o ShipsGo popular os embarques reais, viram `real` sem
+mudar o cálculo.
+
+`shipment-dimensions.ts` é o primeiro lib testável que importa um **valor** de
+outro módulo (`delayRiskFromTracking`), e por isso o import traz a extensão
+`.ts` — o runner nativo do Node não resolve caminho relativo sem extensão, e
+`allowImportingTsExtensions` está ligado no `tsconfig.json` para isso. Os outros
+libs testáveis importam só tipos (apagados na compilação) e não precisam disso.
+A alternativa seria reimplementar o limiar de atraso aqui, o que a regra "uma
+regra, um lugar" proíbe.
 
 `agentes/page.tsx` é um **ranking ilustrativo** (painel inteiro na moldura
 tracejada + badge `preview`), montado por `lib/agent-helpers.ts` sobre
@@ -577,9 +623,36 @@ e de embarques (por `created_at`), taxa de aprovação (fechadas /
 fechadas+recusadas), tempo médio de resposta (`created_at` →
 `best_proposal.received_at`), embarques em andamento, cotações vencidas por
 agente (vencedor de cada FECHADA), cotações por status.
-**Ilustrativo** (badge `preview`, moldura tracejada): "Economia estimada" =
-`Σ(fechadas.total_brl) × 0.08`, mesmo fator de benchmark do MarketBlock — não há
-base de preços de mercado neste protótipo.
+`computePerformanceMetrics` **não produz mais nenhum número fabricado**: todo
+campo que ele devolve é real.
+
+#### Economia / Savings — nenhuma tela do módulo mostra número (05/08/2026)
+
+O módulo tinha um `estimatedSavingsBRL` = `Σ(fechadas.total_brl) × 0,08` servindo
+duas telas. Ele **foi removido do helper**, junto com os dois consumidores:
+
+- **Performance** — "Economia estimada" (`preview`) virou "Economia e Benchmark"
+  (`savings-benchmark-block.tsx`, `pending`), que **não calcula nada**, nem função
+  pura: savings vs. a primeira proposta exigiria a série completa de propostas (o
+  payload expõe só a `best_proposal`), e benchmark e operações semelhantes
+  dependem do Data Lake.
+- **Executivo** — o KPI "Economia estimada" (`preview`, com valor) virou
+  "Economia" (`pending`, sem valor), no mesmo formato do "On-time rate" ao lado.
+
+O motivo de fechar os dois: Performance e Executivo respondiam **a mesma
+pergunta com respostas contraditórias na mesma sessão** — uma dizia "não temos
+como saber", a outra dava um valor em reais. É o erro já corrigido no card
+"Rastreamento marítimo" dos embarques: uma pergunta, uma resposta.
+
+**Não reintroduza o campo no helper nem o número em nenhuma das duas telas** —
+um valor fabricado disponível em `computePerformanceMetrics` volta para a tela na
+primeira pessoa que procurar "savings". O fator +8% continua vivo, de propósito,
+**só** em `components/market-block.tsx`, que declara o próprio `BENCHMARK_FACTOR`,
+vive no detalhe da cotação (outra tela, outra pergunta) e emoldura o resultado
+como ilustrativo.
+
+O selo "Rascunho · Em validação" do Executivo permanece: Economia/Savings entra
+como pauta da cocriação com o Victor Orsi junto com o resto daquele dashboard.
 
 Cada bloco continua auto-fetchando via SWR (deduped por key), embrulhado em
 `IntelBlock` (`components/intel-block.tsx`: `.portal-card` para `real`, moldura
@@ -698,6 +771,23 @@ tela não mostra a diferença entre "diferente" e "contestável".
 O modal **não envia** nada (não há destinatário nem serviço de contestação): o
 botão Enviar encerra dizendo exatamente isso, e anexo fica local. Não troque por
 uma confirmação que sugira envio.
+
+**"Causas mais comuns de divergência"** (`components/divergence-causes-block.tsx`
++ `computeDivergenceCauses` em `lib/conciliation.ts`, unit-testada) abre a
+Camada 1, acima da lista. Responde o que a lista não responde: a lista diz QUAIS
+embarques divergiram, a barra diz O QUE costuma divergir — a diferença entre
+conferir um fechamento e negociar a próxima cotação. Três regras:
+
+- **Denominador = linhas divergentes, não embarques.** As fatias somam 100% e as
+  barras são comparáveis entre si. Contar embarques faria um embarque com três
+  itens divergentes valer o mesmo que um com um só.
+- **A função não conhece os itens.** Nada nela cita "Frete/THC/Prazo" nem
+  `CONCILIATION_EXAMPLES`: recebe os exemplos por argumento e reusa
+  `evaluateLine`. Quando a fonte virar NF final, troca-se o argumento e item novo
+  ("Sobrestadia") entra sozinho no ranking.
+- **Selo `preview`, não `pending`**, e a nota de rodapé explica: o cálculo é real,
+  o volume é ilustrativo, porque roda sobre os exemplos EXEMPLO-. Mesma categoria
+  do que ela resume — vira `real` junto com a lista, sem tocar no cálculo.
 
 A Camada 1 é **resumo → detalhe**, o mesmo padrão de Meus Embarques > Lista: a
 lista compacta responde "algum embarque divergiu?" e o "Ver detalhe" abre a

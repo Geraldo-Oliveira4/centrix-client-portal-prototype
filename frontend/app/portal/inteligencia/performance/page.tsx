@@ -20,9 +20,15 @@ import { StatNumber } from '../../_shared/stat-number';
 import type { Tone } from '../../_shared/tone';
 import { flattenQuotations } from '../lib/intel-helpers';
 import { computePerformanceMetrics } from '../lib/performance-helpers';
+import {
+  computeCarrierUsage,
+  computeRouteDeviations,
+} from '../lib/shipment-dimensions';
 import { volumeTrend, weeklyVolume } from '../lib/volume-helpers';
 import { AgentWinsBlock } from './components/agent-wins-block';
-import { SavingsBlock } from './components/savings-block';
+import { CarrierUsageBlock } from './components/carrier-usage-block';
+import { RouteDeviationsBlock } from './components/route-deviations-block';
+import { SavingsBenchmarkBlock } from './components/savings-benchmark-block';
 import { StatusDonutBlock } from './components/status-donut-block';
 import { WeeklyVolumeChart } from './components/weekly-volume-chart';
 
@@ -77,10 +83,16 @@ export default function PerformancePage() {
   }
 
   const m = computePerformanceMetrics(data);
-  const quotationTrend = volumeTrend(flattenQuotations(data).map((q) => q.created_at));
+  const quotations = flattenQuotations(data);
+  const quotationTrend = volumeTrend(quotations.map((q) => q.created_at));
   const shipmentDates = shipments.map((s) => s.created_at);
   const shipmentTrend = volumeTrend(shipmentDates);
   const weekly = weeklyVolume(shipmentDates, 8);
+
+  // Dimensões do embarque. As duas dependem do join embarque -> cotação: a rota
+  // real e o armador moram na cotação, não no payload do embarque.
+  const routeDeviations = computeRouteDeviations(shipments, quotations);
+  const carrierUsage = computeCarrierUsage(shipments, quotations);
 
   return (
     <div className="space-y-8">
@@ -203,7 +215,17 @@ export default function PerformancePage() {
         </p>
       </section>
 
-      <SavingsBlock estimatedSavingsBRL={m.estimatedSavingsBRL} />
+      {/* Dimensões do embarque: por onde a carga passa e em que navio. Ambas
+          `pending` por VOLUME de rastreamento, não por cálculo — ver os
+          componentes. */}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <RouteDeviationsBlock routes={routeDeviations} />
+        <CarrierUsageBlock carriers={carrierUsage} />
+      </div>
+
+      {/* Fecha a tela com o que ainda não dá para responder. Substituiu o antigo
+          "Economia estimada", que fabricava um número para a mesma pergunta. */}
+      <SavingsBenchmarkBlock />
     </div>
   );
 }
