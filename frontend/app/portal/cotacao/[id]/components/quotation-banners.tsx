@@ -160,13 +160,13 @@ export function GuardRailBlockBanner({ reason }: { reason: string }) {
 
 export function FinalizedCancelledBanner() {
   return (
-    <div className="rounded-xl border-l-4 border-slate-400 bg-slate-50 p-4 flex items-start gap-3">
-      <Ban className="h-5 w-5 text-slate-500 shrink-0 mt-0.5" />
+    <div className="rounded-xl border-l-4 border-portal-neutral bg-portal-neutral/8 p-4 flex items-start gap-3">
+      <Ban className="h-5 w-5 text-portal-neutral shrink-0 mt-0.5" />
       <div className="space-y-0.5">
-        <p className="portal-h3 text-slate-700">
+        <p className="portal-h3 text-portal-neutral">
           Cotação cancelada
         </p>
-        <p className="portal-body text-slate-600">
+        <p className="portal-body text-portal-neutral">
           Esta cotação foi cancelada e não está mais em andamento.
         </p>
       </div>

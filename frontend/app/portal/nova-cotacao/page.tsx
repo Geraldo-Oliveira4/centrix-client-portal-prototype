@@ -65,7 +65,7 @@ export default function PortalNovaCotacaoPage() {
     return (
       <div className="mx-auto max-w-2xl space-y-6 py-8">
         <div className="flex flex-col items-center gap-4 text-center">
-          <CheckCircle2 className="h-16 w-16 text-green-500" />
+          <CheckCircle2 className="h-16 w-16 text-portal-success" />
           <div className="space-y-2">
             <h2 className="text-2xl font-bold">Cotação Criada!</h2>
             <p className="text-muted-foreground">

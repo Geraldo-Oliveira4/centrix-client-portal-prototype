@@ -275,7 +275,7 @@ export default function PortalCotacaoDetailPage() {
               {showCancel ? (
                 <Button
                   variant="ghost"
-                  className="text-slate-600 hover:text-rose-700"
+                  className="text-portal-neutral hover:text-portal-danger"
                   onClick={() => setCancelOpen(true)}
                 >
                   <Ban className="mr-1.5 h-4 w-4" />
@@ -284,7 +284,7 @@ export default function PortalCotacaoDetailPage() {
               ) : null}
             </div>
             {!showActions && needsInfo ? (
-              <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+              <span className="inline-flex items-center gap-1 rounded bg-portal-warning/10 px-2.5 py-1 text-xs font-medium text-portal-warning">
                 Aguardando Informações
               </span>
             ) : null}

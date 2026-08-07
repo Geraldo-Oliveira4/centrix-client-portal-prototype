@@ -50,32 +50,38 @@ export function ProposalsTable({
                     key={p.id}
                     className={cn(
                       'px-4 py-3 border-b min-w-[180px] align-top text-center font-normal',
-                      isWinner && 'bg-emerald-50/60 dark:bg-emerald-950/20',
+                      isWinner && 'bg-portal-success/8',
                       isSelected && !locked && 'bg-muted/30',
                       dimmed && 'opacity-50',
                     )}
                   >
                     <div className="flex flex-col items-center gap-1.5">
+                      {/* Two hues over four badges: outcome (success) and
+                          system-said (info). Within each hue the stronger tint
+                          is the stronger claim — Vencedora over Menor preço,
+                          Recomendada over Mais rápido — because Recomendada and
+                          Mais rápido can render side by side on the same
+                          proposal and would otherwise be one blue chip twice. */}
                       <div className="flex flex-wrap justify-center gap-1 min-h-[1rem]">
                         {isWinner && (
-                          <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+                          <span className="inline-flex items-center gap-1 rounded bg-portal-success/15 px-1.5 py-0.5 text-xs font-medium text-portal-success">
                             <CheckCircle2 className="h-3 w-3" />
                             Vencedora
                           </span>
                         )}
                         {!locked && p.is_recommended && (
-                          <span className="inline-flex items-center gap-1 rounded bg-violet-50 px-1.5 py-0.5 text-xs text-violet-700">
+                          <span className="inline-flex items-center gap-1 rounded bg-portal-info/15 px-1.5 py-0.5 text-xs text-portal-info">
                             <Sparkles className="h-3 w-3" />
                             Recomendada
                           </span>
                         )}
                         {!locked && p.is_cheapest && (
-                          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-700">
+                          <span className="rounded bg-portal-success/8 px-1.5 py-0.5 text-xs text-portal-success">
                             Menor preço
                           </span>
                         )}
                         {!locked && p.is_fastest && !p.is_cheapest && (
-                          <span className="rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700">
+                          <span className="rounded bg-portal-info/8 px-1.5 py-0.5 text-xs text-portal-info">
                             Mais rápido
                           </span>
                         )}
@@ -202,7 +208,7 @@ function DataCell({ children, isWinner, isSelected, dimmed }: DataCellProps) {
     <td
       className={cn(
         'px-4 py-2.5 text-center',
-        isWinner && 'bg-emerald-50/60 dark:bg-emerald-950/20',
+        isWinner && 'bg-portal-success/8',
         isSelected && 'bg-muted/30',
         dimmed && 'opacity-50',
       )}
