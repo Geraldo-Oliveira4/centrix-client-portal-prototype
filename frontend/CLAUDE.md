@@ -352,8 +352,26 @@ hierarchy. Use `<PagePortalHeader>` / `<SectionHeading>` from
 
 Page background is `bg-portal-canvas` (#F5F5F7), applied in `app/portal/layout.tsx`.
 
-**Colour** — actions and links stay on the brand pink (`--primary`). The semantic
-palette is for STATE only and never for actions:
+**Colour — two systems that must never be merged.**
+
+*System 1 — identity (guia de marca Freitas).* Three colours, defined once as
+CSS variables in `styles/globals.css` (`--pink`/`--primary`, `--orange`/`--accent`,
+`--navy`/`--foreground`) and spelled as Tailwind tokens in `tailwind.config.ts`
+(`brand-pink`, `brand-gold`, `brand-navy`). The HSL triples carry decimals on
+purpose — they are the exact conversion of the hex and rounding them moves the
+rendered colour off-brand.
+
+| Colour | Hex | Pantone | Where |
+|---|---|---|---|
+| Rosa/magenta (primária) | `#CE0F69` | 214 C | actions, links, active nav, `preview` seal (`--primary`) |
+| Laranja (secundária) | `#FF9E1B` | 1375 C | shadcn hover/focus (`--accent`), brand gradients |
+| Azul-marinho (terciária) | `#2C2D65` | 2119 C | all headings and dark text (`--foreground`), auth-shell plate |
+
+`--accent-foreground` is the navy, not white: white on `#FF9E1B` is 2.07:1, and
+`bg-accent` is only ever used paired with it.
+
+*System 2 — status semáforo (`/portal` only).* STATE, never actions, and
+**deliberately not aligned to the brand guide**:
 
 | Token | Hex | Meaning |
 |---|---|---|
@@ -363,9 +381,25 @@ palette is for STATE only and never for actions:
 | `portal-info` | `#2E5CFF` | in progress, nothing required from the client |
 | `portal-neutral` | `#8E8E93` | secondary metadata |
 
+`portal-warning` is `#FF9500`, **not** the brand orange `#FF9E1B`. Aligning it
+would make "atenção" indistinguishable from a branded surface — the whole point
+of a semáforo is that its colour means one thing only. Do not "fix" the semantic
+palette towards the brand palette; a colour audit that touches System 1 must
+leave System 2 byte-identical.
+
 State→colour maps live next to their type (`ESTADO_BADGE_CLASS` /
 `ESTADO_ACCENT_CLASS` in `types/portal-shipment.ts`) so the badge, the summary
 tile and the progress steps cannot drift apart.
+
+**Typography** — Montserrat (`app/layout.tsx`, `next/font/google`) app-wide,
+including `/portal`; `.portal-h1/h2/h3` set size and weight only and inherit it.
+The brand guide specifies **Avenir** for headings, which is **not applied**:
+Avenir is a Monotype/Linotype family with no free web license and is absent from
+Google Fonts. Do not swap it in until Freitas provides the webfont license —
+this is an open brand pendency, not an oversight. `Source_Sans_3` is loaded, but
+only by `app/proposta-cliente/layout.tsx`, and is the natural fallback candidate
+if the licence never lands (humanist, far closer to Avenir than the geometric
+Montserrat).
 
 **Shared components on a portal surface** — do not fork them. `RecommendationView`
 takes `variant="portal"`, which swaps only its shell and header for

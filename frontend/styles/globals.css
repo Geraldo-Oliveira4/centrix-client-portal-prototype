@@ -2,33 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------------------------------------------------------------------
+ * Freitas brand palette — the three official colours, and the ONLY source of
+ * truth for them. Each HSL triple below is the exact conversion of the hex in
+ * the brand guide; do not round the decimals, they are what lands the rendered
+ * colour on the specified hex.
+ *
+ *   Rosa/magenta (primária)  #CE0F69  Pantone 214 C   -> 331.7 86.4% 43.3%
+ *   Laranja (secundária)     #FF9E1B  Pantone 1375 C  ->  34.5  100% 55.3%
+ *   Azul-marinho (terciária) #2C2D65  Pantone 2119 C  -> 238.9 39.3% 28.4%
+ *
+ * These three govern IDENTITY (primary actions, links, headers, dark text).
+ * They are a different system from the /portal status semáforo
+ * (portal-success | portal-warning | portal-danger | portal-info in
+ * tailwind.config.ts), which encodes MEANING and deliberately does not follow
+ * the brand guide — portal-warning is #FF9500, not the brand orange, so that
+ * "atenção" can never be confused with a branded surface. Never collapse the
+ * two systems.
+ * ------------------------------------------------------------------------- */
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 237 40% 15%;
+    --foreground: 238.9 39.3% 28.4%;
     --card: 0 0% 100%;
-    --card-foreground: 237 40% 15%;
+    --card-foreground: 238.9 39.3% 28.4%;
     --popover: 0 0% 100%;
-    --popover-foreground: 237 40% 15%;
-    --primary: 326 79% 48%;
+    --popover-foreground: 238.9 39.3% 28.4%;
+    --primary: 331.7 86.4% 43.3%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 326 50% 95%;
-    --secondary-foreground: 326 79% 35%;
+    --secondary: 331.7 50% 95%;
+    --secondary-foreground: 331.7 86.4% 35%;
     --muted: 237 20% 95%;
     --muted-foreground: 237 20% 45%;
-    --accent: 35 93% 54%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 34.5 100% 55.3%;
+    /* Brand navy, not white: white on #FF9E1B is 2.07:1. The accent is only
+       ever used as `bg-accent text-accent-foreground` (shadcn hover/focus). */
+    --accent-foreground: 238.9 39.3% 28.4%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
     --border: 237 20% 88%;
     --input: 237 20% 88%;
-    --ring: 326 79% 48%;
+    --ring: 331.7 86.4% 43.3%;
     --radius: 0.5rem;
 
     /* Brand colors */
-    --navy: 237 54% 21%;
-    --pink: 326 79% 48%;
-    --orange: 35 93% 54%;
+    --navy: 238.9 39.3% 28.4%;
+    --pink: 331.7 86.4% 43.3%;
+    --orange: 34.5 100% 55.3%;
   }
 
   .dark {
@@ -38,19 +58,21 @@
     --card-foreground: 0 0% 100%;
     --popover: 237 54% 17%;
     --popover-foreground: 0 0% 100%;
-    --primary: 326 79% 58%;
+    /* Dark mode keeps the +10% lightness lift the theme already had over the
+       light primary, so the brand pink stays legible on a navy surface. */
+    --primary: 331.7 86.4% 53.3%;
     --primary-foreground: 0 0% 100%;
     --secondary: 237 40% 22%;
     --secondary-foreground: 0 0% 100%;
     --muted: 237 40% 20%;
     --muted-foreground: 237 20% 65%;
-    --accent: 35 93% 54%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 34.5 100% 55.3%;
+    --accent-foreground: 238.9 39.3% 28.4%;
     --destructive: 0 72.2% 50.6%;
     --destructive-foreground: 0 0% 100%;
     --border: 237 40% 23%;
     --input: 237 40% 23%;
-    --ring: 326 79% 58%;
+    --ring: 331.7 86.4% 53.3%;
   }
 }
 
@@ -80,24 +102,25 @@
 .bg-blue-gradient {
   background: linear-gradient(
     135deg,
-    hsl(326, 79%, 48%) 0%,
-    hsl(35, 93%, 54%) 100%
+    hsl(var(--pink)) 0%,
+    hsl(var(--orange)) 100%
   );
 }
 
-/* Brand gradient with glow effect */
+/* Brand gradient with glow effect: the three official colours and nothing else
+   — #CE0F69 glow, #FF9E1B glow, #2C2D65 plate. */
 .bg-brand-gradient {
   background: radial-gradient(
       ellipse at top left,
-      rgba(233, 30, 140, 0.35) 0%,
+      rgba(206, 15, 105, 0.35) 0%,
       transparent 55%
     ),
     radial-gradient(
       ellipse at bottom right,
-      rgba(247, 148, 29, 0.3) 0%,
+      rgba(255, 158, 27, 0.3) 0%,
       transparent 55%
     ),
-    hsl(237, 54%, 13%);
+    hsl(var(--navy));
 }
 
 /* Enhanced animations */
@@ -343,10 +366,13 @@
  * page title: at 14-16px, bold reads as heavy and flattens the hierarchy, which
  * is what made every card feel equally loud.
  *
- * Action/link colour stays the Freitas brand pink (--primary). The semantic
- * palette below is for STATE only (done / attention / critical / secondary) and
- * lives in tailwind.config.ts as portal-success | portal-warning |
- * portal-danger | portal-neutral | portal-canvas.
+ * Action/link colour stays the Freitas brand pink, --primary = #CE0F69 (see the
+ * brand palette block at the top of this file). The semantic palette below is
+ * for STATE only (done / attention / critical / secondary) and lives in
+ * tailwind.config.ts as portal-success | portal-warning | portal-danger |
+ * portal-neutral | portal-canvas. portal-warning is #FF9500, NOT the brand
+ * orange #FF9E1B — a status colour must never be mistakable for a branded
+ * surface, so the two are kept visibly apart on purpose.
  * ------------------------------------------------------------------------- */
 .portal-h1 {
   font-size: 28px;

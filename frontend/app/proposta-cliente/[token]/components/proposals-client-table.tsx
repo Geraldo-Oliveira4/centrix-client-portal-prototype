@@ -85,7 +85,7 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
 
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
-      <div className="bg-[brand-navy] px-4 py-3 flex items-center justify-between gap-4">
+      <div className="bg-brand-navy px-4 py-3 flex items-center justify-between gap-4">
         <p className="text-xs font-semibold text-white/90 uppercase tracking-wide">
           Comparativo de Propostas
         </p>
@@ -97,7 +97,7 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
               className={cn(
                 'text-[10px] font-medium px-2 py-1 rounded border transition-colors',
                 filter === f
-                  ? 'bg-white text-[brand-navy] border-white'
+                  ? 'bg-white text-brand-navy border-white'
                   : 'text-white/70 border-white/30 hover:border-white/60',
               )}
             >
@@ -135,7 +135,7 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
                         <span className="text-sm font-semibold">{p.agent_name}</span>
                       </div>
                       {p.is_recommended && (
-                        <span className="inline-flex items-center w-fit text-[10px] font-semibold bg-[brand-gold] text-[brand-navy] px-1.5 py-0.5 rounded">
+                        <span className="inline-flex items-center w-fit text-[10px] font-semibold bg-brand-gold text-brand-navy px-1.5 py-0.5 rounded">
                           Recomendada
                         </span>
                       )}
@@ -275,7 +275,7 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
                       'px-4 py-2.5',
                       i > 0 && 'border-l',
                       p.free_time_dias != null && p.free_time_dias === maxFreeTime
-                        ? 'text-[brand-navy] font-bold'
+                        ? 'text-brand-navy font-bold'
                         : 'text-muted-foreground',
                     )}
                   >
@@ -289,7 +289,7 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
             <tr className="border-b bg-muted/10">
               <td className="px-4 py-2.5 text-xs text-muted-foreground sticky left-0 bg-muted/10">Prazo (dias)</td>
               {sorted.map((p, i) => (
-                <td key={p.proposal_id} className={cn('px-4 py-2.5', i > 0 && 'border-l', p.is_lowest_transit && 'text-[brand-navy] font-bold')}>
+                <td key={p.proposal_id} className={cn('px-4 py-2.5', i > 0 && 'border-l', p.is_lowest_transit && 'text-brand-navy font-bold')}>
                   {p.transit_time}
                 </td>
               ))}
@@ -346,7 +346,7 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
               {sorted.map((p, i) => (
                 <td key={p.proposal_id} className={cn('px-4 py-2.5', i > 0 && 'border-l')}>
                   {p.insurance_included ? (
-                    <Shield className="w-4 h-4 text-[brand-pink]" />
+                    <Shield className="w-4 h-4 text-brand-pink" />
                   ) : (
                     <ShieldOff className="w-4 h-4 text-muted-foreground/40" />
                   )}
@@ -494,7 +494,7 @@ function ObservationsCell({ text }: { text: string }) {
       <span>{expanded ? text : `${text.slice(0, OBSERVATIONS_LIMIT)}...`}</span>
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="inline-flex items-center gap-0.5 text-[10px] font-medium text-[brand-navy] hover:underline w-fit"
+        className="inline-flex items-center gap-0.5 text-[10px] font-medium text-brand-navy hover:underline w-fit"
       >
         {expanded ? (
           <>Ver menos <ChevronUp className="w-3 h-3" /></>
