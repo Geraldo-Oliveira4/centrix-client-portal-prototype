@@ -25,6 +25,7 @@ import {
 import { formatRoute } from '@/lib/portal-formatters';
 import type { PortalProposal } from '@/types/portal';
 
+import { ClientReferenceTag } from '../../_shared/client-reference-tag';
 import { ModalIcon } from '../../_shared/modal-icon';
 import { ReliabilityBlock } from '../../inteligencia/components/reliability-block';
 import { MarketBlock } from '../../inteligencia/components/market-block';
@@ -247,9 +248,10 @@ export default function PortalCotacaoDetailPage() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <ModalIcon modal={quotation.modal} className="h-5 w-5 text-portal-neutral" />
           <h1 className="portal-h1 text-foreground">{quotation.reference}</h1>
+          <ClientReferenceTag value={quotation.client_reference} />
           {quotation.incoterm ? (
             <span className="portal-small rounded border px-2 py-0.5 font-medium text-portal-neutral">
               {quotation.incoterm}

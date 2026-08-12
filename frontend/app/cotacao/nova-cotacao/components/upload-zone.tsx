@@ -24,9 +24,23 @@ interface UploadZoneProps {
   msgUploadProgress: number;
   isUploading: boolean;
   fileStatuses?: Record<string, FileUploadStatus>;
+  /**
+   * Headline inside the drop zone. Defaults to the analyst wording; the client
+   * portal overrides it — an importer does not think in ".msg", they think in
+   * "BL, Invoice, Packing List".
+   */
+  title?: string;
+  /**
+   * Which DOCUMENTS are expected, as opposed to which file formats are
+   * accepted. Rendered as chips above the formats line; omitted entirely when
+   * not provided, so the analyst screen keeps its current, shorter copy.
+   */
+  expectedDocuments?: string[];
 }
 
 const ACCEPTED_TYPES = '.msg,.pdf,.xls,.xlsx,.csv,.txt,.docx,.png,.jpg,.jpeg,.gif,.webp';
+
+const DEFAULT_TITLE = 'Arraste todos os documentos do processo aqui';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -82,6 +96,8 @@ export function UploadZone({
   msgUploadProgress,
   isUploading,
   fileStatuses,
+  title = DEFAULT_TITLE,
+  expectedDocuments,
 }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -132,10 +148,23 @@ export function UploadZone({
         >
           <UploadCloud className="w-10 h-10 text-muted-foreground" />
           <div className="text-center">
-            <p className="text-sm font-medium">
-              Arraste todos os documentos do processo aqui
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-sm font-medium">{title}</p>
+            {/* Documents first, formats second: the formats line alone never
+                told the client WHAT to send, only what the input would accept. */}
+            {expectedDocuments && expectedDocuments.length > 0 && (
+              <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+                {expectedDocuments.map((doc) => (
+                  <span
+                    key={doc}
+                    className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs text-muted-foreground"
+                  >
+                    <FileText className="h-3 w-3" />
+                    {doc}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground mt-2">
               .msg, PDF, Word, Excel, CSV, TXT, imagens — max 50 MB por arquivo
             </p>
           </div>
@@ -153,6 +182,24 @@ export function UploadZone({
       {/* File list */}
       {files.length > 0 && (
         <div className="flex flex-col gap-1.5">
+          {/* What is attached, at a glance. While the request is in flight the
+              line says so instead of a percentage: only the .msg upload reports
+              real progress (below), and a bar for the others would be an
+              animation, not a measurement. */}
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>
+              {files.length} {files.length === 1 ? 'arquivo anexado' : 'arquivos anexados'}
+              {' · '}
+              {formatBytes(files.reduce((sum, f) => sum + f.size, 0))}
+            </span>
+            {isUploading && (
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Enviando…
+              </span>
+            )}
+          </div>
+
           {files.map((file, index) => {
             const status = fileStatuses?.[file.name];
             const isDone = status === 'done';

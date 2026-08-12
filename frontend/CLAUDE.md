@@ -407,6 +407,34 @@ takes `variant="portal"`, which swaps only its shell and header for
 default. Follow that pattern for any other shared component that has to sit on a
 portal screen.
 
+**PO do cliente (`client_reference`) — identificador de rastreio adicional.**
+O número que o cliente digita na cotação ("PO-12345") acompanha a jornada
+inteira e é pesquisável nas duas telas: Funil, Histórico e detalhe da cotação, e
+Meus Embarques (lista e detalhe), onde chega **por join** com a cotação de
+origem (nunca copiado — ver o CLAUDE.md da raiz). Três invariantes:
+
+- **Não substitui o ID interno.** COT-XXXX / EMB-XXXX seguem sendo a identidade
+  do registro, a chave de rota e o texto de maior peso no card. O selo
+  `ClientReferenceTag` (`app/portal/_shared/client-reference-tag.tsx`) é
+  deliberadamente mais discreto e leva o prefixo "PO" para nunca ser lido como
+  referência interna.
+- **Sem PO, não renderiza nada.** O campo é opcional na cotação e simplesmente
+  não existe num embarque aberto fora do portal; um "PO —" leria como campo
+  faltando em vez de campo que não se aplica.
+- **Uma normalização só.** `matchesClientReference` (mesmo arquivo) tira caixa e
+  separadores, então "PO 2026/1183" acha "PO-2026-1183" — e as duas buscas
+  (`applyPortalFilters` das cotações e o filtro da Lista de embarques) usam essa
+  função, não uma comparação própria.
+
+**Filtros rápidos de Meus Embarques > Lista** (chips acima da lista): predicados
+sobre o dado que a Lista já tem — Urgentes (`carga_urgente`), Embarcados
+(`estado`), Com atraso (`delayRiskFromTracking`, a mesma função do badge) e Com
+exceção (`isExceptionState`). Chip com contagem zero não é renderizado. O chip é
+"**Embarcados**", não "Em trânsito": `embarcado` é o estado real do GE e
+significa PARTIDA, enquanto "Em trânsito" é o milestone `OCEAN_TRANSIT` do
+ShipsGo, que segue "Pendente integração" — um chip com aquele nome selecionaria
+embarques cuja própria timeline diz que o trânsito é desconhecido.
+
 **`PortalSearchInput`** (`app/portal/_shared/portal-search-input.tsx`) is the
 portal's only search affordance: a lupa que expande num input. Minhas Cotações
 (Funil e Histórico) e Meus Embarques > Lista renderizam **o mesmo componente** —
@@ -420,7 +448,17 @@ illustrative origin→destination track: the vehicle position is a fixed
 percentage per `estado`, NOT a location — there is no GPS/AIS/carrier feed in
 this repo. Its "não é rastreamento por GPS" caption is load-bearing; keep it if
 you touch the component. Endpoints are labelled generically because the shipment
-payload carries no route (origin lives on the quotation).
+payload carries no route (origin lives on the quotation). The vehicle badge is
+**centred on the line**, not stacked above it: riding above forced 28px of
+padding whose only occupant was the badge itself parked at one end, and the
+wider the card the more of that band read as empty space beside the bar.
+
+O detalhe do embarque mostra um link discreto "Ver exemplo com dado de tracking
+preenchido →" quando ESTE embarque não tem rastreamento. O alvo é **descoberto
+na lista pelo próprio dado** (`data_status === 'COMPLETE'` + um milestone
+reportado), nunca por uma lista de EMB-XXXX chumbada: quando um embarque real
+ganhar rastreamento ele vira alvo válido sozinho, e se o top-up de demonstração
+sair o link some em vez de apontar para uma referência inexistente.
 
 **Carrier tracking (ShipsGo) — structure only, no integration.** The backend
 ships a `tracking` block on every shipment payload (backend migration 091) whose
@@ -709,11 +747,23 @@ Ao mexer num bloco, mantenha o `provenance` coerente com o **headline**: se o
 número em destaque é fabricado, o bloco é `preview` (mesmo que use nomes/valores
 reais em volta) e a footnote deve dizer o que é real e o que é ilustrativo.
 
-### Minhas Cotações — Funil e Histórico (`/portal/cotacoes/`)
+### Minhas Cotações — Funil, Histórico, Fechadas e Negadas (`/portal/cotacoes/`)
 
-Duas abas, uma pergunta cada. **Funil** = cotação em andamento; **Histórico** =
+Quatro abas, nesta ordem. **Funil** = cotação em andamento; **Histórico** =
 cotação fechada, só leitura. Nenhuma coluna de cotação fechada no kanban, nenhum
 número repetido entre topo e colunas.
+
+**Fechadas** (FECHADA) e **Negadas** (DECLINADA + CANCELADO) são **recortes** do
+Histórico, não telas novas: renderizam o MESMO `HistoryTab`, com a prop
+`outcomes` fixando o escopo. Três regras:
+
+- O Histórico continua mostrando as três situações juntas — as abas focadas são
+  atalho, não substituição. Não remova a aba nem o seletor "Situação" dela.
+- Numa aba com `outcomes`, o seletor "Situação" **some**. Dois controles capazes
+  de discordar deixariam a aba "Fechadas" mostrar uma cotação cancelada.
+- Nada é duplicado: a expansão "Conferência de dados", o `useAuditPreviews` e o
+  modal de documentos são os mesmos, então uma mudança de layout de linha cai
+  nas três abas de uma vez.
 
 - **Funil** (`components/funnel-tab.tsx`): um único número dominante —
   "X cotações aguardando sua ação" = soma de `PORTAL_CLIENT_ACTION_BUCKETS`

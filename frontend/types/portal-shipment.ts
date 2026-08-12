@@ -66,6 +66,16 @@ export interface PortalShipmentTracking {
 export interface PortalShipment {
   id: string;
   referencia: string;
+  /**
+   * The client's own PO number, read from the quotation that provisioned this
+   * shipment (backend joins Processo.quotation_id -> Quotation.client_reference).
+   *
+   * It is an ADDITIONAL display/search key, never the record's identity: the
+   * portal still addresses a shipment by `id` and names it by `referencia`.
+   * Null for a process the analyst opened outside the portal — there is no
+   * quotation behind it, so there is no PO, and that reads as absent.
+   */
+  client_reference: string | null;
   estado: EmbarqueEstado;
   incoterm: string | null;
   modal: QuotationModal | null;

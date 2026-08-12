@@ -38,6 +38,14 @@ const STATUS_LABEL: Record<StatusFilter, string> = {
   CANCELADO: 'Canceladas',
 };
 
+/**
+ * Outcomes a tab is locked to. Histórico passes nothing and keeps the "Situação"
+ * select; Fechadas and Negadas pass a fixed set and lose it — the tab IS the
+ * filter there, and leaving a second control able to contradict it would let the
+ * "Fechadas" tab show a cancelled quotation.
+ */
+export type HistoryOutcome = 'FECHADA' | 'DECLINADA' | 'CANCELADO';
+
 const PERIOD_LABEL: Record<PeriodFilter, string> = {
   all: 'Qualquer data',
   '30': 'Últimos 30 dias',
@@ -50,15 +58,48 @@ interface SelectedForUpload {
   reference: string;
 }
 
+interface HistoryTabProps {
+  quotations: PortalQuotation[];
+  /**
+   * Fixed outcome scope of this tab. Absent = Histórico (everything, with the
+   * "Situação" select available). Present = a focused cut (Fechadas, Negadas):
+   * the list is pre-filtered and the select is gone.
+   */
+  outcomes?: HistoryOutcome[];
+  /** Copy for the empty state, which differs per cut. */
+  emptyHint?: string;
+  /** Noun used in the "N cotações fechadas" counter. */
+  countLabel?: { singular: string; plural: string };
+}
+
 /**
  * Histórico — closed quotations as a list, never a kanban: nothing here moves
  * between columns and nothing can be approved or declined, so the screen is
  * read-only. Filtering is by outcome and by closing period.
+ *
+ * The same component backs the Fechadas and Negadas tabs: they are shortcuts
+ * into this list, not separate screens, so a change to the row layout or to the
+ * conference expansion lands on all three at once.
  */
-export function HistoryTab({ quotations }: { quotations: PortalQuotation[] }) {
+export function HistoryTab({
+  quotations: allQuotations,
+  outcomes,
+  emptyHint,
+  countLabel,
+}: HistoryTabProps) {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [period, setPeriod] = useState<PeriodFilter>('all');
+
+  const quotations = useMemo(
+    () =>
+      outcomes
+        ? allQuotations.filter((q) =>
+            outcomes.includes(q.state as HistoryOutcome),
+          )
+        : allQuotations,
+    [allQuotations, outcomes],
+  );
 
   // The conference only exists for approved quotations, and the SWR key is the
   // full set of approved ids (not the filtered ones) so filtering never
@@ -119,14 +160,17 @@ export function HistoryTab({ quotations }: { quotations: PortalQuotation[] }) {
       );
   }, [quotations, query, status, period]);
 
-  const activeFilters = (status !== 'all' ? 1 : 0) + (period !== 'all' ? 1 : 0);
+  const showStatusFilter = outcomes == null;
+  const activeFilters =
+    (showStatusFilter && status !== 'all' ? 1 : 0) + (period !== 'all' ? 1 : 0);
+
+  const noun = countLabel ?? { singular: 'cotação fechada', plural: 'cotações fechadas' };
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="portal-small text-portal-neutral">
-          {filtered.length}{' '}
-          {filtered.length === 1 ? 'cotação fechada' : 'cotações fechadas'}
+          {filtered.length} {filtered.length === 1 ? noun.singular : noun.plural}
           {filtered.length !== quotations.length ? ` de ${quotations.length}` : ''}
         </p>
 
@@ -134,8 +178,8 @@ export function HistoryTab({ quotations }: { quotations: PortalQuotation[] }) {
           <PortalSearchInput
             value={query}
             onChange={setQuery}
-            placeholder="Referência ou produto…"
-            label="Buscar cotação por referência ou produto"
+            placeholder="Referência, PO ou produto…"
+            label="Buscar cotação por referência, PO do cliente ou produto"
           />
 
           <Popover>
@@ -151,24 +195,26 @@ export function HistoryTab({ quotations }: { quotations: PortalQuotation[] }) {
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64 space-y-4">
-              <div className="space-y-2">
-                <Label className="portal-small text-portal-neutral">Situação</Label>
-                <Select
-                  value={status}
-                  onValueChange={(v) => setStatus(v as StatusFilter)}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(STATUS_LABEL) as StatusFilter[]).map((key) => (
-                      <SelectItem key={key} value={key}>
-                        {STATUS_LABEL[key]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {showStatusFilter && (
+                <div className="space-y-2">
+                  <Label className="portal-small text-portal-neutral">Situação</Label>
+                  <Select
+                    value={status}
+                    onValueChange={(v) => setStatus(v as StatusFilter)}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(STATUS_LABEL) as StatusFilter[]).map((key) => (
+                        <SelectItem key={key} value={key}>
+                          {STATUS_LABEL[key]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label className="portal-small text-portal-neutral">
@@ -198,11 +244,12 @@ export function HistoryTab({ quotations }: { quotations: PortalQuotation[] }) {
       {filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-muted/20 p-6 text-center">
           <p className="portal-body font-medium text-foreground">
-            Nenhuma cotação fechada encontrada
+            Nenhuma {noun.singular} encontrada
           </p>
           <p className="portal-small text-portal-neutral">
             {quotations.length === 0
-              ? 'Cotações aprovadas, recusadas e canceladas aparecem aqui.'
+              ? (emptyHint ??
+                'Cotações aprovadas, recusadas e canceladas aparecem aqui.')
               : 'Ajuste a busca ou os filtros.'}
           </p>
         </div>

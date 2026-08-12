@@ -50,8 +50,10 @@ def lambda_handler(event, context):
             if owned is None:
                 return build_response(404, {"error": "Shipment not found"})
 
-            processo, embarque, agent = owned
-            result = serialize_shipment_detail_for_portal(processo, embarque, agent)
+            processo, embarque, agent, client_reference = owned
+            result = serialize_shipment_detail_for_portal(
+                processo, embarque, agent, client_reference
+            )
 
         return build_response(200, {"shipment": result})
 

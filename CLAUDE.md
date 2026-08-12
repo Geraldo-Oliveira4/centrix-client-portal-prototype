@@ -35,7 +35,7 @@ backend/                         # FastAPI (substitui AWS Lambda + API Gateway)
   alembic/                       # COPIADO — migrations 001..089 (+090..094, do protótipo)
   scripts/
     seed_prototype.py            # cliente demo + 9 cotações + agentes + DNA + 7 embarques
-    e2e_test.py                  # suíte E2E (108 checagens)
+    e2e_test.py                  # suíte E2E (113 checagens)
 frontend/                        # CÓPIA do app Next.js do Centrix (só /portal ligado ao backend)
   vendor/arboria-ui, arboria-config   # deps @arboria-tech vendorizadas (file:), sem GitHub Packages
 docker-compose.yml               # Postgres 16 local
@@ -76,6 +76,13 @@ atualizada — é o que dificulta um futuro re-sync):
     projeção reduzida (sem `inova_processo_id`, sem `client_id`).
   - `lambdas/client_portal/{list_my_shipments,get_my_shipment}/` — handlers
     novos, sem contrapartida no Centrix.
+  - `client_reference` (a **PO do cliente**) viaja da cotação para o embarque
+    por **join**, não por cópia: `portal_shipment_repository` faz OUTER JOIN
+    `Processo.quotation_id -> Quotation.client_reference` e o serializer expõe o
+    campo. Não existe coluna de PO em embarque, e não deve existir — duas
+    cópias divergiriam na primeira correção de PO. Processo aberto fora do
+    portal não tem cotação e por isso não tem PO: `null` é a resposta certa, não
+    lacuna a preencher (travado por `O17`..`O20` no e2e).
   - Nada do módulo GE do analista (`lambdas/shipment*`, rotas `/shipments`) foi
     copiado: as tabelas e repositories existem, os handlers não.
 - **Campos de rastreamento da companhia marítima** (estrutura para a integração
@@ -344,6 +351,13 @@ fazer), e ele confere que cada embarque novo nasceu com o `reference` anunciado
 no plano antes de commitar — a referência é gerada pelo repositório, não
 escolhida aqui.
 
+`backend/scripts/topup_client_po.py` preenche `client_reference` (a PO do
+cliente) nas oito cotações semeadas que a ganharam no seed. Só UPDATE, e só onde
+a coluna está NULL — cotação que já tem PO (inclusive as criadas pela suíte e2e
+ou pelo próprio cliente) é pulada, nunca sobrescrita. Como não cria nem apaga
+linha, o delta esperado é **zero** e qualquer delta vira ROLLBACK. Num banco
+limpo o `make seed` já grava os POs e este script não tem o que fazer.
+
 `backend/scripts/topup_funnel_quotations.py` é um script de uma vez só, **não faz
 parte do fluxo normal**. `seed_prototype.py` é skip-if-exists (sai sem fazer nada
 se o CLIENTE DEMO já existir), então cotações acrescentadas ao seed depois que um
@@ -373,7 +387,7 @@ elegibilidade de RFQ, 404 anti-enumeração, mocks). Rode com banco recém-semea
 ```bash
 docker compose down -v && docker compose up -d
 cd backend && make migrate && make seed && make run &
-.venv/bin/python -m scripts.e2e_test     # -> 108/108 ALL PASS
+.venv/bin/python -m scripts.e2e_test     # -> 113/113 ALL PASS
 ```
 
 A suíte **muta dados** (aprova, recusa, cancela cotações da semente) e exige um

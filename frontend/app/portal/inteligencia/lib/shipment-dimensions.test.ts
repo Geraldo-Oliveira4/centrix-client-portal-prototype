@@ -19,6 +19,7 @@ import {
 const shipment = (id, quotationId, tracking = null) => ({
   id,
   referencia: id,
+  client_reference: null,
   estado: 'embarcado',
   incoterm: null,
   modal: 'MARITIMO',

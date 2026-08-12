@@ -28,6 +28,7 @@ import type {
   PortalQuotation,
 } from '@/types/portal';
 
+import { ClientReferenceTag } from '../../_shared/client-reference-tag';
 import { ModalIcon } from '../../_shared/modal-icon';
 
 // Cards only ever render inside the Funil columns now — the terminal buckets
@@ -97,6 +98,10 @@ export function QuotationCard({ quotation, bucket }: QuotationCardProps) {
         <div className="flex min-w-0 flex-wrap items-center gap-1.5 portal-small text-portal-neutral">
           <ModalIcon modal={quotation.modal} />
           <span className="font-medium text-foreground">{quotation.reference}</span>
+          {/* Sua referência (PO), quando o cliente informou uma. Fica ao lado da
+              COT-XXXX, nunca no lugar dela: é chave de busca e reconhecimento,
+              não a identidade do registro. */}
+          <ClientReferenceTag value={quotation.client_reference} />
           {quotation.incoterm ? <span>· {quotation.incoterm}</span> : null}
           {isUrgent ? (
             <span className="portal-small inline-flex items-center gap-1 rounded bg-portal-danger/10 px-1.5 py-0.5 font-medium text-portal-danger">

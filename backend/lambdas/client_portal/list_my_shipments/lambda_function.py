@@ -42,8 +42,10 @@ def lambda_handler(event, context):
 
             rows = portal_shipment_repository.list_by_client(session, client_id)
             items = [
-                serialize_shipment_for_portal(processo, embarque, agente_nome)
-                for processo, embarque, agente_nome in rows
+                serialize_shipment_for_portal(
+                    processo, embarque, agente_nome, client_reference
+                )
+                for processo, embarque, agente_nome, client_reference in rows
             ]
             by_estado = count_by_estado(rows)
 

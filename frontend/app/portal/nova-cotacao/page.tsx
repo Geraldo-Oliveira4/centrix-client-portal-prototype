@@ -22,6 +22,17 @@ import type { Exporter } from '@/types/exporter';
 
 type PagePhase = 'idle' | 'submitting' | 'done';
 
+// Os documentos que a Freitas espera do processo. É a lista de DOCUMENTOS, não
+// de formatos: ".msg, PDF, Word…" dizia o que o input aceita, nunca o que o
+// cliente deveria mandar. Os formatos continuam logo abaixo, como detalhe.
+const PORTAL_EXPECTED_DOCUMENTS = [
+  'BL / AWB',
+  'Invoice',
+  'Packing List',
+  'Certificado de origem',
+  'E-mail do exportador',
+];
+
 export default function PortalNovaCotacaoPage() {
   const router = useRouter();
   const [phase, setPhase] = useState<PagePhase>('idle');
@@ -138,11 +149,19 @@ export default function PortalNovaCotacaoPage() {
 
         <TabsContent value="upload" className="mt-4">
           <div className="space-y-4">
+            <p className="portal-small text-portal-neutral">
+              Envie o que você já tem do processo — BL ou AWB, Invoice, Packing
+              List, certificado de origem, ou o próprio e-mail do exportador. A
+              Freitas usa esses documentos para montar a cotação, então nada
+              precisa ser digitado duas vezes.
+            </p>
             <UploadZone
               files={uploadFiles}
               onFilesChange={setUploadFiles}
               msgUploadProgress={0}
               isUploading={phase === 'submitting'}
+              title="Arraste aqui os documentos do processo"
+              expectedDocuments={PORTAL_EXPECTED_DOCUMENTS}
             />
             <div className="flex justify-end">
               <Button

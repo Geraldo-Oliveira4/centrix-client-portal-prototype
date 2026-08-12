@@ -335,7 +335,14 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-5">
 
-        <div className="grid grid-cols-3 gap-4 items-start">
+        {/* The three blocks have very different field counts (Embarque is the
+            longest, Observações the shortest), and `items-start` let each card
+            end wherever its content did — a staircase of three different card
+            heights on the same row. Default stretch alignment gives them one
+            shared height, so the row reads as three columns of one form instead
+            of three unrelated cards. Below `lg` they stack: at 3 columns the
+            two-up fields inside each block get too narrow to read. */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
 
           {/* ── Bloco 1: Embarque ── */}
           <CardSection

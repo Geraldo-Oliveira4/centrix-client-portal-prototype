@@ -73,7 +73,7 @@ export function ShipmentRoute({
       : 'border-portal-info text-portal-info';
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="portal-small inline-flex items-center gap-1.5 font-medium text-foreground">
           <MapPin className="h-4 w-4 text-portal-neutral" />
@@ -85,8 +85,12 @@ export function ShipmentRoute({
         </span>
       </div>
 
-      {/* Track. pt-6 leaves room for the vehicle badge riding above the line. */}
-      <div className="relative pt-7">
+      {/* Track. The vehicle badge is CENTRED on the line, not stacked above it:
+          riding above forced 28px of padding whose only occupant was a 28px
+          badge parked at one end, so the wider the card the more of that band
+          read as an empty gap beside the bar. Centred, the padding is only the
+          badge's own half-height (14px = py-3.5) and the band is never empty. */}
+      <div className="relative py-3.5">
         <div className="h-1.5 w-full rounded-full bg-border/70">
           <div
             className={cn('h-1.5 rounded-full transition-all duration-500', trackTone)}
@@ -94,11 +98,11 @@ export function ShipmentRoute({
           />
         </div>
 
-        {/* Endpoint dots */}
-        <span className="absolute left-0 top-7 h-1.5 w-1.5 -translate-y-0 rounded-full bg-portal-neutral" />
+        {/* Endpoint dots, on the same centre line as the track and the badge. */}
+        <span className="absolute left-0 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-portal-neutral" />
         <span
           className={cn(
-            'absolute right-0 top-[22px] h-3 w-3 rounded-full border-2 bg-white',
+            'absolute right-0 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 bg-white',
             arrived ? 'border-portal-success' : 'border-border',
           )}
         />
@@ -107,7 +111,7 @@ export function ShipmentRoute({
         {/* clamp keeps the 28px badge fully inside the track at both ends —
             at 0% (parked) half of it would otherwise hang past the card padding. */}
         <div
-          className="absolute top-0 -translate-x-1/2 transition-all duration-500"
+          className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-500"
           style={{ left: `clamp(14px, ${progress}%, calc(100% - 14px))` }}
         >
           <span

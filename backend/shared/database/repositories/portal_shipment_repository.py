@@ -17,6 +17,13 @@ the EMB- reference, and the portal has nothing to show without both. Provisionin
 Embarque per Processo, so the join does not multiply rows today; if the GE module
 ever splits a Processo into several Embarques, the list turns into one row per
 Embarque, which is the reading the portal wants anyway.
+
+The Quotation is joined with an OUTER join, and only for `client_reference` (the
+client's own PO number). It is the client's identifier for the same cargo, so the
+portal lets them follow a shipment by it; the EMB- reference stays the record's
+identity. The join has to be outer because `Processo.quotation_id` is nullable:
+a process the analyst opened outside the portal has no quotation and therefore no
+PO, and that reads as absent, not as blank.
 """
 
 import uuid
@@ -26,23 +33,26 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from shared.database.models.quotation.freight_agent import FreightAgent
+from shared.database.models.quotation.quotation import Quotation
 from shared.database.models.shipment.embarque import Embarque
 from shared.database.models.shipment.processo import Processo
 
 
 def list_by_client(
     session: Session, client_id: uuid.UUID
-) -> list[tuple[Processo, Embarque, Optional[str]]]:
-    """(processo, embarque, agent_name) triples owned by this client.
+) -> list[tuple[Processo, Embarque, Optional[str], Optional[str]]]:
+    """(processo, embarque, agent_name, client_reference) rows owned by this client.
 
-    The agent name is resolved in the same statement (outer join) instead of a
-    per-row lookup, so the list endpoint stays a single round-trip. Ordered
-    urgent-first then newest-first, matching the analyst kanban ordering.
+    The agent name and the originating quotation's PO are resolved in the same
+    statement (outer joins) instead of per-row lookups, so the list endpoint stays
+    a single round-trip. Ordered urgent-first then newest-first, matching the
+    analyst kanban ordering.
     """
     stmt = (
-        select(Processo, Embarque, FreightAgent.name)
+        select(Processo, Embarque, FreightAgent.name, Quotation.client_reference)
         .join(Embarque, Embarque.processo_id == Processo.id)
         .outerjoin(FreightAgent, FreightAgent.id == Processo.agente_id)
+        .outerjoin(Quotation, Quotation.id == Processo.quotation_id)
         .where(Processo.client_id == client_id)
         .order_by(Processo.carga_urgente.desc(), Processo.created_at.desc())
     )
@@ -51,7 +61,7 @@ def list_by_client(
 
 def get_owned(
     session: Session, processo_id: uuid.UUID, client_id: uuid.UUID
-) -> Optional[tuple[Processo, Embarque, Optional[FreightAgent]]]:
+) -> Optional[tuple[Processo, Embarque, Optional[FreightAgent], Optional[str]]]:
     """Load a shipment only if this client owns it, else None.
 
     Returns the full FreightAgent (not just its name) because the detail view
@@ -59,9 +69,10 @@ def get_owned(
     exposes as `id`, consistent with the analyst `serialize_processo_detail`.
     """
     stmt = (
-        select(Processo, Embarque, FreightAgent)
+        select(Processo, Embarque, FreightAgent, Quotation.client_reference)
         .join(Embarque, Embarque.processo_id == Processo.id)
         .outerjoin(FreightAgent, FreightAgent.id == Processo.agente_id)
+        .outerjoin(Quotation, Quotation.id == Processo.quotation_id)
         .where(Processo.id == processo_id, Processo.client_id == client_id)
     )
     row = session.execute(stmt).first()

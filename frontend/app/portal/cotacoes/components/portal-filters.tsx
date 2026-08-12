@@ -17,6 +17,8 @@ import {
 } from '@/components/ui';
 import type { PortalQuotation } from '@/types/portal';
 
+import { matchesClientReference } from '../../_shared/client-reference-tag';
+
 // Toolbar of Minhas Cotações. Six always-visible inputs used to sit above the
 // kanban and dominate the screen; the search is now a single icon and the rest
 // lives in a popover, mirroring the toolbar of Meus Embarques > Lista.
@@ -24,7 +26,11 @@ import type { PortalQuotation } from '@/types/portal';
 // The search icon itself lives in `_shared/portal-search-input.tsx` — both
 // screens render the same component now.
 export interface PortalFilterValues {
-  /** Icon search — matches reference or product. */
+  /**
+   * Icon search — matches the internal reference, the product, or the client's
+   * own PO (`client_reference`). The PO is compared with separators stripped so
+   * a pasted "PO 2026/1183" finds the stored "PO-2026-1183".
+   */
   query: string;
   route: string;
   agent: string;
@@ -192,7 +198,12 @@ export function applyPortalFilters(
   return quotations.filter((q) => {
     if (query) {
       const haystack = `${q.reference} ${q.product ?? ''}`.toLowerCase();
-      if (!haystack.includes(query)) return false;
+      if (
+        !haystack.includes(query) &&
+        !matchesClientReference(q.client_reference, query)
+      ) {
+        return false;
+      }
     }
 
     if (route) {

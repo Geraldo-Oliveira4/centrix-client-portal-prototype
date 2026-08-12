@@ -22,6 +22,7 @@ import type { PortalAuditPreview } from '@/types/portal-audit';
 import type { SemaforoTone } from '@/types/portal-shipment';
 
 import { AuditResult } from '../../_shared/audit-result';
+import { ClientReferenceTag } from '../../_shared/client-reference-tag';
 import { ProvenanceBadge } from '../../_shared/provenance-badge';
 import { resolveAuditStatus } from '../lib/audit-journey';
 
@@ -104,6 +105,7 @@ export function HistoryItem({
             >
               {quotation.reference}
             </Link>
+            <ClientReferenceTag value={quotation.client_reference} />
             <span
               className={cn(
                 'portal-small inline-flex items-center gap-1 rounded border px-2 py-0.5 font-medium',

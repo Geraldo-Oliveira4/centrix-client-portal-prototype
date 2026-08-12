@@ -2,7 +2,14 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertTriangle, ArrowLeft, Container, FileText, RefreshCw } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Container,
+  FileText,
+  RefreshCw,
+} from 'lucide-react';
 import { LoaderComponent, ErrorComponent } from '@arboria-tech/arboria-ui';
 
 import { Button } from '@/components/ui/button';
@@ -21,9 +28,10 @@ import {
 import { cn } from '@/lib/utils';
 import { formatShortDate } from '@/lib/portal-formatters';
 import { buildShipmentUpdateMailto } from '@/lib/portal-state';
-import { useMyShipment } from '@/hooks/use-portal-shipments';
+import { useMyShipment, useMyShipments } from '@/hooks/use-portal-shipments';
 import { MODAL_LABELS, TIPO_EMBARQUE_LABELS } from '@/types/quotation';
 
+import { ClientReferenceTag } from '../../_shared/client-reference-tag';
 import { IncompleteDataNote } from '../../_shared/incomplete-data-badge';
 import { ModalIcon } from '../../_shared/modal-icon';
 import { SectionHeading } from '../../_shared/page-header';
@@ -50,6 +58,10 @@ export default function PortalEmbarqueDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { shipment, isLoading, isError } = useMyShipment(params?.id ?? null);
+  // Same SWR key the list screen uses, so this is deduped, not a second fetch.
+  // Only used to find a shipment that already HAS tracking, for the example link
+  // below — the detail itself never reads anything from the list.
+  const { shipments } = useMyShipments();
 
   if (isLoading) return <LoaderComponent />;
   // A shipment owned by another client answers 404 exactly like a non-existent
@@ -81,6 +93,26 @@ export default function PortalEmbarqueDetailPage() {
           ? 'Informado pela companhia'
           : 'Previsão da companhia';
 
+  // "Ver exemplo com dado preenchido": quando ESTE embarque não tem
+  // rastreamento, aponta para um que tem, para que qualquer pessoa consiga ver
+  // como a timeline fica com o ShipsGo integrado sem precisar saber de cor quais
+  // referências existem.
+  //
+  // O alvo é DESCOBERTO na lista pelo próprio dado (`data_status === 'COMPLETE'`
+  // + um milestone reportado), nunca por uma lista de EMB-XXXX chumbada aqui:
+  // quando um embarque real ganhar rastreamento, ele passa a ser um alvo válido
+  // sozinho, e quando o top-up de demonstração for removido o link some — em vez
+  // de virar um link quebrado para uma referência que alguém esqueceu de tirar.
+  const trackingExample =
+    delayRisk.status === 'pending'
+      ? (shipments.find(
+          (s) =>
+            s.id !== shipment.id &&
+            s.tracking?.data_status === 'COMPLETE' &&
+            s.tracking?.last_milestone != null,
+        ) ?? null)
+      : null;
+
   const riskFootnote =
     delayRisk.status === 'pending'
       ? 'Depende da previsão da companhia'
@@ -105,6 +137,9 @@ export default function PortalEmbarqueDetailPage() {
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="portal-h1 text-foreground">{shipment.referencia}</h1>
+              {/* Sua referência (PO), herdada da cotação que gerou o embarque.
+                  Ao lado da EMB-XXXX, nunca no lugar dela. */}
+              <ClientReferenceTag value={shipment.client_reference} />
               <EstadoBadge estado={shipment.estado} />
               {shipment.carga_urgente && (
                 <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-2 py-0.5 font-medium text-portal-warning">
@@ -220,9 +255,20 @@ export default function PortalEmbarqueDetailPage() {
       <section className="portal-card space-y-6 p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <SectionHeading title="Acompanhamento" />
-          {/* The post-embarque steps only advance from tracking data, so when
-              that data is demo data the whole timeline carries the seal. */}
-          {isMockTracking && <ProvenanceBadge provenance="preview" />}
+          <div className="flex flex-wrap items-center gap-3">
+            {trackingExample && (
+              <Link
+                href={`/portal/embarques/${trackingExample.id}`}
+                className="portal-small inline-flex items-center gap-1 text-portal-neutral underline-offset-4 hover:text-primary hover:underline"
+              >
+                Ver exemplo com dado de tracking preenchido
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
+            {/* The post-embarque steps only advance from tracking data, so when
+                that data is demo data the whole timeline carries the seal. */}
+            {isMockTracking && <ProvenanceBadge provenance="preview" />}
+          </div>
         </div>
         <ShipmentTimeline estado={shipment.estado} tracking={shipment.tracking} />
       </section>

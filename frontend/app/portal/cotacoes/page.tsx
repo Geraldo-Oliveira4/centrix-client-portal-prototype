@@ -2,16 +2,40 @@
 
 import { Suspense, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { History, KanbanSquare } from 'lucide-react';
+import { CheckCircle2, History, KanbanSquare, XCircle } from 'lucide-react';
 import { LoaderComponent, ErrorComponent, EmptyState } from '@arboria-tech/arboria-ui';
 
 import { useMyQuotations } from '@/hooks/use-portal-quotations';
 import { Button } from '@/components/ui';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { isApproved } from '@/lib/portal-state';
 
 import { PagePortalHeader } from '../_shared/page-header';
 import { FunnelTab } from './components/funnel-tab';
-import { HistoryTab } from './components/history-tab';
+import { HistoryTab, type HistoryOutcome } from './components/history-tab';
+
+// Fechadas e Negadas são RECORTES do Histórico, não telas novas: mesmo
+// componente de lista, mesma expansão de conferência, só o escopo muda. O
+// Histórico continua mostrando as três situações juntas — as abas focadas são
+// atalho, não substituição.
+const APPROVED_OUTCOMES: HistoryOutcome[] = ['FECHADA'];
+const REFUSED_OUTCOMES: HistoryOutcome[] = ['DECLINADA', 'CANCELADO'];
+
+// Deep links aceitos em ?tab=. "historico" já era usado pela Auditoria.
+const TABS = ['funil', 'historico', 'fechadas', 'negadas'] as const;
+type CotacoesTab = (typeof TABS)[number];
+
+const isCotacoesTab = (value: string | null): value is CotacoesTab =>
+  value != null && (TABS as readonly string[]).includes(value);
+
+function TabCount({ value }: { value: number }) {
+  if (value === 0) return null;
+  return (
+    <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] font-medium text-portal-neutral">
+      {value}
+    </span>
+  );
+}
 
 function PortalCotacoesContent() {
   const router = useRouter();
@@ -25,10 +49,17 @@ function PortalCotacoesContent() {
     [data],
   );
 
+  const approvedCount = useMemo(
+    () => closed.filter((q) => isApproved(q.state)).length,
+    [closed],
+  );
+  const refusedCount = closed.length - approvedCount;
+
   if (isLoading) return <LoaderComponent />;
   if (isError || !data) return <ErrorComponent />;
 
-  const defaultTab = searchParams.get('tab') === 'historico' ? 'historico' : 'funil';
+  const tabParam = searchParams.get('tab');
+  const defaultTab: CotacoesTab = isCotacoesTab(tabParam) ? tabParam : 'funil';
 
   return (
     <div className="space-y-8">
@@ -53,11 +84,17 @@ function PortalCotacoesContent() {
             <TabsTrigger value="historico" className="gap-1.5">
               <History className="h-4 w-4" />
               Histórico
-              {closed.length > 0 && (
-                <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] font-medium text-portal-neutral">
-                  {closed.length}
-                </span>
-              )}
+              <TabCount value={closed.length} />
+            </TabsTrigger>
+            <TabsTrigger value="fechadas" className="gap-1.5">
+              <CheckCircle2 className="h-4 w-4" />
+              Fechadas
+              <TabCount value={approvedCount} />
+            </TabsTrigger>
+            <TabsTrigger value="negadas" className="gap-1.5">
+              <XCircle className="h-4 w-4" />
+              Negadas
+              <TabCount value={refusedCount} />
             </TabsTrigger>
           </TabsList>
 
@@ -67,6 +104,24 @@ function PortalCotacoesContent() {
 
           <TabsContent value="historico">
             <HistoryTab quotations={closed} />
+          </TabsContent>
+
+          <TabsContent value="fechadas">
+            <HistoryTab
+              quotations={closed}
+              outcomes={APPROVED_OUTCOMES}
+              countLabel={{ singular: 'cotação aprovada', plural: 'cotações aprovadas' }}
+              emptyHint="Cotações que você aprovou aparecem aqui, com a conferência de dados do fechamento."
+            />
+          </TabsContent>
+
+          <TabsContent value="negadas">
+            <HistoryTab
+              quotations={closed}
+              outcomes={REFUSED_OUTCOMES}
+              countLabel={{ singular: 'cotação negada', plural: 'cotações negadas' }}
+              emptyHint="Cotações que você recusou e cotações canceladas aparecem aqui."
+            />
           </TabsContent>
         </Tabs>
       )}

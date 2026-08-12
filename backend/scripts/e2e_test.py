@@ -571,6 +571,52 @@ def run():
                if i["tracking"].get("last_milestone_at") is not None
                and i["tracking"].get("last_milestone") is None]))
 
+    # The client's own PO travels from the quotation to the shipment it
+    # provisioned, by join (Processo.quotation_id -> Quotation.client_reference)
+    # — never by copying the value onto the shipment. So the check is that the
+    # two always agree, and that an unlinked Processo (one the analyst opened
+    # outside the portal) reports None rather than a blank string.
+    st, all_q = req("GET", "/portal/quotations")
+    po_by_quotation = {
+        c["id"]: c.get("client_reference")
+        for bucket in all_q.get("buckets", {}).values()
+        for c in bucket
+    }
+    check("O17 every shipment exposes the client PO field",
+          all("client_reference" in i for i in items), str(list(items[0])))
+
+    # The seed fills the PO on the demo quotations so the journey-by-PO has
+    # something to show; COT-2026-0006 is deliberately left without one.
+    seeded_pos = {
+        c["reference"]: c.get("client_reference")
+        for bucket in all_q.get("buckets", {}).values()
+        for c in bucket
+        if c["reference"].startswith("COT-2026-")
+    }
+    check("O17b the seeded quotations carry the client PO",
+          seeded_pos.get("COT-2026-0004") == "PO-2026-1183"
+          and seeded_pos.get("COT-2026-0006") is None,
+          str(sorted(seeded_pos.items())))
+
+    linked = [i for i in items if i.get("quotation_id") in po_by_quotation]
+    check("O18 the PO on a shipment is the PO of the quotation that created it",
+          # At least one has to carry a real PO, otherwise the join could be
+          # broken and the check would still pass on None == None.
+          any(i["client_reference"] for i in linked)
+          and all(i["client_reference"] == po_by_quotation[i["quotation_id"]]
+                  for i in linked),
+          str([(i["referencia"], i["client_reference"],
+                po_by_quotation[i["quotation_id"]]) for i in linked]))
+
+    check("O19 a shipment with no quotation has no PO (absent, not blank)",
+          all(i["client_reference"] is None
+              for i in items if i.get("quotation_id") is None),
+          str([i["referencia"] for i in items
+               if i.get("quotation_id") is None and i["client_reference"] is not None]))
+
+    check("O20 the shipment detail carries the PO too",
+          "client_reference" in ship, str(list(ship)))
+
     st, _ = req("GET", f"/portal/shipments/{uuid.uuid4()}")
     check("O9 unknown shipment -> 404", st == 404, str(st))
     st, _ = req("GET", "/portal/shipments/not-a-uuid")

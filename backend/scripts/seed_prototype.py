@@ -215,19 +215,30 @@ def seed() -> None:
         # Insert each dependency level explicitly: quotations -> proposals ->
         # scores/logs, flushing between levels.
 
+        # `client_reference` is the client's own PO number. It is a real column
+        # the manual form already writes; the seed fills it so the portal can
+        # demo following a cargo end-to-end by PO. q6 is left without one on
+        # purpose: the field is optional, and the screens have to read correctly
+        # when it is absent. See scripts/topup_client_po.py for the same values
+        # applied to a database that was seeded before this existed.
         q1 = _quotation(ref.next(), client_id, QuotationState.ENVIADA_CLIENTE,
                         "Peças industriais", "Shanghai, China",
-                        sent_at=_now - timedelta(days=1))
+                        sent_at=_now - timedelta(days=1),
+                        client_reference="PO-2026-1180")
         q2 = _quotation(ref.next(), client_id, QuotationState.COTANDO,
-                        "Equipamentos médicos", "Hamburg, Germany")
+                        "Equipamentos médicos", "Hamburg, Germany",
+                        client_reference="PO-2026-1181")
         q3 = _quotation(ref.next(), client_id, QuotationState.ENVIADA_CLIENTE,
-                        "Tecidos", "Genova, Italy", sent_at=_now - timedelta(days=2))
+                        "Tecidos", "Genova, Italy", sent_at=_now - timedelta(days=2),
+                        client_reference="PO-2026-1182")
         q4 = _quotation(ref.next(), client_id, QuotationState.FECHADA,
                         "Máquinas", "Ningbo, China",
-                        winning_agent_id=agents[0].id, closed_at=_now)
+                        winning_agent_id=agents[0].id, closed_at=_now,
+                        client_reference="PO-2026-1183")
         q5 = _quotation(ref.next(), client_id, QuotationState.DECLINADA,
                         "Produtos químicos", "Rotterdam, Netherlands",
-                        decline_reason=DeclineReason.PRECO, declined_at=_now)
+                        decline_reason=DeclineReason.PRECO, declined_at=_now,
+                        client_reference="PO-2026-1184")
         q6 = _quotation(ref.next(), client_id, QuotationState.CANCELADO,
                         "Amostras", "Busan, South Korea")
 
@@ -243,11 +254,14 @@ def seed() -> None:
         # card per column.
         q7 = _quotation(ref.next(), client_id, QuotationState.AGUARDANDO_DADOS,
                         "Componentes eletronicos", "Shenzhen, China",
-                        tipo_embarque=TipoEmbarque.LCL)
+                        tipo_embarque=TipoEmbarque.LCL,
+                        client_reference="PO-2026-1186")
         q8 = _quotation(ref.next(), client_id, QuotationState.AGUARDANDO_DADOS,
-                        "Piso vinilico", "Ho Chi Minh, Vietnam")
+                        "Piso vinilico", "Ho Chi Minh, Vietnam",
+                        client_reference="PO-2026-1187")
         q9 = _quotation(ref.next(), client_id, QuotationState.COTANDO,
-                        "Bobinas de aco", "Izmir, Turkey")
+                        "Bobinas de aco", "Izmir, Turkey",
+                        client_reference="PO-2026-1188")
         session.add_all([q1, q2, q3, q4, q5, q6, q7, q8, q9])
         session.flush()
 

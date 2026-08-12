@@ -65,17 +65,28 @@ def serialize_tracking_for_portal(embarque: Any) -> dict:
 
 
 def serialize_shipment_for_portal(
-    processo: Any, embarque: Any, agente_nome: Optional[str]
+    processo: Any,
+    embarque: Any,
+    agente_nome: Optional[str],
+    client_reference: Optional[str] = None,
 ) -> dict:
     """Compact item for GET /portal/shipments.
 
     `id` is the Processo id (the entity the detail route loads), while
     `referencia` is the Embarque's EMB-YYYY-NNNN — the same identity split the
     analyst workspace uses.
+
+    `client_reference` is the PO the client typed on the quotation this shipment
+    was provisioned from (`centrix_quotation_quotations.client_reference`). It is
+    an ADDITIONAL search/display key, never the record's identity: the portal
+    keeps addressing the shipment by `id` and naming it by `referencia`. It is
+    None for a Processo the analyst opened outside the portal (no quotation, so
+    no PO) — absent, not blank.
     """
     return {
         "id": _coerce(processo.id),
         "referencia": embarque.reference,
+        "client_reference": client_reference,
         "estado": _coerce(embarque.estado),
         "incoterm": processo.incoterm,
         "modal": _coerce(processo.modal),
@@ -93,7 +104,10 @@ def serialize_shipment_for_portal(
 
 
 def serialize_shipment_detail_for_portal(
-    processo: Any, embarque: Any, agent: Any = None
+    processo: Any,
+    embarque: Any,
+    agent: Any = None,
+    client_reference: Optional[str] = None,
 ) -> dict:
     """Rich payload for GET /portal/shipments/{id}.
 
@@ -105,7 +119,7 @@ def serialize_shipment_detail_for_portal(
     """
     return {
         **serialize_shipment_for_portal(
-            processo, embarque, agent.name if agent else None
+            processo, embarque, agent.name if agent else None, client_reference
         ),
         "agente": {"id": _coerce(agent.id), "nome": agent.name} if agent else None,
         "containers": _coerce(processo.containers) or [],
