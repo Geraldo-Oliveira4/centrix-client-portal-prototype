@@ -553,10 +553,62 @@ preferência: a aba Alertas e Minhas Preferências > Notificações editam a mes
 coisa e o consomem juntas — não releia o localStorage numa terceira tela.
 
 **Ordem das abas: [Lista][Alertas][Mapa]**, com Lista como padrão. É prioridade
-de uso, não de impacto visual: Lista é a tela do dia a dia, Alertas é o que
-exige ação, e o Mapa ilustra bem mas não responde nenhuma pergunta operacional
-que a Lista já não responda melhor. O deep link `?tab=lista&busca=1` do header
-continua valendo; `TABS` em `embarques/page.tsx` é quem define ordem e padrão.
+de uso: Lista é a tela do dia a dia e Alertas é o que exige ação. O deep link
+`?tab=lista&busca=1` do header continua valendo; `TABS` em `embarques/page.tsx`
+é quem define ordem e padrão.
+
+### Aba Mapa — geografia real (Leaflet + OpenStreetMap)
+
+Redesenhada em 12/08/2026. O SVG estilizado (`shipment-world-map.tsx`, removido)
+não funcionava nem como visualização rica nem como visão agregada. No lugar,
+`shipment-map-view.tsx` monta **resumo | mapa | eventos**:
+
+- **Esquerda** (`map-summary-panel.tsx`): números grandes na cor do semáforo.
+  Deliberadamente NÃO é o desenho do `SemaforoCounter` da Lista — lá a pergunta
+  é "quantos nesta lista que estou filtrando", aqui é "como está a operação". A
+  fonte é a mesma (`countBySemaforo`), então os dois nunca discordam.
+- **Centro** (`shipment-map.tsx`): Leaflet. Precisa de `window`, então entra por
+  `dynamic(..., { ssr: false })` — `shipment-map-view.tsx` é o único lugar que
+  sabe disso.
+- **Direita** (`map-events-feed.tsx`): os MESMOS alertas da aba Alertas, com as
+  mesmas preferências de tipo e o mesmo estado de lido. Sem switches e sem
+  "marcar como lida": esses controles são da aba Alertas, e duplicá-los criaria
+  dois lugares editando o mesmo estado. O selo `preview` acompanha o dado.
+
+Regras que sustentam a tela:
+
+- **"Mapa = visão geográfica, sem filtro/busca/card solto" continua valendo.** As
+  duas colunas são leitura; nenhuma recorta o mapa. Abaixo de `xl` elas empilham
+  (resumo → mapa → eventos), que é o padrão do portal — abas dentro de aba seria
+  navegação que nenhuma outra tela usa.
+- **Uma tabela de portos só** (`lib/port-coordinates.ts`): coordenadas públicas
+  reais, dado estático, nada de ShipsGo. `lib/shipment-origins.ts` virou **alias**
+  dela, porque a Lista e o detalhe nomeiam a origem do card pelos mesmos hubs —
+  duas tabelas divergiriam no primeiro porto acrescentado a uma delas. Unit-tested
+  (`port-coordinates.test.ts`), inclusive um teste que falha se o seed ganhar uma
+  origem sem coordenada.
+- **A posição é do PORTO, nunca do navio.** Não há AIS nem `mapPoint` do ShipsGo:
+  um embarque em trânsito aparece parado no porto de origem. Quem diz isso é a
+  nota do rodapé, uma vez, para todos os pontos — **nenhum marcador carrega selo
+  próprio de "real" vs "aproximado"** (decisão de 12/08/2026). Origem real vem da
+  cotação quando existe; sem cotação vinculada (a maioria dos processos), cai num
+  hub determinístico pela referência, com a mesma aparência.
+- **Porto desconhecido não some do mapa**: cai no hub ilustrativo. Quando a
+  coordenada for acrescentada à tabela, o mesmo embarque passa a cair no lugar
+  certo sozinho.
+- **Cluster via `leaflet.markercluster` direto**, anexado por `useMap()` e não por
+  um wrapper React (os wrappers estão presos a majors antigos de react-leaflet).
+  `react-leaflet` fica na linha **4.x** — a 5.x exige React 19 e o projeto está no
+  18. O marcador de destino (Santos) fica **fora** do cluster, e por isso precisa
+  sair no cleanup do efeito junto com o grupo: sem isso, cada re-render empilhava
+  outro Santos no mesmo ponto.
+- **Cores em hex, não em classe Tailwind**, dentro de `shipment-map.tsx`: aquele
+  DOM é do Leaflet (divIcon, polyline SVG, popup) e nossas utilities não chegam
+  lá. Mantenha em sincronia com os tokens do semáforo pelo nome.
+- **Offline é estado de primeira classe**: sem os tiles, as rotas e os marcadores
+  continuam e uma nota explica que só o mapa base caiu. A atribuição do
+  OpenStreetMap é obrigatória pela licença — a nota é posicionada para não
+  cobri-la.
 
 There is **no illustrative tracking panel**. An earlier "Rastreamento marítimo"
 card on the detail screen showed a fabricated voyage / MBL / carrier / POL / POD
@@ -752,7 +804,7 @@ Distribuição dos blocos (o `provenance` de cada um **não muda** com o local):
 | Mercado (`market-block.tsx`) | Detalhe da cotação, painel ao lado das propostas | `preview` | **Real:** seu preço médio. **Mock:** benchmark do setor (`avg × 1.08`) |
 | Evidência (`evidence-block.tsx`) | Detalhe da cotação, painel ao lado das propostas ("embarques semelhantes") | `real` | **Real:** cards de embarques do histórico. **Mock:** critério de semelhança de rota |
 | Risco (`risk-block.tsx`) | Detalhe da cotação, junto da seção Auditoria (só FECHADA) | `preview` | **Real:** sinais de campos reais + refs. **Mock:** a "análise de risco" consolidada |
-| Prazo (`deadline-block.tsx`) | **Removido** de `/portal/embarques` (a aba Mapa não tem cards; o "Prazo 87%" não tinha lastro). Arquivo mantido, sem uso — candidato a remoção | `preview` | **Real:** contagem de embarques. **Mock:** % no prazo (constante 87%) |
+| Prazo (`deadline-block.tsx`) | **Removido** de `/portal/embarques` (o "Prazo 87%" não tinha lastro; o resumo da aba Mapa mostra contagem real, não percentual inventado). Arquivo mantido, sem uso — candidato a remoção | `preview` | **Real:** contagem de embarques. **Mock:** % no prazo (constante 87%) |
 
 Ao mexer num bloco, mantenha o `provenance` coerente com o **headline**: se o
 número em destaque é fabricado, o bloco é `preview` (mesmo que use nomes/valores

@@ -13,7 +13,7 @@ import { useMyShipments } from '@/hooks/use-portal-shipments';
 
 import { useAlertTypePreferences } from '../_shared/alert-type-preferences';
 import { PagePortalHeader } from '../_shared/page-header';
-import { ShipmentWorldMap } from './components/shipment-world-map';
+import { ShipmentMapView } from './components/shipment-map-view';
 import { ShipmentListTab } from './components/shipment-list-tab';
 import { ShipmentAlertsTab } from './components/shipment-alerts-tab';
 import { buildShipmentAlerts } from './lib/shipment-alerts';
@@ -188,11 +188,19 @@ function PortalEmbarquesContent() {
             />
           </TabsContent>
 
-          {/* Mapa — só o mapa mundi e a legenda, nada mais (sem cards/contador/busca). */}
+          {/* Mapa — geografia real (Leaflet + OSM) em 3 colunas: resumo | mapa |
+              eventos. As laterais são leitura agregada, nenhuma delas filtra o
+              mapa: a regra "sem filtro/busca/card solto" segue valendo. O feed
+              da direita é o MESMO dado da aba Alertas, incluindo as preferências
+              de tipo e o que já foi lido. */}
           <TabsContent value="mapa">
-            <section className="portal-card p-6">
-              <ShipmentWorldMap shipments={shipments} />
-            </section>
+            <ShipmentMapView
+              shipments={shipments}
+              alerts={alerts}
+              readIds={readIds}
+              enabledTypes={enabledTypes}
+              onSeeAllAlerts={() => setTab('alertas')}
+            />
           </TabsContent>
         </Tabs>
       )}

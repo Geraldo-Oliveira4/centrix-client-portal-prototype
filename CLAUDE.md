@@ -6,10 +6,18 @@ estão em `frontend/CLAUDE.md`.
 
 ## O que é este projeto
 
-Réplica **standalone e offline** do Portal do Cliente do Centrix (plataforma de
+Réplica **standalone** do Portal do Cliente do Centrix (plataforma de
 importação/logística da Arboria para a Freitas COMEX). Objetivo: o cliente rodar
-só o portal na máquina dele, sem AWS e sem nenhuma API externa, com funcionalidade
-parecida com a real. **Não é produção — é um protótipo demonstrável.**
+só o portal na máquina dele, sem AWS, com funcionalidade parecida com a real.
+**Não é produção — é um protótipo demonstrável.**
+
+**Uma única dependência de rede externa**, decidida em 12/08/2026: os tiles do
+OpenStreetMap na aba Mapa de Meus Embarques (Leaflet, sem chave de API). Todo o
+resto — banco, storage, e-mail, auth — continua local ou mockado. O mapa degrada
+sozinho quando não há rede: sem os tiles, as rotas, os marcadores e os clusters
+continuam desenhados e uma nota diz que só o mapa base está indisponível. Ao
+acrescentar qualquer outra chamada externa, trate como decisão de produto, não
+como detalhe de implementação.
 
 O repositório de produção do Centrix fica ao lado (`../centrix`). Este repo foi
 gerado copiando o domínio `client_portal` do Centrix e adaptando para rodar local.
