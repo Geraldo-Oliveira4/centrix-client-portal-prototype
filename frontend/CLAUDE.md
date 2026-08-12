@@ -448,10 +448,21 @@ illustrative origin→destination track: the vehicle position is a fixed
 percentage per `estado`, NOT a location — there is no GPS/AIS/carrier feed in
 this repo. Its "não é rastreamento por GPS" caption is load-bearing; keep it if
 you touch the component. Endpoints are labelled generically because the shipment
-payload carries no route (origin lives on the quotation). The vehicle badge is
-**centred on the line**, not stacked above it: riding above forced 28px of
-padding whose only occupant was the badge itself parked at one end, and the
-wider the card the more of that band read as empty space beside the bar.
+payload carries no route (origin lives on the quotation).
+
+Duas regras de espaçamento no componente, ambas contra o mesmo sintoma ("branco
+do lado da barra"), e ambas medidas antes/depois com Playwright:
+
+- O badge do veículo é **centrado na linha**, não empilhado acima: acima ele
+  forçava 28px de padding cujo único ocupante era o próprio badge estacionado
+  numa ponta.
+- A linha de legenda (estágio à esquerda · ressalva à direita) tem
+  **`max-w-3xl` e `portal-body`**. Com `justify-between` sem limite de largura
+  ela ancorava os dois textos nas bordas do card: 475px de vão a 1440px, e
+  crescendo — a 1920px o card interno tem 1552px. Com o teto, o vão fica em 43px
+  de 1280px para cima e a linha quebra em duas (as duas alinhadas à esquerda)
+  abaixo disso. **Não devolva a linha para full-width nem para `portal-small`**:
+  o vão volta proporcional à largura da tela.
 
 O detalhe do embarque mostra um link discreto "Ver exemplo com dado de tracking
 preenchido →" quando ESTE embarque não tem rastreamento. O alvo é **descoberto

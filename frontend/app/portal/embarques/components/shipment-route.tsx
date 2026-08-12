@@ -126,10 +126,17 @@ export function ShipmentRoute({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      {/* Estágio à esquerda, ressalva à direita. `justify-between` sozinho
+          ancorava os dois nas bordas do card: a 1440px isso abria 475px de vão
+          entre eles, com texto de 12px flutuando nas pontas — o "branco do
+          lado" relatado na revisão. A linha agora tem largura máxima própria
+          (`max-w-3xl`), então o vão para de crescer junto com o card, e sobe
+          para 14px, proporcional ao espaço que ocupa. Os dois textos
+          permanecem: a ressalva é load-bearing (ver o docstring do módulo). */}
+      <div className="flex max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <span
           className={cn(
-            'portal-small inline-flex items-center gap-1.5 font-medium',
+            'portal-body inline-flex items-center gap-1.5 font-medium',
             exception ? 'text-portal-danger' : 'text-portal-neutral',
           )}
         >
@@ -143,7 +150,7 @@ export function ShipmentRoute({
           )}
         </span>
         {/* Non-negotiable caption: see the module docstring. */}
-        <span className="portal-small text-portal-neutral">
+        <span className="portal-body text-portal-neutral">
           Representação ilustrativa do estágio do processo — não é rastreamento por GPS.
         </span>
       </div>
