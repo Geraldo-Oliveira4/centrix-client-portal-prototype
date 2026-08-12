@@ -216,4 +216,53 @@ export const CONCILIATION_EXAMPLES: ConciliationExample[] = [
       { item: 'Prazo', kind: 'days', planned: 34, realized: 30 },
     ],
   },
+  // 0006..0009, acrescentados em 12/08/2026. Os cinco primeiros já cobriam os
+  // quatro desfechos de `evaluateLine`; estes ampliam a VARIEDADE DE ITENS, para
+  // "Causas mais comuns de divergência" ter um ranking com mais de três barras e
+  // parecer com o que a tela mostrará quando a fonte for a nota fiscal.
+  {
+    reference: 'EXEMPLO-0006',
+    route: 'Gênova (ITGOA) → Santos (BRSSZ)',
+    agent: 'Agente de exemplo',
+    lines: [
+      { item: 'Frete', kind: 'currency', planned: 17300, realized: 17300 },
+      { item: 'Taxa THC', kind: 'currency', planned: 1250, realized: 1250 },
+      { item: 'Sobrestadia', kind: 'currency', planned: 0, realized: 2100 },
+      { item: 'Prazo', kind: 'days', planned: 29, realized: 33 },
+    ],
+  },
+  {
+    reference: 'EXEMPLO-0007',
+    route: 'Busan (KRPUS) → Navegantes (BRNVT)',
+    agent: 'Agente de exemplo',
+    lines: [
+      { item: 'Frete', kind: 'currency', planned: 20100, realized: 20100 },
+      { item: 'Taxa THC', kind: 'currency', planned: 1400, realized: 1400 },
+      { item: 'Armazenagem', kind: 'currency', planned: 1100, realized: 1120 },
+      { item: 'Prazo', kind: 'days', planned: 36, realized: 36 },
+    ],
+  },
+  {
+    reference: 'EXEMPLO-0008',
+    route: 'Izmir (TRIZM) → Santos (BRSSZ)',
+    agent: 'Agente de exemplo',
+    lines: [
+      { item: 'Frete', kind: 'currency', planned: 14200, realized: 16050 },
+      { item: 'Taxa THC', kind: 'currency', planned: 1250, realized: 1250 },
+      { item: 'Desconsolidação', kind: 'currency', planned: 780, realized: 980 },
+      { item: 'Prazo', kind: 'days', planned: 26, realized: 28 },
+    ],
+  },
+  {
+    reference: 'EXEMPLO-0009',
+    route: 'Ho Chi Minh (VNSGN) → Itapoá (BRIOA)',
+    agent: 'Agente de exemplo',
+    lines: [
+      { item: 'Frete', kind: 'currency', planned: 21400, realized: 21400 },
+      { item: 'Taxa THC', kind: 'currency', planned: 1400, realized: 1560 },
+      { item: 'Sobrestadia', kind: 'currency', planned: 0, realized: 1350 },
+      { item: 'Armazenagem', kind: 'currency', planned: 950, realized: 950 },
+      { item: 'Prazo', kind: 'days', planned: 33, realized: 38 },
+    ],
+  },
 ];

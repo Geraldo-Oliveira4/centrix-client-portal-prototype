@@ -11,6 +11,48 @@ importação/logística da Arboria para a Freitas COMEX). Objetivo: o cliente ro
 só o portal na máquina dele, sem AWS, com funcionalidade parecida com a real.
 **Não é produção — é um protótipo demonstrável.**
 
+## MUDANÇA DE PROPÓSITO — 12/08/2026 (leia antes de "corrigir" qualquer mock)
+
+**O protótipo deixou de ser uma réplica standalone que distingue dado real de
+mock para o usuário final. Ele agora é REFERÊNCIA VISUAL para o Mauro construir
+a versão integrada de verdade.** Decisão do Vinicius, confirmada nesta data.
+
+Consequência prática: onde a tela dizia **"Pendente integração"**, ela passa a
+mostrar **dado ilustrativo rico** — como a tela vai se comportar quando os dados
+existirem. Isso vale para o portal INTEIRO, não só para o Mapa.
+
+Telas afetadas e o que mudou em cada uma:
+
+| Tela | Antes | Agora |
+|---|---|---|
+| Meus Embarques (Lista, detalhe, timeline) | ETA e risco de atraso "Pendente integração" em quase todo embarque | Todos os embarques com ETA, risco e milestone (via `topup_tracking_full.py`) |
+| Auditoria | "0 embarques elegíveis", banner "Conceitual" | Elegíveis reais (milestone `AVAILABLE`), banner "Referência visual", 9 exemplos de conciliação |
+| Inteligência > Performance | Rotas, Armadores e Economia com selo `pending` | Os três populados; `preview` no lugar de `pending` |
+| Inteligência > Executivo | On-time rate e Economia sem valor | Ambos com valor; Economia vem da MESMA fonte do Performance |
+| Mapa (Prompt 15) | SVG ilustrativo | Leaflet + OSM, marcadores sem distinção real/aproximado |
+
+**O que NÃO mudou, e não pode afrouxar sem decisão explícita:**
+
+- **`tracking_is_mock` continua obrigatório** em toda linha de tracking gravada
+  por script. A infraestrutura de sinalização segue de pé; o que mudou foi o que
+  a UI faz com a AUSÊNCIA de dado, não a marcação do dado ilustrativo. As
+  checagens `O14`/`O15`/`O16` do e2e continuam valendo e passando.
+- **O seed continua limpo.** Banco recém-semeado nasce sem tracking nenhum; quem
+  popula é top-up explícito (`O15` trava isso). A demo é uma escolha de quem
+  prepara a apresentação, não um efeito colateral do `make seed`.
+- **`ProvenanceBadge` continua existindo e em uso** nos ~8 lugares do portal.
+  Aposentá-lo é decisão separada, ainda não tomada. O que mudou foi o VALOR em
+  alguns pontos (`pending` -> `preview`), não o componente.
+- **Nada aqui fabrica número onde a aritmética é real.** On-time rate e desvio
+  por rota são CALCULADOS pela mesma `computeDelayRisk` do badge de cada
+  embarque; o que é ilustrativo é o dado de entrada. Ausência continua virando
+  `null`/"—", nunca `0` — "0% no prazo" é acusação, não lacuna.
+- **Economia tem fonte ÚNICA** (`inteligencia/lib/illustrative-kpis.ts`),
+  consumida por Performance e Executivo. Em 05/08/2026 as duas telas davam
+  respostas diferentes para a mesma pergunta e o número foi removido das duas; ele
+  só voltou porque agora é calculado uma vez. **Não recalcule savings em outro
+  lugar.**
+
 **Uma única dependência de rede externa**, decidida em 12/08/2026: os tiles do
 OpenStreetMap na aba Mapa de Meus Embarques (Leaflet, sem chave de API). Todo o
 resto — banco, storage, e-mail, auth — continua local ou mockado. O mapa degrada
@@ -358,6 +400,20 @@ já aplicado é **pulado**, não aborta o lote (só aborta se não sobrar nada a
 fazer), e ele confere que cada embarque novo nasceu com o `reference` anunciado
 no plano antes de commitar — a referência é gerada pelo repositório, não
 escolhida aqui.
+
+`backend/scripts/topup_tracking_full.py` fecha a lacuna deixada pelo
+`topup_tracking_demo.py`: onde aquele monta quatro cenários NOMEADOS (no prazo /
+atraso / sem dado / liberado) que a demo usa para explicar a tela, este preenche
+o RESTO — todo embarque do cliente passa a ter ETA, risco de atraso e, quando o
+estado permite, milestone. Os dois convivem e a ordem recomendada é `_demo`
+depois `_full`, mas tanto faz: o `_full` pula qualquer embarque que já tenha
+`tracking_data_status`, então nunca sobrescreve os cenários do outro nem um
+rastreamento real futuro. Duas regras do dado gerado: **milestone só para
+embarque `embarcado`** (um `aguardando_prontidao` com `DISCHARGE` estaria
+descarregado no destino antes de sair da origem), e **ETA para todos**, porque
+previsão de chegada existe antes de a carga partir. Cria três embarques novos,
+dois deles em `AVAILABLE` — é o milestone que torna um embarque elegível para a
+Auditoria, que até então mostrava "0 embarques elegíveis" por não existir nenhum.
 
 `backend/scripts/topup_client_po.py` preenche `client_reference` (a PO do
 cliente) nas oito cotações semeadas que a ganharam no seed. Só UPDATE, e só onde

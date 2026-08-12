@@ -31,7 +31,7 @@ export function CarrierUsageBlock({ carriers }: { carriers: CarrierUsage[] }) {
         title="Armadores / cias mais usados"
         hint="quem opera o navio ou o avião"
         icon={<Anchor className="h-5 w-5" />}
-        action={<ProvenanceBadge provenance="pending" />}
+        action={<ProvenanceBadge provenance="preview" />}
       />
 
       {carriers.length === 0 ? (

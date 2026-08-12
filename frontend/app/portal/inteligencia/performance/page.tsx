@@ -26,6 +26,10 @@ import {
 } from '../lib/shipment-dimensions';
 import { volumeTrend, weeklyVolume } from '../lib/volume-helpers';
 import { AgentWinsBlock } from './components/agent-wins-block';
+import {
+  computeIllustrativeSavings,
+  computeOnTimeRate,
+} from '../lib/illustrative-kpis';
 import { CarrierUsageBlock } from './components/carrier-usage-block';
 import { RouteDeviationsBlock } from './components/route-deviations-block';
 import { SavingsBenchmarkBlock } from './components/savings-benchmark-block';
@@ -94,6 +98,11 @@ export default function PerformancePage() {
   const routeDeviations = computeRouteDeviations(shipments, quotations);
   const carrierUsage = computeCarrierUsage(shipments, quotations);
 
+  // Fonte ÚNICA da economia, compartilhada com o KPI "Economia" do Executivo.
+  // Não recalcule em outro lugar — ver lib/illustrative-kpis.ts.
+  const savings = computeIllustrativeSavings(quotations);
+  const onTime = computeOnTimeRate(shipments);
+
   return (
     <div className="space-y-8">
       <PagePortalHeader
@@ -109,12 +118,18 @@ export default function PerformancePage() {
             derivado dos seus dados reais
           </span>
         </span>
-        <span className="inline-flex items-center gap-2">
-          <ProvenanceBadge provenance="pending" />
-          <span className="portal-small text-portal-neutral">
-            sem fonte de dado ainda — nada é inventado no lugar
+        {/* Só entra na legenda quando algum indicador da tela realmente está
+            em `pending` — hoje só o On-time rate, e só enquanto nenhum embarque
+            tiver rastreamento. Legenda para um selo que não aparece lê como
+            funcionalidade faltando (mesma regra da legenda do Mapa). */}
+        {!onTime && (
+          <span className="inline-flex items-center gap-2">
+            <ProvenanceBadge provenance="pending" />
+            <span className="portal-small text-portal-neutral">
+              sem fonte de dado ainda — nada é inventado no lugar
+            </span>
           </span>
-        </span>
+        )}
         <span className="inline-flex items-center gap-2">
           <ProvenanceBadge provenance="preview" />
           <span className="portal-small text-portal-neutral">
@@ -135,12 +150,21 @@ export default function PerformancePage() {
           badge={<ProvenanceBadge provenance="real" />}
           caption="Cotações fechadas sobre fechadas + recusadas."
         />
+        {/* Cálculo REAL (mesma computeDelayRisk do badge de cada embarque);
+            o que é ilustrativo é o tracking de entrada, não a aritmética. Null
+            quando nenhum embarque tem desvio calculável — "0% no prazo" seria
+            acusação, não ausência. */}
         <StatNumber
           size="hero"
           label="On-time rate"
           icon={<Timer className="h-5 w-5" />}
-          badge={<ProvenanceBadge provenance="pending" />}
-          caption="Embarques no prazo. Depende de ETA e histórico de embarque — ainda não integrado."
+          value={onTime ? `${onTime.pct}%` : undefined}
+          badge={onTime ? undefined : <ProvenanceBadge provenance="pending" />}
+          caption={
+            onTime
+              ? `Sobre ${onTime.tracked} de ${onTime.total} embarques com rastreamento.`
+              : 'Embarques no prazo. Depende de ETA e histórico de embarque — ainda não integrado.'
+          }
         />
       </div>
 
@@ -225,7 +249,7 @@ export default function PerformancePage() {
 
       {/* Fecha a tela com o que ainda não dá para responder. Substituiu o antigo
           "Economia estimada", que fabricava um número para a mesma pergunta. */}
-      <SavingsBenchmarkBlock />
+      <SavingsBenchmarkBlock savings={savings} />
     </div>
   );
 }

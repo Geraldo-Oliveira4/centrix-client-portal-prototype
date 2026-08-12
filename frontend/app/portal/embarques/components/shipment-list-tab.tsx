@@ -7,14 +7,17 @@ import { AlertTriangle, ChevronRight, Info, SlidersHorizontal } from 'lucide-rea
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Input,
+  Label,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { formatShortDate } from '@/lib/portal-formatters';
 import { MODAL_LABELS } from '@/types/quotation';
@@ -232,6 +235,7 @@ export function ShipmentListTab({
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [origin, setOrigin] = useState<string>('all');
+  const [originQuery, setOriginQuery] = useState('');
   const [period, setPeriod] = useState<PeriodFilter>('all');
   const [quick, setQuick] = useState<QuickFilterKey | null>(null);
 
@@ -239,6 +243,24 @@ export function ShipmentListTab({
     const names = new Set(shipments.map((s) => originOf(s.referencia).name));
     return ORIGINS.filter((o) => names.has(o.name)).map((o) => o.name);
   }, [shipments]);
+
+  // Filtro client-side do typeahead. Sem acento e sem caixa, para "genova"
+  // encontrar "Gênova".
+  const matchingOrigins = useMemo(() => {
+    const term = originQuery
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+    if (!term) return originsPresent;
+    return originsPresent.filter((name) =>
+      name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [originsPresent, originQuery]);
 
   // Contagem por chip sobre a lista COMPLETA, não sobre a filtrada: o número no
   // chip responde "quantos existem", e recontá-lo sobre o próprio recorte faria
@@ -301,8 +323,14 @@ export function ShipmentListTab({
             onOpenChange={onSearchOpenChange}
           />
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          {/* Popover, e não DropdownMenu: o typeahead do DropdownMenu do Radix
+              captura as teclas para navegar entre os itens, então um <input>
+              dentro dele não recebe o que o usuário digita. A busca de Origem
+              precisa de um input de verdade. É também o mesmo controle que
+              Minhas Cotações usa (PortalFiltersMenu), então as duas telas
+              voltam a ter a mesma toolbar. */}
+          <Popover>
+            <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5">
                 <SlidersHorizontal className="h-4 w-4" />
                 Filtros
@@ -312,42 +340,99 @@ export function ShipmentListTab({
                   </span>
                 )}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Situação</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={status}
-                onValueChange={(v) => setStatus(v as StatusFilter)}
-              >
-                <DropdownMenuRadioItem value="all">Todas</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="success">Em andamento</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="warning">Atenção / atraso</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="danger">Exceção</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 space-y-4">
+              <div className="space-y-2">
+                <Label className="portal-small text-portal-neutral">Situação</Label>
+                <Select
+                  value={status}
+                  onValueChange={(v) => setStatus(v as StatusFilter)}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    <SelectItem value="success">Em andamento</SelectItem>
+                    <SelectItem value="warning">Atenção / atraso</SelectItem>
+                    <SelectItem value="danger">Exceção</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Origem</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={origin} onValueChange={setOrigin}>
-                <DropdownMenuRadioItem value="all">Todas</DropdownMenuRadioItem>
-                {originsPresent.map((name) => (
-                  <DropdownMenuRadioItem key={name} value={name}>
-                    {name}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
+              {/* Origem: busca, não lista fixa. A lista de portos vem de
+                  port-coordinates.ts (fonte única desde o Prompt 15) e cresce
+                  com a operação — enumerar todos num menu deixa de caber. Só as
+                  origens presentes nos embarques do cliente entram, e o filtro é
+                  client-side sobre elas. */}
+              <div className="space-y-2">
+                <Label className="portal-small text-portal-neutral">Origem</Label>
+                <Input
+                  value={originQuery}
+                  onChange={(e) => setOriginQuery(e.target.value)}
+                  placeholder="Buscar porto…"
+                  className="h-9"
+                  aria-label="Buscar porto de origem"
+                />
+                <div className="max-h-44 space-y-0.5 overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrigin('all');
+                      setOriginQuery('');
+                    }}
+                    className={cn(
+                      'portal-small block w-full rounded px-2 py-1.5 text-left transition-colors',
+                      origin === 'all'
+                        ? 'bg-primary/10 font-medium text-primary'
+                        : 'text-portal-neutral hover:bg-muted',
+                    )}
+                  >
+                    Todas
+                  </button>
+                  {matchingOrigins.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => setOrigin(name)}
+                      className={cn(
+                        'portal-small block w-full rounded px-2 py-1.5 text-left transition-colors',
+                        origin === name
+                          ? 'bg-primary/10 font-medium text-primary'
+                          : 'text-portal-neutral hover:bg-muted',
+                      )}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                  {matchingOrigins.length === 0 && (
+                    <p className="portal-small px-2 py-1.5 text-portal-neutral">
+                      Nenhum porto encontrado.
+                    </p>
+                  )}
+                </div>
+              </div>
 
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Período (abertura)</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={period}
-                onValueChange={(v) => setPeriod(v as PeriodFilter)}
-              >
-                <DropdownMenuRadioItem value="all">Qualquer data</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="30">Últimos 30 dias</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="90">Últimos 90 dias</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <div className="space-y-2">
+                <Label className="portal-small text-portal-neutral">
+                  Período (abertura)
+                </Label>
+                <Select
+                  value={period}
+                  onValueChange={(v) => setPeriod(v as PeriodFilter)}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Qualquer data</SelectItem>
+                    <SelectItem value="30">Últimos 30 dias</SelectItem>
+                    <SelectItem value="90">Últimos 90 dias</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 

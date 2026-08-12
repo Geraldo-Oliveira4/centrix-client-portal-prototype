@@ -118,12 +118,31 @@ test('rota: com varios portos candidatos, o destino nao e inventado', () => {
   assert.equal(rows[0].route, 'Shanghai → Brasil');
 });
 
-test('rota: embarque sem cotação conhecida fica de fora, sem balde "Outras"', () => {
+// Mudança de 12/08/2026: embarque sem cotação NÃO fica mais de fora. A regra
+// antiga (deepEqual(rows, [])) existia para não inventar rota; com o protótipo
+// virando referência visual, ele cai no mesmo hub ilustrativo que o mapa e a
+// Lista já usam para aquela referência. Ver o cabeçalho de shipment-dimensions.
+test('rota: embarque sem cotação usa o hub ilustrativo, e não some do ranking', () => {
   const rows = computeRouteDeviations(
     [shipment('S1', null, trackedBy(9)), shipment('S2', 'DESCONHECIDA', trackedBy(9))],
     [quotation('Q1', 'Shanghai, China', 'Maersk')],
   );
-  assert.deepEqual(rows, []);
+  assert.equal(rows.length, 2, 'os dois entram, cada um no seu hub');
+  for (const row of rows) {
+    assert.match(row.route, / → Brasil$/);
+    assert.ok(row.route.split(' → ')[0].length > 0, 'a rota precisa nomear um porto');
+  }
+});
+
+test('rota: a cotação tem prioridade sobre o hub ilustrativo', () => {
+  const rows = computeRouteDeviations(
+    [shipment('S1', 'Q1', trackedBy(4))],
+    [quotation('Q1', 'Shanghai, China', 'Maersk')],
+  );
+  assert.deepEqual(
+    rows.map((r) => r.route),
+    ['Shanghai → Brasil'],
+  );
 });
 
 test('rota: desvio negativo (chegou antes) não é descartado como ausência', () => {
@@ -163,7 +182,10 @@ test('armador: on-time só sobre os medidos', () => {
   assert.equal(rows[0].onTimePct, 50);
 });
 
-test('armador: sem carrier na proposta, o embarque fica fora (sem "Não informado")', () => {
+// Mudança de 12/08/2026, mesma razão da rota: sem carrier na proposta o embarque
+// recebe um armador ilustrativo estável em vez de sumir do ranking. O que não
+// pode voltar é o balde "Não informado" — armador fantasma no topo da lista.
+test('armador: sem carrier, usa um ilustrativo — nunca "Não informado"', () => {
   const rows = computeCarrierUsage(
     [shipment('S1', 'Q1'), shipment('S2', 'Q2')],
     [
@@ -171,9 +193,23 @@ test('armador: sem carrier na proposta, o embarque fica fora (sem "Não informad
       quotation('Q2', 'Genova, Italy', 'ONE'),
     ],
   );
+  const names = rows.map((r) => r.carrier);
+  assert.equal(names.length, 2);
+  assert.ok(names.includes('ONE'), 'o armador real da cotação continua nomeado');
+  assert.ok(
+    !names.some((n) => /não informado|nao informado|desconhecid/i.test(n)),
+    'nenhum balde genérico',
+  );
+});
+
+test('armador: o carrier da proposta tem prioridade sobre o ilustrativo', () => {
+  const rows = computeCarrierUsage(
+    [shipment('S1', 'Q1')],
+    [quotation('Q1', 'Shanghai, China', 'Hapag-Lloyd')],
+  );
   assert.deepEqual(
     rows.map((r) => r.carrier),
-    ['ONE'],
+    ['Hapag-Lloyd'],
   );
 });
 

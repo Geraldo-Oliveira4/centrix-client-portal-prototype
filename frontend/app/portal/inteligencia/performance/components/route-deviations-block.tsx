@@ -11,12 +11,12 @@ import type { RouteDeviation } from '../../lib/shipment-dimensions';
 /**
  * "Rotas com maiores desvios" — média de dias de atraso por rota.
  *
- * Selo `pending` no bloco INTEIRO, e o motivo não é o cálculo: a aritmética é a
- * mesma `computeDelayRisk` que a Lista de embarques já usa, e cada número aqui é
- * reproduzível. O que falta é VOLUME — hoje só os embarques de demonstração têm
- * rastreamento, então uma média por rota sai de uma ou duas observações e não
- * significa nada como ranking. Quando a integração ShipsGo popular os embarques
- * reais, este bloco vira `real` sem mudar uma linha do cálculo.
+ * Selo `preview` desde 12/08/2026 (era `pending`). O CÁLCULO é real — a mesma
+ * `computeDelayRisk` que a Lista de embarques usa, reproduzível linha a linha.
+ * O que é ilustrativo é o RÓTULO: a maioria dos embarques não tem cotação
+ * vinculada, então a rota vem do hub ilustrativo (ver `shipment-dimensions.ts`).
+ * Quando a integração ShipsGo e o vínculo com a cotação existirem, este bloco
+ * vira `real` sem mudar uma linha do cálculo.
  *
  * Por isso o bloco mostra a contagem de embarques MEDIDOS ao lado de cada média:
  * é o leitor que precisa ver que "+6 dias" veio de um embarque, não de trinta.
@@ -28,7 +28,7 @@ export function RouteDeviationsBlock({ routes }: { routes: RouteDeviation[] }) {
         title="Rotas com maiores desvios"
         hint="média de dias sobre o primeiro ETA"
         icon={<Route className="h-5 w-5" />}
-        action={<ProvenanceBadge provenance="pending" />}
+        action={<ProvenanceBadge provenance="preview" />}
       />
 
       {routes.length === 0 ? (

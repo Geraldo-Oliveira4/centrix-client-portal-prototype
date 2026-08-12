@@ -2,8 +2,11 @@
 
 import { Landmark, TrendingDown } from 'lucide-react';
 
+import { formatBRL } from '@/lib/portal-formatters';
+
 import { SectionHeading } from '../../../_shared/page-header';
 import { ProvenanceBadge } from '../../../_shared/provenance-badge';
+import type { IllustrativeSavings } from '../../lib/illustrative-kpis';
 
 /**
  * "Economia e Benchmark" — ESTRUTURA APENAS. Nenhum cálculo, nem função pura.
@@ -35,14 +38,18 @@ import { ProvenanceBadge } from '../../../_shared/provenance-badge';
  * ausência. Não reintroduza o número dos 8%: aquele fator continua vivo no
  * `MarketBlock` do detalhe da cotação, que é outra tela e outro contexto.
  */
-export function SavingsBenchmarkBlock() {
+export function SavingsBenchmarkBlock({
+  savings,
+}: {
+  savings: IllustrativeSavings | null;
+}) {
   return (
     <section className="space-y-4 rounded-xl border border-dashed border-border bg-muted/20 p-6">
       <SectionHeading
         title="Economia e Benchmark"
         hint="quanto você economiza e como isso se compara ao mercado"
         icon={<TrendingDown className="h-5 w-5" />}
-        action={<ProvenanceBadge provenance="pending" />}
+        action={<ProvenanceBadge provenance="preview" />}
       />
 
       <dl className="space-y-4">
@@ -50,6 +57,21 @@ export function SavingsBenchmarkBlock() {
           <dt className="portal-body font-medium text-foreground">
             Savings acumulado
           </dt>
+          {/* O valor vem de `computeIllustrativeSavings`, a MESMA função que o
+              KPI "Economia" do Executivo consome. Se este número e o de lá
+              divergirem, é porque alguém recalculou num dos dois — foi
+              exatamente o problema corrigido em 05/08/2026. */}
+          {savings && (
+            <dd className="flex flex-wrap items-baseline gap-x-2 pt-1">
+              <span className="text-2xl font-semibold leading-none text-portal-success">
+                {formatBRL(savings.savingsBRL)}
+              </span>
+              <span className="portal-small text-portal-neutral">
+                ~{Math.round(savings.pct * 100)}% sobre {formatBRL(savings.baseBRL)}{' '}
+                fechados
+              </span>
+            </dd>
+          )}
           <dd className="portal-body text-portal-neutral">
             Quanto suas escolhas economizaram em relação à primeira proposta
             recebida em cada cotação.

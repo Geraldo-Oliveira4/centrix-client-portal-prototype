@@ -17,7 +17,12 @@ import { PagePortalHeader } from '../../_shared/page-header';
 import { ProvenanceBadge } from '../../_shared/provenance-badge';
 import { StatNumber } from '../../_shared/stat-number';
 import type { Tone } from '../../_shared/tone';
+import { formatBRL } from '@/lib/portal-formatters';
 import { flattenQuotations } from '../lib/intel-helpers';
+import {
+  computeIllustrativeSavings,
+  computeOnTimeRate,
+} from '../lib/illustrative-kpis';
 import { computePerformanceMetrics } from '../lib/performance-helpers';
 import { volumeTrend } from '../lib/volume-helpers';
 
@@ -81,7 +86,12 @@ export default function ExecutivoPage() {
   }
 
   const m = computePerformanceMetrics(data);
-  const qTrend = volumeTrend(flattenQuotations(data).map((q) => q.created_at));
+  const executiveQuotations = flattenQuotations(data);
+  const qTrend = volumeTrend(executiveQuotations.map((q) => q.created_at));
+
+  // Fonte ÚNICA, compartilhada com o Performance. Ver lib/illustrative-kpis.ts.
+  const savings = computeIllustrativeSavings(executiveQuotations);
+  const onTime = computeOnTimeRate(shipments);
   const sTrend = volumeTrend(shipments.map((s) => s.created_at));
 
   return (
@@ -148,17 +158,28 @@ export default function ExecutivoPage() {
         <StatNumber
           label="On-time rate"
           icon={<Timer className="h-4 w-4" />}
-          badge={<ProvenanceBadge provenance="pending" />}
-          caption="Sem fonte de ETA/embarque integrada."
+          value={onTime ? `${onTime.pct}%` : undefined}
+          badge={onTime ? undefined : <ProvenanceBadge provenance="pending" />}
+          caption={
+            onTime
+              ? `Sobre ${onTime.tracked} de ${onTime.total} embarques com rastreamento.`
+              : 'Sem fonte de ETA/embarque integrada.'
+          }
         />
-        {/* Sem `value`, igual ao On-time rate acima: o KPI existe, a fonte não.
-            Mostrava `Σ(fechadas.total_brl) × 0,08` sob selo `preview` até
-            05/08/2026 — ver o bloco de honestidade no topo do arquivo. */}
+        {/* MESMO número do bloco "Economia e Benchmark" do Performance, vindo da
+            MESMA função (`computeIllustrativeSavings`). Nunca recalcule aqui: em
+            05/08/2026 as duas telas davam respostas diferentes para esta
+            pergunta, e foi por isso que o número foi removido das duas. */}
         <StatNumber
           label="Economia"
           icon={<PiggyBank className="h-4 w-4" />}
-          badge={<ProvenanceBadge provenance="pending" />}
-          caption="Depende de base de preço de mercado (Data Lake) — ainda não integrada."
+          value={savings ? formatBRL(savings.savingsBRL) : undefined}
+          badge={savings ? <ProvenanceBadge provenance="preview" /> : <ProvenanceBadge provenance="pending" />}
+          caption={
+            savings
+              ? `~${Math.round(savings.pct * 100)}% sobre o valor fechado no período.`
+              : 'Depende de base de preço de mercado (Data Lake) — ainda não integrada.'
+          }
         />
       </div>
     </div>

@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowRight, PackageCheck, Wrench } from 'lucide-react';
 
 import { Button } from '@/components/ui';
+import { cn } from '@/lib/utils';
+import { useMyShipments } from '@/hooks/use-portal-shipments';
 
 import { PagePortalHeader, SectionHeading } from '../_shared/page-header';
 import { ProvenanceBadge } from '../_shared/provenance-badge';
@@ -52,6 +54,13 @@ import {
  * linhas de item.
  */
 export default function AuditoriaPage() {
+  // Embarques elegíveis: os que o rastreamento já reportou como liberados
+  // (milestone AVAILABLE). Mesma chave SWR das outras telas, então é deduplicado.
+  const { shipments } = useMyShipments();
+  const eligible = shipments.filter(
+    (s) => s.tracking?.last_milestone === 'AVAILABLE',
+  );
+
   const [selected, setSelected] = useState<{
     example: ConciliationExample;
     line: EvaluatedLine;
@@ -78,12 +87,19 @@ export default function AuditoriaPage() {
         action={<ProvenanceBadge provenance="preview" />}
       />
 
-      {/* Banner de topo: a tela inteira é conceitual, não só um número. */}
+      {/* Banner de topo, reescrito em 12/08/2026. Dizia "Conceitual — aguarda
+          conclusão do módulo de Tracking", o que passou a contradizer a própria
+          tela: ela mostra o fluxo inteiro de auditoria funcionando, com
+          embarques elegíveis e conciliação item a item. O enquadramento agora é
+          o que a tela É (referência visual do fluxo), não o que falta. O selo
+          `preview` do cabeçalho e o prefixo EXEMPLO- das referências continuam
+          intactos — são eles que dizem, por linha, o que é ilustrativo. */}
       <div className="flex items-start gap-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4">
         <Wrench className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <p className="portal-body text-foreground">
-          <span className="font-medium">Conceitual</span> — aguarda conclusão do
-          módulo de Tracking. Exemplo abaixo com dado ilustrativo.
+          <span className="font-medium">Referência visual</span> — o fluxo
+          completo de auditoria, com dados de exemplo. A fonte real entra com a
+          integração de tracking e da nota fiscal.
         </p>
       </div>
 
@@ -95,23 +111,36 @@ export default function AuditoriaPage() {
         <SectionHeading
           title="Quando a auditoria dispara"
           icon={<PackageCheck className="h-5 w-5" />}
-          action={<ProvenanceBadge provenance="pending" />}
+          action={<ProvenanceBadge provenance="preview" />}
         />
         <p className="portal-body max-w-3xl text-portal-neutral">
-          A conferência só faz sentido depois que o embarque chega e a
-          documentação final é emitida — é aí que existe um realizado para
-          comparar com o planejado. O acompanhamento de embarque ainda não marca
-          a chegada confirmada, então nenhum embarque seu entra nesta lista por
-          enquanto.
+          A conferência só faz sentido depois que a carga é liberada no destino e
+          a documentação final é emitida — é aí que existe um realizado para
+          comparar com o planejado. Entram nesta lista os embarques cujo
+          rastreamento já reportou a liberação do container.
         </p>
+        {/* Elegível = milestone AVAILABLE ("Liberado"). É o mesmo gatilho do
+            alerta de demurrage, e vem do bloco `tracking`, não de `estado`: os
+            estados do GE param em `embarcado` (partida), então só o rastreamento
+            sabe que a carga foi liberada no destino. */}
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-dashed pt-4">
-          <p className="text-3xl font-semibold leading-none text-portal-neutral">0</p>
-          <p className="portal-body text-portal-neutral">
-            embarques elegíveis hoje
+          <p
+            className={cn(
+              'text-3xl font-semibold leading-none',
+              eligible.length > 0 ? 'text-portal-success' : 'text-portal-neutral',
+            )}
+          >
+            {eligible.length}
+          </p>
+          <p className="portal-body text-foreground">
+            {eligible.length === 1
+              ? 'embarque elegível hoje'
+              : 'embarques elegíveis hoje'}
           </p>
           <p className="portal-small text-portal-neutral">
-            passam a aparecer aqui automaticamente quando a chegada for
-            confirmada
+            {eligible.length > 0
+              ? eligible.map((s) => s.referencia).join(' · ')
+              : 'passam a aparecer aqui quando o rastreamento reportar a liberação'}
           </p>
         </div>
       </section>

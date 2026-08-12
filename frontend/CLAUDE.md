@@ -640,6 +640,47 @@ Do not introduce `p-3`, `gap-3`, `space-y-5` or other off-grid steps in `/portal
 > Class names composed in `types/` are only picked up because
 > `./types/**/*.{ts,tsx}` is in the Tailwind `content` globs. Keep it there.
 
+## MUDANÇA DE PROPÓSITO — 12/08/2026
+
+O protótipo virou **referência visual** para quem vai construir a versão
+integrada, e deixou de ser uma réplica que anuncia ao usuário final o que é real
+e o que é mock. Onde a tela dizia "Pendente integração", ela agora mostra dado
+ilustrativo rico. O contexto completo, com a tabela de telas afetadas e a lista
+do que NÃO afrouxou, está no `CLAUDE.md` da raiz — leia antes de tratar qualquer
+mock desta seção como regressão.
+
+O que isso muda nas convenções descritas abaixo:
+
+- **`pending` recuou, `preview` avançou.** "Rotas com maiores desvios",
+  "Armadores mais usados", "Economia e Benchmark" e o card "Quando a auditoria
+  dispara" trocaram `pending` por `preview`: o dado passou a existir, ilustrativo.
+  `pending` continua válido e em uso — é o fallback quando NEM ilustrativo existe
+  (ex.: On-time rate num banco sem nenhum top-up de tracking).
+- **Legenda de selo só lista o que aparece.** A legenda de proveniência do
+  Performance esconde a entrada `pending` quando nenhum indicador da tela está
+  nesse estado — mesma regra da legenda do Mapa.
+- **`ProvenanceBadge` continua como está**, nos mesmos ~8 lugares. Aposentá-lo é
+  decisão separada e ainda não tomada.
+- **Economia tem fonte única**: `inteligencia/lib/illustrative-kpis.ts`
+  (`computeIllustrativeSavings` + `computeOnTimeRate`), consumida por Performance
+  E Executivo. O número foi removido das duas telas em 05/08/2026 justamente
+  porque elas discordavam; ele só voltou porque agora é calculado uma vez. **Não
+  recalcule savings numa terceira tela — importe daqui.**
+- **Rota e armador aceitam fallback ilustrativo** (`shipment-dimensions.ts`): a
+  cotação tem prioridade, e sem ela o embarque cai no mesmo hub de
+  `port-coordinates.ts` que o Mapa e a Lista usam. A regra antiga — embarque sem
+  cotação fica FORA do ranking — foi levantada nesta data, e os dois testes
+  unitários que a travavam foram reescritos, não apagados. O que continua
+  proibido: balde genérico ("Não informado", "Outras") no topo de um ranking.
+- **Filtro de Origem da Lista é busca**, não lista fixa, e o menu Filtros virou
+  `Popover` (era `DropdownMenu`): o typeahead do DropdownMenu do Radix captura as
+  teclas e um `<input>` dentro dele não recebe o que o usuário digita.
+- **Banner da Auditoria** diz "Referência visual", não mais "Conceitual —
+  aguarda conclusão do módulo de Tracking": a tela passou a mostrar o fluxo
+  inteiro funcionando, e o texto antigo a contradizia. O selo `preview` do
+  cabeçalho e o prefixo `EXEMPLO-` das referências continuam — são eles que
+  dizem, por linha, o que é ilustrativo.
+
 ## Client Portal modules — Inteligência & Auditoria
 
 Two `/portal` modules that surface product answers under one **honesty

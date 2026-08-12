@@ -4,20 +4,36 @@
 // rede, relógio ou DOM, e nada aqui fabrica número: quando falta dado, a linha
 // simplesmente não entra na média (e a média vira null), em vez de virar zero.
 //
-// POR QUE O JOIN COM A COTAÇÃO
-// ----------------------------
+// ROTA E ARMADOR: COTAÇÃO PRIMEIRO, ILUSTRATIVO DEPOIS
+// ----------------------------------------------------
 // O payload do embarque (`/portal/shipments`) NÃO carrega rota nem armador:
 //
-//   - a rota real mora na cotação (`origin` / `porto_destino`). A origem que
-//     aparece no mapa e no card da Lista é ILUSTRATIVA, derivada de um hash da
-//     referência (`embarques/lib/shipment-origins.ts`) — usá-la aqui produziria
-//     um ranking de rotas inventadas com cara de medição;
+//   - a rota real mora na cotação (`origin` / `porto_destino`);
 //   - o armador mora na proposta (`best_proposal.carrier`), campo estruturado
 //     de `centrix_quotation_proposals` já exposto ao portal.
 //
 // O elo é `shipment.quotation_id`, que o payload do embarque expõe. Por isso as
 // duas funções recebem embarques E cotações: sem endpoint novo, e sem regex
 // sobre texto livre.
+//
+// **Mudança de 12/08/2026 — leia antes de "corrigir" isto de volta.** Este
+// módulo proibia explicitamente cair no hub ilustrativo quando a cotação não é
+// conhecida: um embarque sem `quotation_id` ficava FORA do ranking, para não
+// produzir "rotas inventadas com cara de medição". Com a mudança de propósito do
+// protótipo (de réplica standalone honesta para REFERÊNCIA VISUAL destinada a
+// quem vai construir a versão integrada), a regra foi levantada a pedido do
+// Vinicius: 9 dos 10 embarques do seed não têm cotação vinculada, e sob a regra
+// antiga estes dois blocos mostravam uma linha cada, para sempre.
+//
+// O que continua valendo, e não pode afrouxar mais:
+//
+//   - A cotação tem PRIORIDADE. O ilustrativo é fallback, nunca substituto: um
+//     embarque com rota real agrega pela rota real.
+//   - Nada aqui inventa NÚMERO. O desvio continua saindo de `computeDelayRisk`
+//     sobre datas de tracking, e embarque sem desvio calculável continua fora da
+//     média (`onTimePct` null, nunca 0). O que passou a ser ilustrativo é o
+//     RÓTULO da linha (qual rota, qual armador), não a medida.
+//   - Armador ≠ agente segue valendo (ver abaixo).
 //
 // ARMADOR != AGENTE — NÃO CONFUNDIR
 // ---------------------------------
@@ -39,6 +55,10 @@ import type { PortalQuotation } from '@/types/portal';
 import type { PortalShipment } from '@/types/portal-shipment';
 
 import { delayRiskFromTracking, type DelayRisk } from '../../embarques/lib/delay-risk.ts';
+import {
+  hubIndex,
+  illustrativeHub,
+} from '../../embarques/lib/port-coordinates.ts';
 
 /** Destino padrão quando a cotação não nomeia porto/aeroporto de destino. */
 const DEFAULT_DESTINATION = 'Brasil';
@@ -98,20 +118,47 @@ function destinationOf(quotation: PortalQuotation | undefined): string {
 }
 
 /**
- * Rota legível de um embarque, ou null quando a cotação de origem não é
- * conhecida. Null é resultado legítimo: embarque sem `quotation_id` (ou com uma
- * cotação fora da página carregada) fica FORA do ranking em vez de cair num
- * balde "Outras", que inflaria uma rota inexistente.
+ * Rota legível de um embarque. Cotação primeiro; sem ela, o mesmo hub
+ * ilustrativo que o mapa e o card da Lista já usam para este embarque — uma
+ * fonte só, então as três telas nomeiam o mesmo porto.
+ *
+ * Nunca devolve null: com a mudança de 12/08/2026 nenhum embarque fica fora do
+ * ranking por não ter cotação. Ver o cabeçalho do módulo.
  */
 function routeOf(
   shipment: PortalShipment,
   byId: Map<string, PortalQuotation>,
-): string | null {
+): string {
   const quotation = shipment.quotation_id
     ? byId.get(shipment.quotation_id)
     : undefined;
-  const origin = originOf(quotation);
-  return origin ? `${origin} → ${destinationOf(quotation)}` : null;
+  const origin = originOf(quotation) ?? illustrativeHub(shipment.referencia).name;
+  return `${origin} → ${destinationOf(quotation)}`;
+}
+
+/**
+ * Armador de um embarque. A proposta vencedora primeiro; sem cotação conhecida,
+ * um armador ilustrativo estável por referência.
+ *
+ * A lista é curta e de armadores reais do mercado porque o objetivo é a tela
+ * parecer com a operação de verdade — mas ela NÃO afirma que aquele navio levou
+ * aquela carga. O que o bloco mede (quantos embarques, quantos no prazo)
+ * continua saindo de dado de tracking, não daqui.
+ */
+const ILLUSTRATIVE_CARRIERS = ['Maersk', 'MSC', 'CMA CGM', 'ONE', 'Hapag-Lloyd'];
+
+function carrierOf(
+  shipment: PortalShipment,
+  byId: Map<string, PortalQuotation>,
+): string {
+  const quotation = shipment.quotation_id
+    ? byId.get(shipment.quotation_id)
+    : undefined;
+  const real = (quotation?.best_proposal?.carrier ?? '').trim();
+  if (real) return real;
+  return ILLUSTRATIVE_CARRIERS[
+    hubIndex(shipment.referencia) % ILLUSTRATIVE_CARRIERS.length
+  ];
 }
 
 /**
@@ -137,7 +184,6 @@ export function computeRouteDeviations(
     if (risk.deltaDays == null) continue;
 
     const route = routeOf(shipment, byId);
-    if (!route) continue;
 
     const entry = sums.get(route) ?? { total: 0, count: 0 };
     entry.total += risk.deltaDays;
@@ -177,11 +223,7 @@ export function computeCarrierUsage(
   >();
 
   for (const shipment of shipments) {
-    const quotation = shipment.quotation_id
-      ? byId.get(shipment.quotation_id)
-      : undefined;
-    const carrier = (quotation?.best_proposal?.carrier ?? '').trim();
-    if (!carrier) continue;
+    const carrier = carrierOf(shipment, byId);
 
     const entry = stats.get(carrier) ?? { shipments: 0, tracked: 0, onTime: 0 };
     entry.shipments += 1;
