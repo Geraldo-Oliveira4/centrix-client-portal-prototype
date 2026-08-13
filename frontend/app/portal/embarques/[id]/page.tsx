@@ -245,8 +245,10 @@ export default function PortalEmbarqueDetailPage() {
 
       {/* Primary: the journey timeline — the reason the client opened this screen.
           Real operational states up to the current one, then the downstream
-          carrier milestones (Em trânsito, Chegada, Descarregado, Liberado),
-          marked "Pendente integração" until the ShipsGo feed exists.
+          carrier milestones (Em trânsito, Chegada, Descarregado, Liberado). A
+          milestone the carrier has not reached shows an expected date derived
+          from this shipment's own ETA, with the circle still empty; with no ETA
+          to derive from it falls back to "Pendente integração".
 
           `customsClearance` is deliberately NOT passed: the "Desembaraçado" tag
           comes from a future Camada 2 (Inova / Portal Único) that is not

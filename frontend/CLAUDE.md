@@ -505,6 +505,28 @@ touch Meus Embarques:
   milestone are done, the milestone is the current stage, and nothing past it is
   claimed. `ShipmentTimeline` is presentational over that helper; do not put
   step logic back in the component.
+- **Passo downstream não alcançado mostra PREVISÃO, não "Pendente integração"**
+  (`lib/step-forecast.ts`, puro e unit-testado). Quatro regras, e a primeira é a
+  que sustenta as outras:
+  - **A previsão é DERIVAÇÃO do ETA que a mesma tela já mostra**, nunca um
+    segundo número inventado: Chegada **é** o `current_eta` (mesma string que o
+    `ShipmentEtaBadge` imprime), Descarregado é +2 dias e Liberado é +5. Foi
+    assim que o card "Rastreamento marítimo" morreu — ETA próprio contradizendo
+    o ETA do topo da tela. Uma pergunta, uma resposta.
+  - **"Em trânsito" é a única que o ETA não dá sozinho** (é a PARTIDA). Subtrair
+    uma perna de trânsito da chegada cairia no passado para carga que ainda nem
+    ficou pronta, então ela é derivada para frente a partir de hoje pelo que
+    falta da jornada operacional (`DEPARTURE_LEAD_DAYS`, decrescente por
+    `estado`), com teto na metade do caminho até a chegada. Estado de exceção não
+    tem lead (a linha está congelada e não se sabe o estágio anterior): cai no
+    ponto médio. A partida fica **sempre** antes da chegada, inclusive com ETA
+    vencido — há teste para isso.
+  - **Previsão é só TEXTO.** Nada aqui muda `status`: o círculo do passo futuro
+    continua vazio e "Etapa atual" continua onde a regra do milestone a colocou.
+  - **Sem ETA, sem previsão**: o passo volta para `ProvenanceBadge pending`. É o
+    estado de um banco recém-semeado (sem top-up), o mesmo que `O15` trava no
+    e2e. `INCOMPLETE` não entra nisso — aqueles passos são `blocked` e mantêm
+    "Sem atualização da companhia".
 - **`tracking.last_milestone_at` dates that milestone** (backend migration 093)
   and is the ONLY source for "liberado em". It is null whenever the carrier
   named a stage without dating it — never backfill it from `current_eta`, which

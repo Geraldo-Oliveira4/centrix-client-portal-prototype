@@ -282,9 +282,12 @@ encaixa: **nenhum número fabricado**.
   porque é qualidade de dado, não saúde do embarque); `COMPLETE` = reportou.
 - Marcos pós-embarque na timeline (Em trânsito → Chegada → Descarregado →
   Liberado) são os milestones do ShipsGo (Ocean Transit, Arrival at POD,
-  Discharge, Available for Pickup) e seguem "Pendente integração". Gate-in e
-  Vessel Loading não se repetem: já são os estados reais `coletado` e
-  `embarcado`.
+  Discharge, Available for Pickup). Gate-in e Vessel Loading não se repetem: já
+  são os estados reais `coletado` e `embarcado`. O marco ainda não alcançado
+  mostra uma **data prevista** derivada do ETA do próprio embarque
+  (`frontend/.../lib/step-forecast.ts`) — o círculo do passo continua vazio e
+  "Pendente integração" só volta quando não há ETA nenhum de onde derivar (banco
+  recém-semeado, sem top-up).
 - **Free time (dias livres de demurrage/detention) não existe e não é derivável.**
   O ShipsGo diz **quando** o container ficou disponível (milestone `AVAILABLE`),
   nunca quantos dias livres o cliente tem — isso é cláusula comercial, mora no

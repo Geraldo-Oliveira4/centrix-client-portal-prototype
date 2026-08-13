@@ -96,6 +96,49 @@ test('an exception freezes the line and ignores any milestone', () => {
   assert.equal(statusOf(steps, 'descarregado'), 'pending');
 });
 
+test('no carrier data and no ETA -> no forecast, the pending badge stays', () => {
+  const steps = build();
+  assert.ok(steps.slice(5).every((s) => s.forecastAt === undefined));
+});
+
+test('a pending downstream step carries the forecast, and only the text changes', () => {
+  const steps = build({
+    estado: 'coletado',
+    currentEta: '2026-09-02T00:00:00Z',
+    now: new Date('2026-08-13T00:00:00Z'),
+  });
+  const chegada = steps.find((s) => s.key === 'chegada');
+  assert.equal(chegada.status, 'pending');
+  assert.equal(chegada.forecastAt.slice(0, 10), '2026-09-02');
+  // The filled/empty rule is untouched: "Etapa atual" is still the real state.
+  assert.equal(statusOf(steps, 'coletado'), 'current');
+  assert.equal(steps.filter((s) => s.status === 'current').length, 1);
+  assert.equal(steps.filter((s) => s.status === 'done').length, 2);
+});
+
+test('a reached milestone is never given a forecast date', () => {
+  const steps = build({
+    milestone: 'ARRIVAL',
+    currentEta: '2026-09-02T00:00:00Z',
+    now: new Date('2026-08-13T00:00:00Z'),
+  });
+  assert.equal(statusOf(steps, 'chegada'), 'current');
+  assert.equal(steps.find((s) => s.key === 'chegada').forecastAt, undefined);
+  assert.equal(steps.find((s) => s.key === 'em_transito').forecastAt, undefined);
+  // Only what is still unknown gets one.
+  assert.ok(steps.find((s) => s.key === 'liberado').forecastAt);
+});
+
+test('INCOMPLETE keeps its own badge instead of a forecast', () => {
+  const steps = build({
+    dataStatus: 'INCOMPLETE',
+    currentEta: '2026-09-02T00:00:00Z',
+    now: new Date('2026-08-13T00:00:00Z'),
+  });
+  assert.ok(steps.slice(5).every((s) => s.status === 'blocked'));
+  assert.ok(steps.slice(5).every((s) => s.forecastAt === undefined));
+});
+
 test('Chegada is the only step tagged as the arrival anchor', () => {
   const anchors = build().filter((s) => s.isArrival);
   assert.equal(anchors.length, 1);

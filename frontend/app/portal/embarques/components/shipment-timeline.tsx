@@ -1,7 +1,8 @@
 'use client';
 
-import { AlertTriangle, Check, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CalendarClock, Check, ShieldCheck } from 'lucide-react';
 
+import { formatShortDate } from '@/lib/portal-formatters';
 import { cn } from '@/lib/utils';
 import {
   ESTADO_DESCRIPTIONS,
@@ -34,12 +35,18 @@ import {
  *    current `estado`, no transition log), so no step carries a timestamp.
  *  - The DOWNSTREAM stages the client cares about (Em trânsito -> Chegada ->
  *    Descarregado -> Liberado). They advance only from `tracking.last_milestone`
- *    (the carrier's own milestone), and with no feed they stay inactive under a
- *    "Pendente integração" badge — never a fabricated date. When a milestone IS
- *    present, the steps before it are done and the milestone itself becomes the
- *    current stage; the caller is responsible for showing the `preview` seal if
- *    `tracking.is_mock` (demo data), which is why this component does not draw
- *    it per step.
+ *    (the carrier's own milestone). When a milestone IS present, the steps before
+ *    it are done and the milestone itself becomes the current stage; the caller
+ *    is responsible for showing the `preview` seal if `tracking.is_mock` (demo
+ *    data), which is why this component does not draw it per step.
+ *
+ *    A stage the carrier has not reached carries an EXPECTED date instead
+ *    ("Previsto: 26 de ago."), derived from the ETA this shipment already shows
+ *    (lib/step-forecast.ts) — so the timeline and the ETA at the top of the
+ *    screen answer "quando chega" with the same date. It is only text: the
+ *    circle stays empty and "Etapa atual" does not move. With no ETA to derive
+ *    from there is no forecast, and the step falls back to "Pendente
+ *    integração" rather than to a date of its own.
  *
  * The downstream four are the carrier milestones the ShipsGo integration will
  * report, in its own vocabulary: Ocean Transit, Arrival at POD, Discharge,
@@ -106,6 +113,20 @@ function StepDot({ status }: { status: StepStatus }) {
 }
 
 /**
+ * Expected date for a stage that has not happened. Neutral on purpose: it is a
+ * projection, not a health signal and not a completion — the empty circle next
+ * to it is what says the step is still ahead.
+ */
+function ForecastTag({ iso }: { iso: string }) {
+  return (
+    <span className="portal-small inline-flex items-center gap-1.5 rounded border border-border bg-muted px-2 py-0.5 font-medium text-portal-neutral">
+      <CalendarClock className="h-3.5 w-3.5" />
+      Previsto: {formatShortDate(iso)}
+    </span>
+  );
+}
+
+/**
  * "✓ Desembaraçado" — a tag on the arrival step, not a step of its own.
  * Renders only when Camada 2 actually reports a clearance; see CustomsClearance.
  */
@@ -137,6 +158,8 @@ export function ShipmentTimeline({
     isException: exception,
     dataStatus: tracking?.data_status,
     milestone: tracking?.last_milestone,
+    currentEta: tracking?.current_eta,
+    firstEta: tracking?.first_eta,
   });
   // The explanation goes on the first step that is actually blocked, which is
   // not necessarily the first downstream step once milestones have advanced.
@@ -192,9 +215,12 @@ export function ShipmentTimeline({
                       Etapa atual
                     </span>
                   )}
-                  {step.status === 'pending' && (
-                    <ProvenanceBadge provenance="pending" />
-                  )}
+                  {step.status === 'pending' &&
+                    (step.forecastAt ? (
+                      <ForecastTag iso={step.forecastAt} />
+                    ) : (
+                      <ProvenanceBadge provenance="pending" />
+                    ))}
                   {/* One badge for the whole blocked stretch — repeating it on
                       four consecutive steps says the same thing four times. */}
                   {step.status === 'blocked' && step.key === blockedKey && (

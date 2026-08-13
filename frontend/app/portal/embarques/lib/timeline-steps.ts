@@ -12,10 +12,15 @@
 //                  steps. Without it they stay "pending" (no integration), or
 //                  "blocked" when the carrier answered with INCOMPLETE.
 //
-// No date is ever derived here: the schema stores no transition log, so a step
-// carries a status and never a timestamp.
+// No step is ever DATED as having happened: the schema stores no transition log.
+// A post-departure step the carrier has not reached yet may carry `forecastAt` —
+// an expected date derived from the ETA (see step-forecast.ts) — and that never
+// changes its `status`: the circle stays empty and "Etapa atual" stays where the
+// milestone rule put it.
 
 import type { EmbarqueEstado, TrackingDataStatus, TrackingMilestone } from '@/types/portal-shipment';
+
+import { forecastDownstreamDates, type DownstreamKey } from './step-forecast.ts';
 
 export type StepStatus = 'done' | 'current' | 'upcoming' | 'pending' | 'blocked';
 
@@ -26,6 +31,12 @@ export interface TimelineStep {
   status: StepStatus;
   /** Chegada is the anchor for the customs-clearance tag (Camada 2). */
   isArrival?: boolean;
+  /**
+   * Expected date (ISO) for a step that has NOT happened, replacing the
+   * "Pendente integração" badge. Only ever set on `pending` steps, and only when
+   * there is an ETA to derive it from.
+   */
+  forecastAt?: string;
 }
 
 export interface DownstreamStep {
@@ -75,6 +86,11 @@ export interface TimelineInput {
   isException: boolean;
   dataStatus?: TrackingDataStatus | null;
   milestone?: TrackingMilestone | null;
+  /** ETA at POD, the anchor every forecast is derived from. */
+  currentEta?: string | null;
+  firstEta?: string | null;
+  /** "Today", for the forecast. Injected in tests; defaults to the real clock. */
+  now?: Date;
 }
 
 export function buildTimelineSteps({
@@ -83,6 +99,9 @@ export function buildTimelineSteps({
   isException,
   dataStatus,
   milestone,
+  currentEta,
+  firstEta,
+  now,
 }: TimelineInput): TimelineStep[] {
   const currentIndex = realSteps.findIndex((s) => s.key === estado);
 
@@ -112,6 +131,16 @@ export function buildTimelineSteps({
   });
 
   const blocked = dataStatus === 'INCOMPLETE';
+  // Only `pending` steps take a forecast. A `blocked` one is the carrier's own
+  // silence ("Sem atualização da companhia") and has no ETA behind it anyway,
+  // and a done/current one already happened.
+  const forecast = forecastDownstreamDates({
+    estado,
+    currentEta,
+    firstEta,
+    now: now ?? new Date(),
+  });
+
   const downstream: TimelineStep[] = DOWNSTREAM_STEPS.map((step, index) => {
     let status: StepStatus = blocked ? 'blocked' : 'pending';
     if (hasMilestone && index < milestoneIndex) status = 'done';
@@ -122,6 +151,9 @@ export function buildTimelineSteps({
       description: step.description,
       status,
       isArrival: step.key === 'chegada',
+      ...(status === 'pending' && forecast[step.key as DownstreamKey]
+        ? { forecastAt: forecast[step.key as DownstreamKey] }
+        : {}),
     };
   });
 
