@@ -57,11 +57,19 @@ export function MapEventsFeed({
   readIds,
   enabledTypes,
   onSeeAll,
+  filterLabel = null,
 }: {
   alerts: ShipmentAlert[];
   readIds: Set<string>;
   enabledTypes: Set<AlertType>;
   onSeeAll: () => void;
+  /**
+   * Rótulo do chip de filtro ativo no mapa, quando há um. Só muda a COPY: quem
+   * recorta os alertas é a view, para o feed continuar sem lógica de filtro.
+   * Sem ele, "nenhum evento" leria como "nada aconteceu" quando na verdade o
+   * cliente está olhando um recorte de três embarques.
+   */
+  filterLabel?: string | null;
 }) {
   const visible = sortAlertsForFeed(
     alerts.filter((a) => enabledTypes.has(a.type)),
@@ -76,9 +84,17 @@ export function MapEventsFeed({
         <ProvenanceBadge provenance="preview" />
       </div>
 
+      {filterLabel && (
+        <p className="portal-small mt-1 text-portal-neutral">
+          Filtrado por “{filterLabel}”, como o mapa.
+        </p>
+      )}
+
       {shown.length === 0 ? (
         <p className="portal-small mt-4 text-portal-neutral">
-          Nenhum evento nos tipos que você acompanha.
+          {filterLabel
+            ? `Nenhum evento nos embarques de “${filterLabel}”.`
+            : 'Nenhum evento nos tipos que você acompanha.'}
         </p>
       ) : (
         <ul className="mt-4 flex-1 space-y-3">

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { Suspense, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { CheckCircle2, Loader2, Radar } from 'lucide-react';
+import { LoaderComponent } from '@arboria-tech/arboria-ui';
 import {
   Button,
   Tabs,
@@ -12,7 +13,10 @@ import {
 } from '@/components/ui';
 import { createMyQuotation, triggerMyQuotationExtraction } from '@/hooks/use-portal-quotations';
 import { useQuotationUploadFlow } from '@/hooks/use-quotation-upload-flow';
-import { ManualForm } from '@/app/cotacao/nova-cotacao/components/manual-form';
+import {
+  ManualForm,
+  type ManualFormValues,
+} from '@/app/cotacao/nova-cotacao/components/manual-form';
 import { UploadZone } from '@/app/cotacao/nova-cotacao/components/upload-zone';
 import { RfqDispatchCard } from '@/app/portal/cotacao/[id]/components/rfq-dispatch-card';
 import { PortalExporterSelect } from '@/app/portal/components/portal-exporter-select';
@@ -33,8 +37,47 @@ const PORTAL_EXPECTED_DOCUMENTS = [
   'E-mail do exportador',
 ];
 
-export default function PortalNovaCotacaoPage() {
+/**
+ * Pré-preenchimento vindo do "Cotar agora" do Radar de Preços
+ * (`inteligencia/lib/price-radar.ts::quotationPrefillParams`).
+ *
+ * Só três campos, e só os que a rota REALMENTE conhece: modal e os dois portos.
+ * Mercadoria, prazos e incoterm continuam em branco — chutá-los pelo histórico
+ * faria o cliente enviar uma cotação que ele não conferiu, que é pior do que
+ * digitá-los.
+ *
+ * Parâmetro desconhecido ou vazio é simplesmente ignorado: o link é público na
+ * barra de endereço, e um valor inesperado não pode quebrar a tela de criação.
+ */
+function usePrefillFromParams(): {
+  values: Partial<ManualFormValues>;
+  routeLabel: string | null;
+} {
+  const params = useSearchParams();
+  const modal = params.get('modal');
+  const portoEmbarque = params.get('porto_embarque');
+  const portoDestino = params.get('porto_destino');
+  const routeLabel = params.get('rota');
+
+  return useMemo(() => {
+    const values: Partial<ManualFormValues> = {};
+    if (modal === 'MARITIMO' || modal === 'AEREO' || modal === 'RODOVIARIO') {
+      values.modal = modal;
+    }
+    if (portoEmbarque) values.porto_embarque = portoEmbarque;
+    // `porto_destino` é lista no formulário: a cotação pode nomear vários portos
+    // candidatos. O radar conhece um, então a lista sai com um item.
+    if (portoDestino) values.porto_destino = [portoDestino];
+    return {
+      values,
+      routeLabel: Object.keys(values).length > 0 ? routeLabel : null,
+    };
+  }, [modal, portoEmbarque, portoDestino, routeLabel]);
+}
+
+function PortalNovaCotacaoContent() {
   const router = useRouter();
+  const { values: prefill, routeLabel } = usePrefillFromParams();
   const [phase, setPhase] = useState<PagePhase>('idle');
   const [createdQuotation, setCreatedQuotation] = useState<Quotation | null>(null);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
@@ -122,6 +165,20 @@ export default function PortalNovaCotacaoPage() {
         subtitle="Envie os documentos da sua carga ou preencha os dados manualmente."
       />
 
+      {/* De onde veio o pré-preenchimento. Sem esta linha, campos já
+          preenchidos numa tela de criação leem como resíduo de um rascunho
+          antigo — e o cliente apaga o que estava certo. */}
+      {routeLabel && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/[0.04] px-4 py-3">
+          <Radar className="h-5 w-5 shrink-0 text-primary" />
+          <p className="portal-body text-foreground/80">
+            Rota e modal já preenchidos a partir do{' '}
+            <span className="font-medium text-foreground">Radar de Preços</span>{' '}
+            ({routeLabel}). Confira e complete o resto da carga.
+          </p>
+        </div>
+      )}
+
       <Tabs defaultValue="manual">
         <TabsList>
           <TabsTrigger value="manual">Preencher manualmente</TabsTrigger>
@@ -136,6 +193,7 @@ export default function PortalNovaCotacaoPage() {
             attachmentFiles={attachmentFiles}
             onAttachmentFilesChange={setAttachmentFiles}
             createFn={createMyQuotation}
+            initialValues={prefill}
             exporterId={exporter?.id ?? null}
             exporterSection={
               <PortalExporterSelect
@@ -182,5 +240,16 @@ export default function PortalNovaCotacaoPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function PortalNovaCotacaoPage() {
+  // `useSearchParams` (o deep link "Cotar agora" do Radar de Preços) exige um
+  // limite de Suspense para o prerender estático desta rota — mesmo arranjo de
+  // `embarques/page.tsx`.
+  return (
+    <Suspense fallback={<LoaderComponent />}>
+      <PortalNovaCotacaoContent />
+    </Suspense>
   );
 }

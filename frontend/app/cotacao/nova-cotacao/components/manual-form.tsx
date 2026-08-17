@@ -99,7 +99,7 @@ const manualFormSchema = z.object({
   observations: z.string().optional(),
 });
 
-type ManualFormValues = z.infer<typeof manualFormSchema>;
+export type ManualFormValues = z.infer<typeof manualFormSchema>;
 
 interface ManualFormProps {
   clientId: string | null;
@@ -118,9 +118,17 @@ interface ManualFormProps {
   exporterSection?: React.ReactNode;
   /** Exporter chosen in `exporterSection`, submitted as `exporter_id`. */
   exporterId?: string | null;
+  /**
+   * Seed values merged over the blank defaults. Used by the portal's "Cotar
+   * agora" deep link from the Radar de Preços, which arrives knowing the modal
+   * and the two ports. Only the fields it names are touched — everything else
+   * keeps the same blank default, so a partial seed never hides a required
+   * field. The analyst screen passes nothing and behaves exactly as before.
+   */
+  initialValues?: Partial<ManualFormValues>;
 }
 
-export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId }: ManualFormProps) {
+export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues }: ManualFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraggingAttachments, setIsDraggingAttachments] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -172,6 +180,9 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
       destination_yard: '',
       client_reference: '',
       observations: '',
+      // Merged last so a seeded field wins over its blank default, and only
+      // over the ones it names.
+      ...initialValues,
     },
   });
 

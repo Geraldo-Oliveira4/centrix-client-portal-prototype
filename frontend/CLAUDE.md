@@ -426,14 +426,28 @@ origem (nunca copiado — ver o CLAUDE.md da raiz). Três invariantes:
   (`applyPortalFilters` das cotações e o filtro da Lista de embarques) usam essa
   função, não uma comparação própria.
 
-**Filtros rápidos de Meus Embarques > Lista** (chips acima da lista): predicados
-sobre o dado que a Lista já tem — Urgentes (`carga_urgente`), Embarcados
-(`estado`), Com atraso (`delayRiskFromTracking`, a mesma função do badge) e Com
-exceção (`isExceptionState`). Chip com contagem zero não é renderizado. O chip é
-"**Embarcados**", não "Em trânsito": `embarcado` é o estado real do GE e
-significa PARTIDA, enquanto "Em trânsito" é o milestone `OCEAN_TRANSIT` do
-ShipsGo, que segue "Pendente integração" — um chip com aquele nome selecionaria
-embarques cuja própria timeline diz que o trânsito é desconhecido.
+**Filtros rápidos de Meus Embarques** (chips) — predicados sobre o dado que a
+listagem já traz: Urgentes (`carga_urgente`), Embarcados (`estado`), Com atraso
+(`delayRiskFromTracking`, a mesma função do badge) e Com exceção
+(`isExceptionState`). O chip é "**Embarcados**", não "Em trânsito": `embarcado` é
+o estado real do GE e significa PARTIDA, enquanto "Em trânsito" é o milestone
+`OCEAN_TRANSIT` do ShipsGo — um chip com aquele nome selecionaria embarques cuja
+própria timeline diz que o trânsito é desconhecido.
+
+Desde 14/08/2026 a **Lista e o Mapa** compartilham os dois lados disso:
+`lib/shipment-filters.ts` (predicados + contagem, unit-testado) e
+`components/shipment-filter-chips.tsx` (o desenho). Nasceram dentro do
+`shipment-list-tab.tsx`; copiá-los para o Mapa criaria a segunda implementação da
+mesma pergunta, e "Com atraso" tem de dar o mesmo número nas duas abas. Duas
+diferenças deliberadas entre as telas, e as duas estão comentadas no código:
+
+- **Chip zerado**: a Lista esconde (o conjunto dela varia com busca e filtros, e
+  um chip permanentemente zerado lê como funcionalidade quebrada); o Mapa mantém
+  (são três chips fixos, "Com exceção 0" É a resposta, e é o único caminho até o
+  estado vazio amigável).
+- **Quais chips**: o Mapa não tem "Embarcados". O critério lá é "isto precisa de
+  atenção?", e `embarcado` é o estado da maioria da carteira — o chip removeria
+  pouca coisa, contra um pedido que era exatamente sobre remover poluição.
 
 **`PortalSearchInput`** (`app/portal/_shared/portal-search-input.tsx`) is the
 portal's only search affordance: a lupa que expande num input. Minhas Cotações
@@ -604,10 +618,31 @@ não funcionava nem como visualização rica nem como visão agregada. No lugar,
 
 Regras que sustentam a tela:
 
-- **"Mapa = visão geográfica, sem filtro/busca/card solto" continua valendo.** As
-  duas colunas são leitura; nenhuma recorta o mapa. Abaixo de `xl` elas empilham
-  (resumo → mapa → eventos), que é o padrão do portal — abas dentro de aba seria
-  navegação que nenhuma outra tela usa.
+- **A regra "sem filtro/busca/card solto" foi PARCIALMENTE levantada em
+  14/08/2026.** Victor Orsi: o mapa "é mais visual do que funcional", mostra os
+  treze embarques de uma vez e não deixa isolar o que precisa de atenção. Entrou
+  a fileira de chips (Todos / Urgentes / Com atraso / Com exceção — os mesmos
+  predicados e o mesmo componente da Lista, ver a seção de filtros rápidos).
+  Busca e card solto continuam fora, e as duas colunas laterais continuam sendo
+  leitura. O que o filtro faz e não faz:
+  - recorta o **mapa** e os **eventos**; o que não bate **some**, não fica
+    esmaecido — esmaecer não remove poluição visual, só a repinta;
+  - **não** recorta o "Visão do todo", que é a saúde da carteira inteira. Mudá-lo
+    com o filtro faria o cliente achar que embarques sumiram da contagem.
+  - Estado vazio no lugar do mapa ("Nenhum embarque com exceção no momento —
+    ótimo sinal.") com atalho de volta para Todos.
+  - Não persiste: o `TabsContent` do Radix desmonta a aba inativa, então trocar
+    de aba já devolve "Todos". Não acrescente localStorage a isto — o filtro é
+    uma pergunta do momento, não uma preferência.
+- **O mapa se enquadra no que está plotado** (`FitToPlotted` em
+  `shipment-map.tsx`), e reenquadra quando o filtro muda. Foi o que tornou o
+  filtro útil: com a vista fixa em `center=[15,0] zoom=2`, filtrar para dois
+  embarques deixava as duas origens FORA do quadro. Pelo mesmo motivo o
+  `minZoom` é **1**, não 2 — a coluna do mapa tem ~574px a 1440, e 360° só cabem
+  ali a partir do zoom 1; com o piso em 2 o enquadramento de um par distante
+  (Los Angeles + Shenzhen) era clampado e centrava num Atlântico vazio.
+- Abaixo de `xl` as colunas empilham (resumo → mapa → eventos), que é o padrão do
+  portal — abas dentro de aba seria navegação que nenhuma outra tela usa.
 - **Uma tabela de portos só** (`lib/port-coordinates.ts`): coordenadas públicas
   reais, dado estático, nada de ShipsGo. `lib/shipment-origins.ts` virou **alias**
   dela, porque a Lista e o detalhe nomeiam a origem do card pelos mesmos hubs —
@@ -848,11 +883,15 @@ isso. Não abra uma segunda.
 
 ### Inteligência (`/portal/inteligencia/`)
 
-**Três** dashboards, nada mais: `performance/`, `agentes/`, `executivo/`
-(tabs em `layout.tsx`). A raiz `/portal/inteligencia` é só um `redirect()` para
-`performance` — a antiga aba "Visão geral" **foi fundida** no Performance, porque
-"estou indo bem ou não?" só se responde cruzando cotação e embarque na mesma
-tela. Não recrie uma quarta aba de visão geral.
+Quatro abas (`layout.tsx`): `performance/`, `agentes/`, `executivo/` e
+`radar/`. A raiz `/portal/inteligencia` é só um `redirect()` para `performance`
+— a antiga aba "Visão geral" **foi fundida** no Performance, porque "estou indo
+bem ou não?" só se responde cruzando cotação e embarque na mesma tela. **Não
+recrie uma aba de visão geral**: essa é a única que já foi removida por
+redundância, e é a que sempre tenta voltar.
+
+`radar/` (Radar de Preços) entra por último de propósito: as três primeiras
+olham para TRÁS (como fomos), e ela olha para FRENTE (quando cotar).
 
 `performance/page.tsx` tem três níveis de peso, e só três:
 
@@ -988,6 +1027,63 @@ Distribuição dos blocos (o `provenance` de cada um **não muda** com o local):
 Ao mexer num bloco, mantenha o `provenance` coerente com o **headline**: se o
 número em destaque é fabricado, o bloco é `preview` (mesmo que use nomes/valores
 reais em volta) e a footnote deve dizer o que é real e o que é ilustrativo.
+
+#### Radar de Preços (`inteligencia/radar/` + `lib/price-radar.ts`)
+
+Responde "cotar agora ou esperar?". Proposta do Victor Orsi (14/08/2026): frete
+das rotas que o cliente mais usa, com alerta de flutuação, para ele cotar no
+momento certo. O Vinicius pediu para modelar com dado simulado e validar o VALOR
+com dois ou três clientes antes de puxar o Lake — a tela é essa validação, e por
+isso é convincente de propósito.
+
+**REAL:** quais rotas aparecem e com que frequência. **SIMULADO:** todo número em
+dinheiro. **Sem selo de proveniência**, seguindo a filosofia vigente (dado
+ilustrativo rico). Quem sustenta a honestidade é a nota de metodologia do rodapé,
+que declara a janela e o critério de cada número — apague-a e a tela passa a
+afirmar um feed de mercado que não existe. Os limiares citados no texto vêm das
+constantes do lib, nunca digitados na página.
+
+- **As rotas são as MESMAS do resto do portal**: `computePriceRadar` agrupa por
+  `routePartsOf` (exportada de `shipment-dimensions.ts` justamente para isto), a
+  mesma resolução que "Rotas com maiores desvios" e o Mapa usam. Uma segunda
+  geografia faria a mesma carga ser "Shanghai → Santos" numa aba e outra coisa na
+  outra. Quando `routePartsOf` cai no genérico "Brasil" (a cotação não nomeia um
+  porto único), o radar adota o **mesmo** `DESTINATION_PORT` (Santos) que o Mapa
+  já adota — frete é cotado porto a porto, e "Hamburgo → Brasil" não tem preço de
+  lane.
+- **Preço é da LANE, não do embarque**: derivá-lo do embarque faria a mesma rota
+  mostrar preços diferentes conforme quantas cargas o cliente moveu nela. E a
+  **média histórica é a âncora**; o preço atual sai dela pela variação, nunca o
+  contrário — os três números são impressos lado a lado e o cliente refaz a conta
+  de cabeça.
+- **`MARKET_REGIMES` (frouxo / estável / pressionado)** gera os números. É a peça
+  que mais se parece com o que o Lake devolveria: uma lane está em algum estado, e
+  os números caem dentro dele. Sortear variação e tendência de forma independente
+  produziria combinações inexistentes no mercado (preço 20% abaixo da média
+  subindo 25% em duas semanas), e é também o que garante que a tela mostre as três
+  cores sem ninguém chumbar "este card é verde".
+- **`classifyPriceAlert` não conhece o regime** — recebe só números. O regime gera
+  a entrada, a classificação é a regra de negócio, e quando o Lake existir sai o
+  gerador e fica a regra. Precedência: ALTA vence tudo (patamar OU subida forte);
+  OPORTUNIDADE exige abaixo da média **E** estável, porque um preço barato subindo
+  12% está com a janela fechando e mandaria o cliente cotar tarde — o radar é
+  sobre o momento, não só sobre o nível.
+- **`unit` e `currency` viajam com o preço**: marítimo cota por contêiner e aéreo
+  por quilo, e colapsar os dois num "preço" faria a comparação entre modais
+  mentir.
+- **CTA "Cotar agora"** monta a query em `quotationPrefillParams` e cai em
+  `/portal/nova-cotacao`, que a lê e passa `initialValues` ao `ManualForm`
+  (prop nova, opcional; a tela do analista não passa nada e segue idêntica). Só
+  três campos — modal e os dois portos —, porque são os que a rota realmente
+  conhece: chutar mercadoria ou prazo faria o cliente enviar uma cotação que não
+  conferiu. A tela de destino mostra uma faixa dizendo de onde veio o
+  preenchimento; sem ela, campos já preenchidos leem como resíduo de rascunho e o
+  cliente apaga o que estava certo.
+- **`QUOTATION_PORT_OPTION` é mapa explícito**, não busca por prefixo: a tabela de
+  coordenadas fala português ("Gênova", "Nova York") e a do formulário fala
+  UN/LOCODE em inglês ("Genova, Italy (ITGOA)"). O unit test confere cada valor
+  contra `PORTS_*_OPTIONS` de verdade, então uma entrada errada quebra o teste em
+  vez de abrir a cotação com o campo vazio — falha silenciosa é a pior espécie.
 
 ### Minhas Cotações — Funil, Histórico, Fechadas e Negadas (`/portal/cotacoes/`)
 

@@ -158,6 +158,38 @@ function ClusteredMarkers({ plotted }: { plotted: Plotted[] }) {
 }
 
 /** Sampled quadratic curve between two ports, for a readable arc. */
+/**
+ * Enquadra o mapa no que está plotado, e reenquadra quando o conjunto muda.
+ *
+ * Existe por causa dos chips de filtro (14/08/2026): com os treze embarques, a
+ * vista fixa do mundo mostrava tudo, mas filtrar para dois deixava as duas
+ * origens FORA do quadro — o cliente clicava em "Com exceção" e recebia um mapa
+ * com Santos e duas linhas saindo pela borda. Um filtro que esvazia a tela é
+ * pior que não filtrar.
+ *
+ * `maxZoom` existe para o caso de uma origem só: sem ele, dois pontos próximos
+ * levariam o mapa a zoom de rua, onde a rota deixa de ser legível como rota.
+ */
+function FitToPlotted({ plotted }: { plotted: Plotted[] }) {
+  const map = useMap();
+  // Chave estável pelas coordenadas: o array é recriado a cada render, e usá-lo
+  // direto como dependência reenquadraria o mapa continuamente, cancelando o
+  // zoom que o usuário tivesse dado.
+  const key = plotted.map((p) => p.port.key).sort().join('|');
+
+  useEffect(() => {
+    if (plotted.length === 0) return;
+    const bounds = L.latLngBounds(
+      plotted.map((p) => [p.port.lat, p.port.lon] as [number, number]),
+    );
+    bounds.extend([DESTINATION_PORT.lat, DESTINATION_PORT.lon]);
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 4, animate: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, map]);
+
+  return null;
+}
+
 function arcPoints(from: Port, to: Port): [number, number][] {
   const lift = 0.22;
   const mx = (from.lat + to.lat) / 2;
@@ -208,7 +240,12 @@ export function ShipmentMap({
       <MapContainer
         center={[15, 0]}
         zoom={2}
-        minZoom={2}
+        // minZoom 1, não 2: a coluna do mapa tem ~574px numa tela de 1440, e a
+        // 360° do mundo só cabem aí a partir do zoom 1. Com o piso em 2, o
+        // enquadramento de um par distante (Los Angeles e Shenzhen, o recorte
+        // "Com exceção") era clampado e as duas origens ficavam fora do quadro,
+        // centradas num Atlântico vazio. Ver `FitToPlotted`.
+        minZoom={1}
         worldCopyJump
         scrollWheelZoom={false}
         className="h-full w-full bg-muted"
@@ -247,6 +284,7 @@ export function ShipmentMap({
         ))}
 
         <ClusteredMarkers plotted={plotted} />
+        <FitToPlotted plotted={plotted} />
       </MapContainer>
 
       {tilesFailed && (

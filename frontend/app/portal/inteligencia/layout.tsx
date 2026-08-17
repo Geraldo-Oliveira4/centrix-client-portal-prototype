@@ -15,10 +15,14 @@ import { cn } from '@/lib/utils';
 // question it answered ("estou indo bem?") needs quotation AND shipment data in
 // the same place, so it was merged into Performance. `/portal/inteligencia`
 // itself redirects there.
+// "Radar de Preços" (14/08/2026) entra no fim: as três primeiras olham para
+// TRÁS (como fomos), e ela olha para FRENTE (quando cotar). Abrir a seção por
+// ela colocaria uma tela em validação à frente das que já respondem.
 const TABS = [
   { href: '/portal/inteligencia/performance', label: 'Performance' },
   { href: '/portal/inteligencia/agentes', label: 'Agentes' },
   { href: '/portal/inteligencia/executivo', label: 'Executivo' },
+  { href: '/portal/inteligencia/radar', label: 'Radar de Preços' },
 ];
 
 export default function InteligenciaLayout({ children }: { children: ReactNode }) {

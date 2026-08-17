@@ -88,7 +88,7 @@ export interface CarrierUsage {
 }
 
 /** Índice cotação por id, para o join não virar O(n²) nas duas funções. */
-function indexQuotations(
+export function indexQuotations(
   quotations: PortalQuotation[],
 ): Map<string, PortalQuotation> {
   return new Map(quotations.map((q) => [q.id, q]));
@@ -117,23 +117,47 @@ function destinationOf(quotation: PortalQuotation | undefined): string {
   return ports[0].trim() || DEFAULT_DESTINATION;
 }
 
+export interface RouteParts {
+  origin: string;
+  destination: string;
+}
+
 /**
- * Rota legível de um embarque. Cotação primeiro; sem ela, o mesmo hub
+ * As duas pontas da rota de um embarque. Cotação primeiro; sem ela, o mesmo hub
  * ilustrativo que o mapa e o card da Lista já usam para este embarque — uma
  * fonte só, então as três telas nomeiam o mesmo porto.
  *
  * Nunca devolve null: com a mudança de 12/08/2026 nenhum embarque fica fora do
  * ranking por não ter cotação. Ver o cabeçalho do módulo.
+ *
+ * Exportada (junto de `indexQuotations`) porque o Radar de Preços precisa
+ * agrupar pelas MESMAS rotas que "Rotas com maiores desvios" e o Mapa nomeiam.
+ * Uma segunda resolução ali faria o cliente ver "Shanghai → Santos" numa aba e
+ * "Shanghai → Brasil" na outra para o mesmo embarque.
  */
+export function routePartsOf(
+  shipment: PortalShipment,
+  byId: Map<string, PortalQuotation>,
+): RouteParts {
+  const quotation = shipment.quotation_id
+    ? byId.get(shipment.quotation_id)
+    : undefined;
+  return {
+    origin: originOf(quotation) ?? illustrativeHub(shipment.referencia).name,
+    destination: destinationOf(quotation),
+  };
+}
+
+/** Rótulo legível da rota — "Shanghai → Santos". */
+export function formatRoute({ origin, destination }: RouteParts): string {
+  return `${origin} → ${destination}`;
+}
+
 function routeOf(
   shipment: PortalShipment,
   byId: Map<string, PortalQuotation>,
 ): string {
-  const quotation = shipment.quotation_id
-    ? byId.get(shipment.quotation_id)
-    : undefined;
-  const origin = originOf(quotation) ?? illustrativeHub(shipment.referencia).name;
-  return `${origin} → ${destinationOf(quotation)}`;
+  return formatRoute(routePartsOf(shipment, byId));
 }
 
 /**
