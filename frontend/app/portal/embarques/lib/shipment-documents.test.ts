@@ -11,6 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  applyLocalDocumentActions,
   buildShipmentDocuments,
   formatFileSize,
   pendingClientDocuments,
@@ -111,6 +112,90 @@ test('mesmo embarque, mesmo arquivo: nada é sorteado em tempo de render', () =>
   const b = byType(docsFor({ estado: 'embarcado' }), 'DRAFT_BL');
   assert.equal(a.sizeBytes, b.sizeBytes);
   assert.equal(a.fileName, 'draft-bl-EMB-2026-0001.pdf');
+});
+
+// --- Efeito local do modal (fake-success) ------------------------------------
+//
+// É a transição de estado que o modal dispara. Fica testada aqui, e não no
+// componente, porque o modal é casca: ele chama `onConfirm` e quem move o
+// documento é esta função. Um erro aqui não estoura na tela — ele deixa a faixa
+// de ação pedindo o arquivo que a lista logo abaixo já mostra como enviado.
+
+const applied = (documents, overrides = {}) =>
+  applyLocalDocumentActions({
+    documents,
+    referencia: 'EMB-2026-0001',
+    submittedIds: [],
+    bookingApproved: false,
+    now: NOW,
+    ...overrides,
+  });
+
+test('enviar avança UM degrau: pendente -> em análise, nunca direto para aprovado', () => {
+  const documents = docsFor({ estado: 'solicitado' });
+  const invoice = byType(documents, 'INVOICE');
+  assert.equal(invoice.status, 'pendente');
+
+  const after = applied(documents, { submittedIds: [invoice.id] });
+  const sent = byType(after, 'INVOICE');
+  assert.equal(sent.status, 'em_analise');
+  // Quem valida é a Freitas; o clique do próprio cliente não aprova o arquivo
+  // dele — é a etapa que dá nome à Aprovação Documental.
+  assert.notEqual(sent.status, 'aprovado');
+  // Passa a ter arquivo: sem isso a linha ficaria "Em análise" sem nada em análise.
+  assert.equal(sent.fileName, 'invoice-EMB-2026-0001.pdf');
+  assert.equal(sent.uploadedAt, NOW.toISOString());
+  assert.ok(sent.sizeBytes > 0);
+});
+
+test('documento enviado sai da fila de pendências — a faixa de ação some junto', () => {
+  const documents = docsFor({ estado: 'solicitado' });
+  assert.equal(pendingClientDocuments(documents).length, 2);
+
+  const after = applied(documents, {
+    submittedIds: documents.map((d) => d.id),
+  });
+  assert.deepEqual(pendingClientDocuments(after), []);
+});
+
+test('só o documento clicado muda, e a lista se reordena com ele', () => {
+  const documents = docsFor({ estado: 'solicitado' });
+  const invoice = byType(documents, 'INVOICE');
+  const after = applied(documents, { submittedIds: [invoice.id] });
+
+  assert.equal(byType(after, 'PACKING_LIST').status, 'pendente');
+  // Pendências primeiro: o que ainda falta sobe, o enviado desce.
+  assert.equal(after[0].type, 'PACKING_LIST');
+  assert.equal(after.length, documents.length);
+});
+
+test('aprovar booking fecha o booking confirmado, e não toca em mais nada', () => {
+  const documents = docsFor({ estado: 'analise_booking' });
+  assert.equal(byType(documents, 'BOOKING_CONFIRMATION').status, 'em_analise');
+
+  const after = applied(documents, { bookingApproved: true });
+  assert.equal(byType(after, 'BOOKING_CONFIRMATION').status, 'aprovado');
+  // Nenhum outro tipo muda de status por causa da aprovação de booking.
+  documents
+    .filter((d) => d.type !== 'BOOKING_CONFIRMATION')
+    .forEach((d) => assert.equal(byType(after, d.type).status, d.status));
+});
+
+test('sem clique nenhum a lista é a mesma referência — nada de re-render à toa', () => {
+  const documents = docsFor({ estado: 'analise_booking' });
+  assert.equal(applied(documents), documents);
+});
+
+test('id desconhecido e documento já entregue não fabricam mudança', () => {
+  const documents = docsFor({ estado: 'analise_booking' });
+  const invoice = byType(documents, 'INVOICE');
+  assert.equal(invoice.status, 'aprovado');
+
+  const after = applied(documents, {
+    submittedIds: [invoice.id, 'EMB-2026-0001:NAO_EXISTE'],
+  });
+  assert.equal(byType(after, 'INVOICE').status, 'aprovado');
+  assert.equal(after.length, documents.length);
 });
 
 test('tamanho de arquivo legível nas duas ordens de grandeza', () => {

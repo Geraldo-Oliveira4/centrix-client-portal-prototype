@@ -19,6 +19,18 @@
 // Uma etapa "risco baixo" embaixo de um badge "Atraso, +5 dias" seria a mesma
 // contradição que matou o card "Rastreamento marítimo".
 //
+// Cascata do atraso confirmado (17/08/2026, Vinicius/Geraldo)
+// -----------------------------------------------------------
+// Atraso confirmado força **risco alto em TODA etapa operacional restante**, sem
+// exceção pelo peso próprio da etapa. A versão anterior agravava uma casa, e o
+// resultado quebrava a leitura de escalada: "Em análise de booking" alto,
+// "Embarcado" moderado (porque o perfil dele é baixo) e "Em trânsito"/"Chegada"
+// alto de novo. O leitor lia o vale do meio como "essa etapa está mais tranquila",
+// quando o que existe é um atraso já medido que pressiona a cadeia inteira.
+// O percentual histórico da etapa continua no texto — é o motivo específico
+// dela — mas a frase diz qual fator manda. Exceção continua agravando uma casa
+// (mecanismo separado; ela não mede nada, só congela a linha).
+//
 // O que é ilustrativo, e como
 // ---------------------------
 // Quando não há aritmética (embarque ainda em terra, sem rastreamento), o
@@ -68,12 +80,22 @@ const RISK_PCT_RANGE: Record<StepRiskLevel, [number, number]> = {
 export type StepActionKind = 'documento' | 'aprovacao';
 
 /**
+ * `concluida` = o cliente já respondeu a este gatilho. A faixa continua na tela,
+ * em tom de confirmação e sem botão: some o pedido, fica o recibo. Deixar a
+ * faixa pedindo a mesma coisa depois do "sim" é o que quebrava a demonstração;
+ * apagá-la por completo tiraria a única confirmação visível de que o clique
+ * chegou a algum lugar.
+ */
+export type StepActionStatus = 'pendente' | 'concluida';
+
+/**
  * Gatilho de ação: a etapa depende de algo que só o cliente pode fazer. Fica
  * em destaque na tela (nunca dentro de accordion) porque é a única coisa da
  * timeline que o cliente pode mudar — o resto ele acompanha.
  */
 export interface StepAction {
   kind: StepActionKind;
+  status: StepActionStatus;
   title: string;
   description: string;
   ctaLabel: string;
@@ -225,6 +247,13 @@ export interface StepInsightsInput {
   delayRisk: DelayRisk;
   /** Documentos pendentes do cliente (`pendingClientDocuments`). */
   pendingDocuments?: { id: string; label: string; requiredForStep: string }[];
+  /**
+   * O cliente já aprovou o booking NESTA SESSÃO (efeito local de demonstração —
+   * não existe rota de escrita de embarque no portal). Vira o gatilho de
+   * `pendente` para `concluida`; o `estado` do embarque, esse, não se move,
+   * porque quem o escreve é o módulo do analista.
+   */
+  bookingApproved?: boolean;
 }
 
 /**
@@ -239,6 +268,7 @@ export function buildStepInsights({
   isException,
   delayRisk,
   pendingDocuments = [],
+  bookingApproved = false,
 }: StepInsightsInput): Record<string, StepInsight> {
   const insights: Record<string, StepInsight> = {};
   const set = (key: string, patch: StepInsight) => {
@@ -275,21 +305,31 @@ export function buildStepInsights({
       return;
     }
 
-    // Duas situações agravam uma etapa que a aritmética não alcança:
+    // Duas situações mexem numa etapa que a aritmética não alcança, e elas NÃO
+    // são o mesmo mecanismo:
+    //  - atraso JÁ confirmado na chegada: força alto, sem gradação. Há um número
+    //    medido pressionando toda a cadeia que falta, e uma etapa "moderada" no
+    //    meio de duas altas lê como alívio que não existe;
     //  - exceção, que congela a linha (não se sabe o estágio anterior, então
-    //    nada depois dela pode ser dado como calmo);
-    //  - atraso JÁ confirmado na chegada, que é a única forma de o eixo não
-    //    exibir "Risco baixo" embaixo de um badge "Atraso, +5 dias" no topo da
-    //    mesma tela.
+    //    nada depois dela pode ser dado como calmo): agrava uma casa, porque
+    //    aqui não há medição nenhuma — só perda de visibilidade.
     const delayed = measuredStatus === 'delayed';
-    const level = isException || delayed ? bump(profile.level) : profile.level;
+    const level: StepRiskLevel = delayed
+      ? 'high'
+      : isException
+        ? bump(profile.level)
+        : profile.level;
     const [min, max] = RISK_PCT_RANGE[profile.level];
     const base = profile.rationale(seededInt(`${referencia}:${step.key}`, min, max));
+    // O motivo próprio da etapa continua na frente (é o que a diferencia das
+    // outras); o fator dominante fecha a frase, para o chip vermelho não ficar
+    // sem explicação de por que esta etapa específica é alta.
+    const days = delayRisk.deltaDays ?? 0;
     set(step.key, {
       risk: risk(
         level,
-        delayed && !isException
-          ? `${base} O atraso já confirmado na chegada pressiona esta etapa.`
+        delayed
+          ? `${base} O atraso de ${days} ${days === 1 ? 'dia' : 'dias'} já confirmado na chegada é o fator dominante desta etapa.`
           : base,
       ),
     });
@@ -313,6 +353,10 @@ export function buildStepInsights({
     set(stepKey, {
       action: {
         kind: 'documento',
+        // Documento entregue sai da lista de pendentes ANTES de chegar aqui
+        // (`pendingClientDocuments` filtra por status), então todo gatilho de
+        // documento que existe é, por construção, um gatilho pendente.
+        status: 'pendente',
         title: docs.length === 1 ? 'Documento pendente' : 'Documentos pendentes',
         description: `Precisamos de ${names} para esta etapa seguir sem espera.`,
         ctaLabel: docs.length === 1 ? 'Enviar documento' : 'Enviar documentos',
@@ -325,23 +369,43 @@ export function buildStepInsights({
   // embarque. Nos dois casos a bola está com ele, e o texto diz qual é.
   if (estado === 'booking_divergente') {
     set('analise_booking', {
-      action: {
-        kind: 'aprovacao',
-        title: 'Booking divergente — sua conferência',
-        description:
-          'O booking voltou do armador diferente do que foi aprovado na cotação. Confirme se as novas condições servem antes de a Freitas fechar com o armador.',
-        ctaLabel: 'Revisar booking',
-      },
+      action: bookingApproved
+        ? {
+            kind: 'aprovacao',
+            status: 'concluida',
+            title: 'Booking conferido',
+            description:
+              'Você confirmou as novas condições. A Freitas segue com o armador e avisa quando a reserva estiver fechada.',
+            ctaLabel: 'Revisar booking',
+          }
+        : {
+            kind: 'aprovacao',
+            status: 'pendente',
+            title: 'Booking divergente — sua conferência',
+            description:
+              'O booking voltou do armador diferente do que foi aprovado na cotação. Confirme se as novas condições servem antes de a Freitas fechar com o armador.',
+            ctaLabel: 'Revisar booking',
+          },
     });
   } else if (estado === 'analise_booking') {
     set('analise_booking', {
-      action: {
-        kind: 'aprovacao',
-        title: 'Aprovação de booking pendente',
-        description:
-          'A Freitas conferiu a reserva com o armador. Sua confirmação libera a etapa seguinte.',
-        ctaLabel: 'Aprovar booking',
-      },
+      action: bookingApproved
+        ? {
+            kind: 'aprovacao',
+            status: 'concluida',
+            title: 'Booking aprovado',
+            description:
+              'Sua aprovação foi registrada. A Freitas fecha a reserva com o armador e a etapa seguinte é liberada.',
+            ctaLabel: 'Aprovar booking',
+          }
+        : {
+            kind: 'aprovacao',
+            status: 'pendente',
+            title: 'Aprovação de booking pendente',
+            description:
+              'A Freitas conferiu a reserva com o armador. Sua confirmação libera a etapa seguinte.',
+            ctaLabel: 'Aprovar booking',
+          },
     });
   }
 

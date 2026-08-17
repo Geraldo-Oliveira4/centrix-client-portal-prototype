@@ -206,6 +206,12 @@ function CustomsClearedTag({ clearance }: { clearance?: CustomsClearance | null 
   );
 }
 
+/**
+ * Faixa de ação. Depois que o cliente responde ao gatilho ela NÃO some: vira
+ * confirmação (verde, sem botão). Continuar pedindo o que já foi feito é o
+ * defeito óbvio; apagar a faixa inteira é o menos óbvio, e tira a única prova
+ * na tela de que o clique chegou a algum lugar.
+ */
 function ActionCallout({
   step,
   action,
@@ -215,27 +221,41 @@ function ActionCallout({
   action: StepAction;
   onAction?: (event: StepActionEvent) => void;
 }) {
+  const done = action.status === 'concluida';
   const Icon = action.kind === 'documento' ? Upload : CheckCircle2;
   return (
     // Empilha no mobile: lado a lado, o botão espremia o texto a uma palavra
     // por linha — o aviso mais importante da tela virava o menos legível.
-    <div className="flex flex-col gap-3 rounded-xl border border-portal-warning/40 bg-portal-warning/[0.07] p-4 sm:flex-row sm:items-start">
-      <BellRing className="mt-0.5 h-5 w-5 shrink-0 text-portal-warning" />
+    <div
+      className={cn(
+        'flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-start',
+        done
+          ? 'border-portal-success/30 bg-portal-success/[0.07]'
+          : 'border-portal-warning/40 bg-portal-warning/[0.07]',
+      )}
+    >
+      {done ? (
+        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-portal-success" />
+      ) : (
+        <BellRing className="mt-0.5 h-5 w-5 shrink-0 text-portal-warning" />
+      )}
       <div className="min-w-0 flex-1 space-y-1">
         <p className="portal-h3 text-foreground">{action.title}</p>
         <p className="portal-body text-foreground/80">{action.description}</p>
         <p className="portal-small text-portal-neutral">Etapa: {step.label}</p>
       </div>
-      <Button
-        size="sm"
-        className="w-full gap-2 sm:w-auto"
-        onClick={() =>
-          onAction?.({ stepKey: step.key, stepLabel: step.label, action })
-        }
-      >
-        <Icon className="h-4 w-4" />
-        {action.ctaLabel}
-      </Button>
+      {!done && (
+        <Button
+          size="sm"
+          className="w-full gap-2 sm:w-auto"
+          onClick={() =>
+            onAction?.({ stepKey: step.key, stepLabel: step.label, action })
+          }
+        >
+          <Icon className="h-4 w-4" />
+          {action.ctaLabel}
+        </Button>
+      )}
     </div>
   );
 }
@@ -481,12 +501,18 @@ export function ShipmentTimeline({
                     {step.isArrival && (
                       <CustomsClearedTag clearance={customsClearance} />
                     )}
-                    {insight?.action && (
-                      <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-1.5 py-0.5 font-medium text-portal-warning">
-                        <BellRing className="h-3.5 w-3.5" />
-                        Ação necessária
-                      </span>
-                    )}
+                    {insight?.action &&
+                      (insight.action.status === 'concluida' ? (
+                        <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-success/25 bg-portal-success/10 px-1.5 py-0.5 font-medium text-portal-success">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Ação concluída
+                        </span>
+                      ) : (
+                        <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-1.5 py-0.5 font-medium text-portal-warning">
+                          <BellRing className="h-3.5 w-3.5" />
+                          Ação necessária
+                        </span>
+                      ))}
                   </div>
 
                   <p className="portal-small line-clamp-2 text-portal-neutral">

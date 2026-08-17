@@ -52,6 +52,7 @@ import { ShipmentRoute } from '../components/shipment-route';
 import { INCOMPLETE_DATA_COPY, delayRiskFromTracking } from '../lib/delay-risk';
 import { REAL_STEPS } from '../lib/real-steps';
 import {
+  applyLocalDocumentActions,
   buildShipmentDocuments,
   pendingClientDocuments,
   type ShipmentDocument,
@@ -83,6 +84,13 @@ export default function PortalEmbarqueDetailPage() {
   const [actionPrompt, setActionPrompt] = useState<ShipmentActionPrompt | null>(
     null,
   );
+  // O que o cliente respondeu NESTA SESSÃO. Estado de componente, de propósito:
+  // não há rota de escrita de embarque no portal (o GE é do analista), então o
+  // efeito é de tela e morre no refresh. É o suficiente para a demonstração
+  // fechar o ciclo faixa de ação -> modal -> documento muda de status, e é o
+  // limite exato do que o protótipo pode afirmar.
+  const [submittedDocumentIds, setSubmittedDocumentIds] = useState<string[]>([]);
+  const [bookingApproved, setBookingApproved] = useState(false);
 
   if (isLoading) return <LoaderComponent />;
   // A shipment owned by another client answers 404 exactly like a non-existent
@@ -149,10 +157,22 @@ export default function PortalEmbarqueDetailPage() {
     currentEta: shipment.tracking?.current_eta,
     firstEta: shipment.tracking?.first_eta,
   });
-  const documents = buildShipmentDocuments({
+  //
+  // `applyLocalDocumentActions` entra DEPOIS do builder, nunca dentro dele: o
+  // builder continua descrevendo só o que o backend sabe, e a projeção do que o
+  // cliente clicou fica numa camada que sai inteira quando a Aprovação
+  // Documental existir. Como os insights leem a lista já projetada, um documento
+  // "enviado" some da fila de pendências e a faixa de ação some junto.
+  const documents = applyLocalDocumentActions({
+    documents: buildShipmentDocuments({
+      referencia: shipment.referencia,
+      createdAt: shipment.created_at,
+      steps: timelineSteps,
+      now: new Date(),
+    }),
     referencia: shipment.referencia,
-    createdAt: shipment.created_at,
-    steps: timelineSteps,
+    submittedIds: submittedDocumentIds,
+    bookingApproved,
     now: new Date(),
   });
   const stepInsights = buildStepInsights({
@@ -162,15 +182,23 @@ export default function PortalEmbarqueDetailPage() {
     isException,
     delayRisk,
     pendingDocuments: pendingClientDocuments(documents),
+    bookingApproved,
   });
 
+  // O seletor de arquivo não é aberto: o clique já vale como envio. Um input
+  // real devolveria um File que não tem para onde ir, e o cliente escolheria um
+  // arquivo do disco dele para ver na tela um nome de arquivo gerado.
   const promptForDocument = (document: ShipmentDocument): ShipmentActionPrompt => ({
     title: `Enviar ${document.label}`,
     description:
       'O arquivo entra na fila de conferência da Freitas e o status muda para "Em análise" assim que for recebido.',
     ctaLabel: 'Enviar arquivo',
-    closing:
-      'O envio de documentos do embarque ainda não tem endpoint neste protótipo — a tela mostra como o fluxo se encaixa. Enquanto isso, mande o arquivo para o seu contato na Freitas.',
+    successTitle: 'Documento enviado com sucesso',
+    successDescription: `${document.label} está com a Freitas e aparece como "Em análise" na lista de documentos.`,
+    onConfirm: () =>
+      setSubmittedDocumentIds((ids) =>
+        ids.includes(document.id) ? ids : [...ids, document.id],
+      ),
   });
 
   const riskFootnote =
@@ -347,12 +375,24 @@ export default function PortalEmbarqueDetailPage() {
                 ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
               return;
             }
+            // A ETAPA NÃO AVANÇA no "sim", e isso é deliberado. Os passos da
+            // timeline saem de `buildTimelineSteps` sobre o `estado` que o
+            // backend devolve, e esse mesmo estado alimenta o badge do topo, o
+            // card da Lista, o Mapa e a própria seção Documentos. Fingir a
+            // transição só aqui faria o detalhe discordar de quatro superfícies
+            // que leem a mesma fonte — e a transição real não é do cliente: ele
+            // aprova, quem move `analise_booking -> embarcado` é o analista
+            // fechando com o armador. O que a aprovação muda é a bola: a faixa
+            // vira recibo e o booking confirmado sai de "Em análise". Se um dia
+            // a etapa tiver de avançar na tela, o lugar é o `estado`, não aqui.
             setActionPrompt({
               title: action.title,
               description: action.description,
               ctaLabel: action.ctaLabel,
-              closing:
-                'A aprovação de booking pelo portal ainda não existe: o embarque é escrito pelo módulo do analista, e nenhuma rota de escrita foi aberta para o cliente. Fale com seu contato na Freitas para confirmar.',
+              successTitle: 'Booking aprovado',
+              successDescription:
+                'A Freitas foi notificada e segue com o armador. O booking confirmado passa a constar como aprovado nos documentos deste embarque.',
+              onConfirm: () => setBookingApproved(true),
             });
           }}
         />

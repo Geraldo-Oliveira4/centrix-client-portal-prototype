@@ -681,22 +681,56 @@ apresentação passou a ter hierarquia, e são três níveis, nesta ordem:
 
 - **Onde existe aritmética, ela ganha.** Os quatro passos pós-embarque herdam o
   resultado de `computeDelayRisk` (o MESMO do badge do topo, do card da Lista e
-  das agregações de Inteligência), com o mesmo número de dias no texto. Um
-  atraso confirmado também **agrava uma casa** as etapas operacionais que ainda
-  faltam: "Risco baixo" embaixo de um badge "Atraso, +7 dias" na mesma tela é a
-  contradição que matou o card "Rastreamento marítimo". Exceção
-  (`postergado` / `booking_divergente`) agrava pelo mesmo mecanismo.
+  das agregações de Inteligência), com o mesmo número de dias no texto. "Risco
+  baixo" embaixo de um badge "Atraso, +7 dias" na mesma tela é a contradição que
+  matou o card "Rastreamento marítimo".
+- **Atraso confirmado CASCATEIA: força alto em toda etapa operacional restante**,
+  sem gradação pelo peso próprio da etapa (17/08/2026, Vinicius/Geraldo). A
+  versão anterior agravava uma casa, e o eixo saía "Em análise de booking" alto,
+  "Embarcado" moderado (perfil próprio baixo) e "Em trânsito"/"Chegada" alto de
+  novo — o vale do meio lia como alívio que não existe. O percentual histórico da
+  etapa continua na frase (é o motivo específico dela) e o fator dominante fecha:
+  "…10% perderam a janela de atracação. O atraso de 7 dias já confirmado na
+  chegada é o fator dominante desta etapa." A cascata só age em `delayed`: em
+  `attention` e no cenário no prazo cada etapa mantém o próprio nível. **Exceção
+  (`postergado` / `booking_divergente`) continua agravando UMA casa** — mecanismo
+  separado, porque ali não há medição nenhuma, só perda de visibilidade.
 - **O que é ilustrativo é o percentual histórico da ROTA**, não uma medição
   deste embarque — determinístico pela referência, nível base por etapa. É
   estruturado como um modelo devolveria (`level` + `label` + `rationale`) para a
   versão integrada trocar a fonte sem tocar na tela.
 
 **Gatilho de ação** — dois tipos, e nenhum é decorativo: `documento` leva à
-seção Documentos (onde o envio de fato acontece — um segundo lugar de envio
-seria um lugar a mais para os dois estados discordarem) e `aprovacao` abre o
-`ShipmentActionModal`, que **não confirma nada** e diz isso, mesmo contrato do
-`request-agent-modal` e do `dispute-draft-modal`. O portal não escreve no
-embarque: nenhuma rota de escrita do GE foi copiada para cá.
+seção Documentos (onde o envio acontece — um segundo lugar de envio seria um
+lugar a mais para os dois estados discordarem) e `aprovacao` abre o
+`ShipmentActionModal`. O portal continua **sem escrever no embarque** (nenhuma
+rota de escrita do GE foi copiada para cá), mas desde 17/08/2026 o modal
+**confirma** em vez de encerrar com "Nada foi enviado":
+
+- O sucesso é **estado local**, que morre no refresh: `onConfirm` do prompt move
+  `submittedDocumentIds` / `bookingApproved` na página, e quem projeta isso na
+  tela é `applyLocalDocumentActions` (documentos) e o flag `bookingApproved` de
+  `buildStepInsights` (faixa de ação). O builder de documentos segue descrevendo
+  só o que o backend sabe — a projeção é camada por cima, e sai inteira quando a
+  Aprovação Documental existir.
+- **A faixa de ação não some: vira recibo** (`StepAction.status === 'concluida'`
+  — verde, sem botão; no eixo, chip "Ação concluída"). Continuar pedindo o que já
+  foi feito quebra a demo; apagar a faixa tira a única prova de que o clique
+  chegou a algum lugar.
+- **O documento anda UM degrau** — `pendente` -> `em_analise`, nunca direto para
+  `aprovado`: quem valida é a Freitas, e pular a validação apagaria a etapa que
+  dá nome ao módulo futuro. Aprovar o booking fecha o "Booking confirmado"
+  (`em_analise` -> `aprovado`), porque é o mesmo ato.
+- **A ETAPA NÃO AVANÇA.** Os passos saem de `buildTimelineSteps` sobre o `estado`
+  do backend, que também alimenta o badge do topo, o card da Lista, o Mapa e a
+  própria seção Documentos: fingir a transição só aqui faria o detalhe discordar
+  de quatro superfícies. E a transição real não é do cliente — ele aprova, quem
+  move `analise_booking -> embarcado` é o analista fechando com o armador.
+- O selo `preview` + "Confirmação simulada nesta demonstração" no rodapé do
+  sucesso é o que impede a tela de afirmar um efeito que o backend não teve.
+  `request-agent-modal` (Meus Agentes) e `dispute-draft-modal` (Auditoria)
+  seguem no contrato antigo de propósito: lá o clique pediria algo a um
+  destinatário que não existe, aqui ele responde a uma pergunta da própria tela.
 
 **Mudança de data** ("Postergado 5 dias — motivo: navio lotado") — o
 deslocamento em dias é REAL (delta das duas previsões da companhia, via
@@ -726,7 +760,14 @@ mostra botão de envio ou de download.
 - **Nenhuma data de upload é futura** (clampada em `now`) e documento pendente
   não tem arquivo, data nem tamanho — os três são `null`, não zeros.
 - Visualizar/baixar são mockados (toast): não há arquivo por trás. Upload abre o
-  mesmo `ShipmentActionModal` dos gatilhos.
+  mesmo `ShipmentActionModal` dos gatilhos, **sem seletor de arquivo**: o clique
+  já vale como envio, porque um `<input type="file">` real devolveria um `File`
+  que não tem para onde ir e o cliente escolheria um arquivo do disco dele para
+  ver na tela um nome de arquivo gerado.
+- `applyLocalDocumentActions` aplica o efeito do modal por cima da lista
+  (ver "Gatilho de ação" acima). Ela reordena com o MESMO comparador do builder,
+  para um documento que muda de status andar na lista como andaria se o backend
+  já soubesse dele.
 
 **Spacing** — 8px grid: `gap-1` (4) / `gap-2` (8, default) / `gap-4` (16, between
 sections) / `p-6` (24, card padding) / `space-y-8` (32, between page blocks).

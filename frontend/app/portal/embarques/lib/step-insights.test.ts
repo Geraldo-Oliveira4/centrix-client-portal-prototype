@@ -36,7 +36,13 @@ const tracking = (overrides = {}) => ({
   ...overrides,
 });
 
-const build = ({ estado = 'embarcado', isException = false, track = null, docs = [] } = {}) => {
+const build = ({
+  estado = 'embarcado',
+  isException = false,
+  track = null,
+  docs = [],
+  bookingApproved = false,
+} = {}) => {
   const steps = buildTimelineSteps({
     estado,
     realSteps: REAL_STEPS,
@@ -55,6 +61,7 @@ const build = ({ estado = 'embarcado', isException = false, track = null, docs =
       isException,
       delayRisk: delayRiskFromTracking(track),
       pendingDocuments: docs,
+      bookingApproved,
     }),
   };
 };
@@ -84,10 +91,12 @@ test('atraso confirmado manda nos passos pós-embarque, com o mesmo número do b
   assert.match(risk.rationale, /5 dias/);
 });
 
-test('atraso confirmado também agrava a etapa operacional em curso', () => {
-  // Sem isto, a etapa atual mostrava "Risco baixo" embaixo do badge
-  // "Atraso, +7 dias" do topo da mesma tela.
-  const { insights } = build({
+test('atraso confirmado força alto em TODA a cadeia restante, sem vale no meio', () => {
+  // A regra da cascata (17/08/2026). Antes disto o eixo lia "Em análise de
+  // booking" alto, "Embarcado" MODERADO (porque o perfil próprio dele é baixo)
+  // e "Em trânsito"/"Chegada" alto de novo — o vale do meio dizia "esta etapa
+  // está mais tranquila" embaixo de um badge "Atraso, +7 dias".
+  const { steps, insights } = build({
     estado: 'analise_booking',
     track: tracking({
       data_status: 'COMPLETE',
@@ -95,9 +104,46 @@ test('atraso confirmado também agrava a etapa operacional em curso', () => {
       current_eta: '2026-08-27T00:00:00Z',
     }),
   });
-  assert.equal(insights.analise_booking.risk.level, 'high');
-  assert.equal(insights.embarcado.risk.level, 'moderate');
-  assert.match(insights.embarcado.risk.rationale, /atraso já confirmado/);
+
+  assert.equal(insights.embarcado.risk.level, 'high');
+  steps
+    .filter((s) => s.status !== 'done' && insights[s.key]?.risk)
+    .forEach((s) =>
+      assert.equal(insights[s.key].risk.level, 'high', `${s.key} deveria ser alto`),
+    );
+
+  // O motivo próprio da etapa continua na frase; o fator dominante fecha.
+  assert.match(insights.embarcado.risk.rationale, /janela de atracação/);
+  assert.match(insights.embarcado.risk.rationale, /7 dias já confirmado/);
+});
+
+test('sem atraso confirmado a cascata não age: cada etapa mantém o próprio nível', () => {
+  const noTracking = build({ estado: 'analise_booking' }).insights;
+  assert.equal(noTracking.embarcado.risk.level, 'low');
+
+  const onTime = build({
+    estado: 'analise_booking',
+    track: tracking({
+      data_status: 'COMPLETE',
+      first_eta: '2026-08-20T00:00:00Z',
+      current_eta: '2026-08-20T00:00:00Z',
+    }),
+  }).insights;
+  assert.equal(onTime.embarcado.risk.level, 'low');
+  assert.equal(onTime.analise_booking.risk.level, 'moderate');
+  assert.equal(/fator dominante/.test(onTime.embarcado.risk.rationale), false);
+
+  // Desvio dentro da janela de atenção também não cascateia: a cascata nasce do
+  // atraso CONFIRMADO, não de qualquer deslocamento.
+  const attention = build({
+    estado: 'analise_booking',
+    track: tracking({
+      data_status: 'COMPLETE',
+      first_eta: '2026-08-20T00:00:00Z',
+      current_eta: '2026-08-22T00:00:00Z',
+    }),
+  }).insights;
+  assert.equal(attention.embarcado.risk.level, 'low');
 });
 
 test('desvio dentro da janela vira atenção, não atraso', () => {
@@ -177,6 +223,41 @@ test('booking pede decisão do cliente, e o texto muda quando ele veio divergent
 
   const divergent = build({ estado: 'booking_divergente', isException: true }).insights;
   assert.equal(divergent.analise_booking.action.ctaLabel, 'Revisar booking');
+});
+
+test('booking aprovado vira recibo: a faixa continua, o pedido não', () => {
+  const pending = build({ estado: 'analise_booking' }).insights.analise_booking.action;
+  assert.equal(pending.status, 'pendente');
+  assert.match(pending.title, /pendente/i);
+
+  const approved = build({ estado: 'analise_booking', bookingApproved: true }).insights
+    .analise_booking.action;
+  assert.equal(approved.kind, 'aprovacao');
+  assert.equal(approved.status, 'concluida');
+  assert.equal(approved.title, 'Booking aprovado');
+  // A faixa NÃO some — é a única confirmação na tela de que o clique valeu.
+  assert.ok(approved.description.length > 0);
+
+  // O mesmo vale para o booking divergente, com o texto dele.
+  const conferred = build({
+    estado: 'booking_divergente',
+    isException: true,
+    bookingApproved: true,
+  }).insights.analise_booking.action;
+  assert.equal(conferred.status, 'concluida');
+  assert.equal(conferred.title, 'Booking conferido');
+});
+
+test('gatilho de documento nasce sempre pendente — entregue não chega aqui', () => {
+  const { insights } = build({
+    estado: 'aguardando_prontidao',
+    docs: [{ id: 'd1', label: 'Commercial Invoice', requiredForStep: 'aguardando_prontidao' }],
+  });
+  assert.equal(insights.aguardando_prontidao.action.status, 'pendente');
+
+  // Sem documento pendente (o cliente acabou de enviar), não há gatilho nenhum.
+  const sent = build({ estado: 'aguardando_prontidao', docs: [] }).insights;
+  assert.equal(sent.aguardando_prontidao?.action, undefined);
 });
 
 test('chegada remarcada leva motivo junto da nova data, e o delta é o real', () => {

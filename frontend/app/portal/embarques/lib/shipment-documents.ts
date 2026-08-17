@@ -161,6 +161,26 @@ const STATUS_WEIGHT: Record<ShipmentDocumentStatus, number> = {
   aprovado: 2,
 };
 
+/** Nome de arquivo derivado do tipo — determinístico, nunca sorteado. */
+function fileNameFor(type: ShipmentDocumentType, referencia: string): string {
+  return `${type.toLowerCase().replace(/_/g, '-')}-${referencia}.pdf`;
+}
+
+/**
+ * Pendências primeiro, depois o mais recente. Uma função só, porque o builder e
+ * a projeção local (`applyLocalDocumentActions`) precisam produzir a MESMA
+ * ordem: um documento que muda de status tem de andar na lista igual a como
+ * teria andado se o backend já soubesse dele.
+ */
+function sortDocuments(documents: ShipmentDocument[]): ShipmentDocument[] {
+  return [...documents].sort(
+    (a, b) =>
+      STATUS_WEIGHT[a.status] - STATUS_WEIGHT[b.status] ||
+      (b.uploadedAt ?? '').localeCompare(a.uploadedAt ?? '') ||
+      a.label.localeCompare(b.label),
+  );
+}
+
 export interface ShipmentDocumentsInput {
   referencia: string;
   /** Abertura do processo (ISO) — âncora de toda data de upload. */
@@ -198,8 +218,8 @@ export function buildShipmentDocuments({
   const opened = new Date(createdAt);
   const openedTime = Number.isNaN(opened.getTime()) ? now.getTime() : opened.getTime();
 
-  return BLUEPRINTS.filter((bp) => rank(bp.existsFrom) <= reachedIndex)
-    .map((bp) => {
+  return sortDocuments(
+    BLUEPRINTS.filter((bp) => rank(bp.existsFrom) <= reachedIndex).map((bp) => {
       const settled = rank(bp.settledFrom) <= passedIndex;
       const status: ShipmentDocumentStatus = settled
         ? 'aprovado'
@@ -220,9 +240,7 @@ export function buildShipmentDocuments({
         id: `${referencia}:${bp.type}`,
         type: bp.type,
         label: bp.label,
-        fileName: hasFile
-          ? `${bp.type.toLowerCase().replace(/_/g, '-')}-${referencia}.pdf`
-          : null,
+        fileName: hasFile ? fileNameFor(bp.type, referencia) : null,
         status,
         source: bp.source,
         uploadedAt,
@@ -231,13 +249,74 @@ export function buildShipmentDocuments({
           : null,
         requiredForStep: bp.requiredForStep,
       };
-    })
-    .sort(
-      (a, b) =>
-        STATUS_WEIGHT[a.status] - STATUS_WEIGHT[b.status] ||
-        (b.uploadedAt ?? '').localeCompare(a.uploadedAt ?? '') ||
-        a.label.localeCompare(b.label),
-    );
+    }),
+  );
+}
+
+export interface LocalDocumentActionsInput {
+  documents: ShipmentDocument[];
+  referencia: string;
+  /** Ids que o cliente "enviou" pelo modal nesta sessão. */
+  submittedIds: string[];
+  /** O cliente aprovou o booking pelo modal nesta sessão. */
+  bookingApproved: boolean;
+  /** "Agora" — a data que o arquivo simulado carrega. Injetado nos testes. */
+  now: Date;
+}
+
+/**
+ * Projeta na lista o que o cliente acabou de fazer NA TELA.
+ *
+ * Por que isto existe, e por que é uma camada separada
+ * ----------------------------------------------------
+ * O portal não escreve no embarque — nenhuma rota de escrita do GE foi copiada
+ * para cá — mas uma demonstração ao vivo em que aprovar não muda nada na tela
+ * não demonstra o fluxo, demonstra um beco. Então o efeito é LOCAL: o builder
+ * acima continua sendo a única fonte do estado "de verdade" e não sabe nada de
+ * clique; esta função aplica por cima o que a sessão viu acontecer. Quando a
+ * Aprovação Documental existir, ela sai inteira e o builder vira um fetch.
+ *
+ * O avanço é sempre de UM degrau na máquina de três estados, nunca um salto:
+ * enviar deixa o documento `em_analise` (chegou, ninguém validou ainda) e é a
+ * conferência da Freitas que o levaria a `aprovado`. Pular direto para
+ * "Aprovado" no clique do próprio cliente apagaria a etapa que dá nome ao
+ * módulo futuro.
+ */
+export function applyLocalDocumentActions({
+  documents,
+  referencia,
+  submittedIds,
+  bookingApproved,
+  now,
+}: LocalDocumentActionsInput): ShipmentDocument[] {
+  if (submittedIds.length === 0 && !bookingApproved) return documents;
+
+  const submitted = new Set(submittedIds);
+
+  return sortDocuments(
+    documents.map((doc): ShipmentDocument => {
+      if (doc.status === 'pendente' && submitted.has(doc.id)) {
+        return {
+          ...doc,
+          status: 'em_analise',
+          fileName: fileNameFor(doc.type, referencia),
+          uploadedAt: now.toISOString(),
+          sizeBytes: seededInt(`${referencia}:${doc.type}`, 92_000, 3_400_000),
+        };
+      }
+      // Aprovar o booking é validar o booking confirmado: é o mesmo ato, e
+      // deixar o documento em análise depois do "sim" faria a seção Documentos
+      // contradizer a faixa de ação logo acima dela.
+      if (
+        bookingApproved &&
+        doc.type === 'BOOKING_CONFIRMATION' &&
+        doc.status === 'em_analise'
+      ) {
+        return { ...doc, status: 'aprovado' };
+      }
+      return doc;
+    }),
+  );
 }
 
 /**
