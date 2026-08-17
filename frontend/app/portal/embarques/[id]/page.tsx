@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -10,6 +11,7 @@ import {
   FileText,
   RefreshCw,
 } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { LoaderComponent, ErrorComponent } from '@arboria-tech/arboria-ui';
 
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { formatShortDate } from '@/lib/portal-formatters';
 import { buildShipmentUpdateMailto } from '@/lib/portal-state';
 import { useMyShipment, useMyShipments } from '@/hooks/use-portal-shipments';
+import { isExceptionState } from '@/types/portal-shipment';
 import { MODAL_LABELS, TIPO_EMBARQUE_LABELS } from '@/types/quotation';
 
 import { ClientReferenceTag } from '../../_shared/client-reference-tag';
@@ -39,10 +42,23 @@ import { ProvenanceBadge } from '../../_shared/provenance-badge';
 import { DelayRiskBadge } from '../components/delay-risk-badge';
 import { EstadoBadge } from '../components/estado-badge';
 import { ShipmentEtaBadge } from '../components/eta-badge';
+import {
+  ShipmentActionModal,
+  type ShipmentActionPrompt,
+} from '../components/shipment-action-modal';
+import { ShipmentDocumentsSection } from '../components/shipment-documents-section';
 import { ShipmentTimeline } from '../components/shipment-timeline';
 import { ShipmentRoute } from '../components/shipment-route';
 import { INCOMPLETE_DATA_COPY, delayRiskFromTracking } from '../lib/delay-risk';
+import { REAL_STEPS } from '../lib/real-steps';
+import {
+  buildShipmentDocuments,
+  pendingClientDocuments,
+  type ShipmentDocument,
+} from '../lib/shipment-documents';
 import { ORIGINS, originIndex } from '../lib/shipment-origins';
+import { buildStepInsights } from '../lib/step-insights';
+import { buildTimelineSteps } from '../lib/timeline-steps';
 import { parseVesselFromObservacao } from '../lib/vessel';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -62,6 +78,11 @@ export default function PortalEmbarqueDetailPage() {
   // Only used to find a shipment that already HAS tracking, for the example link
   // below — the detail itself never reads anything from the list.
   const { shipments } = useMyShipments();
+  // Fecho dos gatilhos de ação (enviar documento, aprovar booking). Null =
+  // fechado.
+  const [actionPrompt, setActionPrompt] = useState<ShipmentActionPrompt | null>(
+    null,
+  );
 
   if (isLoading) return <LoaderComponent />;
   // A shipment owned by another client answers 404 exactly like a non-existent
@@ -112,6 +133,45 @@ export default function PortalEmbarqueDetailPage() {
             s.tracking?.last_milestone != null,
         ) ?? null)
       : null;
+
+  // --- Composição da jornada -------------------------------------------------
+  // A página é o ponto de composição: os três helpers são puros e testados, e
+  // rodam UMA vez cada. A timeline recebe o resultado pronto, e a seção
+  // Documentos lê os mesmos passos — é isso que garante que a etapa que pede um
+  // documento e o documento pendente da lista sejam o mesmo registro.
+  const isException = isExceptionState(shipment.estado);
+  const timelineSteps = buildTimelineSteps({
+    estado: shipment.estado,
+    realSteps: REAL_STEPS,
+    isException,
+    dataStatus: shipment.tracking?.data_status,
+    milestone: shipment.tracking?.last_milestone,
+    currentEta: shipment.tracking?.current_eta,
+    firstEta: shipment.tracking?.first_eta,
+  });
+  const documents = buildShipmentDocuments({
+    referencia: shipment.referencia,
+    createdAt: shipment.created_at,
+    steps: timelineSteps,
+    now: new Date(),
+  });
+  const stepInsights = buildStepInsights({
+    steps: timelineSteps,
+    referencia: shipment.referencia,
+    estado: shipment.estado,
+    isException,
+    delayRisk,
+    pendingDocuments: pendingClientDocuments(documents),
+  });
+
+  const promptForDocument = (document: ShipmentDocument): ShipmentActionPrompt => ({
+    title: `Enviar ${document.label}`,
+    description:
+      'O arquivo entra na fila de conferência da Freitas e o status muda para "Em análise" assim que for recebido.',
+    ctaLabel: 'Enviar arquivo',
+    closing:
+      'O envio de documentos do embarque ainda não tem endpoint neste protótipo — a tela mostra como o fluxo se encaixa. Enquanto isso, mande o arquivo para o seu contato na Freitas.',
+  });
 
   const riskFootnote =
     delayRisk.status === 'pending'
@@ -272,8 +332,45 @@ export default function PortalEmbarqueDetailPage() {
             {isMockTracking && <ProvenanceBadge provenance="preview" />}
           </div>
         </div>
-        <ShipmentTimeline estado={shipment.estado} tracking={shipment.tracking} />
+        <ShipmentTimeline
+          steps={timelineSteps}
+          insights={stepInsights}
+          estado={shipment.estado}
+          isException={isException}
+          onAction={({ action }) => {
+            // Documento pendente: leva à seção Documentos, onde o envio de fato
+            // acontece. Um segundo lugar para enviar o mesmo arquivo é um lugar
+            // a mais para os dois estados discordarem.
+            if (action.kind === 'documento') {
+              document
+                .getElementById('documentos')
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              return;
+            }
+            setActionPrompt({
+              title: action.title,
+              description: action.description,
+              ctaLabel: action.ctaLabel,
+              closing:
+                'A aprovação de booking pelo portal ainda não existe: o embarque é escrito pelo módulo do analista, e nenhuma rota de escrita foi aberta para o cliente. Fale com seu contato na Freitas para confirmar.',
+            });
+          }}
+        />
       </section>
+
+      {/* Documentos do embarque. Seção primária e aberta — ver
+          shipment-documents-section.tsx para o porquê de não ser accordion. */}
+      <ShipmentDocumentsSection
+        documents={documents}
+        onUpload={(doc) => setActionPrompt(promptForDocument(doc))}
+        onOpen={(_doc, intent) =>
+          toast.info(
+            intent === 'view'
+              ? 'Pré-visualização indisponível nesta demonstração.'
+              : 'Download indisponível nesta demonstração.',
+          )
+        }
+      />
 
       {/* Supporting detail, deliberately quieter than the block above and
           collapsed by default: only "Situação atual" stays open on load, so the
@@ -389,6 +486,13 @@ export default function PortalEmbarqueDetailPage() {
           )}
         </Accordion>
       </section>
+
+      <ShipmentActionModal
+        prompt={actionPrompt}
+        onOpenChange={(open) => {
+          if (!open) setActionPrompt(null);
+        }}
+      />
     </div>
   );
 }

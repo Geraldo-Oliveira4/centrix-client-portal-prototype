@@ -504,7 +504,12 @@ touch Meus Embarques:
   `lib/timeline-steps.ts` (`buildTimelineSteps`, unit-tested) — steps before the
   milestone are done, the milestone is the current stage, and nothing past it is
   claimed. `ShipmentTimeline` is presentational over that helper; do not put
-  step logic back in the component.
+  step logic back in the component. Desde 14/08/2026 quem CHAMA `buildTimelineSteps`
+  é a página de detalhe (`embarques/[id]/page.tsx`), não o componente: os passos
+  alimentam três consumidores (timeline, insights por etapa e a seção
+  Documentos) e uma segunda montagem divergiria da primeira. Os rótulos vêm de
+  `lib/real-steps.ts`, que existe só porque `timeline-steps.ts` roda no runner
+  do Node e não pode importar valor pelo alias `@/`.
 - **Passo downstream não alcançado mostra PREVISÃO, não "Pendente integração"**
   (`lib/step-forecast.ts`, puro e unit-testado). Quatro regras, e a primeira é a
   que sustenta as outras:
@@ -652,6 +657,76 @@ from a future Camada 2 (Inova / Portal Único) and is never passed today — wit
 no data it renders **nothing**, deliberately not even a `pending` badge, because
 clearance data is not guaranteed for every process and a permanent grey badge
 would read as a process gap.
+
+### Acompanhamento: eixo HORIZONTAL em três níveis (14/08/2026)
+
+Revisão semanal com Victor Orsi e Vinicius: a timeline vertical mostrava as nove
+etapas com o mesmo peso e não respondia "onde meu embarque está agora". O
+conteúdo não mudou (os textos descritivos de cada etapa continuam todos lá); a
+apresentação passou a ter hierarquia, e são três níveis, nesta ordem:
+
+1. **Ação necessária** — o que depende do CLIENTE, em faixa destacada
+   (`portal-warning`), nunca dentro de accordion. É a única coisa da tela que
+   ele pode mudar.
+2. **Etapa atual dominante + próxima etapa secundária**, com risco e
+   justificativa por extenso.
+3. **O eixo horizontal** com as nove etapas, que rola no eixo x e **abre
+   centrado na etapa atual** (`scrollLeft` do trilho, nunca da página). Os véus
+   de esmaecimento nas pontas só aparecem quando existe conteúdo escondido
+   daquele lado — véu fixo apagava a primeira letra de "Solicitado" num eixo que
+   nem rolou.
+
+**Risco por etapa** (`lib/step-insights.ts`, puro e unit-testado) — semáforo de
+3 cores + uma frase curta explicando o porquê. Duas regras:
+
+- **Onde existe aritmética, ela ganha.** Os quatro passos pós-embarque herdam o
+  resultado de `computeDelayRisk` (o MESMO do badge do topo, do card da Lista e
+  das agregações de Inteligência), com o mesmo número de dias no texto. Um
+  atraso confirmado também **agrava uma casa** as etapas operacionais que ainda
+  faltam: "Risco baixo" embaixo de um badge "Atraso, +7 dias" na mesma tela é a
+  contradição que matou o card "Rastreamento marítimo". Exceção
+  (`postergado` / `booking_divergente`) agrava pelo mesmo mecanismo.
+- **O que é ilustrativo é o percentual histórico da ROTA**, não uma medição
+  deste embarque — determinístico pela referência, nível base por etapa. É
+  estruturado como um modelo devolveria (`level` + `label` + `rationale`) para a
+  versão integrada trocar a fonte sem tocar na tela.
+
+**Gatilho de ação** — dois tipos, e nenhum é decorativo: `documento` leva à
+seção Documentos (onde o envio de fato acontece — um segundo lugar de envio
+seria um lugar a mais para os dois estados discordarem) e `aprovacao` abre o
+`ShipmentActionModal`, que **não confirma nada** e diz isso, mesmo contrato do
+`request-agent-modal` e do `dispute-draft-modal`. O portal não escreve no
+embarque: nenhuma rota de escrita do GE foi copiada para cá.
+
+**Mudança de data** ("Postergado 5 dias — motivo: navio lotado") — o
+deslocamento em dias é REAL (delta das duas previsões da companhia, via
+`delayRisk.deltaDays`); só o motivo é ilustrativo, porque o embarque não guarda
+histórico de transição. Sem as duas previsões não há número, e a linha afirma só
+o motivo. Num embarque `postergado` o aviso fica na **Chegada**, não na primeira
+etapa não concluída — aquela é "Solicitado", que já aconteceu.
+
+### Documentos do embarque (`lib/shipment-documents.ts` + seção própria)
+
+Seção primária e ABERTA (`.portal-card`, âncora `#documentos`), nunca accordion:
+documento é a segunda pergunta que o cliente traz para esta tela, e arquivo que
+só existe atrás de um clique de expansão é arquivo que ninguém encontra. A lista
+é ilustrativa — não há tabela de documento de embarque exposta ao portal — mas o
+shape é o que a **Aprovação Documental** vai devolver, e é isso que não pode
+afrouxar: `type` é código estável (não o rótulo em português), `status` tem os
+três estados que uma aprovação precisa distinguir (`pendente` / `em_analise` /
+`aprovado`) e `source` diz de quem é a obrigação, que é o que decide se a linha
+mostra botão de envio ou de download.
+
+- **Que documentos existem sai dos PASSOS da timeline**, não de uma segunda
+  tabela de etapas: o builder recebe a saída de `buildTimelineSteps`. Duas
+  listas de etapas divergiriam no primeiro estado acrescentado a uma delas.
+- **O pendente do cliente é o mesmo registro que o gatilho de ação da timeline
+  cobra** (`pendingClientDocuments` alimenta `buildStepInsights`). A etapa nunca
+  pede um arquivo que a lista mostra como entregue.
+- **Nenhuma data de upload é futura** (clampada em `now`) e documento pendente
+  não tem arquivo, data nem tamanho — os três são `null`, não zeros.
+- Visualizar/baixar são mockados (toast): não há arquivo por trás. Upload abre o
+  mesmo `ShipmentActionModal` dos gatilhos.
 
 **Spacing** — 8px grid: `gap-1` (4) / `gap-2` (8, default) / `gap-4` (16, between
 sections) / `p-6` (24, card padding) / `space-y-8` (32, between page blocks).

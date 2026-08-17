@@ -237,6 +237,8 @@ Como isso é sustentado no código, e o que não pode afrouxar:
 | seleção de agentes pelo cliente (toggle ativo/pausado filtra a montagem da RFQ) e preferências operacionais salvas (migração 094) | **limite de agentes por plano** — não existe modelo de planos ("Pendente integração"); **fila de avaliação** do CTA "Solicitar novo agente" — não há destinatário; **efeito do perfil de operação** na próxima cotação — o DNA que a Freitas usa ainda vive fora do portal |
 | acompanhamento de embarque (Processo/Embarque criados na aprovação) | histórico de transições do embarque (não existe tabela) e ETA/SLA (`processos.datas` fica NULL) |
 | — | rastreamento da companhia marítima (ShipsGo): colunas `tracking_*` existem e ficam NULL; ETA, risco de atraso e os marcos pós-embarque aparecem como "Pendente integração" |
+| — | **documentos do embarque** (BL, Invoice, Packing List, Certificado de Origem): a seção "Documentos" do detalhe é montada no frontend (`embarques/lib/shipment-documents.ts`). O módulo GE do analista tem `EmbarqueDocumento`, mas nenhum handler do portal o expõe — não há upload nem download de verdade |
+| — | **risco por etapa e gatilho de ação** da timeline (`embarques/lib/step-insights.ts`): o percentual histórico da rota é ilustrativo; onde há aritmética real (atraso da companhia), ela manda e o número é o mesmo do badge do topo |
 | valor cotado na conferência da cotação (proposta vencedora) | **valor realizado** — fabricado em `app/audit_preview.py`; não existe fatura/BL neste repo |
 | aprovar/recusar/cancelar, montar+disparar RFQ | envio de e-mail (Microsoft Graph) -> log |
 | upload de documentos | S3 -> `backend/storage/` via `/_local_s3` |
