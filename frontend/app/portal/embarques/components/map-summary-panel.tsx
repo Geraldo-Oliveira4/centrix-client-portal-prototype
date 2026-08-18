@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import {
+  SEMAFORO_LABELS,
   countBySemaforo,
   type PortalShipment,
   type SemaforoTone,
@@ -25,15 +26,13 @@ const TONE_TEXT: Record<SemaforoTone, string> = {
   danger: 'text-portal-danger',
 };
 
-const TONE_LABEL: Record<SemaforoTone, string> = {
-  success: 'Em andamento',
-  warning: 'Atenção / atraso',
-  danger: 'Exceção',
-};
-
+// O card fica ao lado do chip "Com atraso" e conta OUTRA coisa: aqui é o estado
+// do embarque no GE, lá é o deslize de ETA da companhia. Os rótulos vêm de
+// `SEMAFORO_LABELS`, onde a distinção está justificada — e é por isso que nenhum
+// deles fala em "atraso".
 const TONE_HINT: Record<SemaforoTone, string> = {
   success: 'seguindo o curso normal',
-  warning: 'com atraso ou reprogramação',
+  warning: 'adiados, com nova data em tratativa',
   danger: 'precisam de tratativa',
 };
 
@@ -70,7 +69,7 @@ export function MapSummaryPanel({ shipments }: { shipments: PortalShipment[] }) 
             </span>
             <div className="min-w-0">
               <p className="portal-body font-medium text-foreground">
-                {TONE_LABEL[tone]}
+                {SEMAFORO_LABELS[tone]}
               </p>
               <p className="portal-small text-portal-neutral">{TONE_HINT[tone]}</p>
             </div>

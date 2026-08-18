@@ -562,7 +562,7 @@ touch Meus Embarques:
   marker at the arc apex + a legend entry that appears only when some shipment
   is INCOMPLETE).
 
-**Aba Alertas — quatro tipos, e o quarto não é como os outros.** O feed é
+**Aba Alertas — cinco tipos, e dois deles não são como os outros.** O feed é
 ilustrativo (`lib/shipment-alerts.ts`, selo `preview` no topo da aba), montado
 sobre os embarques que o cliente já tem. Três tipos são informativos
 (`confirmado`, `eta`, `excecao`); `demurrage` é o único com custo financeiro
@@ -586,12 +586,53 @@ Como o alerta deriva de `tracking`, ele carrega `isMock` e desenha o selo
 `preview` quando o embarque é dado de demonstração, igual a todo o resto.
 
 O toggle do tipo nasce **ligado** como os outros, mas a chave de preferências é
-versionada (`portal:shipment-alerts:types:v2`, em
+versionada (`portal:shipment-alerts:types:v3`, em
 `_shared/alert-type-preferences.ts`) porque uma lista salva antes deste tipo
 existir o deixaria desligado sem o cliente saber. Bump de novo se um tipo futuro
 não puder herdar opt-out antigo. Esse módulo é a **única** implementação da
 preferência: a aba Alertas e Minhas Preferências > Notificações editam a mesma
 coisa e o consomem juntas — não releia o localStorage numa terceira tela.
+
+**O quinto tipo (`preco`) é o único que não fala de um embarque** — ele fala de
+uma ROTA, e é o que transforma o Radar de Preços de painel passivo em aviso
+(pedido do Victor Orsi: "notificar clientes sobre flutuações nas rotas
+preferidas"). Vive em `lib/price-alerts.ts`, puro e unit-testado, e as regras
+que o sustentam:
+
+- **Só os dois extremos viram alerta** (`oportunidade` e `alta`). `atencao` é,
+  por definição, "oscilação dentro do normal" — notificar isso é avisar que nada
+  mudou, e três avisos desses ensinam o cliente a desligar o toggle antes do
+  primeiro que importava.
+- **Uma rota de cada extremo**, a mais distante da média (`MAX_PER_PRICE_TYPE`).
+  O feed é cutucada, não catálogo: seis entradas de preço afogariam os alertas
+  de embarque, que são os que têm carga andando.
+- **As rotas são as MESMAS que a tela do Radar mostra**, `limit` incluído. A
+  notificação termina em "Ver no Radar de Preços"; avisar sobre uma rota que a
+  grade não exibe entregaria o cliente numa tela onde ele não acha o que foi
+  avisado. Consequência prática, e ela é correta: uma oportunidade numa rota de
+  uma carga só fica fora dos dois lugares, pelo mesmo critério.
+- **Título e texto vêm do MESMO `route.alert`** que o card do Radar imprime.
+  Escrever uma segunda frase criaria duas explicações para o mesmo número — o
+  erro que já custou o KPI de Economia.
+- **Não é prioritário** (`PRIORITY_ALERT_TYPES` continua só com `demurrage`): o
+  cliente não perde dinheiro por ler o aviso de mercado uma hora depois.
+- **Sem `shipmentId`**, porque não há embarque; é o que faz o filtro do Mapa
+  deixá-lo de fora quando um chip está ligado, em vez de o pendurar numa carga
+  qualquer. E **sem selo de proveniência**, seguindo a filosofia vigente para as
+  partes novas — a mesma escolha da tela do Radar.
+- **A data é a única do feed que não sai de um embarque.** É a hora da leitura,
+  e é honesta pelo mesmo motivo que as outras: a janela do Radar é móvel e
+  termina hoje. Entra por parâmetro (`observedAt`), fixada no mount da tela, e
+  **não** entra no id — se entrasse, cada visita ressuscitaria a notificação
+  como não lida.
+
+**Toda notificação agora tem destino** (`alert.link`): as de embarque levam ao
+embarque, a de preço leva ao Radar. Foi o que motivou trocar
+`referencia`/`shipmentId` por `subject`/`link` no `ShipmentAlert` — nem todo
+alerta é DE um embarque, e um campo chamado `referencia` obrigaria o alerta de
+preço a mentir o nome do próprio assunto. O link mora numa faixa abaixo do corpo
+do item porque `<a>` dentro de `<button>` é HTML inválido; clicar no corpo
+continua marcando como lida.
 
 **Ordem das abas: [Lista][Alertas][Mapa]**, com Lista como padrão. É prioridade
 de uso: Lista é a tela do dia a dia e Alertas é o que exige ação. O deep link
@@ -618,6 +659,25 @@ não funcionava nem como visualização rica nem como visão agregada. No lugar,
 
 Regras que sustentam a tela:
 
+- **Duas réguas de "situação" convivem, e o vocabulário as separa (18/08/2026).**
+  O chip "Com atraso" e o card "Visão do todo" ficam a centímetros um do outro e
+  diziam 5 e 1 usando a mesma palavra — leitura imediata de quem valida a tela:
+  "um dos dois está errado". Nenhum está:
+  - o **chip** mede o deslize da COMPANHIA (`delayRiskFromTracking`: ETA atual −
+    primeiro ETA, a mesma função do badge de cada card). Contínua, existe só onde
+    há rastreamento, e um embarque em curso normal pode estar atrasado nela;
+  - o **card** mede o ESTADO do embarque no GE (`ESTADO_SEMAFORO`), categórico,
+    existe para todo embarque e hoje só acende laranja em `postergado`.
+
+  Foram **mantidas as duas contagens** — unificar apagaria ou o embarque adiado
+  que a companhia ainda não reportou, ou o que a Freitas não reprogramou e mesmo
+  assim chega cinco dias tarde. O que mudou foi o NOME: `SEMAFORO_LABELS`
+  (`types/portal-shipment.ts`, fonte única para o contador da Lista, o filtro
+  "Situação", a legenda do Mapa e o "Visão do todo") passou de "Atenção / atraso"
+  para **"Reprogramado"**. Só o chip fala em atraso. `shipment-semaforo.test.ts`
+  falha se um rótulo do semáforo voltar a falar em atraso, se as duas réguas
+  passarem a contar igual, ou se um estado laranja novo tornar "Reprogramado"
+  mentira.
 - **A regra "sem filtro/busca/card solto" foi PARCIALMENTE levantada em
   14/08/2026.** Victor Orsi: o mapa "é mais visual do que funcional", mostra os
   treze embarques de uma vez e não deixa isolar o que precisa de atenção. Entrou
@@ -1084,6 +1144,24 @@ constantes do lib, nunca digitados na página.
   UN/LOCODE em inglês ("Genova, Italy (ITGOA)"). O unit test confere cada valor
   contra `PORTS_*_OPTIONS` de verdade, então uma entrada errada quebra o teste em
   vez de abrir a cotação com o campo vazio — falha silenciosa é a pior espécie.
+- **O CTA deixa rastro de origem (18/08/2026).** O Radar existe para validar uma
+  proposta de produto com dois ou três clientes; validar exige contar "quantas
+  cotações saíram daqui?", e até então o clique não deixava marca nenhuma. Agora
+  a query leva `origem=radar_precos` (`RADAR_ORIGIN`/`ORIGIN_PARAM`), a Nova
+  Cotação a lê com `radarOriginFields` — a outra ponta, pura e testada contra a
+  query que o CTA escreve, porque um nome de parâmetro divergindo faria o rastro
+  sumir em silêncio — e manda `portal_origin` + `portal_origin_route` no POST.
+  Três decisões que não podem afrouxar:
+  - **`portal_origin`, não `origin`**: `origin` já é campo de cotação (o local de
+    coleta);
+  - **a origem é lida SEPARADA do pré-preenchimento**: porto que o formulário não
+    conhece deixa o campo em branco, mas o clique continua tendo vindo do Radar e
+    continua contando;
+  - **é dimensão A MAIS que a tag "portal"**, nunca no lugar dela. O backend
+    grava num log próprio (`backend/app/quotation_origin.py`) e o card do Kanban
+    do analista acende um ícone de radar AO LADO da tag "Portal"
+    (`created_from_radar` em `KanbanCard`) — trocar uma marca pela outra tiraria
+    a cotação de todo filtro de portal que a Grazi e a Duda já usam.
 
 ### Minhas Cotações — Funil, Histórico, Fechadas e Negadas (`/portal/cotacoes/`)
 

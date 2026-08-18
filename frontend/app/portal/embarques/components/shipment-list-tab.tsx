@@ -24,6 +24,7 @@ import { MODAL_LABELS } from '@/types/quotation';
 import {
   ESTADO_SEMAFORO,
   SEMAFORO_DOT_CLASS,
+  SEMAFORO_LABELS,
   countBySemaforo,
   type PortalShipment,
   type SemaforoTone,
@@ -50,12 +51,6 @@ import { ORIGINS, originIndex } from '../lib/shipment-origins';
 // Normalise a reference for comparison: case- and whitespace-insensitive.
 const normalize = (value: string) => value.trim().toUpperCase().replace(/\s+/g, '');
 
-const SEMAFORO_LABEL: Record<SemaforoTone, string> = {
-  success: 'Em andamento',
-  warning: 'Atenção / atraso',
-  danger: 'Exceção',
-};
-
 type StatusFilter = SemaforoTone | 'all';
 type PeriodFilter = 'all' | '30' | '90';
 
@@ -76,7 +71,7 @@ function SemaforoCounter({ shipments }: { shipments: PortalShipment[] }) {
           <span className="portal-body font-medium text-foreground">
             {counts[tone]}
           </span>
-          <span className="portal-small text-portal-neutral">{SEMAFORO_LABEL[tone]}</span>
+          <span className="portal-small text-portal-neutral">{SEMAFORO_LABELS[tone]}</span>
         </span>
       ))}
     </div>
@@ -301,9 +296,15 @@ export function ShipmentListTab({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas</SelectItem>
-                    <SelectItem value="success">Em andamento</SelectItem>
-                    <SelectItem value="warning">Atenção / atraso</SelectItem>
-                    <SelectItem value="danger">Exceção</SelectItem>
+                    <SelectItem value="success">
+                      {SEMAFORO_LABELS.success}
+                    </SelectItem>
+                    <SelectItem value="warning">
+                      {SEMAFORO_LABELS.warning}
+                    </SelectItem>
+                    <SelectItem value="danger">
+                      {SEMAFORO_LABELS.danger}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>

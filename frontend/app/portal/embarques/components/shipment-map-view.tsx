@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { useMyQuotations } from '@/hooks/use-portal-quotations';
 import {
   SEMAFORO_DOT_CLASS,
+  SEMAFORO_LABELS,
   type PortalShipment,
   type SemaforoTone,
 } from '@/types/portal-shipment';
@@ -33,11 +34,10 @@ const ShipmentMap = dynamic(
   },
 );
 
-const LEGEND: { tone: SemaforoTone; label: string }[] = [
-  { tone: 'success', label: 'Em andamento' },
-  { tone: 'warning', label: 'Atenção / atraso' },
-  { tone: 'danger', label: 'Exceção' },
-];
+// Legenda das cores dos marcadores. Os rótulos vêm de `SEMAFORO_LABELS`: a
+// legenda explica o mesmo semáforo que o card "Visão do todo" conta, e o chip
+// "Com atraso" logo acima mede outra coisa (ver a justificativa lá).
+const LEGEND: SemaforoTone[] = ['success', 'warning', 'danger'];
 
 /**
  * Os três recortes que o Mapa oferece, e por que não são os quatro da Lista.
@@ -123,7 +123,10 @@ export function ShipmentMapView({
   const visibleAlerts = useMemo(() => {
     if (!filter) return alerts;
     const ids = new Set(visible.map((s) => s.id));
-    return alerts.filter((a) => ids.has(a.shipmentId));
+    // Alerta sem embarque (o de preço, que é da rota) sai junto quando há
+    // filtro: o feed passa a descrever os embarques plotados, e um aviso de
+    // mercado no meio deles responderia a outra pergunta.
+    return alerts.filter((a) => a.shipmentId != null && ids.has(a.shipmentId));
   }, [alerts, visible, filter]);
 
   const activeLabel = filterCounts.find((f) => f.key === filter)?.label ?? null;
@@ -201,12 +204,14 @@ export function ShipmentMapView({
           carga, porque não há AIS/ShipsGo mapPoint. Não remova. */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          {LEGEND.map(({ tone, label }) => (
+          {LEGEND.map((tone) => (
             <span key={tone} className="inline-flex items-center gap-1.5">
               <span
                 className={cn('h-2.5 w-2.5 rounded-full', SEMAFORO_DOT_CLASS[tone])}
               />
-              <span className="portal-small text-portal-neutral">{label}</span>
+              <span className="portal-small text-portal-neutral">
+                {SEMAFORO_LABELS[tone]}
+              </span>
             </span>
           ))}
         </div>

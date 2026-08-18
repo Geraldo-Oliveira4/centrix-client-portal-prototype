@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Container,
   Navigation,
+  Radar,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -34,6 +35,10 @@ const TYPE_ICON: Record<AlertType, LucideIcon> = {
   eta: Navigation,
   excecao: AlertTriangle,
   demurrage: Container,
+  // O radar nomeia a FONTE, não a direção: o alerta de preço sai nos dois
+  // extremos (oportunidade e alta) e quem diz para que lado é o tom da cor.
+  // Uma seta para cima em cima de uma oportunidade leria como alta.
+  preco: Radar,
 };
 
 const TONE_TEXT: Record<SemaforoTone, string> = {
@@ -103,7 +108,7 @@ export function MapEventsFeed({
             return (
               <li key={alert.id}>
                 <Link
-                  href={`/portal/embarques/${alert.shipmentId}`}
+                  href={alert.link.href}
                   className="flex gap-3 rounded-md p-1.5 transition-colors hover:bg-muted/50"
                 >
                   <span
@@ -116,7 +121,7 @@ export function MapEventsFeed({
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="portal-small font-medium text-foreground">
-                      {alert.referencia}
+                      {alert.subject}
                       {!readIds.has(alert.id) && (
                         <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" />
                       )}

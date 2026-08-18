@@ -9,13 +9,17 @@ import { ErrorComponent, LoaderComponent } from '@arboria-tech/arboria-ui';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useMyQuotations } from '@/hooks/use-portal-quotations';
 import { useMyShipments } from '@/hooks/use-portal-shipments';
 
 import { useAlertTypePreferences } from '../_shared/alert-type-preferences';
 import { PagePortalHeader } from '../_shared/page-header';
+import { flattenQuotations } from '../inteligencia/lib/intel-helpers';
+import { computePriceRadar } from '../inteligencia/lib/price-radar';
 import { ShipmentMapView } from './components/shipment-map-view';
 import { ShipmentListTab } from './components/shipment-list-tab';
 import { ShipmentAlertsTab } from './components/shipment-alerts-tab';
+import { buildPriceAlerts } from './lib/price-alerts';
 import { buildShipmentAlerts } from './lib/shipment-alerts';
 
 const READ_KEY = 'portal:shipment-alerts:read';
@@ -55,7 +59,30 @@ function PortalEmbarquesContent() {
     router.replace('/portal/embarques?tab=lista', { scroll: false });
   }, [tabParam, buscaParam, router]);
 
-  const alerts = useMemo(() => buildShipmentAlerts(shipments), [shipments]);
+  // As cotações não são desta tela: elas entram porque o Radar de Preços resolve
+  // a rota de um embarque pela cotação que o originou (`routePartsOf`), e é a
+  // MESMA resolução que o Mapa e "Rotas com maiores desvios" usam. Sem elas, a
+  // notificação de preço nomearia uma rota diferente da que o Radar mostra.
+  const { data: quotationsData } = useMyQuotations();
+
+  // Quando a leitura de preço foi feita. Fixado no mount: recalcular a cada
+  // render mudaria o carimbo do alerta enquanto o cliente lê a lista. Ver a
+  // justificativa da data em `lib/price-alerts.ts`.
+  const observedAt = useMemo(() => new Date().toISOString(), []);
+
+  const alerts = useMemo(() => {
+    const routes = computePriceRadar({
+      shipments,
+      quotations: flattenQuotations(quotationsData),
+    });
+    // Uma lista só, para os dois consumidores (aba Alertas e feed do Mapa)
+    // continuarem lendo a mesma coisa. A ordenação é de quem exibe
+    // (`sortAlertsForFeed`), não daqui.
+    return [
+      ...buildShipmentAlerts(shipments),
+      ...buildPriceAlerts({ routes, observedAt }),
+    ];
+  }, [shipments, quotationsData, observedAt]);
 
   // Quais tipos o cliente quer receber: mesma preferência editável em Minhas
   // Preferências > Notificações, por isso vem do módulo compartilhado e não de

@@ -996,6 +996,16 @@ export interface KanbanCard extends Quotation {
   portal_approved?: boolean;
   rfq_agent_ids?: string[];
   created_by_portal?: boolean;
+  // Aberta pelo CTA "Cotar agora" do Radar de Preços do portal, e por qual rota.
+  //
+  // Dimensão ADICIONAL a `created_by_portal`, não substituta: uma cotação de
+  // Radar é as duas coisas, e o card mostra as duas marcas. A origem é fato do
+  // nascimento da cotação e mora no log imutável — do lado do backend do
+  // Centrix, o serializer do card resolve esta flag com a mesma consulta que
+  // resolve `created_by_portal`, trocando a ação por `quotation_portal_origin`
+  // (a consulta pronta está em `backend/app/quotation_origin.py::fetch_origins`).
+  created_from_radar?: boolean;
+  portal_origin_route?: string;
   // Guard-rail fields (ARB-2449) are declared on the base Quotation interface —
   // both the kanban card and the detail payload carry them.
 }

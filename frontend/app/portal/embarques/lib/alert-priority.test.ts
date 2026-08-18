@@ -20,7 +20,8 @@ const alert = (id, type, timestamp) => ({
   type,
   tone: 'success',
   shipmentId: id,
-  referencia: id,
+  subject: id,
+  link: { href: `/portal/embarques/${id}`, label: 'Ver embarque' },
   title: id,
   description: '',
   timestamp,
@@ -40,7 +41,10 @@ const FEED = [
 test('demurrage is the only priority type', () => {
   assert.deepEqual([...PRIORITY_ALERT_TYPES], ['demurrage']);
   assert.equal(isPriorityType('demurrage'), true);
-  ['confirmado', 'eta', 'excecao'].forEach((t) =>
+  // `preco` entrou no feed depois e continua fora da fila prioritária: o
+  // cliente não perde dinheiro por ler o aviso de mercado uma hora mais tarde,
+  // e furar a cronologia com ele empurraria para baixo o alerta que custa.
+  ['confirmado', 'eta', 'excecao', 'preco'].forEach((t) =>
     assert.equal(isPriorityType(t), false),
   );
 });

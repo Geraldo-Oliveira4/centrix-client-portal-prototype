@@ -21,13 +21,23 @@ import {
 
 import { compareByTimestampDesc } from './alert-priority';
 
-export type AlertType = 'confirmado' | 'eta' | 'excecao' | 'demurrage';
+export type AlertType =
+  | 'confirmado'
+  | 'eta'
+  | 'excecao'
+  | 'demurrage'
+  | 'preco';
 
 export const ALERT_TYPE_LABELS: Record<AlertType, string> = {
   confirmado: 'Embarque confirmado',
   eta: 'Mudança de estimativa de chegada',
   excecao: 'Exceção detectada',
   demurrage: 'Risco de demurrage/detention',
+  // "Oportunidade OU alta": o alerta dispara nos dois extremos do Radar, e um
+  // rótulo só com "oportunidade" faria a entrada vermelha de alta de preço
+  // parecer erro de classificação. Os dois avisam a mesma coisa — o momento de
+  // cotar mudou —, só que em direções opostas.
+  preco: 'Oportunidade ou alta de preço',
 };
 
 export const ALL_ALERT_TYPES: AlertType[] = [
@@ -35,11 +45,12 @@ export const ALL_ALERT_TYPES: AlertType[] = [
   'eta',
   'excecao',
   'demurrage',
+  'preco',
 ];
 
-// `demurrage` is the odd one out of the four, and deliberately so: the other
-// three tell the client what happened, this one says money starts running if
-// they do nothing. That single difference drives three rules no other type
+// `demurrage` is the odd one out among the shipment alerts, and deliberately
+// so: the others tell the client what happened, this one says money starts
+// running if they do nothing. That single difference drives three rules no other type
 // gets — always `danger` (never softened by the shipment's health semáforo),
 // first in the feed while unread (`sortAlertsForFeed` in lib/alert-priority.ts),
 // and on by default in the preferences (see TYPES_KEY in embarques/page.tsx).
@@ -53,8 +64,21 @@ export interface ShipmentAlert {
   id: string;
   type: AlertType;
   tone: SemaforoTone;
-  shipmentId: string;
-  referencia: string;
+  /**
+   * O que o alerta nomeia: a referência do embarque, ou a rota no alerta de
+   * preço. Genérico de propósito — desde que a notificação de preço entrou no
+   * feed, nem todo alerta é DE um embarque, e um campo chamado `referencia`
+   * obrigaria o alerta de preço a mentir o nome do próprio assunto.
+   */
+  subject: string;
+  /**
+   * O embarque a que o alerta pertence, quando pertence a um. Ausente no alerta
+   * de preço, que é da ROTA: é o que faz o filtro do Mapa (que recorta por
+   * embarque plotado) deixá-lo de fora em vez de o associar ao embarque errado.
+   */
+  shipmentId?: string;
+  /** Para onde a notificação leva, e com que chamada. */
+  link: { href: string; label: string };
   title: string;
   description: string;
   // Real ISO timestamp from the shipment; the alert framing is illustrative.
@@ -77,6 +101,10 @@ export function buildShipmentAlerts(
   shipments.forEach((s) => {
     const opened = s.created_at;
     const moved = s.updated_at ?? s.created_at;
+    // Todo alerta de embarque leva ao próprio embarque. Uma linha só, para os
+    // quatro tipos: um deles apontando para outro lugar seria acidente, não
+    // decisão.
+    const link = { href: `/portal/embarques/${s.id}`, label: 'Ver embarque' };
 
     // 1. Every shipment was confirmed when it opened.
     alerts.push({
@@ -84,7 +112,8 @@ export function buildShipmentAlerts(
       type: 'confirmado',
       tone: 'success',
       shipmentId: s.id,
-      referencia: s.referencia,
+      subject: s.referencia,
+      link,
       title: `Embarque ${s.referencia} confirmado`,
       description: ESTADO_DESCRIPTIONS.solicitado,
       timestamp: opened,
@@ -98,7 +127,8 @@ export function buildShipmentAlerts(
         type: 'eta',
         tone: 'success',
         shipmentId: s.id,
-        referencia: s.referencia,
+        subject: s.referencia,
+        link,
         title: `Estimativa de chegada revista — ${s.referencia}`,
         description:
           'A janela estimada de chegada foi ajustada com base no andamento do embarque.',
@@ -113,7 +143,8 @@ export function buildShipmentAlerts(
         type: 'excecao',
         tone: ESTADO_SEMAFORO[s.estado],
         shipmentId: s.id,
-        referencia: s.referencia,
+        subject: s.referencia,
+        link,
         title: `Exceção detectada — ${s.referencia}`,
         description: ESTADO_DESCRIPTIONS[s.estado],
         timestamp: moved,
@@ -133,7 +164,8 @@ export function buildShipmentAlerts(
         // is green (it arrived fine) while the client's exposure is red.
         tone: 'danger',
         shipmentId: s.id,
-        referencia: s.referencia,
+        subject: s.referencia,
+        link,
         title: 'Atenção — Container liberado',
         // The carrier may report the milestone without dating it, so the date
         // is stated only when it exists. The fact is the alert; the date is not

@@ -19,13 +19,16 @@ import assert from 'node:assert/strict';
 import {
   ANOMALY_ABOVE_PCT,
   OPPORTUNITY_BELOW_PCT,
+  ORIGIN_PARAM,
   QUOTATION_DESTINATION_OPTION,
   QUOTATION_PORT_OPTION,
+  RADAR_ORIGIN,
   SHARP_RISE_PCT,
   buildPriceAlert,
   classifyPriceAlert,
   computePriceRadar,
   quotationPrefillParams,
+  radarOriginFields,
 } from './price-radar.ts';
 import {
   PORTS_DEPARTURE_OPTIONS,
@@ -191,6 +194,42 @@ test('o CTA leva modal, portos e o rótulo da rota', () => {
   assert.equal(params.get('porto_embarque'), 'Shanghai, China (CNSHA)');
   assert.equal(params.get('porto_destino'), 'Santos, Brazil (BRSSZ)');
   assert.equal(params.get('rota'), 'Shanghai → Santos');
+});
+
+// --- Rastreabilidade de origem ----------------------------------------------
+//
+// O clique no CTA é o único momento em que se sabe que a cotação nasceu do
+// Radar. Se o rastro se perder aqui, ele não se recupera depois — e a pergunta
+// que decide o futuro do Radar ("quantas cotações ele gerou?") fica sem
+// resposta, sem nada na tela indicando que algo quebrou.
+
+test('o CTA carrega a origem, e a criação lê exatamente o que ele escreveu', () => {
+  const params = quotationPrefillParams({
+    id: 'Gênova>Santos',
+    origin: 'Gênova',
+    destination: 'Santos',
+    modal: 'MARITIMO',
+  });
+  assert.equal(params.get(ORIGIN_PARAM), RADAR_ORIGIN);
+
+  // A volta: é este objeto que entra no POST /portal/quotations.
+  assert.deepEqual(
+    radarOriginFields(params.get(ORIGIN_PARAM), params.get('rota')),
+    { portal_origin: 'radar_precos', portal_origin_route: 'Gênova → Santos' },
+  );
+});
+
+test('origem desconhecida na URL não inaugura categoria de origem', () => {
+  assert.equal(radarOriginFields('campanha_inventada', 'Gênova → Santos'), null);
+  assert.equal(radarOriginFields(null, 'Gênova → Santos'), null);
+});
+
+test('sem rótulo de rota a origem continua contando', () => {
+  // Porto que o formulário não conhece deixa o pré-preenchimento incompleto —
+  // mas o clique continua tendo vindo do Radar, e continua sendo contado.
+  assert.deepEqual(radarOriginFields(RADAR_ORIGIN, null), {
+    portal_origin: 'radar_precos',
+  });
 });
 
 test('porto sem mapeamento não quebra o CTA — leva o que sabe', () => {

@@ -457,6 +457,61 @@ def run():
     check("N12 quotation without exporter still works -> 201",
           st == 201 and q.get("quotation", {}).get("exporter_id") is None, str(st))
 
+    # --- R. Origem da cotação (app/quotation_origin.py) -------------------
+    # De onde veio o clique. Dimensão A MAIS que a tag "portal", nunca no lugar
+    # dela — o que se quebra em silêncio aqui é o rastro sumir e ninguém
+    # perceber, porque nenhuma tela do cliente depende dele.
+    st, q = req("POST", "/portal/quotations", {
+        "source": "manual", "modal": "MARITIMO", "product": "Carga E2E radar",
+        "portal_origin": "radar_precos", "portal_origin_route": "Gênova → Santos",
+    })
+    radar_q = q.get("quotation", {})
+    radar_id = radar_q.get("id")
+    check("R1 create with radar origin -> 201 and origin echoed",
+          st == 201 and radar_q.get("portal_origin") == "radar_precos"
+          and radar_q.get("portal_origin_route") == "Gênova → Santos",
+          str({k: v for k, v in radar_q.items() if k.startswith("portal_origin")}))
+
+    st, det = req("GET", f"/portal/quotations/{radar_id}")
+    check("R2 detail carries the origin",
+          st == 200 and det.get("quotation", {}).get("portal_origin") == "radar_precos",
+          str(det.get("quotation", {}).get("portal_origin")))
+
+    st, lst_r = req("GET", "/portal/quotations")
+    cards = [c for b in lst_r.get("buckets", {}).values() for c in b]
+    radar_card = next((c for c in cards if c["id"] == radar_id), None)
+    # ADITIVO: continua sendo cotação de portal (created_by_me), e ganhou a
+    # segunda marca. Trocar uma pela outra tiraria o card dos filtros de portal.
+    check("R3 list card carries the origin without losing the portal dimension",
+          radar_card is not None
+          and radar_card.get("portal_origin") == "radar_precos"
+          and radar_card.get("created_by_me") is True,
+          str(radar_card and {k: radar_card.get(k) for k in
+                              ("portal_origin", "created_by_me")}))
+
+    # Cotação sem origem não ganha chave nenhuma: "sem origem" não precisa de
+    # valor para significar nada, e o payload das outras nove fica intacto.
+    plain_card = next((c for c in cards if c["id"] != radar_id
+                       and "portal_origin" not in c), None)
+    check("R4 quotations without a tracked origin keep the payload unchanged",
+          plain_card is not None, str(len(cards)))
+
+    # A barra de endereço é pública: origem fora da lista fechada é ignorada em
+    # silêncio, nunca vira categoria nova no relatório.
+    st, q = req("POST", "/portal/quotations", {
+        "source": "manual", "modal": "AEREO", "product": "Carga E2E origem falsa",
+        "portal_origin": "campanha_inventada",
+    })
+    check("R5 unknown origin is ignored, quotation still created",
+          st == 201 and "portal_origin" not in q.get("quotation", {}), str(st))
+
+    # O registro de origem é metadado de analista, não marco do cliente: ele não
+    # pode aparecer no histórico que o portal mostra.
+    st, hist = req("GET", f"/portal/quotations/{radar_id}/history")
+    actions = [i["action"] for i in hist.get("items", [])]
+    check("R6 the origin log never surfaces in the client-facing history",
+          st == 200 and "quotation_portal_origin" not in actions, str(actions))
+
     # --- O. Shipments / GE (read-only tracking) ---------------------------
     st, sh = req("GET", "/portal/shipments")
     items = sh.get("items", [])

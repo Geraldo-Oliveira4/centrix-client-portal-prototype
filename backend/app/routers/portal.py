@@ -14,8 +14,18 @@ from app.audit_preview import lambda_handler as audit_preview_handler
 from app.event_shim import invoke
 from app.prototype_flow import auto_close_approved_quotation
 from app.quotation_exporter import link_exporter
+from app.quotation_origin import annotate as annotate_origins, record_origin
 
 router = APIRouter(prefix="/portal", tags=["portal"])
+
+
+def _rewrite(resp: Response, payload) -> Response:
+    """Devolve a mesma resposta com o corpo já alterado pela camada do protótipo."""
+    return Response(
+        content=json.dumps(payload),
+        status_code=resp.status_code,
+        media_type="application/json",
+    )
 
 
 def _handler(name: str):
@@ -91,33 +101,58 @@ async def update_my_preferences(request: Request):
 # --- Quotations -------------------------------------------------------------
 @router.get("/quotations")
 async def list_my_quotations(request: Request):
-    return await invoke(h["list_my_quotations"], request)
+    resp = await invoke(h["list_my_quotations"], request)
+    if resp.status_code != 200:
+        return resp
+    payload = json.loads(resp.body)
+    cards = [card for bucket in payload.get("buckets", {}).values() for card in bucket]
+    annotate_origins(cards)
+    return _rewrite(resp, payload)
 
 
 @router.post("/quotations")
 async def create_my_quotation(request: Request):
     body = await request.json() if await request.body() else {}
     resp = await invoke(h["create_my_quotation"], request)
+    if resp.status_code != 201 or not isinstance(body, dict):
+        return resp
+
+    payload = json.loads(resp.body)
+    quotation = payload["quotation"]
+    changed = False
 
     # The copied handler ignores exporter_id (Centrix attaches the exporter later,
     # via the analyst). Link it here so the portal's "select exporter" step on the
     # new-quotation form actually persists. See app/quotation_exporter.py.
-    exporter_id = body.get("exporter_id") if isinstance(body, dict) else None
-    if resp.status_code == 201 and exporter_id:
-        payload = json.loads(resp.body)
-        if link_exporter(payload["quotation"]["id"], exporter_id):
-            payload["quotation"]["exporter_id"] = exporter_id
-            return Response(
-                content=json.dumps(payload),
-                status_code=201,
-                media_type="application/json",
-            )
-    return resp
+    exporter_id = body.get("exporter_id")
+    if exporter_id and link_exporter(quotation["id"], exporter_id):
+        quotation["exporter_id"] = exporter_id
+        changed = True
+
+    # De onde veio o clique (hoje: o CTA "Cotar agora" do Radar de Preços). É uma
+    # dimensão A MAIS que a tag "portal", nunca no lugar dela — a cotação
+    # continua sendo `quotation_created_by_portal` para todo o resto do sistema.
+    # Ver app/quotation_origin.py.
+    recorded = record_origin(
+        quotation["id"], body.get("portal_origin"), body.get("portal_origin_route")
+    )
+    if recorded:
+        quotation["portal_origin"] = recorded["origin"]
+        if recorded["route"]:
+            quotation["portal_origin_route"] = recorded["route"]
+        changed = True
+
+    return _rewrite(resp, payload) if changed else resp
 
 
 @router.get("/quotations/{id}")
 async def get_my_quotation(request: Request, id: str):
-    return await invoke(h["get_my_quotation"], request, {"id": id})
+    resp = await invoke(h["get_my_quotation"], request, {"id": id})
+    if resp.status_code != 200:
+        return resp
+    payload = json.loads(resp.body)
+    annotate_origins([payload.get("quotation", {})])
+    return _rewrite(resp, payload)
 
 
 @router.post("/quotations/{id}/proposals/{proposal_id}/approve")

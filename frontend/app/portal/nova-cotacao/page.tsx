@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useCallback, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, Loader2, Radar } from 'lucide-react';
 import { LoaderComponent } from '@arboria-tech/arboria-ui';
@@ -21,6 +21,14 @@ import { UploadZone } from '@/app/cotacao/nova-cotacao/components/upload-zone';
 import { RfqDispatchCard } from '@/app/portal/cotacao/[id]/components/rfq-dispatch-card';
 import { PortalExporterSelect } from '@/app/portal/components/portal-exporter-select';
 import { PagePortalHeader } from '@/app/portal/_shared/page-header';
+import {
+  ORIGIN_PARAM,
+  radarOriginFields,
+} from '@/app/portal/inteligencia/lib/price-radar';
+import type {
+  CreatePortalQuotationPayload,
+  PortalQuotationOriginFields,
+} from '@/types/portal';
 import type { Quotation } from '@/types/quotation';
 import type { Exporter } from '@/types/exporter';
 
@@ -48,16 +56,24 @@ const PORTAL_EXPECTED_DOCUMENTS = [
  *
  * Parâmetro desconhecido ou vazio é simplesmente ignorado: o link é público na
  * barra de endereço, e um valor inesperado não pode quebrar a tela de criação.
+ *
+ * Além dos valores, o link carrega a ORIGEM (`origem=radar_precos`), que é
+ * gravada junto da cotação para se poder medir depois quantas cotações o Radar
+ * gerou. Ela é lida separada do pré-preenchimento de propósito: um porto que o
+ * formulário não conhece deixa o campo em branco, mas o clique continua tendo
+ * vindo do Radar e continua contando.
  */
 function usePrefillFromParams(): {
   values: Partial<ManualFormValues>;
   routeLabel: string | null;
+  origin: PortalQuotationOriginFields | null;
 } {
   const params = useSearchParams();
   const modal = params.get('modal');
   const portoEmbarque = params.get('porto_embarque');
   const portoDestino = params.get('porto_destino');
   const routeLabel = params.get('rota');
+  const origem = params.get(ORIGIN_PARAM);
 
   return useMemo(() => {
     const values: Partial<ManualFormValues> = {};
@@ -71,13 +87,14 @@ function usePrefillFromParams(): {
     return {
       values,
       routeLabel: Object.keys(values).length > 0 ? routeLabel : null,
+      origin: radarOriginFields(origem, routeLabel),
     };
-  }, [modal, portoEmbarque, portoDestino, routeLabel]);
+  }, [modal, portoEmbarque, portoDestino, routeLabel, origem]);
 }
 
 function PortalNovaCotacaoContent() {
   const router = useRouter();
-  const { values: prefill, routeLabel } = usePrefillFromParams();
+  const { values: prefill, routeLabel, origin } = usePrefillFromParams();
   const [phase, setPhase] = useState<PagePhase>('idle');
   const [createdQuotation, setCreatedQuotation] = useState<Quotation | null>(null);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
@@ -87,8 +104,18 @@ function PortalNovaCotacaoContent() {
   // extraction (not exercised in this prototype).
   const [exporter, setExporter] = useState<Exporter | null>(null);
 
+  // A origem entra no payload aqui, e não dentro do formulário: `ManualForm` é
+  // copiado do Centrix (é a mesma tela do analista) e não conhece Radar. Mesma
+  // divisão do `exporter_id`, que também é vinculado por fora — ver
+  // `backend/app/quotation_exporter.py`.
+  const createWithOrigin = useCallback(
+    (payload: CreatePortalQuotationPayload) =>
+      createMyQuotation(origin ? { ...payload, ...origin } : payload),
+    [origin],
+  );
+
   const { uploadAndCreate } = useQuotationUploadFlow({
-    createFn: createMyQuotation,
+    createFn: createWithOrigin,
     triggerExtractionFn: triggerMyQuotationExtraction,
   });
 
@@ -192,7 +219,7 @@ function PortalNovaCotacaoContent() {
             disabled={phase === 'submitting'}
             attachmentFiles={attachmentFiles}
             onAttachmentFilesChange={setAttachmentFiles}
-            createFn={createMyQuotation}
+            createFn={createWithOrigin}
             initialValues={prefill}
             exporterId={exporter?.id ?? null}
             exporterSection={

@@ -180,6 +180,12 @@ export interface PortalQuotation {
   // The analyst's justification when they blocked the guard rail — shown to the
   // client so they know what Freitas asked for. Only present when blocked.
   guard_rail_block_reason?: string | null;
+  // De onde veio o clique que abriu a cotação, quando veio de algum lugar
+  // rastreado (hoje só o CTA "Cotar agora" do Radar de Preços). Campo ADITIVO:
+  // cotação sem origem rastreada não traz a chave — ver
+  // `backend/app/quotation_origin.py::annotate`.
+  portal_origin?: PortalQuotationOrigin;
+  portal_origin_route?: string;
   proposals_count?: number;
   best_proposal?: PortalProposal;
   equipments?: QuotationEquipment[];
@@ -241,14 +247,36 @@ export const PORTAL_CLIENT_ACTION_BUCKETS: PortalBucketKey[] = [
   'aguardando_dados',
 ];
 
+/**
+ * De onde veio o clique que abriu a cotação. Dimensão ADICIONAL à tag "portal"
+ * (que continua saindo do log `quotation_created_by_portal`), não substituta:
+ * uma cotação de Radar é portal E radar.
+ *
+ * Lista fechada, espelhando `PORTAL_ORIGINS` de `backend/app/quotation_origin.py`
+ * — o backend ignora em silêncio qualquer valor fora dela, então um valor novo
+ * aqui sem o par de lá não grava nada.
+ *
+ * `portal_origin`, e não `origin`: `origin` já é campo de cotação (o local de
+ * coleta).
+ */
+export type PortalQuotationOrigin = 'radar_precos';
+
+export interface PortalQuotationOriginFields {
+  portal_origin?: PortalQuotationOrigin;
+  /** Rótulo da rota que gerou o clique ("Gênova → Santos"). */
+  portal_origin_route?: string;
+}
+
 export type CreatePortalManualPayload = Omit<
   CreateQuotationManualPayload,
   'client_id'
->;
+> &
+  PortalQuotationOriginFields;
 export type CreatePortalUploadPayload = Omit<
   CreateQuotationUploadPayload,
   'client_id' | 'sender_email'
->;
+> &
+  PortalQuotationOriginFields;
 export type CreatePortalQuotationPayload =
   | CreatePortalManualPayload
   | CreatePortalUploadPayload;

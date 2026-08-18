@@ -368,9 +368,30 @@ export const QUOTATION_DESTINATION_OPTION: Record<string, string> = {
 };
 
 /**
+ * Valor de `portal_origin` gravado pela cotação nascida deste CTA, e a chave que
+ * o carrega na query string.
+ *
+ * Rastrear a origem é o que permite responder, daqui a um mês, "quantas cotações
+ * este cliente abriu por causa do Radar?" — a pergunta que decide se o Radar
+ * vira produto de verdade sobre o Data Lake. Sem isso, a cotação nasce idêntica
+ * a uma digitada do zero e o clique se perde.
+ *
+ * O nome NÃO é `origin`: `origin` já é campo de cotação no Centrix (o local de
+ * coleta). Ver `backend/app/quotation_origin.py`, que valida este valor contra
+ * uma lista fechada antes de gravar.
+ */
+export const RADAR_ORIGIN = 'radar_precos';
+export const ORIGIN_PARAM = 'origem';
+
+/**
  * Query string do CTA "Cotar agora". Só entram os campos que a rota conhece de
  * fato — o resto da cotação (mercadoria, prazos, incoterm) o cliente preenche,
  * e pré-preencher com palpite seria pior que deixar em branco.
+ *
+ * A origem viaja junto do pré-preenchimento, e não como estado de componente,
+ * porque o link é o que atravessa a navegação: o cliente pode abrir "Cotar
+ * agora" em outra aba, voltar depois, recarregar a página — e o rastro tem de
+ * sobreviver a isso para a contagem não subestimar o Radar.
  */
 export function quotationPrefillParams(route: PriceRadarRoute): URLSearchParams {
   const params = new URLSearchParams();
@@ -379,7 +400,41 @@ export function quotationPrefillParams(route: PriceRadarRoute): URLSearchParams 
   if (origin) params.set('porto_embarque', origin);
   const destination = QUOTATION_DESTINATION_OPTION[route.destination];
   if (destination) params.set('porto_destino', destination);
-  // Rótulo só para a tela de destino explicar de onde veio o pré-preenchimento.
-  params.set('rota', `${route.origin} → ${route.destination}`);
+  // Rótulo, usado em dois lugares: a tela de destino explica de onde veio o
+  // pré-preenchimento, e a mesma string é gravada como a rota que gerou o
+  // clique. Uma string só para as duas — duas divergiriam.
+  params.set('rota', formatRadarRoute(route));
+  params.set(ORIGIN_PARAM, RADAR_ORIGIN);
   return params;
+}
+
+/** "Gênova → Santos". Rótulo da rota do radar, numa definição só. */
+export function formatRadarRoute(
+  route: Pick<PriceRadarRoute, 'origin' | 'destination'>,
+): string {
+  return `${route.origin} → ${route.destination}`;
+}
+
+/**
+ * A outra ponta de `quotationPrefillParams`: o que a tela de Nova Cotação manda
+ * junto do POST quando o cliente chegou pelo Radar.
+ *
+ * Função pura, e testada contra a query string que o CTA escreve, porque as
+ * duas pontas têm de casar exatamente — um nome de parâmetro divergindo faria
+ * o rastro sumir em silêncio, e "some em silêncio" é o pior desfecho possível
+ * para um contador que só vai ser lido daqui a um mês.
+ *
+ * Origem desconhecida devolve `null`: a barra de endereço é pública, e ninguém
+ * inaugura uma categoria de origem digitando na URL. O backend valida de novo,
+ * contra a mesma lista fechada.
+ */
+export function radarOriginFields(
+  origem: string | null | undefined,
+  routeLabel: string | null | undefined,
+): { portal_origin: typeof RADAR_ORIGIN; portal_origin_route?: string } | null {
+  if (origem !== RADAR_ORIGIN) return null;
+  return {
+    portal_origin: RADAR_ORIGIN,
+    ...(routeLabel ? { portal_origin_route: routeLabel } : {}),
+  };
 }

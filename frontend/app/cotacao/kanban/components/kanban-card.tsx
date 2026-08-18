@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Ship, Plane, Truck } from 'lucide-react';
+import { Ship, Plane, Radar, Truck } from 'lucide-react';
 import { formatDistanceToNow, differenceInDays, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -109,6 +109,27 @@ export function KanbanCard({ card, columnKey, onTransition }: KanbanCardProps) {
           >
             Portal
           </Badge>
+        )}
+        {/* Origem do clique, quando há uma. Vem AO LADO da tag "Portal", nunca
+            no lugar dela: são duas dimensões independentes ("veio do portal" x
+            "veio do Radar"), e trocar uma pela outra tiraria a cotação de todo
+            filtro de portal que a Grazi e a Duda já usam.
+
+            Só o ícone, sem texto: a fileira de badges já compete por espaço e a
+            origem é informação de leitura periférica — quem precisa do detalhe
+            (qual rota gerou o clique) abre o card. O title dá a rota sem abrir. */}
+        {card.created_from_radar && (
+          <span
+            title={
+              card.portal_origin_route
+                ? `Aberta pelo Radar de Preços — ${card.portal_origin_route}`
+                : 'Aberta pelo Radar de Preços'
+            }
+            className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400"
+          >
+            <Radar className="h-3 w-3" />
+            <span className="sr-only">Aberta pelo Radar de Preços</span>
+          </span>
         )}
         {card.guard_rail_active && (
           <Badge

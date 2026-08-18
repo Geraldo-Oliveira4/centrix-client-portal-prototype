@@ -26,8 +26,14 @@ import {
  * existir nomeia só os três primeiros tipos, e restaurá-la deixaria o único
  * alerta com custo financeiro desligado sem o cliente saber. Bump de novo se um
  * tipo futuro não puder herdar opt-out antigo.
+ *
+ * v3 = "Oportunidade ou alta de preço". Bump pela mesma razão, agravada por
+ * outra: uma lista v2 no navegador não nomeia o tipo novo, então ele nasceria
+ * DESLIGADO — e o alerta que não aparece lê como funcionalidade que não existe,
+ * não como preferência herdada. Numa tela de demonstração isso é a diferença
+ * entre mostrar o recurso e não mostrar nada.
  */
-export const ALERT_TYPES_STORAGE_KEY = 'portal:shipment-alerts:types:v2';
+export const ALERT_TYPES_STORAGE_KEY = 'portal:shipment-alerts:types:v3';
 
 export function useAlertTypePreferences() {
   // Semeado depois do mount (nunca no initial state) para o HTML do servidor e

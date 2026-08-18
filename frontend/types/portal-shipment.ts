@@ -180,6 +180,45 @@ export const ESTADO_SEMAFORO: Record<EmbarqueEstado, SemaforoTone> = {
   booking_divergente: 'danger',
 };
 
+/**
+ * Rótulo de cada tom do semáforo. Uma definição só, porque quatro superfícies o
+ * imprimem (o contador da Lista, o filtro "Situação", a legenda do Mapa e o
+ * card "Visão do todo") e três cópias já tinham nascido.
+ *
+ * POR QUE `warning` NÃO FALA EM "ATRASO" (decisão de 18/08/2026)
+ * --------------------------------------------------------------
+ * O rótulo era "Atenção / atraso", e na aba Mapa ele aparecia a centímetros do
+ * chip "Com atraso": um dizia 1, o outro 5. Dois números diferentes com a mesma
+ * palavra na mesma tela leem como bug de contagem, e não é o caso — são duas
+ * réguas legitimamente distintas, sobre fontes distintas:
+ *
+ *   - o chip "Com atraso" mede o DESLIZE DA COMPANHIA MARÍTIMA: quantos dias o
+ *     ETA atual passou do primeiro ETA (`delayRiskFromTracking`, a mesma função
+ *     do badge de cada card). É medida contínua, existe só onde há
+ *     rastreamento, e um embarque em curso normal pode estar atrasado nela;
+ *   - o semáforo mede o ESTADO DO EMBARQUE no GE (`ESTADO_SEMAFORO`): uma
+ *     classificação categórica do que a Freitas registrou, que hoje só acende
+ *     laranja em `postergado`. Existe para todo embarque, com ou sem
+ *     rastreamento, e não sabe nada de ETA.
+ *
+ * Elas não podem ser unificadas sem perder informação: unificar apagaria ou o
+ * embarque adiado que a companhia ainda não reportou, ou o embarque que a
+ * Freitas não reprogramou e que mesmo assim vai chegar cinco dias tarde. As
+ * duas ficam, e o que muda é o NOME — só o chip fala em atraso, e o semáforo
+ * passa a dizer o que de fato classifica. Mesmo julgamento do "✓ Desembaraçado":
+ * quando duas fontes respondem coisas diferentes, o texto tem de deixar isso à
+ * vista em vez de sugerir equivalência.
+ *
+ * "Reprogramado" é verdade hoje porque `postergado` é o único estado laranja. Um
+ * estado laranja novo que não seja reprogramação exige rever este rótulo — o
+ * teste `shipment-semaforo.test.ts` falha se isso acontecer.
+ */
+export const SEMAFORO_LABELS: Record<SemaforoTone, string> = {
+  success: 'Em andamento',
+  warning: 'Reprogramado',
+  danger: 'Exceção',
+};
+
 const SEMAFORO_BADGE_CLASS: Record<SemaforoTone, string> = {
   success: 'bg-portal-success/10 text-portal-success border-portal-success/25',
   warning: 'bg-portal-warning/10 text-portal-warning border-portal-warning/30',

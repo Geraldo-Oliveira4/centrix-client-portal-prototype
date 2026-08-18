@@ -85,7 +85,7 @@ backend/                         # FastAPI (substitui AWS Lambda + API Gateway)
   alembic/                       # COPIADO — migrations 001..089 (+090..094, do protótipo)
   scripts/
     seed_prototype.py            # cliente demo + 9 cotações + agentes + DNA + 7 embarques
-    e2e_test.py                  # suíte E2E (113 checagens)
+    e2e_test.py                  # suíte E2E (119 checagens)
 frontend/                        # CÓPIA do app Next.js do Centrix (só /portal ligado ao backend)
   vendor/arboria-ui, arboria-config   # deps @arboria-tech vendorizadas (file:), sem GitHub Packages
 docker-compose.yml               # Postgres 16 local
@@ -116,6 +116,26 @@ atualizada — é o que dificulta um futuro re-sync):
     novos, sem contrapartida no Centrix.
   - `app/quotation_exporter.py` — vincula o exportador à cotação depois do
     create, porque `create_quotation_core` (copiado) não conhece `exporter_id`.
+- **Origem da cotação aberta pelo portal** (não existe no Centrix, onde não há
+  Radar de Preços nem de onde vir um clique rastreado):
+  - `app/quotation_origin.py` — **arquivo novo**. Grava, depois do create e no
+    mesmo arranjo do `quotation_exporter`, um log `quotation_portal_origin` com
+    `{origin, route}`. É **log, não coluna**, pela mesma razão que
+    `quotation_created_by_portal` é log: origem é fato do nascimento, não
+    atributo mutável — e assim não há migração, a agregação é SQL comum sobre
+    `centrix_quotation_logs` (contável e filtrável) e ninguém sobrescreve depois.
+  - É uma **segunda dimensão**, não substituta: uma cotação de Radar é portal E
+    radar, e `batch_fetch_created_by_portal` continua devolvendo exatamente o que
+    devolvia. Ação própria justamente para não contar a mesma cotação duas vezes.
+  - Lista **fechada** de origens (`PORTAL_ORIGINS`): o valor vem do corpo da
+    requisição, e origem desconhecida é ignorada em silêncio — mesma disciplina
+    de `update_my_preferences`. Travado por `R1`..`R6` no e2e.
+  - O router anota `portal_origin`/`portal_origin_route` nas respostas de
+    `GET /quotations`, `GET /quotations/{id}` e no 201 do create. Campo
+    **aditivo**: cotação sem origem sai sem a chave, exatamente como antes.
+  - `fetch_origins` é a consulta pronta para o serializer do Kanban do lado do
+    Centrix acender o ícone do card (`created_from_radar`). Aqui o Kanban do
+    analista não é servido por backend nenhum, então a marca é só visual.
 - **Acompanhamento de embarque pelo portal** (no Centrix, GE é tela de analista;
   o cliente não enxerga o Processo/Embarque). Só leitura — nenhuma escrita de GE
   pelo portal:
@@ -240,6 +260,7 @@ Como isso é sustentado no código, e o que não pode afrouxar:
 | — | **documentos do embarque** (BL, Invoice, Packing List, Certificado de Origem): a seção "Documentos" do detalhe é montada no frontend (`embarques/lib/shipment-documents.ts`). O módulo GE do analista tem `EmbarqueDocumento`, mas nenhum handler do portal o expõe — não há upload nem download de verdade |
 | — | **"Aprovar booking" / "Enviar arquivo" do detalhe do embarque**: desde 17/08/2026 o modal confirma em vez de encerrar com "Nada foi enviado", e a faixa de ação vira recibo e o documento anda um degrau. Continua **sem rota de escrita**: é estado de componente que morre no refresh, com selo `preview` no sucesso. Detalhe em `frontend/CLAUDE.md` |
 | — | **Radar de Preços** (`Inteligência > Radar de Preços`): preço de frete por rota, variação contra a média e tendência. Não existe Data Lake nem tabela de frete de mercado neste repo — as ROTAS e a frequência são reais (saem dos embarques do cliente, pela mesma resolução do Mapa), todo número em dinheiro é ilustrativo. Modelado com dado simulado a pedido do Vinicius, para validar o valor da proposta com 2-3 clientes antes de puxar dado real |
+| origem da cotação vinda do Radar (`portal_origin`, log imutável, contável) | **notificação de preço** (`Meus Embarques > Alertas`, 5º tipo): herda a mesma divisão do Radar — rota real, número ilustrativo — e não há cron nem serviço de push que a dispare. Ela é montada no frontend junto do resto do feed, a cada abertura da tela |
 | — | **risco por etapa e gatilho de ação** da timeline (`embarques/lib/step-insights.ts`): o percentual histórico da rota é ilustrativo; onde há aritmética real (atraso da companhia), ela manda e o número é o mesmo do badge do topo |
 | valor cotado na conferência da cotação (proposta vencedora) | **valor realizado** — fabricado em `app/audit_preview.py`; não existe fatura/BL neste repo |
 | aprovar/recusar/cancelar, montar+disparar RFQ | envio de e-mail (Microsoft Graph) -> log |
@@ -458,7 +479,7 @@ elegibilidade de RFQ, 404 anti-enumeração, mocks). Rode com banco recém-semea
 ```bash
 docker compose down -v && docker compose up -d
 cd backend && make migrate && make seed && make run &
-.venv/bin/python -m scripts.e2e_test     # -> 113/113 ALL PASS
+.venv/bin/python -m scripts.e2e_test     # -> 119/119 ALL PASS
 ```
 
 A suíte **muta dados** (aprova, recusa, cancela cotações da semente) e exige um

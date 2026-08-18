@@ -57,6 +57,11 @@ export const SHIPMENT_FILTERS: ShipmentFilter[] = [
     match: (s) => s.estado === 'embarcado',
   },
   {
+    // "Com atraso" é a régua da COMPANHIA (deslize de ETA), e é a única do
+    // portal que usa essa palavra: o semáforo de estado, que aparece ao lado
+    // deste chip no Mapa, conta outra coisa e por isso se chama "Reprogramado".
+    // A justificativa completa está em `SEMAFORO_LABELS`; não devolva "atraso"
+    // ao vocabulário de lá sem lê-la.
     key: 'atraso',
     label: 'Com atraso',
     tone: 'danger',
