@@ -294,6 +294,17 @@ function ActionCallout({
   );
 }
 
+/**
+ * Largura de um degrau da régua, em px. Não é estética solta: a 1440px o trilho
+ * tem 1070px úteis, e 8 x 112 + 136 = 1032 põe as nove etapas na tela sem
+ * rolagem com ~38px de folga. Elas vivem aqui como NÚMERO, e não como classe
+ * Tailwind, porque o componente precisa somá-las para decidir se cabe — duas
+ * cópias do mesmo valor (uma no CSS, outra na conta) divergiriam no primeiro
+ * ajuste de largura.
+ */
+const STEP_WIDTH = 112;
+const STEP_WIDTH_CURRENT = 136;
+
 export function ShipmentTimeline({
   steps,
   insights = {},
@@ -314,6 +325,12 @@ export function ShipmentTimeline({
 }) {
   const railRef = useRef<HTMLDivElement>(null);
   const currentRef = useRef<HTMLLIElement>(null);
+  // Largura real do trilho, observada. É o que decide entre os dois modos da
+  // régua (ver `fills`), e por isso é medida em vez de inferida de breakpoint:
+  // a barra lateral do portal colapsa, e um `lg:` fixo diria "cabe" numa tela
+  // de 1440px com a lateral aberta e "não cabe" na mesma tela com ela fechada,
+  // ou o contrário.
+  const [railWidth, setRailWidth] = useState(0);
   // Véus das bordas do eixo, ligados só quando há mesmo conteúdo escondido
   // daquele lado: um véu permanente apagaria a primeira letra de "Solicitado"
   // num eixo que nem rolou.
@@ -329,6 +346,36 @@ export function ShipmentTimeline({
   const nextIndex =
     currentIndex >= 0 ? currentIndex + 1 : isException ? -1 : 0;
   const next = nextIndex >= 0 ? (steps[nextIndex] ?? null) : null;
+
+  // Modo da régua, medido a cada resize:
+  //
+  //   cabe   -> os degraus CRESCEM e a régua ocupa 100% do card, com o primeiro
+  //             círculo na borda esquerda e o último na direita;
+  //   não cabe -> largura fixa por degrau e rolagem no trilho, exatamente o
+  //             comportamento validado antes — nada de espremer nove etapas
+  //             numa tela de celular.
+  //
+  // `railWidth` nasce 0 (nada foi medido ainda), então o primeiro render é
+  // sempre o modo com rolagem: na dúvida, o que não deforma nada.
+  const naturalWidth = steps.reduce(
+    (sum, step) =>
+      sum + (step.status === 'current' ? STEP_WIDTH_CURRENT : STEP_WIDTH),
+    0,
+  );
+  const fills = railWidth > 0 && railWidth >= naturalWidth;
+
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+    setRailWidth(rail.clientWidth);
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width != null) setRailWidth(width);
+    });
+    observer.observe(rail);
+    return () => observer.disconnect();
+  }, []);
 
   const blockedKey = firstBlockedKey(steps);
   const actions = steps
@@ -386,25 +433,42 @@ export function ShipmentTimeline({
         />
       ))}
 
-      {/* Nível 2 — etapa atual dominante, próxima etapa em segundo plano.
-          EMPILHADAS, não lado a lado (planning da Sprint 13, 18/08/2026).
-          Vinicius: "vai ter que jogar pra baixo a linha, não vai dar pra deixar
-          a lateral". Duas razões, e a segunda é a que fecha a discussão:
+      {/* Nível 2 — etapa atual dominante (2/3), próxima etapa secundária (1/3),
+          LADO A LADO.
 
-          - lado a lado, a próxima etapa ficava com um terço da coluna e
-            comprimia justamente o texto que Orsi pediu para CRESCER ("aqui na
-            próxima etapa, aí sim tu pode abranger mais, comentar mais");
-          - a dominância da etapa atual não vinha da largura, vinha da borda
-            verde, do título em portal-h2 e do fundo branco contra o tracejado
-            da próxima. Empilhar não custa nada dela, e devolve largura inteira
-            para as duas.
+          Foram empilhados por uma rodada (18/08) para resolver um scroll
+          horizontal de página que, medido depois em 15 larguras de 320 a
+          1920px, não existia: o único overflow encontrado era do header do
+          portal a 320px, que não tem relação com estes cards. Empilhado, os
+          dois blocos somavam quase uma dobra inteira de altura antes de a
+          régua aparecer, e a leitura ficou pesada — que é o problema oposto ao
+          que a mudança tentava resolver.
 
-          `space-y-4` em vez de grid: não há mais nada a alinhar em colunas, e
-          um grid de uma coluna só seria a mesma coisa escrita de forma que
-          convida a voltar para duas. */}
-      <div className={cn('space-y-4', !current && !next && 'hidden')}>
+          Voltando lado a lado, a próxima etapa volta a ter um terço da largura,
+          e por isso o texto dela volta ao tamanho compacto (`portal-small`) que
+          tinha antes: o `portal-body` foi consequência da largura inteira, não
+          uma decisão de conteúdo. É lado a lado MINIMALISTA — o conteúdo é o
+          mesmo, o volume visual é menor, mesma disciplina que a régua recebeu.
+
+          `lg:` e não `sm:`: abaixo de 1024px as duas colunas espremeriam a
+          justificativa de risco a três palavras por linha, então ali elas
+          empilham de novo — que é o comportamento natural do grid, não uma
+          exceção. */}
+      <div
+        className={cn(
+          'grid gap-4 lg:grid-cols-3',
+          !current && !next && 'hidden',
+        )}
+      >
         {current && (
-          <div className="space-y-3 rounded-xl border border-portal-success/30 bg-white p-5">
+          <div
+            className={cn(
+              'space-y-3 rounded-xl border border-portal-success/30 bg-white p-5',
+              // Na última etapa não há próxima: sem isto o painel fica com um
+              // terço de branco ao lado dele.
+              next ? 'lg:col-span-2' : 'lg:col-span-3',
+            )}
+          >
             <span className="portal-small inline-flex items-center rounded border border-portal-success/25 bg-portal-success/10 px-1.5 py-0.5 font-medium text-portal-success">
               Etapa atual
             </span>
@@ -430,13 +494,16 @@ export function ShipmentTimeline({
         )}
 
         {next && (
-          // Largura inteira da coluna, e por isso o texto interno usa
-          // `portal-body` (não `portal-small`) e as linhas correm em
-          // `max-w-3xl`: o bloco agora comporta um parágrafo de contexto sem
-          // quebrar, que é o espaço que Orsi pediu. O teto de medida é a mesma
-          // regra da legenda do ShipmentRoute — texto solto num card de 1552px
-          // a 1920px vira uma linha só, longa demais para ser lida.
-          <div className="space-y-2 rounded-xl border border-dashed border-border bg-muted/40 p-5">
+          // Um terço da largura: texto em `portal-small` e risco EMPILHADO sob
+          // o chip (não ao lado dele, como na etapa atual). Numa coluna de
+          // ~330px o par chip + frase na mesma linha deixa a justificativa com
+          // três palavras por linha ao lado de um chip solto.
+          <div
+            className={cn(
+              'space-y-2 rounded-xl border border-dashed border-border bg-muted/40 p-4',
+              !current && 'lg:col-span-3',
+            )}
+          >
             <p className="portal-small font-medium text-portal-neutral">
               Próxima etapa
             </p>
@@ -444,15 +511,13 @@ export function ShipmentTimeline({
               <p className="portal-h3 text-foreground/80">{next.label}</p>
               {next.forecastAt && <ForecastTag iso={next.forecastAt} />}
             </div>
-            <p className="portal-body max-w-3xl text-portal-neutral">
-              {next.description}
-            </p>
+            <p className="portal-small text-portal-neutral">{next.description}</p>
             {insights[next.key]?.risk && (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="space-y-1">
                 <RiskChip risk={insights[next.key]!.risk!} />
-                <span className="portal-body max-w-3xl text-portal-neutral">
+                <p className="portal-small text-portal-neutral">
                   {insights[next.key]!.risk!.rationale}
-                </span>
+                </p>
               </div>
             )}
             {insights[next.key]?.scheduleChange && (
@@ -487,7 +552,10 @@ export function ShipmentTimeline({
           aria-label="Etapas do embarque"
           onScroll={syncEdges}
         >
-          <ol className="flex min-w-max items-stretch">
+          {/* `min-w-max` só no modo com rolagem: no modo preenchido ele
+              brigaria com o crescimento dos degraus, medindo o eixo pelo
+              max-content dos rótulos em vez de pela largura do trilho. */}
+          <ol className={cn('flex items-stretch', !fills && 'min-w-max')}>
           {steps.map((step, index) => {
             const isLast = index === steps.length - 1;
             const insight = insights[step.key];
@@ -505,24 +573,51 @@ export function ShipmentTimeline({
             // os dois cards acima consomem, e os testes de step-insights.ts
             // continuam valendo palavra por palavra).
             const showsRisk = index === currentIndex || index === nextIndex;
+            const base = isCurrent ? STEP_WIDTH_CURRENT : STEP_WIDTH;
+            // O ÚLTIMO degrau do modo preenchido é ESPELHADO: largura fixa como
+            // sempre, mas o círculo encostado na direita da própria célula
+            // (`items-end`) e o rótulo alinhado por ela. É o que leva o último
+            // ponto até a borda do quadro — nove células iguais com o ponto na
+            // esquerda de cada uma deixariam o nono a 8/9 da largura, que é
+            // exatamente o vão sobrando que motivou esta mudança.
+            //
+            // Ele NÃO cresce junto com os outros oito, e isso é o que impede a
+            // colisão: dar a ele a largura do próprio círculo e deixar o rótulo
+            // transbordar para a esquerda sobrepunha "Previsto: 17 de set." em
+            // cima de "Previsto: 14 de set." da etapa anterior. Com a célula
+            // inteira reservada, o rótulo só ocupa espaço que já é dele.
+            const isFilledLast = fills && isLast;
+            const flexStyle =
+              fills && !isLast
+                ? { flex: `1 0 ${base}px` }
+                : { flex: `0 0 ${base}px` };
             return (
               <li
                 key={step.key}
                 ref={isCurrent ? currentRef : undefined}
+                style={flexStyle}
                 className={cn(
-                  'flex shrink-0 flex-col gap-1.5',
-                  // Larguras MEDIDAS, não escolhidas no olho: a 1440px o
-                  // trilho tem 1070px úteis, e 8 x 112 + 136 = 1032 põe as NOVE
-                  // etapas na tela sem rolagem, com ~38px de folga. A folga é de
-                  // propósito: com 116/140 dava 1068 em 1070 e qualquer quebra
-                  // de rótulo diferente devolvia a barra de rolagem.
-                  // Abaixo de 1440px o eixo volta a rolar, e isso continua sendo
-                  // o comportamento esperado — o objetivo era reduzir a
-                  // necessidade de rolar, não garantir que nunca role.
-                  isCurrent ? 'w-[136px]' : 'w-[112px]',
+                  'flex flex-col gap-1.5',
+                  isFilledLast && 'items-end',
                 )}
               >
-                <div className="flex items-center">
+                <div className="flex w-full items-center">
+                  {/* Espelhado, o traço vem ANTES do círculo — sem isso a régua
+                      abriria um vão entre a penúltima etapa e o último ponto,
+                      que agora vive na outra ponta da própria célula. A cor
+                      segue a etapa ANTERIOR, que é quem desenharia este trecho
+                      no modo normal. */}
+                  {isFilledLast && (
+                    <span
+                      className={cn(
+                        'h-px flex-1',
+                        steps[index - 1]?.status === 'done'
+                          ? 'bg-portal-success'
+                          : 'bg-border',
+                      )}
+                      aria-hidden
+                    />
+                  )}
                   <StepDot status={step.status} emphasis={isCurrent} />
                   {!isLast && (
                     <span
@@ -537,7 +632,8 @@ export function ShipmentTimeline({
 
                 <div
                   className={cn(
-                    'space-y-1 pr-3',
+                    'space-y-1',
+                    isFilledLast ? 'w-full pl-3 text-right' : 'pr-3',
                     isDone && 'opacity-60',
                     !isDone && !isCurrent && 'opacity-90',
                   )}
@@ -580,7 +676,12 @@ export function ShipmentTimeline({
                     </p>
                   )}
 
-                  <div className="flex flex-wrap items-center gap-1.5">
+                  <div
+                    className={cn(
+                      'flex flex-wrap items-center gap-1.5',
+                      isFilledLast && 'justify-end',
+                    )}
+                  >
                     {/* Risco reduzido a um PONTO no eixo (18/08/2026): a
                         palavra "Risco alto" e a justificativa continuam nos dois
                         cards de destaque, onde há largura para elas. Aqui o

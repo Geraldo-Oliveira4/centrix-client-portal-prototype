@@ -828,15 +828,17 @@ apresentação passou a ter hierarquia, e são três níveis, nesta ordem:
 **Dois ajustes de VOLUME na revisão de 18/08/2026** (planning da Sprint 13, com
 a tela rodando). Nenhum dos dois tira conteúdo do cálculo, só da renderização:
 
-- **Nível 2 empilhado, não lado a lado.** Vinicius: "vai ter que jogar pra baixo
-  a linha, não vai dar pra deixar a lateral". Em duas colunas a próxima etapa
-  ficava com um terço da largura e comprimia justamente o texto que Orsi pediu
-  para crescer ("aqui na próxima etapa, aí sim tu pode abranger mais, comentar
-  mais"). A dominância da etapa atual nunca veio da largura — vem da borda
-  verde, do `portal-h2` e do fundo branco contra o tracejado da próxima — então
-  empilhar não custa nada dela. O bloco da próxima etapa usa `portal-body` com
-  `max-w-3xl` (mesma regra da legenda do `ShipmentRoute`): largura inteira sem
-  teto de medida vira uma linha só, longa demais para ler a 1920px.
+- **Nível 2 empilhado por uma rodada, e revertido.** A troca para pilha foi
+  feita para resolver um scroll horizontal de página que, medido depois em 15
+  larguras de 320 a 1920px, **não existia**: o único overflow encontrado era do
+  header do portal a 320px, sem relação com estes cards. Empilhados, os dois
+  blocos somavam quase uma dobra de altura antes de a régua aparecer — o
+  problema oposto ao que a mudança tentava resolver. Estão **lado a lado de
+  novo** (`lg:grid-cols-3`, atual 2/3 + próxima 1/3), e o texto da próxima
+  voltou para `portal-small`: o `portal-body` tinha sido consequência da largura
+  inteira, não decisão de conteúdo. Lado a lado MINIMALISTA — mesmo conteúdo,
+  menos volume. Abaixo de `lg` as colunas empilham sozinhas, que é o grid
+  fazendo o certo, não uma exceção.
 - **Risco só na etapa atual e na próxima, no eixo** (`showsRisk` no map do
   eixo). Orsi: "não precisa talvez apontar todos os riscos, talvez só da próxima
   etapa" — nove semáforos com nove justificativas era informação demais, e com a
@@ -865,14 +867,33 @@ coisas, todas de uma linha:
   carregam o texto por extenso em `title` + `aria-label` — cor sozinha não é
   informação para quem não a distingue. O badge/justificativa por extenso e a
   frase de reprogramação continuam nos cards de destaque.
-- **Larguras são medidas, não escolhidas no olho**: `w-[112px]` normal e
-  `w-[136px]` na atual. A 1440px o trilho tem 1070px úteis e 8 × 112 + 136 = 1032
-  põe as **nove etapas na tela sem rolagem**, com ~38px de folga (com 116/140
-  dava 1068 em 1070, e qualquer quebra de rótulo diferente devolvia a barra).
-  Medido: **9/9 sem rolagem a 1440px e 1920px; 7/9 a 1280px; 5/9 a 1024px; 1–2/9
-  a 390px**, sempre rolando o trilho e nunca a página. Rolar abaixo de 1440px
-  continua sendo o comportamento esperado — a meta era reduzir a necessidade,
-  não eliminá-la.
+- **Larguras são medidas, não escolhidas no olho**: `STEP_WIDTH` 112px e
+  `STEP_WIDTH_CURRENT` 136px, constantes de JS (não classes Tailwind) porque o
+  componente precisa SOMÁ-LAS para escolher o modo da régua — duas cópias do
+  mesmo número divergiriam no primeiro ajuste. A 1440px o trilho tem 1070px
+  úteis e 8 × 112 + 136 = 1032 põe as **nove etapas na tela sem rolagem**, com
+  ~38px de folga (com 116/140 dava 1068 em 1070, e qualquer quebra de rótulo
+  diferente devolvia a barra). Medido: **9/9 sem rolagem a 1440px e 1920px; 7/9
+  a 1280px; 5/9 a 1024px; 1–2/9 a 390px**, sempre rolando o trilho e nunca a
+  página.
+- **Dois modos, escolhidos por MEDIÇÃO** (`fills`, com `ResizeObserver` no
+  trilho — não por breakpoint, porque a barra lateral do portal colapsa e um
+  `lg:` fixo erraria em metade dos casos na mesma tela):
+  - **cabe** (`railWidth >= naturalWidth`): os degraus crescem (`flex: 1 0 base`)
+    e a régua ocupa **100% do card**, primeiro círculo colado na borda esquerda e
+    último na direita. O último degrau é **espelhado** — mesma largura de sempre,
+    mas círculo à direita da célula (`items-end`), rótulo alinhado por ele e o
+    traço conector vindo ANTES do círculo (colorido pela etapa ANTERIOR, que é
+    quem desenharia aquele trecho no modo normal). Espelhar em vez de encolher a
+    célula ao diâmetro do círculo é o que evita a colisão: com a célula estreita,
+    o rótulo transbordava para a esquerda e "Previsto: 17 de set." caía em cima
+    de "Previsto: 14 de set." da etapa anterior.
+  - **não cabe**: largura fixa (`flex: 0 0 base`) + rolagem do trilho, exatamente
+    o comportamento validado antes. `min-w-max` no `ol` vale **só** neste modo —
+    no outro ele mediria o eixo pelo max-content dos rótulos em vez da largura do
+    trilho.
+  - `railWidth` nasce 0, então o primeiro render é sempre o modo com rolagem: na
+    dúvida, o que não deforma nada.
 - **Rótulo quebra em duas linhas, nunca trunca.** "Aguardando prontidão" e "Em
   análise de booking" não cabem numa linha a 112px, e reticências no NOME da
   etapa tirariam a única coisa que o card ainda diz.
