@@ -64,6 +64,21 @@ export const formatMultiCurrency = (totals: Record<string, number>): string => {
 export const formatShortDate = (iso: string | null | undefined): string =>
   formatDate(iso, { day: '2-digit', month: 'short' });
 
+// "12 de setembro" — mês por extenso, para a data que a tela apresenta como
+// indicador-chave em vez de dentro de um chip. O ano só entra quando a data cai
+// fora do ano corrente, mesma convenção de formatEstimatedArrival abaixo: num
+// embarque que chega daqui a três semanas, "de 2026" é ruído.
+export const formatLongDate = (iso: string | null | undefined): string => {
+  if (!iso) return '—';
+  const d = iso.length === 10 ? new Date(`${iso}T12:00:00Z`) : new Date(iso);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return formatDate(iso, {
+    day: '2-digit',
+    month: 'long',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  });
+};
+
 // Cheapest -> most expensive, using the BRL-normalized total when available.
 // This is the client portal's default ordering (per Orsi, 2026-06-22) and the
 // single source of truth for it — do not re-derive this comparator locally.

@@ -45,11 +45,22 @@ import { firstBlockedKey, type StepStatus, type TimelineStep } from '../lib/time
  *
  *   1. Ação necessária — o que depende do CLIENTE, em destaque, fora de
  *      qualquer accordion. É a única coisa aqui que ele pode mudar.
- *   2. Etapa atual (dominante) + próxima etapa (secundária), com risco e
- *      justificativa por extenso.
+ *   2. Etapa atual (dominante) + próxima etapa (secundária), EMPILHADAS, com
+ *      risco e justificativa por extenso.
  *   3. O eixo horizontal com as nove etapas, que continua mostrando a jornada
  *      inteira — inclusive os textos descritivos de cada etapa, que não se
  *      perderam na mudança de layout.
+ *
+ * O que mudou na revisão de 18/08/2026 (planning da Sprint 13)
+ * ------------------------------------------------------------
+ * Vendo a tela rodar, os dois ajustes foram de VOLUME, não de conteúdo:
+ *
+ *   - o nível 2 deixou de ser duas colunas e passou a ser duas faixas
+ *     empilhadas, para a próxima etapa ganhar largura inteira e comportar mais
+ *     texto de contexto;
+ *   - o nível 3 mostra semáforo de risco só na etapa atual e na próxima. As
+ *     outras sete mantêm data prevista, descrição, gatilho de ação e mudança de
+ *     data. O cálculo do risco não mudou — ver `showsRisk` no map do eixo.
  *
  * Este componente é PRESENTACIONAL. Os passos vêm de `buildTimelineSteps` e o
  * enriquecimento de `buildStepInsights`, os dois puros e unit-testados, e é a
@@ -352,17 +363,25 @@ export function ShipmentTimeline({
         />
       ))}
 
-      {/* Nível 2 — etapa atual dominante, próxima etapa em segundo plano. */}
-      <div className={cn('grid gap-4 lg:grid-cols-3', !current && !next && 'hidden')}>
+      {/* Nível 2 — etapa atual dominante, próxima etapa em segundo plano.
+          EMPILHADAS, não lado a lado (planning da Sprint 13, 18/08/2026).
+          Vinicius: "vai ter que jogar pra baixo a linha, não vai dar pra deixar
+          a lateral". Duas razões, e a segunda é a que fecha a discussão:
+
+          - lado a lado, a próxima etapa ficava com um terço da coluna e
+            comprimia justamente o texto que Orsi pediu para CRESCER ("aqui na
+            próxima etapa, aí sim tu pode abranger mais, comentar mais");
+          - a dominância da etapa atual não vinha da largura, vinha da borda
+            verde, do título em portal-h2 e do fundo branco contra o tracejado
+            da próxima. Empilhar não custa nada dela, e devolve largura inteira
+            para as duas.
+
+          `space-y-4` em vez de grid: não há mais nada a alinhar em colunas, e
+          um grid de uma coluna só seria a mesma coisa escrita de forma que
+          convida a voltar para duas. */}
+      <div className={cn('space-y-4', !current && !next && 'hidden')}>
         {current && (
-          <div
-            className={cn(
-              'space-y-3 rounded-xl border border-portal-success/30 bg-white p-5',
-              // Na última etapa não há próxima: sem isto o painel fica com um
-              // terço de branco ao lado dele.
-              next ? 'lg:col-span-2' : 'lg:col-span-3',
-            )}
-          >
+          <div className="space-y-3 rounded-xl border border-portal-success/30 bg-white p-5">
             <span className="portal-small inline-flex items-center rounded border border-portal-success/25 bg-portal-success/10 px-1.5 py-0.5 font-medium text-portal-success">
               Etapa atual
             </span>
@@ -388,12 +407,13 @@ export function ShipmentTimeline({
         )}
 
         {next && (
-          <div
-            className={cn(
-              'space-y-2 rounded-xl border border-dashed border-border bg-muted/40 p-4',
-              !current && 'lg:col-span-3',
-            )}
-          >
+          // Largura inteira da coluna, e por isso o texto interno usa
+          // `portal-body` (não `portal-small`) e as linhas correm em
+          // `max-w-3xl`: o bloco agora comporta um parágrafo de contexto sem
+          // quebrar, que é o espaço que Orsi pediu. O teto de medida é a mesma
+          // regra da legenda do ShipmentRoute — texto solto num card de 1552px
+          // a 1920px vira uma linha só, longa demais para ser lida.
+          <div className="space-y-2 rounded-xl border border-dashed border-border bg-muted/40 p-5">
             <p className="portal-small font-medium text-portal-neutral">
               Próxima etapa
             </p>
@@ -401,13 +421,15 @@ export function ShipmentTimeline({
               <p className="portal-h3 text-foreground/80">{next.label}</p>
               {next.forecastAt && <ForecastTag iso={next.forecastAt} />}
             </div>
-            <p className="portal-small text-portal-neutral">{next.description}</p>
+            <p className="portal-body max-w-3xl text-portal-neutral">
+              {next.description}
+            </p>
             {insights[next.key]?.risk && (
-              <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
                 <RiskChip risk={insights[next.key]!.risk!} />
-                <p className="portal-small text-portal-neutral">
+                <span className="portal-body max-w-3xl text-portal-neutral">
                   {insights[next.key]!.risk!.rationale}
-                </p>
+                </span>
               </div>
             )}
             {insights[next.key]?.scheduleChange && (
@@ -448,6 +470,21 @@ export function ShipmentTimeline({
             const insight = insights[step.key];
             const isCurrent = step.status === 'current';
             const isDone = step.status === 'done';
+            // Risco só na etapa atual e na próxima (planning da Sprint 13,
+            // 18/08/2026). Orsi: "não precisa talvez apontar todos os riscos,
+            // talvez só da próxima etapa". Nove semáforos com nove
+            // justificativas no eixo era informação demais rodando de verdade —
+            // e, com a cascata do atraso confirmado (17/08), sete chips
+            // vermelhos seguidos dizendo variações da mesma coisa.
+            //
+            // O que sai é a EXIBIÇÃO, não o cálculo: `buildStepInsights`
+            // continua devolvendo risco para toda etapa não concluída (é o que
+            // os dois cards acima consomem, e os testes de step-insights.ts
+            // continuam valendo palavra por palavra). Data prevista, descrição,
+            // gatilho de ação e mudança de data seguem em TODAS as etapas — a
+            // jornada inteira continua legível, só não vem com semáforo em cada
+            // degrau.
+            const showsRisk = index === currentIndex || index === nextIndex;
             return (
               <li
                 key={step.key}
@@ -519,7 +556,7 @@ export function ShipmentTimeline({
                     {step.description}
                   </p>
 
-                  {insight?.risk && (
+                  {showsRisk && insight?.risk && (
                     <div className="space-y-1">
                       <RiskChip risk={insight.risk} />
                       <p className="portal-small line-clamp-3 text-portal-neutral">

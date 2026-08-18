@@ -342,9 +342,12 @@ colunas todas NULL só existe um ("Pendente integração"). Por isso
 Regras que sustentam isso — **não popular tracking sem elas**:
 
 - Toda linha gravada pelo script leva `tracking_is_mock = TRUE`, e o frontend
-  desenha o selo "Pré-visualização" em cima de qualquer valor com esse flag
-  (card da Lista, resumo do detalhe e seção Acompanhamento). É o mesmo contrato
-  do `is_mock` de `app/audit_preview.py`.
+  **declara** esse flag em cima de qualquer valor que dele derive: selo
+  "Pré-visualização" no card da Lista e na seção Acompanhamento, e uma linha de
+  texto ("Rastreamento de demonstração — não vem da companhia marítima") no
+  indicador de chegada do topo do detalhe, que desde 18/08/2026 não usa mais
+  `ProvenanceBadge`. É o mesmo contrato do `is_mock` de `app/audit_preview.py`;
+  o que varia é a forma de dizer, nunca o dever de dizer.
 - O flag é **coluna**, não lista de referências chumbada no frontend: quando um
   desses embarques ganhar tracking real, ele perde o selo limpando o flag, não
   dependendo de alguém lembrar de editar uma lista.

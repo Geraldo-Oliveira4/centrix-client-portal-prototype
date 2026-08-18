@@ -510,9 +510,11 @@ touch Meus Embarques:
   a shipment whose tracking was fabricated by
   `backend/scripts/topup_tracking_demo.py` so the prototype can show all three
   visual paths. Every surface that renders a tracking value must check it and
-  draw `ProvenanceBadge preview` — today the list card, the detail summary and
-  the "Acompanhamento" section do. Never render a tracking value without that
-  check, and never seal a value whose `is_mock` is false.
+  SAY SO — today the list card and the "Acompanhamento" section do it with
+  `ProvenanceBadge preview`, e o `ArrivalIndicator` do topo do detalhe faz em
+  texto corrido (18/08/2026 — ver a seção do indicador-chave abaixo). O que não
+  pode acontecer é uma superfície imprimir valor de tracking sem nenhuma das
+  duas, nem marcar um valor cujo `is_mock` é false.
 - **Downstream steps move only from `tracking.last_milestone`** (ShipsGo:
   `OCEAN_TRANSIT` | `ARRIVAL` | `DISCHARGE` | `AVAILABLE`). The rule lives in
   `lib/timeline-steps.ts` (`buildTimelineSteps`, unit-tested) — steps before the
@@ -753,6 +755,56 @@ no data it renders **nothing**, deliberately not even a `pending` badge, because
 clearance data is not guaranteed for every process and a permanent grey badge
 would read as a process gap.
 
+### Indicador-chave do detalhe: data final + dias restantes (18/08/2026)
+
+Planning da Sprint 13. Vinicius: "eu colocaria a data final como
+indicador-chave... e quantos dias faltam em destaque lá em cima", e "prefiro dar
+mais ênfase em poucos indicadores que ela precisa bater o olho e saber". A dor é
+do comprador do cliente, que não sabe quando a carga chega e cobra o time
+errado.
+
+O que **saiu** do topo: o bloco "Chegada estimada (ETA) / Risco de atraso /
+Previsão da companhia" — dois chips de 12px do mesmo peso, cada um com a própria
+legenda, para responder a uma pergunta só (Orsi: "tira todo aquele chegada
+estimada e coisas do gênero"). O que **entrou**: `ArrivalIndicator`
+(`embarques/components/arrival-indicator.tsx`) sobre `lib/arrival-countdown.ts`,
+puro e unit-testado.
+
+- **A âncora é `tracking.current_eta`** (com `first_eta` de reserva) — a MESMA
+  string que o `ShipmentEtaBadge` imprimia e a MESMA que `step-forecast.ts` usa
+  como Chegada para derivar Descarregado (+2) e Liberado (+5). Não há segunda
+  fonte de data de chegada nesta tela e não pode haver: foi ETA próprio
+  contradizendo o ETA do topo que matou o card "Rastreamento marítimo".
+- **O atraso não foi apagado, foi fundido.** O delta em dias é a única
+  aritmética real da tela e o `step-insights` continua citando o número por
+  extenso nas etapas ("O atraso de 7 dias já confirmado na chegada..."), então
+  removê-lo do topo deixaria aquelas frases apontando para um número que a tela
+  não afirma mais. Ele vive em duas formas: `arrivalTone` (o semáforo do atraso
+  pinta o chip da contagem, e sem as duas previsões a cor é NEUTRA, nunca
+  semáforo) e `arrivalNote` ("Postergada 7 dias sobre a primeira previsão da
+  companhia."). **Não recalcule atraso aqui** — este módulo só redige o que
+  `computeDelayRisk` devolveu.
+- **Sem ETA não há contagem**: `unknown` é um resultado da função, não uma
+  decisão do componente (mesma disciplina de `pending`/`incomplete` em
+  `computeDelayRisk`), e a tela imprime "Sem previsão da companhia" ocupando a
+  linha inteira, sem chip e sem "—" gigante ao lado.
+- **`IsActual` sobre data futura não vira "Chegada confirmada".** É fonte se
+  contradizendo (aparece no dado ilustrativo do `topup_tracking_full.py`), e
+  entre o flag e o calendário a tela acredita no calendário: "Chegada confirmada
+  — faltam 9 dias" é a única das duas leituras que não pode ser verdade.
+- **Sem `ProvenanceBadge`** — decisão da mesma reunião, escopada a este
+  componente, que era um dos últimos pontos do portal na convenção antiga (selo
+  + moldura tracejada em volta do valor). A honestidade sobre `tracking.is_mock`
+  **continua**, em texto corrido ("Rastreamento de demonstração — não vem da
+  companhia marítima"), e a seção Acompanhamento logo abaixo segue selada. A
+  coluna `tracking_is_mock` e a regra do selo nas demais superfícies **não
+  mudaram**; aposentar o componente segue sendo decisão separada.
+
+**Três indicadores no topo, no máximo** (princípio, não regra mecânica): a data
+de chegada aqui, o badge de estado no header da página e a faixa de Ação
+Necessária da timeline. Rota e Modal continuam no card porque são identidade do
+embarque, não estado a interpretar.
+
 ### Acompanhamento: eixo HORIZONTAL em três níveis (14/08/2026)
 
 Revisão semanal com Victor Orsi e Vinicius: a timeline vertical mostrava as nove
@@ -763,13 +815,37 @@ apresentação passou a ter hierarquia, e são três níveis, nesta ordem:
 1. **Ação necessária** — o que depende do CLIENTE, em faixa destacada
    (`portal-warning`), nunca dentro de accordion. É a única coisa da tela que
    ele pode mudar.
-2. **Etapa atual dominante + próxima etapa secundária**, com risco e
-   justificativa por extenso.
+2. **Etapa atual dominante + próxima etapa secundária, EMPILHADAS** (uma sobre
+   a outra, largura inteira), com risco e justificativa por extenso.
 3. **O eixo horizontal** com as nove etapas, que rola no eixo x e **abre
    centrado na etapa atual** (`scrollLeft` do trilho, nunca da página). Os véus
    de esmaecimento nas pontas só aparecem quando existe conteúdo escondido
    daquele lado — véu fixo apagava a primeira letra de "Solicitado" num eixo que
    nem rolou.
+
+**Dois ajustes de VOLUME na revisão de 18/08/2026** (planning da Sprint 13, com
+a tela rodando). Nenhum dos dois tira conteúdo do cálculo, só da renderização:
+
+- **Nível 2 empilhado, não lado a lado.** Vinicius: "vai ter que jogar pra baixo
+  a linha, não vai dar pra deixar a lateral". Em duas colunas a próxima etapa
+  ficava com um terço da largura e comprimia justamente o texto que Orsi pediu
+  para crescer ("aqui na próxima etapa, aí sim tu pode abranger mais, comentar
+  mais"). A dominância da etapa atual nunca veio da largura — vem da borda
+  verde, do `portal-h2` e do fundo branco contra o tracejado da próxima — então
+  empilhar não custa nada dela. O bloco da próxima etapa usa `portal-body` com
+  `max-w-3xl` (mesma regra da legenda do `ShipmentRoute`): largura inteira sem
+  teto de medida vira uma linha só, longa demais para ler a 1920px.
+- **Risco só na etapa atual e na próxima, no eixo** (`showsRisk` no map do
+  eixo). Orsi: "não precisa talvez apontar todos os riscos, talvez só da próxima
+  etapa" — nove semáforos com nove justificativas era informação demais, e com a
+  cascata do atraso confirmado (17/08) viravam sete chips vermelhos seguidos
+  dizendo variações da mesma frase. As outras sete etapas **mantêm** data
+  prevista, descrição, gatilho de ação e mudança de data. `buildStepInsights`
+  continua devolvendo risco para toda etapa não concluída (é o que os dois cards
+  do nível 2 consomem) e os testes de `step-insights.test.ts` continuam valendo
+  palavra por palavra: o que mudou é o componente, não a regra. Num embarque em
+  exceção não há "atual" nem "próxima" e o eixo fica sem semáforo nenhum — quem
+  responde por ele é a faixa vermelha da exceção.
 
 **Risco por etapa** (`lib/step-insights.ts`, puro e unit-testado) — semáforo de
 3 cores + uma frase curta explicando o porquê. Duas regras:

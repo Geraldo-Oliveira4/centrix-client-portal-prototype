@@ -27,7 +27,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui';
-import { cn } from '@/lib/utils';
 import { formatShortDate } from '@/lib/portal-formatters';
 import { buildShipmentUpdateMailto } from '@/lib/portal-state';
 import { useMyShipment, useMyShipments } from '@/hooks/use-portal-shipments';
@@ -39,9 +38,8 @@ import { IncompleteDataNote } from '../../_shared/incomplete-data-badge';
 import { ModalIcon } from '../../_shared/modal-icon';
 import { SectionHeading } from '../../_shared/page-header';
 import { ProvenanceBadge } from '../../_shared/provenance-badge';
-import { DelayRiskBadge } from '../components/delay-risk-badge';
+import { ArrivalIndicator } from '../components/arrival-indicator';
 import { EstadoBadge } from '../components/estado-badge';
-import { ShipmentEtaBadge } from '../components/eta-badge';
 import {
   ShipmentActionModal,
   type ShipmentActionPrompt,
@@ -100,6 +98,12 @@ export default function PortalEmbarqueDetailPage() {
   // Illustrative origin hub (same source the map and tracking panel use).
   const origin = ORIGINS[originIndex(shipment.referencia)];
 
+  // UMA leitura de relógio por render, compartilhada pelo indicador de chegada
+  // e pelo builder de documentos. Duas chamadas a `new Date()` na mesma tela
+  // podem cair em dias diferentes na virada da meia-noite, e aí "faltam 25
+  // dias" discordaria da data que o documento diz ter sido emitido.
+  const now = new Date();
+
   // Delay risk: pure computation over the two carrier ETAs, tested in
   // lib/delay-risk.test.ts. Null tracking -> "pending", never a number.
   const delayRisk = delayRiskFromTracking(shipment.tracking);
@@ -112,15 +116,6 @@ export default function PortalEmbarqueDetailPage() {
   // Demo tracking (backend/scripts/topup_tracking_demo.py). Every surface that
   // renders a value from `tracking` must seal it when this is true.
   const isMockTracking = shipment.tracking?.is_mock === true;
-
-  const etaFootnote =
-    delayRisk.status === 'pending'
-      ? 'Sem rastreamento integrado'
-      : delayRisk.status === 'incomplete'
-        ? 'A companhia não reportou'
-        : shipment.tracking?.eta_is_actual
-          ? 'Informado pela companhia'
-          : 'Previsão da companhia';
 
   // "Ver exemplo com dado preenchido": quando ESTE embarque não tem
   // rastreamento, aponta para um que tem, para que qualquer pessoa consiga ver
@@ -168,12 +163,12 @@ export default function PortalEmbarqueDetailPage() {
       referencia: shipment.referencia,
       createdAt: shipment.created_at,
       steps: timelineSteps,
-      now: new Date(),
+      now,
     }),
     referencia: shipment.referencia,
     submittedIds: submittedDocumentIds,
     bookingApproved,
-    now: new Date(),
+    now,
   });
   const stepInsights = buildStepInsights({
     steps: timelineSteps,
@@ -200,13 +195,6 @@ export default function PortalEmbarqueDetailPage() {
         ids.includes(document.id) ? ids : [...ids, document.id],
       ),
   });
-
-  const riskFootnote =
-    delayRisk.status === 'pending'
-      ? 'Depende da previsão da companhia'
-      : delayRisk.status === 'incomplete'
-        ? 'Sem as duas previsões não há cálculo'
-        : 'Diferença em dias sobre a primeira previsão';
 
   return (
     <div className="space-y-8">
@@ -259,68 +247,50 @@ export default function PortalEmbarqueDetailPage() {
         </div>
       </div>
 
-      {/* Resumo: rota (origem ilustrativa), modal, ETA e risco de atraso.
-          Supporting card — quieter than the timeline below, which is the one
-          dominant element on this screen.
+      {/* Indicador-chave + resumo da rota.
+          Este card é a exceção ao "supporting, mais quieto que a timeline": a
+          data de chegada é a pergunta que traz o comprador do cliente até aqui,
+          e o planning da Sprint 13 (18/08/2026) pediu que ela fosse respondida
+          em menos de um segundo, sem interpretação.
 
-          ETA e risco vêm do bloco `tracking` (ShipsGo, migração 091). Enquanto
-          os campos forem NULL os dois badges dizem "Pendente integração"; o
-          cálculo do risco (delta em dias entre a primeira previsão e a previsão
-          atual/chegada real) já está pronto em lib/delay-risk.ts e passa a
-          mostrar o número exato assim que a fonte existir. */}
-      <section className="portal-card-muted space-y-4 p-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-1">
-            <p className="portal-small text-portal-neutral">Rota</p>
-            <p className="portal-body font-medium text-foreground">
-              {origin.name}, {origin.country} → Brasil
-            </p>
-            <p className="portal-small text-portal-neutral">
-              Origem aproximada (ilustrativa)
-            </p>
-          </div>
-          <div className="space-y-1">
-            <p className="portal-small text-portal-neutral">Modal</p>
-            <p className="portal-body font-medium text-foreground">
-              <span className="inline-flex items-center gap-2">
-                <ModalIcon modal={shipment.modal} className="h-5 w-5" />
-                {shipment.modal ? MODAL_LABELS[shipment.modal] : '—'}
-              </span>
-            </p>
-          </div>
-          <div
-            className={cn(
-              'space-y-1 sm:col-span-2',
-              // Demo tracking wears the same dashed frame + seal as every other
-              // illustrative surface in the portal.
-              isMockTracking &&
-                'rounded-lg border border-dashed border-primary/40 bg-primary/[0.03] p-3',
-            )}
-          >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <p className="portal-small text-portal-neutral">
-                  {shipment.tracking?.eta_is_actual
-                    ? 'Chegada confirmada'
-                    : 'Chegada estimada (ETA)'}
-                </p>
-                <ShipmentEtaBadge tracking={shipment.tracking} />
-                <p className="portal-small text-portal-neutral">{etaFootnote}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="portal-small text-portal-neutral">Risco de atraso</p>
-                <DelayRiskBadge risk={delayRisk} />
-                <p className="portal-small text-portal-neutral">{riskFootnote}</p>
-              </div>
+          O que saiu: o bloco "Chegada estimada (ETA) / Risco de atraso /
+          Previsão da companhia" — dois chips de 12px do mesmo peso, cada um com
+          sua legenda, para responder a uma pergunta só. Orsi: "tira todo aquele
+          chegada estimada e coisas do gênero". O número do atraso NÃO se perdeu:
+          `ArrivalIndicator` recebe a MESMA instância de `delayRisk` e o usa como
+          cor e como frase de apoio. Ver o docblock do componente.
+
+          Rota e Modal ficam: não são indicadores concorrentes, são a identidade
+          do embarque, e a orientação de "no máximo três indicadores no topo"
+          (Vinicius) é sobre o que exige leitura de estado — a data aqui, o badge
+          de estado no header e a faixa de Ação Necessária na timeline. */}
+      <section className="portal-card space-y-5 p-6">
+        <div className="grid gap-6 lg:grid-cols-3">
+          <ArrivalIndicator
+            className="lg:col-span-2"
+            tracking={shipment.tracking}
+            delayRisk={delayRisk}
+            now={now}
+          />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="space-y-1">
+              <p className="portal-small text-portal-neutral">Rota</p>
+              <p className="portal-body font-medium text-foreground">
+                {origin.name}, {origin.country} → Brasil
+              </p>
+              <p className="portal-small text-portal-neutral">
+                Origem aproximada (ilustrativa)
+              </p>
             </div>
-            {isMockTracking && (
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <ProvenanceBadge provenance="preview" />
-                <span className="portal-small text-portal-neutral">
-                  Rastreamento de demonstração — não vem da companhia marítima.
+            <div className="space-y-1">
+              <p className="portal-small text-portal-neutral">Modal</p>
+              <p className="portal-body font-medium text-foreground">
+                <span className="inline-flex items-center gap-2">
+                  <ModalIcon modal={shipment.modal} className="h-5 w-5" />
+                  {shipment.modal ? MODAL_LABELS[shipment.modal] : '—'}
                 </span>
-              </div>
-            )}
+              </p>
+            </div>
           </div>
         </div>
         {delayRisk.status === 'incomplete' && (
