@@ -544,6 +544,8 @@ touch Meus Embarques:
     vencido — há teste para isso.
   - **Previsão é só TEXTO.** Nada aqui muda `status`: o círculo do passo futuro
     continua vazio e "Etapa atual" continua onde a regra do milestone a colocou.
+    Vale igual para `occurredAt` (a data REALIZADA, 18/08/2026): datar uma etapa
+    não a promove nem a conclui.
   - **Sem ETA, sem previsão**: o passo volta para `ProvenanceBadge pending`. É o
     estado de um banco recém-semeado (sem top-up), o mesmo que `O15` trava no
     e2e. `INCOMPLETE` não entra nisso — aqueles passos são `blocked` e mantêm
@@ -839,13 +841,66 @@ a tela rodando). Nenhum dos dois tira conteúdo do cálculo, só da renderizaç�
   eixo). Orsi: "não precisa talvez apontar todos os riscos, talvez só da próxima
   etapa" — nove semáforos com nove justificativas era informação demais, e com a
   cascata do atraso confirmado (17/08) viravam sete chips vermelhos seguidos
-  dizendo variações da mesma frase. As outras sete etapas **mantêm** data
-  prevista, descrição, gatilho de ação e mudança de data. `buildStepInsights`
-  continua devolvendo risco para toda etapa não concluída (é o que os dois cards
-  do nível 2 consomem) e os testes de `step-insights.test.ts` continuam valendo
-  palavra por palavra: o que mudou é o componente, não a regra. Num embarque em
-  exceção não há "atual" nem "próxima" e o eixo fica sem semáforo nenhum — quem
-  responde por ele é a faixa vermelha da exceção.
+  dizendo variações da mesma frase. `buildStepInsights` continua devolvendo risco
+  para toda etapa não concluída (é o que os dois cards do nível 2 consomem) e os
+  testes de `step-insights.test.ts` continuam valendo palavra por palavra: o que
+  mudou é o componente, não a regra. Num embarque em exceção não há "atual" nem
+  "próxima" e o eixo fica sem semáforo nenhum — quem responde por ele é a faixa
+  vermelha da exceção.
+
+#### O eixo virou RÉGUA (terceira rodada, mesmo planning)
+
+Tirar os semáforos não bastou: o que carregava o eixo era o TEXTO — nove
+parágrafos descritivos sob nove nomes de etapa, repetindo o que o card de
+destaque logo acima já dizia por extenso. Cada card do eixo agora diz quatro
+coisas, todas de uma linha:
+
+    círculo de status · nome da etapa · data · marcas
+
+- **Nada de descrição no eixo.** Ela continua inteira nos dois cards de destaque,
+  que estão fora do escopo desta rodada e não mudaram. Não é perda de informação,
+  é fim de duplicação.
+- **As "marcas" são compactas e nunca só cor**: ponto de risco (sem a palavra),
+  triângulo de reprogramação, badge de trecho travado e chip de ação. Todas
+  carregam o texto por extenso em `title` + `aria-label` — cor sozinha não é
+  informação para quem não a distingue. O badge/justificativa por extenso e a
+  frase de reprogramação continuam nos cards de destaque.
+- **Larguras são medidas, não escolhidas no olho**: `w-[112px]` normal e
+  `w-[136px]` na atual. A 1440px o trilho tem 1070px úteis e 8 × 112 + 136 = 1032
+  põe as **nove etapas na tela sem rolagem**, com ~38px de folga (com 116/140
+  dava 1068 em 1070, e qualquer quebra de rótulo diferente devolvia a barra).
+  Medido: **9/9 sem rolagem a 1440px e 1920px; 7/9 a 1280px; 5/9 a 1024px; 1–2/9
+  a 390px**, sempre rolando o trilho e nunca a página. Rolar abaixo de 1440px
+  continua sendo o comportamento esperado — a meta era reduzir a necessidade,
+  não eliminá-la.
+- **Rótulo quebra em duas linhas, nunca trunca.** "Aguardando prontidão" e "Em
+  análise de booking" não cabem numa linha a 112px, e reticências no NOME da
+  etapa tirariam a única coisa que o card ainda diz.
+
+#### Datas por etapa: só as duas que existem
+
+`TimelineStep.occurredAt`, ao lado do `forecastAt` que já havia. **Não existe
+tabela de transição de embarque** — `centrix_shipment_embarques` guarda só o
+`estado` atual e nenhuma linha é escrita quando ele muda; `processos.datas` é
+JSONB `null` em todo processo provisionado pelo portal. Isso já estava afirmado
+no docstring de `shared/portal_shipment_helpers.py` e foi reconferido no banco em
+18/08/2026. Logo, "concluído em 24 de jul." **não é derivável** para Aguardando
+prontidão, Coletado, Em análise de booking nem Embarcado, e inventar o timestamp
+seria pior do que não datar.
+
+Existem exatamente dois fatos datados, e por isso exatamente duas etapas podem
+receber `occurredAt`:
+
+| Etapa | Fonte | Observação |
+|---|---|---|
+| `solicitado` | `processo.created_at` | O mesmo "Aberto em 13 de ago." do cabeçalho da página, mostrado onde responde "quando esta etapa aconteceu". Não é segunda fonte. |
+| a etapa do milestone | `tracking.last_milestone_at` (migração 093) | Data o ÚLTIMO marco reportado. Os marcos anteriores ficam `done` e **sem data**: herdar para trás inventaria três datas a partir de uma. |
+
+`occurredAt` só é preenchido em etapa `done`/`current` (o que não aconteceu não
+tem quando), e em exceção — linha congelada, ninguém é `done`/`current` — não há
+data nenhuma. Data realizada e prevista **nunca coexistem** na mesma etapa; há
+teste para isso. No eixo o formato é o que separa as duas: realizada sai crua
+("13 de ago."), prevista sai prefixada ("Previsto: 20 de ago.").
 
 **Risco por etapa** (`lib/step-insights.ts`, puro e unit-testado) — semáforo de
 3 cores + uma frase curta explicando o porquê. Duas regras:

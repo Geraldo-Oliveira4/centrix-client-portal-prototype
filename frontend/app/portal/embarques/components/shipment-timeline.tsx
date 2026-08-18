@@ -62,6 +62,23 @@ import { firstBlockedKey, type StepStatus, type TimelineStep } from '../lib/time
  *     outras sete mantêm data prevista, descrição, gatilho de ação e mudança de
  *     data. O cálculo do risco não mudou — ver `showsRisk` no map do eixo.
  *
+ * O eixo virou RÉGUA (terceira rodada, mesmo planning)
+ * ----------------------------------------------------
+ * O corte anterior tirou os semáforos e o eixo continuou carregado, porque o que
+ * pesava era o texto: nove parágrafos descritivos empilhados sob nove nomes de
+ * etapa. Agora cada card do eixo diz quatro coisas, todas de uma linha:
+ *
+ *     círculo de status · nome da etapa · data (realizada ou prevista) · marcas
+ *
+ * onde "marcas" são o ponto de risco (sem a palavra), o triângulo de
+ * reprogramação, o badge de trecho travado e o chip de ação — tudo com o texto
+ * por extenso em `title`/`aria-label`, nunca só na cor.
+ *
+ * A descrição de cada etapa NÃO se perdeu: ela está por extenso nos dois cards
+ * de destaque acima, que é onde há largura para ela. O eixo deixou de repetir o
+ * que o card logo acima já diz. Os cards de destaque estão fora do escopo desta
+ * rodada e continuam idênticos.
+ *
  * Este componente é PRESENTACIONAL. Os passos vêm de `buildTimelineSteps` e o
  * enriquecimento de `buildStepInsights`, os dois puros e unit-testados, e é a
  * página que os compõe. Regra antiga que continua valendo: não devolva lógica
@@ -190,6 +207,14 @@ function RiskChip({ risk, className }: { risk: StepRisk; className?: string }) {
  * aritmética do badge de atraso do topo; sem as duas previsões da companhia não
  * há número, e a linha afirma só o motivo.
  */
+function scheduleChangeText(
+  change: NonNullable<StepInsight['scheduleChange']>,
+): string {
+  return change.deltaDays != null
+    ? `Postergado ${change.deltaDays} ${change.deltaDays === 1 ? 'dia' : 'dias'} — motivo: ${change.reason}`
+    : `Reprogramado — motivo: ${change.reason}`;
+}
+
 function ScheduleChangeLine({
   change,
   className,
@@ -199,9 +224,7 @@ function ScheduleChangeLine({
 }) {
   return (
     <p className={cn('portal-small text-portal-warning', className)}>
-      {change.deltaDays != null
-        ? `Postergado ${change.deltaDays} ${change.deltaDays === 1 ? 'dia' : 'dias'} — motivo: ${change.reason}`
-        : `Reprogramado — motivo: ${change.reason}`}
+      {scheduleChangeText(change)}
     </p>
   );
 }
@@ -480,18 +503,23 @@ export function ShipmentTimeline({
             // O que sai é a EXIBIÇÃO, não o cálculo: `buildStepInsights`
             // continua devolvendo risco para toda etapa não concluída (é o que
             // os dois cards acima consomem, e os testes de step-insights.ts
-            // continuam valendo palavra por palavra). Data prevista, descrição,
-            // gatilho de ação e mudança de data seguem em TODAS as etapas — a
-            // jornada inteira continua legível, só não vem com semáforo em cada
-            // degrau.
+            // continuam valendo palavra por palavra).
             const showsRisk = index === currentIndex || index === nextIndex;
             return (
               <li
                 key={step.key}
                 ref={isCurrent ? currentRef : undefined}
                 className={cn(
-                  'flex shrink-0 flex-col gap-2',
-                  isCurrent ? 'w-[232px]' : 'w-[190px]',
+                  'flex shrink-0 flex-col gap-1.5',
+                  // Larguras MEDIDAS, não escolhidas no olho: a 1440px o
+                  // trilho tem 1070px úteis, e 8 x 112 + 136 = 1032 põe as NOVE
+                  // etapas na tela sem rolagem, com ~38px de folga. A folga é de
+                  // propósito: com 116/140 dava 1068 em 1070 e qualquer quebra
+                  // de rótulo diferente devolvia a barra de rolagem.
+                  // Abaixo de 1440px o eixo volta a rolar, e isso continua sendo
+                  // o comportamento esperado — o objetivo era reduzir a
+                  // necessidade de rolar, não garantir que nunca role.
+                  isCurrent ? 'w-[136px]' : 'w-[112px]',
                 )}
               >
                 <div className="flex items-center">
@@ -509,16 +537,20 @@ export function ShipmentTimeline({
 
                 <div
                   className={cn(
-                    'space-y-1.5 pr-4',
+                    'space-y-1 pr-3',
                     isDone && 'opacity-60',
                     !isDone && !isCurrent && 'opacity-90',
                   )}
                 >
+                  {/* Quebra em duas linhas em vez de truncar: "Aguardando
+                      prontidão" e "Em análise de booking" não cabem numa linha a
+                      112px, e reticências no NOME da etapa tirariam a única
+                      coisa que o card ainda diz. */}
                   <p
                     className={cn(
                       isCurrent
-                        ? 'portal-h3 text-foreground'
-                        : 'portal-body font-medium',
+                        ? 'portal-body font-semibold text-foreground'
+                        : 'portal-small font-medium',
                       isDone && 'text-foreground/80',
                       !isDone && !isCurrent && 'text-portal-neutral',
                     )}
@@ -526,14 +558,67 @@ export function ShipmentTimeline({
                     {step.label}
                   </p>
 
+                  {/* A DATA da etapa. Uma linha, um formato por natureza:
+                      realizada sai crua ("22 de jul."), prevista sai prefixada
+                      ("Previsto: 20 de ago."). O prefixo é a diferença
+                      semântica inteira — quem diz "já aconteceu" é o círculo
+                      logo acima. A maioria das etapas concluídas não tem data
+                      nenhuma, e isso é o correto: ver o cabeçalho de
+                      lib/timeline-steps.ts. */}
+                  {(step.occurredAt || (step.status === 'pending' && step.forecastAt)) && (
+                    <p
+                      className="portal-small text-portal-neutral"
+                      title={
+                        step.occurredAt
+                          ? 'Data registrada para esta etapa'
+                          : 'Previsão derivada do ETA da companhia'
+                      }
+                    >
+                      {step.occurredAt
+                        ? formatShortDate(step.occurredAt)
+                        : `Previsto: ${formatShortDate(step.forecastAt!)}`}
+                    </p>
+                  )}
+
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {step.status === 'pending' && step.forecastAt && (
-                      <ForecastTag iso={step.forecastAt} />
+                    {/* Risco reduzido a um PONTO no eixo (18/08/2026): a
+                        palavra "Risco alto" e a justificativa continuam nos dois
+                        cards de destaque, onde há largura para elas. Aqui o
+                        chip com texto era metade da altura do card e mandava no
+                        piso de largura de toda a régua. `title` + `aria-label`
+                        carregam o rótulo por extenso, porque cor sozinha não é
+                        informação para quem não a distingue. */}
+                    {showsRisk && insight?.risk && (
+                      <span
+                        className={cn(
+                          'h-2.5 w-2.5 shrink-0 rounded-full',
+                          RISK_DOT_CLASS[insight.risk.level],
+                        )}
+                        title={insight.risk.label}
+                        aria-label={insight.risk.label}
+                        role="img"
+                      />
+                    )}
+                    {/* Reprogramação: ícone, não parágrafo. A frase inteira
+                        (com o motivo) fica no `title` e nos cards de destaque, e
+                        o número de dias já está por extenso no indicador de
+                        chegada no topo da tela. */}
+                    {insight?.scheduleChange && (
+                      <span
+                        className="inline-flex"
+                        title={scheduleChangeText(insight.scheduleChange)}
+                        aria-label={scheduleChangeText(insight.scheduleChange)}
+                        role="img"
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-portal-warning" />
+                      </span>
                     )}
                     {/* Um badge para todo o trecho travado: repeti-lo em quatro
-                        etapas seguidas diz a mesma coisa quatro vezes. */}
+                        etapas seguidas diz a mesma coisa quatro vezes. Rótulo
+                        curto aqui — a frase completa está no
+                        `IncompleteDataNote` no rodapé da seção. */}
                     {step.status === 'blocked' && step.key === blockedKey && (
-                      <IncompleteDataBadge label="Sem atualização da companhia" />
+                      <IncompleteDataBadge label="Sem atualização" />
                     )}
                     {step.isArrival && (
                       <CustomsClearedTag clearance={customsClearance} />
@@ -542,32 +627,15 @@ export function ShipmentTimeline({
                       (insight.action.status === 'concluida' ? (
                         <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-success/25 bg-portal-success/10 px-1.5 py-0.5 font-medium text-portal-success">
                           <CheckCircle2 className="h-3.5 w-3.5" />
-                          Ação concluída
+                          Concluída
                         </span>
                       ) : (
                         <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-1.5 py-0.5 font-medium text-portal-warning">
                           <BellRing className="h-3.5 w-3.5" />
-                          Ação necessária
+                          Ação
                         </span>
                       ))}
                   </div>
-
-                  <p className="portal-small line-clamp-2 text-portal-neutral">
-                    {step.description}
-                  </p>
-
-                  {showsRisk && insight?.risk && (
-                    <div className="space-y-1">
-                      <RiskChip risk={insight.risk} />
-                      <p className="portal-small line-clamp-3 text-portal-neutral">
-                        {insight.risk.rationale}
-                      </p>
-                    </div>
-                  )}
-
-                  {insight?.scheduleChange && (
-                    <ScheduleChangeLine change={insight.scheduleChange} />
-                  )}
                 </div>
               </li>
             );

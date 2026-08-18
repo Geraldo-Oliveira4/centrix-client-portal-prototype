@@ -151,6 +151,14 @@ export default function PortalEmbarqueDetailPage() {
     milestone: shipment.tracking?.last_milestone,
     currentEta: shipment.tracking?.current_eta,
     firstEta: shipment.tracking?.first_eta,
+    // As duas únicas datas de realização que existem: a abertura do processo
+    // (que o cabeçalho desta página já imprime como "Aberto em") e o quando do
+    // último marco reportado pela companhia. Não há tabela de transição de
+    // embarque, então nenhuma outra etapa é datável — ver o cabeçalho de
+    // lib/timeline-steps.ts.
+    createdAt: shipment.created_at,
+    milestoneAt: shipment.tracking?.last_milestone_at,
+    now,
   });
   //
   // `applyLocalDocumentActions` entra DEPOIS do builder, nunca dentro dele: o

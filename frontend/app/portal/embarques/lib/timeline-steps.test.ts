@@ -144,3 +144,78 @@ test('Chegada is the only step tagged as the arrival anchor', () => {
   assert.equal(anchors.length, 1);
   assert.equal(anchors[0].key, 'chegada');
 });
+
+// --- Datas de realização (18/08/2026) --------------------------------------
+// O ponto destes testes não é o caminho feliz, é o que NÃO deve ganhar data:
+// sem tabela de transição, uma data a mais aqui é uma data inventada.
+
+const dateOf = (steps, key) => steps.find((s) => s.key === key)?.occurredAt;
+
+test('Solicitado carrega a abertura do processo, e só ele', () => {
+  const steps = build({ createdAt: '2026-07-22T10:00:00Z' });
+  assert.equal(dateOf(steps, 'solicitado'), '2026-07-22T10:00:00Z');
+  // As outras quatro etapas operacionais estão concluídas e continuam sem data:
+  // não existe fonte de "concluído em" para nenhuma delas.
+  for (const key of ['aguardando_prontidao', 'coletado', 'analise_booking']) {
+    assert.equal(dateOf(steps, key), undefined, key);
+  }
+});
+
+test('sem created_at ninguem e datado', () => {
+  assert.equal(dateOf(build(), 'solicitado'), undefined);
+});
+
+test('etapa que ainda nao aconteceu nao tem quando', () => {
+  const steps = build({ estado: 'solicitado', createdAt: '2026-07-22T10:00:00Z' });
+  assert.equal(statusOf(steps, 'solicitado'), 'current');
+  // Current tambem "aconteceu" (esta acontecendo), entao e datavel.
+  assert.equal(dateOf(steps, 'solicitado'), '2026-07-22T10:00:00Z');
+  assert.equal(dateOf(steps, 'embarcado'), undefined);
+});
+
+test('exceção congela a linha e apaga as datas junto', () => {
+  // Sem saber qual estágio precedeu a exceção, nada é `done`/`current` e nada
+  // pode ser afirmado como tendo acontecido.
+  const steps = build({
+    isException: true,
+    estado: 'postergado',
+    createdAt: '2026-07-22T10:00:00Z',
+    milestoneAt: '2026-08-15T00:00:00Z',
+    milestone: 'AVAILABLE',
+  });
+  assert.ok(steps.every((s) => s.occurredAt === undefined));
+});
+
+test('last_milestone_at data o marco reportado, nunca os anteriores', () => {
+  const steps = build({
+    milestone: 'DISCHARGE',
+    milestoneAt: '2026-08-15T00:00:00Z',
+    createdAt: '2026-07-22T10:00:00Z',
+  });
+  assert.equal(statusOf(steps, 'descarregado'), 'current');
+  assert.equal(dateOf(steps, 'descarregado'), '2026-08-15T00:00:00Z');
+  // Em trânsito e Chegada estão `done` porque o marco os ultrapassou, mas a
+  // companhia não disse QUANDO cada um aconteceu — herdar a data para trás
+  // inventaria duas datas a partir de uma.
+  assert.equal(statusOf(steps, 'em_transito'), 'done');
+  assert.equal(dateOf(steps, 'em_transito'), undefined);
+  assert.equal(dateOf(steps, 'chegada'), undefined);
+});
+
+test('milestone sem data reportada continua sem data', () => {
+  // Legal no schema (migração 093): a companhia nomeia o estágio sem datá-lo.
+  const steps = build({ milestone: 'DISCHARGE' });
+  assert.equal(statusOf(steps, 'descarregado'), 'current');
+  assert.equal(dateOf(steps, 'descarregado'), undefined);
+});
+
+test('data de realizacao e previsao nunca coexistem na mesma etapa', () => {
+  const steps = build({
+    milestone: 'ARRIVAL',
+    milestoneAt: '2026-08-15T00:00:00Z',
+    createdAt: '2026-07-22T10:00:00Z',
+    currentEta: '2026-09-02T00:00:00Z',
+    now: new Date('2026-08-18T00:00:00Z'),
+  });
+  assert.ok(steps.every((s) => !(s.occurredAt && s.forecastAt)));
+});
