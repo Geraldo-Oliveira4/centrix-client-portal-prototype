@@ -45,8 +45,9 @@ import { firstBlockedKey, type StepStatus, type TimelineStep } from '../lib/time
  *
  *   1. Ação necessária — o que depende do CLIENTE, em destaque, fora de
  *      qualquer accordion. É a única coisa aqui que ele pode mudar.
- *   2. Etapa atual (dominante) + próxima etapa (secundária), EMPILHADAS, com
- *      risco e justificativa por extenso.
+ *   2. Etapa atual (dominante) + próxima etapa (secundária), lado a lado. O
+ *      risco e a justificativa por extenso vivem SÓ no card da próxima etapa —
+ *      ver o comentário no JSX do card da etapa atual.
  *   3. O eixo horizontal com as nove etapas, que continua mostrando a jornada
  *      inteira — inclusive os textos descritivos de cada etapa, que não se
  *      perderam na mudança de layout.
@@ -61,6 +62,13 @@ import { firstBlockedKey, type StepStatus, type TimelineStep } from '../lib/time
  *   - o nível 3 mostra semáforo de risco só na etapa atual e na próxima. As
  *     outras sete mantêm data prevista, descrição, gatilho de ação e mudança de
  *     data. O cálculo do risco não mudou — ver `showsRisk` no map do eixo.
+ *
+ * Última rodada do mesmo planning: o card da ETAPA ATUAL perdeu o chip de risco
+ * e a justificativa. Risco é sobre o que ainda pode dar errado, e a etapa atual
+ * já está em andamento; o que ela exige do cliente, quando exige, já é dito
+ * pela faixa "Ação necessária" do nível 1. O card da PRÓXIMA etapa fica
+ * intacto — é ali que a pergunta "o próximo passo vai ser tranquilo?" tem
+ * resposta útil.
  *
  * O eixo virou RÉGUA (terceira rodada, mesmo planning)
  * ----------------------------------------------------
@@ -479,14 +487,21 @@ export function ShipmentTimeline({
               )}
             </div>
             <p className="portal-body text-foreground/80">{current.description}</p>
-            {insights[current.key]?.risk && (
-              <div className="flex flex-wrap items-center gap-2">
-                <RiskChip risk={insights[current.key]!.risk!} />
-                <span className="portal-body text-portal-neutral">
-                  {insights[current.key]!.risk!.rationale}
-                </span>
-              </div>
-            )}
+            {/* SEM risco aqui, de propósito (planning da Sprint 13, 18/08/2026,
+                mesma fala do Orsi que cortou os riscos do eixo). Risco é sobre o
+                que ainda PODE dar errado; a etapa atual já está ACONTECENDO — o
+                cliente não precisa de alerta sobre o que já está em curso,
+                precisa saber se o PRÓXIMO passo vai ser tranquilo ou não. Por
+                isso o chip e a justificativa ficam só no card da próxima etapa.
+
+                Quando a etapa atual realmente exige algo do cliente, quem diz
+                isso é a faixa "Ação necessária" logo acima (nível 1), que é
+                acionável em vez de probabilística; o chip de risco ao lado dela
+                seria a mesma informação dita duas vezes, uma delas sem saída.
+
+                Sai a EXIBIÇÃO, não o cálculo: `buildStepInsights` continua
+                devolvendo `risk` para toda etapa não concluída, e os testes de
+                step-insights.ts continuam valendo palavra por palavra. */}
             {insights[current.key]?.scheduleChange && (
               <ScheduleChangeLine change={insights[current.key]!.scheduleChange!} />
             )}
