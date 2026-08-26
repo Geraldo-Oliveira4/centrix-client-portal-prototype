@@ -1184,8 +1184,8 @@ As 6 perguntas do canvas foram **distribuídas** para onde respondem em contexto
 Tudo deriva de `computePerformanceMetrics(data)` (`lib/performance-helpers.ts`) +
 `volumeTrend`/`weeklyVolume` (`lib/volume-helpers.ts`) sobre `useMyQuotations` e
 `useMyShipments` — **sem endpoint novo**. Métricas **reais**: volume de cotações
-e de embarques (por `created_at`), taxa de aprovação (fechadas /
-fechadas+recusadas), tempo médio de resposta (`created_at` →
+e de embarques (por `created_at`), taxa de aprovação (aprovadas /
+aprovadas+reprovadas), tempo médio de resposta (`created_at` →
 `best_proposal.received_at`), embarques em andamento, cotações vencidas por
 agente (vencedor de cada FECHADA), cotações por status.
 `computePerformanceMetrics` **não produz mais nenhum número fabricado**: todo
@@ -1338,6 +1338,16 @@ Histórico, não telas novas: renderizam o MESMO `HistoryTab`, com a prop
   estados (`FECHADA`/`DECLINADA`/`CANCELADO`), filtros e contagens continuam
   iguais. O Kanban do analista (`app/cotacao/`, `app/inbox/`) **não** acompanha:
   lá "Fechada"/"Declinada" seguem sendo o vocabulário da camada interna.
+- Na mesma data o vocabulário foi unificado em TODA a Camada 3, não só nas abas:
+  o verbo virou **"Reprovar"** (botao, dialogo e toast de
+  `cotacao/[id]/components/decline-dialog.tsx`), o estado virou **"Cotação
+  reprovada"** (banner, timeline e cabecalho da tabela de propostas) e a
+  Inteligência trocou "Recusadas" por "Reprovadas" (donut do Performance e os
+  captions de taxa de aprovação das duas telas). A regra para copy nova: o
+  cliente vê **aprovar/reprovar**, nunca "recusar" nem "negar". Nomes de código
+  (`DECLINADA`, `decline_reason`, `PORTAL_DECLINE_REASONS`, `decline-dialog`)
+  continuam em inglês e não acompanham — são contrato com o backend copiado do
+  Centrix.
 
 - **Funil** (`components/funnel-tab.tsx`): um único número dominante —
   "X cotações aguardando sua ação" = soma de `PORTAL_CLIENT_ACTION_BUCKETS`
@@ -1350,7 +1360,7 @@ Histórico, não telas novas: renderizam o MESMO `HistoryTab`, com a prop
   popula as **três** colunas de propósito (`scripts/seed_prototype.py`, q7-q9,
   com asserção no e2e) — sem isso a demo mostrava só duas e a etapa sumia.
 - **Histórico** (`components/history-tab.tsx` + `history-item.tsx`): lista, nunca
-  kanban — nada aqui se move nem pode ser aprovado/recusado. Filtra por situação
+  kanban — nada aqui se move nem pode ser aprovado/reprovado. Filtra por situação
   e por período de fechamento, ordena por data de fechamento desc.
 - **Toolbar** (`components/portal-filters.tsx`): busca só como ícone de lupa
   (`PortalSearchInput`) + `Filtros` num popover compacto (`PortalFiltersMenu`).

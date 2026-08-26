@@ -222,5 +222,5 @@ function getHeaderHint(locked: boolean, winnerId: string | null): string {
   if (!locked) return 'Selecione uma proposta para ver detalhes.';
   return winnerId
     ? 'Cotação fechada. Proposta vencedora destacada abaixo.'
-    : 'Cotação recusada.';
+    : 'Cotação reprovada.';
 }

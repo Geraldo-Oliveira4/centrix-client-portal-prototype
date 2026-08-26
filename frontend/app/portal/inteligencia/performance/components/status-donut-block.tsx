@@ -29,7 +29,7 @@ export function StatusDonutBlock({ metrics }: { metrics: PerformanceMetrics }) {
   const statusBreakdown = [
     { label: 'Aprovadas', count: metrics.approved, color: STATUS_COLORS.success },
     { label: 'Em andamento', count: metrics.inProgress, color: STATUS_COLORS.info },
-    { label: 'Recusadas', count: metrics.declined, color: STATUS_COLORS.danger },
+    { label: 'Reprovadas', count: metrics.declined, color: STATUS_COLORS.danger },
     { label: 'Canceladas', count: metrics.cancelled, color: STATUS_COLORS.neutral },
   ];
   const pieData = statusBreakdown.filter((s) => s.count > 0);

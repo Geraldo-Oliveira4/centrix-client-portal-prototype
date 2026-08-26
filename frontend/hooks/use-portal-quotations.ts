@@ -105,11 +105,11 @@ export const declineQuotation = async (
 ): Promise<boolean> => {
   try {
     await portal_api.post(`/portal/quotations/${quotationId}/decline`, payload);
-    toast.success('Cotação recusada.');
+    toast.success('Cotação reprovada.');
     revalidateQuotation(quotationId);
     return true;
   } catch {
-    toast.error('Erro ao recusar cotação.');
+    toast.error('Erro ao reprovar cotação.');
     return false;
   }
 };

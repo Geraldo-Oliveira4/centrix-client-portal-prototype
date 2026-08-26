@@ -46,7 +46,7 @@ const declineSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['note'],
-        message: 'Explique o motivo da recusa',
+        message: 'Explique o motivo da reprovação',
       });
       return;
     }
@@ -110,7 +110,7 @@ export function DeclineDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Recusar cotação</DialogTitle>
+          <DialogTitle>Reprovar cotação</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -157,7 +157,7 @@ export function DeclineDialog({
                     <Textarea
                       placeholder={
                         requiresNote
-                          ? 'Conte para a equipe o que motivou a recusa.'
+                          ? 'Conte para a equipe o que motivou a reprovação.'
                           : 'Selecione Outro para informar um motivo específico.'
                       }
                       rows={4}
@@ -180,7 +180,7 @@ export function DeclineDialog({
                 Cancelar
               </Button>
               <Button type="submit" variant="destructive" disabled={submitting}>
-                {submitting ? 'Recusando...' : 'Recusar Cotação'}
+                {submitting ? 'Reprovando...' : 'Reprovar Cotação'}
               </Button>
             </DialogFooter>
           </form>

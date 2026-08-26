@@ -84,7 +84,7 @@ export function FinalizedDeclinedBanner({
     <div className="rounded-xl border-l-4 border-portal-danger bg-portal-danger/8 p-4 flex items-start gap-3">
       <XCircle className="h-5 w-5 text-portal-danger shrink-0 mt-0.5" />
       <div className="space-y-0.5">
-        <p className="portal-h3 text-portal-danger">Cotação recusada</p>
+        <p className="portal-h3 text-portal-danger">Cotação reprovada</p>
         {reasonLabel ? (
           <p className="portal-body text-portal-danger">
             Motivo: <span className="font-semibold">{reasonLabel}</span>

@@ -15,7 +15,7 @@ const ACTION_LABELS: Record<string, string> = {
   proposal_portal_submitted: 'Proposta recebida',
   portal_auto_advanced: 'Cotação processada automaticamente',
   client_approved_proposal: 'Proposta aprovada',
-  client_declined_quotation: 'Cotação recusada',
+  client_declined_quotation: 'Cotação reprovada',
   client_cancelled_quotation: 'Cotação cancelada',
 };
 
@@ -23,7 +23,7 @@ const ACTION_LABELS: Record<string, string> = {
 const STATE_LABELS: Record<string, string> = {
   ENVIADA_CLIENTE: 'Propostas prontas para escolha',
   FECHADA: 'Cotação fechada',
-  DECLINADA: 'Cotação recusada',
+  DECLINADA: 'Cotação reprovada',
   CANCELADO: 'Cotação cancelada',
 };
 

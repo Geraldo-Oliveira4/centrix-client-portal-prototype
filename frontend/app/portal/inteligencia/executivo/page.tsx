@@ -123,7 +123,7 @@ export default function ExecutivoPage() {
           icon={<BadgeCheck className="h-4 w-4" />}
           value={m.approvalRate != null ? `${m.approvalRate}%` : '—'}
           tone={approvalTone(m.approvalRate)}
-          caption="Fechadas / (fechadas + recusadas)."
+          caption="Aprovadas / (aprovadas + reprovadas)."
         />
         <StatNumber
           label="Tempo médio de resposta"

@@ -148,7 +148,7 @@ export default function PerformancePage() {
           value={m.approvalRate != null ? `${m.approvalRate}%` : '—'}
           tone={approvalTone(m.approvalRate)}
           badge={<ProvenanceBadge provenance="real" />}
-          caption="Cotações fechadas sobre fechadas + recusadas."
+          caption="Cotações aprovadas sobre aprovadas + reprovadas."
         />
         {/* Cálculo REAL (mesma computeDelayRisk do badge de cada embarque);
             o que é ilustrativo é o tracking de entrada, não a aritmética. Null

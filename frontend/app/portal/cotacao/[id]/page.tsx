@@ -264,7 +264,7 @@ export default function PortalCotacaoDetailPage() {
               {showActions ? (
                 <>
                   <Button variant="outline" onClick={() => setDeclineOpen(true)}>
-                    Recusar
+                    Reprovar
                   </Button>
                   <Button
                     onClick={() => setApproveOpen(true)}
