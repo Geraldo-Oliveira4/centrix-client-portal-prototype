@@ -33,7 +33,7 @@ import { ModalIcon } from '../../_shared/modal-icon';
 
 // Cards only ever render inside the Funil columns now — the terminal buckets
 // are a read-only list in the Histórico tab — so there is no "Aprovada /
-// Recusada / Cancelada" outcome pill here anymore.
+// Reprovada / Cancelada" outcome pill here anymore.
 const bucketAccentClass: Record<PortalBucketKey, string> = {
   aguardando_dados: 'border-l-portal-warning',
   aguardando_aprovacao: 'border-l-portal-success',

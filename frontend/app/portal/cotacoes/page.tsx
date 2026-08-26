@@ -14,7 +14,7 @@ import { PagePortalHeader } from '../_shared/page-header';
 import { FunnelTab } from './components/funnel-tab';
 import { HistoryTab, type HistoryOutcome } from './components/history-tab';
 
-// Fechadas e Negadas são RECORTES do Histórico, não telas novas: mesmo
+// Aprovadas e Reprovadas são RECORTES do Histórico, não telas novas: mesmo
 // componente de lista, mesma expansão de conferência, só o escopo muda. O
 // Histórico continua mostrando as três situações juntas — as abas focadas são
 // atalho, não substituição.
@@ -88,12 +88,12 @@ function PortalCotacoesContent() {
             </TabsTrigger>
             <TabsTrigger value="fechadas" className="gap-1.5">
               <CheckCircle2 className="h-4 w-4" />
-              Fechadas
+              Aprovadas
               <TabCount value={approvedCount} />
             </TabsTrigger>
             <TabsTrigger value="negadas" className="gap-1.5">
               <XCircle className="h-4 w-4" />
-              Negadas
+              Reprovadas
               <TabCount value={refusedCount} />
             </TabsTrigger>
           </TabsList>
@@ -119,8 +119,8 @@ function PortalCotacoesContent() {
             <HistoryTab
               quotations={closed}
               outcomes={REFUSED_OUTCOMES}
-              countLabel={{ singular: 'cotação negada', plural: 'cotações negadas' }}
-              emptyHint="Cotações que você recusou e cotações canceladas aparecem aqui."
+              countLabel={{ singular: 'cotação reprovada', plural: 'cotações reprovadas' }}
+              emptyHint="Cotações que você reprovou e cotações canceladas aparecem aqui."
             />
           </TabsContent>
         </Tabs>

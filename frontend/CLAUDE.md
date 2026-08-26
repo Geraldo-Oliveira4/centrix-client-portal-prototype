@@ -1315,23 +1315,29 @@ constantes do lib, nunca digitados na página.
     (`created_from_radar` em `KanbanCard`) — trocar uma marca pela outra tiraria
     a cotação de todo filtro de portal que a Grazi e a Duda já usam.
 
-### Minhas Cotações — Funil, Histórico, Fechadas e Negadas (`/portal/cotacoes/`)
+### Minhas Cotações — Funil, Histórico, Aprovadas e Reprovadas (`/portal/cotacoes/`)
 
 Quatro abas, nesta ordem. **Funil** = cotação em andamento; **Histórico** =
 cotação fechada, só leitura. Nenhuma coluna de cotação fechada no kanban, nenhum
 número repetido entre topo e colunas.
 
-**Fechadas** (FECHADA) e **Negadas** (DECLINADA + CANCELADO) são **recortes** do
+**Aprovadas** (FECHADA) e **Reprovadas** (DECLINADA + CANCELADO) são **recortes** do
 Histórico, não telas novas: renderizam o MESMO `HistoryTab`, com a prop
 `outcomes` fixando o escopo. Três regras:
 
 - O Histórico continua mostrando as três situações juntas — as abas focadas são
   atalho, não substituição. Não remova a aba nem o seletor "Situação" dela.
 - Numa aba com `outcomes`, o seletor "Situação" **some**. Dois controles capazes
-  de discordar deixariam a aba "Fechadas" mostrar uma cotação cancelada.
+  de discordar deixariam a aba "Aprovadas" mostrar uma cotação cancelada.
 - Nada é duplicado: a expansão "Conferência de dados", o `useAuditPreviews` e o
   modal de documentos são os mesmos, então uma mudança de layout de linha cai
   nas três abas de uma vez.
+- Os rótulos mudaram em 26/08/2026 ("Fechadas" -> **Aprovadas**, "Negadas" ->
+  **Reprovadas**), alinhando com "cotação aprovada" da timeline do embarque. Foi
+  troca de COPY: os slugs de deep link (`?tab=fechadas`, `?tab=negadas`), os
+  estados (`FECHADA`/`DECLINADA`/`CANCELADO`), filtros e contagens continuam
+  iguais. O Kanban do analista (`app/cotacao/`, `app/inbox/`) **não** acompanha:
+  lá "Fechada"/"Declinada" seguem sendo o vocabulário da camada interna.
 
 - **Funil** (`components/funnel-tab.tsx`): um único número dominante —
   "X cotações aguardando sua ação" = soma de `PORTAL_CLIENT_ACTION_BUCKETS`

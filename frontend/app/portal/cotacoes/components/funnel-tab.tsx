@@ -19,7 +19,7 @@ import {
 } from './portal-filters';
 
 /**
- * Funil — the active quotations only. Closed ones (aprovadas, recusadas,
+ * Funil — the active quotations only. Closed ones (aprovadas, reprovadas,
  * canceladas) live in the Histórico tab, so the funnel reads as work in flight.
  *
  * There is exactly ONE headline number here: how many quotations are waiting on

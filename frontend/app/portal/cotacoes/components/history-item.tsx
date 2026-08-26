@@ -34,7 +34,7 @@ const OUTCOME = {
     accent: 'border-l-portal-success',
   },
   DECLINADA: {
-    label: 'Recusada',
+    label: 'Reprovada',
     icon: XCircle,
     pill: 'border-portal-danger/25 bg-portal-danger/10 text-portal-danger',
     accent: 'border-l-portal-danger',

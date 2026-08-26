@@ -34,15 +34,15 @@ type PeriodFilter = 'all' | '30' | '90' | '365';
 const STATUS_LABEL: Record<StatusFilter, string> = {
   all: 'Todas',
   FECHADA: 'Aprovadas',
-  DECLINADA: 'Recusadas',
+  DECLINADA: 'Reprovadas',
   CANCELADO: 'Canceladas',
 };
 
 /**
  * Outcomes a tab is locked to. Histórico passes nothing and keeps the "Situação"
- * select; Fechadas and Negadas pass a fixed set and lose it — the tab IS the
+ * select; Aprovadas and Reprovadas pass a fixed set and lose it — the tab IS the
  * filter there, and leaving a second control able to contradict it would let the
- * "Fechadas" tab show a cancelled quotation.
+ * "Aprovadas" tab show a cancelled quotation.
  */
 export type HistoryOutcome = 'FECHADA' | 'DECLINADA' | 'CANCELADO';
 
@@ -62,7 +62,7 @@ interface HistoryTabProps {
   quotations: PortalQuotation[];
   /**
    * Fixed outcome scope of this tab. Absent = Histórico (everything, with the
-   * "Situação" select available). Present = a focused cut (Fechadas, Negadas):
+   * "Situação" select available). Present = a focused cut (Aprovadas, Reprovadas):
    * the list is pre-filtered and the select is gone.
    */
   outcomes?: HistoryOutcome[];
@@ -77,7 +77,7 @@ interface HistoryTabProps {
  * between columns and nothing can be approved or declined, so the screen is
  * read-only. Filtering is by outcome and by closing period.
  *
- * The same component backs the Fechadas and Negadas tabs: they are shortcuts
+ * The same component backs the Aprovadas and Reprovadas tabs: they are shortcuts
  * into this list, not separate screens, so a change to the row layout or to the
  * conference expansion lands on all three at once.
  */
@@ -249,7 +249,7 @@ export function HistoryTab({
           <p className="portal-small text-portal-neutral">
             {quotations.length === 0
               ? (emptyHint ??
-                'Cotações aprovadas, recusadas e canceladas aparecem aqui.')
+                'Cotações aprovadas, reprovadas e canceladas aparecem aqui.')
               : 'Ajuste a busca ou os filtros.'}
           </p>
         </div>
