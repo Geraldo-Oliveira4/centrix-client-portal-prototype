@@ -87,19 +87,28 @@ export function ShipmentMapView({
   readIds,
   enabledTypes,
   onSeeAllAlerts,
+  initialFilter,
 }: {
   shipments: PortalShipment[];
   alerts: ShipmentAlert[];
   readIds: Set<string>;
   enabledTypes: Set<AlertType>;
   onSeeAllAlerts: () => void;
+  /** Chip a ligar na abertura, quando a tela foi aberta por deep link. */
+  initialFilter?: ShipmentFilterKey | null;
 }) {
   // O join com a cotação é o que dá a origem REAL de um embarque; sem ela o mapa
   // cai no hub ilustrativo (ver lib/port-coordinates.ts). Mesma chave SWR que a
   // aba Cotações usa, então isto é deduplicado, não um fetch novo.
   const { data } = useMyQuotations();
 
-  const [filter, setFilter] = useState<ShipmentFilterKey | null>(null);
+  // Filtro inicial vindo por deep link (`?tab=mapa&filtro=excecao`, o "Ver no
+  // mapa" do farol da Home). É SEMENTE, não controle: depois do mount o chip
+  // manda, e a URL não é reescrita a cada clique — isto continua sendo uma
+  // pergunta do momento, não uma preferência persistida (a regra de não guardar
+  // o filtro em localStorage segue valendo; deep link é outra coisa, e é o mesmo
+  // mecanismo do `?tab=lista&busca=1` do header).
+  const [filter, setFilter] = useState<ShipmentFilterKey | null>(initialFilter ?? null);
 
   // Contagem sempre sobre a carteira inteira, e chip zerado CONTINUA visível —
   // ao contrário da Lista. São três chips fixos: "Com exceção 0" é a resposta à

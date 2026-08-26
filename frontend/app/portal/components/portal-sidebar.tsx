@@ -5,14 +5,13 @@ import { usePathname } from 'next/navigation';
 import {
   Building2,
   FileText,
+  LayoutDashboard,
   PanelLeft,
   PanelLeftClose,
   Scale,
   Settings,
   Ship,
   Sparkles,
-  Users,
-  Warehouse,
   X,
 } from 'lucide-react';
 
@@ -27,6 +26,15 @@ import {
 import { useSidebar } from './sidebar-context';
 
 const NAV_ITEMS = [
+  // A Home abre o menu porque e a landing do portal: `/portal` redireciona para
+  // ca e o login cai aqui. Ela tem segmento proprio (`/portal/home`) em vez de
+  // morar na raiz porque a regra de item ativo e `startsWith(href + '/')` — com
+  // href `/portal`, TODA tela do portal deixaria a Home acesa.
+  {
+    href: '/portal/home',
+    label: 'Início',
+    icon: LayoutDashboard,
+  },
   {
     href: '/portal/cotacoes',
     label: 'Minhas Cotações',
@@ -47,20 +55,11 @@ const NAV_ITEMS = [
     label: 'Auditoria',
     icon: Scale,
   },
-  {
-    href: '/portal/exportadores',
-    label: 'Meus Exportadores',
-    icon: Warehouse,
-  },
-  // Exportador e agente são papéis distintos e ficam lado a lado de propósito:
-  // o exportador é quem fabrica e embarca a carga (o "fornecedor" do cliente),
-  // o agente é quem move o frete. Foi por confundir os dois que o dashboard de
-  // Inteligência deixou de se chamar "Fornecedores".
-  {
-    href: '/portal/agentes',
-    label: 'Meus Agentes',
-    icon: Users,
-  },
+  // Meus Exportadores e Meus Agentes NAO sao itens deste menu desde 26/08/2026:
+  // sao telas de cadastro/configuracao e viraram abas de Minhas Preferencias
+  // (`preferencias/layout.tsx`), enquanto este nivel fica so com as telas
+  // operacionais do dia a dia. As rotas antigas continuam como redirect. O item
+  // abaixo cobre as tres pelo `startsWith` da regra de item ativo.
   {
     href: '/portal/preferencias',
     label: 'Minhas Preferências',

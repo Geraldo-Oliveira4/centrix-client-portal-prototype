@@ -44,11 +44,42 @@ export function FunnelTab({ data }: { data: PortalQuotationsResponse }) {
 
   const countOf = (bucket: PortalBucketKey) => data.buckets[bucket]?.length ?? 0;
 
+  // COMPOSICAO DOS TRES NUMEROS DO CABECALHO (conferida na fonte em 26/08/2026).
+  // Eles nao sao tres recortes independentes: sao um subconjunto e uma soma.
+  //
+  //   needsAction  ⊂  activeCount        (2 das 3 colunas)
+  //   activeCount  +  historyCount  =  data.total
+  //
+  // 1. `needsAction` = PORTAL_CLIENT_ACTION_BUCKETS (`types/portal.ts`) =
+  //    `aguardando_aprovacao` + `aguardando_dados`. Do lado do backend sao os
+  //    estados ENVIADA_CLIENTE, APROVADA_PELO_CLIENTE e AGUARDANDO_DADOS
+  //    (`shared/domain/portal_buckets.py`). E o unico numero da tela que fala de
+  //    quem esta com a bola: as outras cotacoes ativas esperam a Freitas ou os
+  //    agentes. Sempre subconjunto de `activeCount`.
+  //
+  // 2. `activeCount` = soma sobre `data.bucket_order`, que o backend define como
+  //    PORTAL_BUCKET_ORDER = as TRES colunas do Funil, nem uma a mais. Nao usa
+  //    `activeBuckets` (a lista renderizada) de proposito: aquela esconde
+  //    `aguardando_dados` quando vazio, e um bucket vazio soma zero de qualquer
+  //    forma — a contagem nao pode depender de quantas colunas foram desenhadas.
+  //
+  // 3. `data.total` = `len(quotations)` no handler `list_my_quotations`: TUDO que
+  //    o cliente tem, sem nenhuma exclusao. Inclui `finalizadas`
+  //    (FECHADA + DECLINADA) e `cancelada`, que sao exatamente o conteudo da aba
+  //    Historico — e, recortado, das abas Aprovadas e Reprovadas. Ou seja, o
+  //    "no total" NAO excluia as resolvidas; ele so nao dizia que as incluia.
+  //
+  // Por isso o texto abaixo mostra `historyCount` no lugar do total: com "de N
+  // ativas" e "M no Historico" as duas relacoes ficam legiveis na propria frase,
+  // e o total vira aritmetica do leitor em vez de um quarto numero opaco.
   const needsAction = PORTAL_CLIENT_ACTION_BUCKETS.reduce(
     (sum, bucket) => sum + countOf(bucket),
     0,
   );
   const activeCount = data.bucket_order.reduce((sum, bucket) => sum + countOf(bucket), 0);
+  // Mesma derivacao que `cotacoes/page.tsx` usa para o badge da aba Historico
+  // (`finalizadas` + `cancelada`), para os dois numeros nunca discordarem.
+  const historyCount = countOf('finalizadas') + countOf('cancelada');
 
   const filteredBuckets = useMemo(
     () =>
@@ -79,8 +110,9 @@ export function FunnelTab({ data }: { data: PortalQuotationsResponse }) {
               : 'cotações aguardando sua ação'}
           </p>
           <p className="portal-small text-portal-neutral">
-            {data.total} no total · {activeCount}{' '}
-            {activeCount === 1 ? 'ativa' : 'ativas'}
+            de {activeCount} {activeCount === 1 ? 'ativa' : 'ativas'} no funil ·{' '}
+            {historyCount}{' '}
+            {historyCount === 1 ? 'já resolvida' : 'já resolvidas'} no Histórico
           </p>
         </div>
 

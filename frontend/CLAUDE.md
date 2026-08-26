@@ -1083,9 +1083,17 @@ lands.
 Both modules are **read-only** and add **no backend endpoint** — they compose
 existing `GET` routes. Their sidebar entries live in
 `app/portal/components/portal-sidebar.tsx` (`Sparkles` → Inteligência,
-`Scale` → Auditoria). Meus Agentes (`Users`) e Minhas Preferências (`Settings`)
-moram lá também, mas **não** são read-only: são as duas únicas telas de conta
-que escrevem no backend (ver a seção delas adiante).
+`Scale` → Auditoria). Minhas Preferências (`Settings`) mora lá também, mas
+**não** é read-only: é a área de conta, e as telas dentro dela são as únicas do
+portal que escrevem no backend (ver a seção delas adiante).
+
+**A sidebar tem SEIS itens** (26/08/2026): Início, Minhas Cotações, Meus
+Embarques, Inteligência, Auditoria, Minhas Preferências. Fora a Home, é uma
+lista de telas OPERACIONAIS: Meus Exportadores e Meus Agentes eram itens de
+primeiro nível e desceram para dentro de Minhas Preferências — são
+cadastro/configuração, e no nível de cima se misturavam com o uso do dia a dia.
+Antes de acrescentar um item aqui, pergunte se ele é uma tela de trabalho ou de
+configuração; o segundo caso é uma aba de Preferências.
 
 Uma nota sobre o `preview` que vale para todo o portal: ele marca **número
 fabricado**. A única exceção documentada é o bloco "Perfil de operação" de
@@ -1315,6 +1323,100 @@ constantes do lib, nunca digitados na página.
     (`created_from_radar` em `KanbanCard`) — trocar uma marca pela outra tiraria
     a cotação de todo filtro de portal que a Grazi e a Duda já usam.
 
+### Home (`/portal/home/`) — a landing do portal
+
+Desenho validado com Victor Orsi e Vinicius (Claude Design, 26/08/2026). Responde
+três perguntas, nesta ordem: **"está tudo bem?"**, **"isto está valendo a
+pena?"** e **"o que depende de mim?"**. Landing pós-login e primeiro item da
+sidebar; `/portal` é um `redirect()` para cá.
+
+**Rota própria (`/portal/home`), não a raiz `/portal`.** A regra de item ativo da
+sidebar é `pathname.startsWith(href + '/')` — um item com href `/portal` ficaria
+aceso em todas as telas do portal.
+
+**SEM ENDPOINT NOVO E SEM CÁLCULO NOVO.** Tudo sai de `/portal/quotations` e
+`/portal/shipments`, as duas chaves SWR que o resto do portal já usa
+(deduplicadas, não é fetch a mais). Cada bloco importa a fonte que já existia — e
+é isso que impede a Home de discordar da tela para onde ela manda:
+
+| Bloco | Fonte reusada | Onde a mesma fonte já aparece |
+|---|---|---|
+| Farol de status | `countBySemaforo` + `SEMAFORO_LABELS` (`types/portal-shipment.ts`) | "Visão do todo" da aba Mapa |
+| Economia | `computeIllustrativeSavings` + `computeSavingsTrend` (`inteligencia/lib/illustrative-kpis.ts`) | Performance e Executivo |
+| Ações necessárias | `home/lib/home-actions.ts`, que RODA a pipeline do detalhe do embarque | faixa de Ação Necessária da timeline |
+| Rodapé "aguardando retorno" | balde `buscando_propostas` | coluna "Aguardando agentes" do Funil |
+
+A Home é ponto de COMPOSIÇÃO, como `embarques/[id]/page.tsx`: uma leitura de
+relógio por render (`now`), compartilhada pelo corte de mês da economia e pelos
+prazos das ações — duas chamadas a `new Date()` cairiam em dias diferentes na
+virada da meia-noite e "Expira hoje" discordaria do mês somado ao lado.
+
+#### `lib/home-actions.ts` — a fila do que depende do cliente
+
+Puro e unit-testado (`home-actions.test.ts`, 17 checagens). **Não descobre nada:**
+roda `buildTimelineSteps` -> `buildShipmentDocuments` -> `pendingClientDocuments`
+-> `buildStepInsights`, na mesma ordem da tela de detalhe, e coleta os gatilhos
+com `status === 'pendente'`. Uma segunda regra de "o que está pendente"
+divergiria da faixa de Ação Necessária na primeira mudança de qualquer uma das
+duas, e a Home pediria um documento que o embarque mostra como entregue.
+
+- **Duas fontes, não uma.** O embarque dá `documento` e `booking`; a COTAÇÃO dá
+  `proposta` e `dados`, via `PORTAL_CLIENT_ACTION_BUCKETS` — os mesmos dois
+  baldes do "X aguardando sua ação" do Funil. O "prazo pra confirmar" do desenho
+  só pode vir daí: **nada em `step-insights` data um gatilho**, o embarque não
+  tem prazo a cobrar do cliente.
+- **`buscando_propostas` NÃO entra na fila** (há teste). Lá a bola está com o
+  agente; ele é o rodapé, complemento das ações, não uma sexta linha.
+- **`applyLocalDocumentActions` não entra**: aquilo projeta o que o cliente
+  clicou na sessão da tela de detalhe, e a Home descreve o que o backend sabe.
+- **O prazo viaja como DATA CRUA (`deadline`) + dias (`daysLeft`)**: quem redige
+  é o `daysUntil` de `lib/portal-formatters`, o mesmo do card do Funil, para
+  "Expira hoje" ser a mesma frase nos dois lugares; `daysLeft` existe só para a
+  ordenação ser determinística sem depender do relógio de quem formata.
+- **Ordem**: categoria (proposta -> booking -> documento -> dados, por quanto
+  cada uma trava se ficar parada), depois prazo mais curto, depois id — o
+  desempate por id é só estabilidade entre renders, não significa nada.
+- **O corte é declarado.** `HOME_ACTION_LIMIT = 5`, e o retorno traz `total`; a
+  tela imprime "Mostrando 5 de 13 pendências" com atalho. Truncar em silêncio
+  leria como "é só isso".
+- **`REAL_STEPS` entra por argumento** (o módulo roda no runner do Node, que não
+  resolve o alias `@/`) — mesmo contrato de `buildTimelineSteps`.
+- **Jargão explicado inline**: "booking — a reserva de espaço no navio". `title`
+  e `ctaLabel` vêm de `StepAction` sem reescrita; a DESCRIÇÃO de uma linha é da
+  Home, porque os textos de `step-insights` são de uma faixa com o embarque em
+  volta e estão travados palavra por palavra em `step-insights.test.ts`.
+
+#### Regras dos dois cards da primeira dobra
+
+- **"Ver no mapa" leva ao chip "Com exceção" JÁ LIGADO**, e o recorte é exato:
+  aquele chip usa `isExceptionState`, cujos estados (`postergado`,
+  `booking_divergente`) são exatamente os que o semáforo pinta de laranja e
+  vermelho — ou seja, o N do "precisam da sua atenção". `home-actions.test.ts`
+  falha se um estado novo quebrar essa igualdade.
+- **`?filtro=` é deep link, não persistência.** `embarques/page.tsx` valida o
+  valor contra `SHIPMENT_FILTERS` (chave desconhecida vira `null`, nunca esvazia
+  a tela) e passa `initialFilter` ao `ShipmentMapView`, onde é SEMENTE do
+  `useState`. A regra "não guarde o filtro do Mapa em localStorage" continua
+  valendo — isto é o mesmo mecanismo do `?tab=lista&busca=1` do header.
+- **O número grande da economia é o DO MÊS, não o acumulado**, porque o badge ao
+  lado dele compara meses. A primeira versão mostrava o acumulado com "-100% vs.
+  mês passado" embaixo: as duas afirmações eram verdadeiras, falavam de janelas
+  diferentes, e liam como "a economia acumulada caiu 100%". O acumulado continua
+  na tela, como apoio. Uma pergunta, uma janela.
+- **`computeSavingsTrend` mora em `illustrative-kpis.ts`**, não na Home, e reusa
+  a MESMA `SAVINGS_PCT` do total — economia tem fonte única no portal. Como o
+  percentual é constante, `deltaPct` é a variação do que o cliente REALMENTE
+  fechou de um mês para o outro: ilustrativo é o valor absoluto, não a variação.
+- **Sem base, sem número.** Nenhuma cotação fechada -> o card diz isso em texto;
+  sem mês anterior -> o badge some (não existe variação contra zero). "R$ 0"
+  como resposta a "quanto você economizou" seria acusação, não lacuna — mesma
+  regra do `onTimePct`.
+- **CTA sempre ROSA**, inclusive nas linhas vermelhas: no portal a cor de marca
+  significa AÇÃO e o semáforo significa ESTADO. O tom da linha já aparece no
+  ícone e na barra lateral esquerda.
+- **Queda de economia não é vermelha.** O semáforo fala de saúde de carga;
+  pintar um KPI comercial com ele leria como embarque em risco.
+
 ### Minhas Cotações — Funil, Histórico, Aprovadas e Reprovadas (`/portal/cotacoes/`)
 
 Quatro abas, nesta ordem. **Funil** = cotação em andamento; **Histórico** =
@@ -1352,9 +1454,19 @@ Histórico, não telas novas: renderizam o MESMO `HistoryTab`, com a prop
 - **Funil** (`components/funnel-tab.tsx`): um único número dominante —
   "X cotações aguardando sua ação" = soma de `PORTAL_CLIENT_ACTION_BUCKETS`
   (`aguardando_aprovacao` + `aguardando_dados`, definido em `types/portal.ts`) —
-  com "N no total · N ativas" em texto secundário. As contagens por etapa já
-  estão nas colunas; **não** reintroduza tiles de KPI nem cards de atalho por
-  bucket (havia cinco tiles + dois cards dizendo o mesmo que o kanban).
+  com "de N ativas no funil · M já resolvidas no Histórico" em texto secundário.
+  As contagens por etapa já estão nas colunas; **não** reintroduza tiles de KPI
+  nem cards de atalho por bucket (havia cinco tiles + dois cards dizendo o mesmo
+  que o kanban).
+  A linha secundária dizia "N no total · N ativas" até 26/08/2026 e os três
+  números não declaravam a própria relação. Eles nunca foram três recortes
+  independentes: `needsAction` é **subconjunto** de `activeCount` (2 das 3
+  colunas), e `data.total` — que é `len(quotations)` no handler, TUDO, sem
+  exclusão nenhuma — é `activeCount` **+** o Histórico. O texto passou a nomear
+  as duas relações e o total saiu da tela por ser derivável; a composição de cada
+  número está documentada no comentário de bloco do próprio `funnel-tab.tsx`,
+  que é onde alguém vai procurar. Se um número novo entrar nessa linha, ele
+  precisa dizer de que conjunto sai.
   A coluna "Preencher detalhes" (`aguardando_dados`) só renderiza quando tem
   cotação: coluna vazia lê como pendência permanente. O seed do protótipo
   popula as **três** colunas de propósito (`scripts/seed_prototype.py`, q7-q9,
@@ -1366,6 +1478,15 @@ Histórico, não telas novas: renderizam o MESMO `HistoryTab`, com a prop
   (`PortalSearchInput`) + `Filtros` num popover compacto (`PortalFiltersMenu`).
   `applyPortalFilters` continua sendo a única implementação do filtro — a busca
   por referência/produto entra nela como `query`.
+- **Largura das colunas** (`components/kanban-column.tsx`): elástica
+  (`flex-1`, base 0), entre `min-w-80` e `max-w-[34rem]`. O piso é legibilidade
+  do card e é ele que devolve a rolagem horizontal do TRILHO (nunca da página)
+  em tela estreita; o teto existe porque o card tem linhas em `justify-between`
+  que viram vão interno se a coluna esticar sem limite. Medido: **3 × 363px
+  preenchendo os 1120px do container a 1440px** e **3 × 523px preenchendo os
+  1600px a 1920px** (sem sobra à direita nas duas), e trilho rolando a 1280px com
+  as colunas no piso de 320px. Não volte para largura fixa (`w-80`): era ela que
+  deixava o vão à direita em tela larga.
 - **Labels do kanban** (`PORTAL_BUCKET_LABELS`): "Preencher detalhes",
   "Aguardando agentes", "Escolha sua proposta" — sempre na perspectiva do
   cliente. É o único lugar onde se renomeia etapa; não escreva label solto na
@@ -1466,19 +1587,44 @@ componente para a lista e o cabeçalho do detalhe: dois desenhos independentes
 poderiam discordar sobre a mesma contagem. Nada disso muda o status conceitual —
 banner "Conceitual" e selos `preview` seguem intactos.
 
-### Meus Agentes (`/portal/agentes/`) e Minhas Preferências (`/portal/preferencias/`)
+### Minhas Preferências (`/portal/preferencias/`) — três abas
 
-Duas telas de conta, ao lado de Meus Exportadores na sidebar. **Exportador e
-agente são papéis distintos** e ficam separados de propósito: o exportador
-fabrica e embarca a carga, o agente move o frete.
+A área de conta do portal, e desde 26/08/2026 o único item de configuração da
+sidebar. Três abas, no padrão de `inteligencia/layout.tsx` (faixa de links
+`border-b`, item ativo por `pathname === href`) — **não invente um terceiro
+padrão de navegação**:
 
-`agentes/page.tsx` — os agentes que a Freitas pré-aprovou, via `useMyAgents()`
+| Aba | Rota | Arquivo |
+|---|---|---|
+| Perfil e notificações | `/portal/preferencias` | `preferencias/page.tsx` |
+| Meus Exportadores | `/portal/preferencias/exportadores` | `preferencias/exportadores/page.tsx` |
+| Meus Agentes | `/portal/preferencias/agentes` | `preferencias/agentes/page.tsx` |
+
+- **As duas últimas eram itens de primeiro nível da sidebar** e desceram para cá
+  porque são telas de CADASTRO/CONFIGURAÇÃO — no nível de cima se misturavam com
+  as operacionais. Nada do conteúdo mudou na mudança: cada página continua com o
+  próprio `PagePortalHeader`, como as abas de Inteligência fazem.
+- **As rotas antigas continuam existindo como redirect** (`portal/exportadores/`
+  e `portal/agentes/` viraram `page.tsx` de uma linha com `redirect()`, mesmo
+  padrão de `inteligencia/page.tsx`). São para links diretos e favoritos; não as
+  remova sem saber que ninguém mais chega por ali.
+- **Exportador e agente são papéis distintos** e ficam lado a lado de propósito:
+  o exportador fabrica e embarca a carga, o agente move o frete. Foi por
+  confundir os dois que o dashboard de Inteligência deixou de se chamar
+  "Fornecedores".
+
+`preferencias/exportadores/page.tsx` — os exportadores que o próprio cliente
+cadastra (`useMyExporters()`), disponíveis para vincular numa nova cotação. É a
+única tela de cadastro de verdade do portal: agente o cliente só seleciona.
+
+`preferencias/agentes/page.tsx` — os agentes que a Freitas pré-aprovou, via `useMyAgents()`
 (`hooks/use-portal-agents.ts` → `GET /portal/agents`). Três regras:
 
 - **O cliente não cadastra agente**, seleciona entre os pré-aprovados. O CTA
-  "Solicitar novo agente" (`components/request-agent-modal.tsx`) é PEDIDO: não
-  existe fila de avaliação neste repo, então o botão de envio encerra dizendo
-  que nada foi enviado — mesmo contrato do `dispute-draft-modal` da Auditoria.
+  "Solicitar novo agente" (`preferencias/agentes/components/request-agent-modal.tsx`)
+  é PEDIDO: não existe fila de avaliação neste repo, então o botão de envio
+  encerra dizendo que nada foi enviado — mesmo contrato do `dispute-draft-modal`
+  da Auditoria.
 - **O toggle ativo/pausado não é decorativo**: `setAgentActive` grava em
   `PUT /portal/preferences` e o backend (`app/agent_pause.py`) tira o agente
   pausado da montagem da RFQ. Vale para as **próximas** cotações — RFQ já

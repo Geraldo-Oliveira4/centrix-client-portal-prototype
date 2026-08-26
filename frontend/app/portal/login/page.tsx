@@ -76,7 +76,7 @@ export default function PortalLoginPage() {
         },
       });
 
-      router.push('/portal/cotacoes');
+      router.push('/portal/home');
     } catch (err) {
       const status = axios.isAxiosError(err) ? err.response?.status : null;
       const data = axios.isAxiosError(err) ? err.response?.data : null;

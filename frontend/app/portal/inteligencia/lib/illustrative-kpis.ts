@@ -98,3 +98,75 @@ export function computeOnTimeRate(shipments: PortalShipment[]): OnTimeRate | nul
     total: shipments.length,
   };
 }
+
+/**
+ * Economia do mês corrente contra a do mês anterior — a comparação que o card
+ * da Home imprime ("+X% vs. mês passado").
+ *
+ * MORA AQUI, e não na Home, pela mesma razão que `computeIllustrativeSavings`
+ * mora aqui: economia tem fonte ÚNICA no portal. Um segundo cálculo na Home
+ * poderia dizer "R$ 48 mil" enquanto o Performance diz outra coisa — foi
+ * exatamente esse conflito que zerou o número nas duas telas em 05/08/2026.
+ * Nada aqui redefine o percentual: reusa a MESMA `SAVINGS_PCT` do total.
+ *
+ * A PARTE HONESTA DA COMPARAÇÃO: como o percentual é constante, `deltaPct` é a
+ * variação do que o cliente REALMENTE fechou de um mês para o outro. O que é
+ * ilustrativo é o valor absoluto em reais, não a variação. Por isso a Home pode
+ * mostrar o badge sem selo, no mesmo espírito do resto do portal pós-12/08/2026.
+ *
+ * `now` entra por parâmetro em vez de `new Date()` interno para o corte de mês
+ * ser testável e para a tela não mudar de resposta na virada da meia-noite
+ * enquanto o cliente a lê — mesma disciplina do `observedAt` dos alertas.
+ *
+ * Devolve null quando não há base em NENHUM dos dois meses: sem nada fechado,
+ * "0%" seria uma afirmação ("você não economizou"), não uma lacuna.
+ */
+export interface SavingsTrend {
+  /** Economia ilustrativa do mês corrente. */
+  currentBRL: number;
+  /** Economia ilustrativa do mês anterior. */
+  previousBRL: number;
+  /**
+   * Variação percentual sobre o mês anterior, arredondada. Null quando o mês
+   * anterior não teve base — não existe "variação" contra zero, e imprimir
+   * "+100%" ali seria inventar um ponto de partida.
+   */
+  deltaPct: number | null;
+}
+
+export function computeSavingsTrend(
+  quotations: PortalQuotation[],
+  now: Date,
+): SavingsTrend | null {
+  // Restrição de `resolveClosedAt` (lib/portal-state.ts) ao caso FECHADA: o
+  // state machine grava `closed_at` no fechamento, e `declined_at` — o outro
+  // ramo daquela função — não se aplica a nada que entre nesta soma.
+  const closedAt = (q: PortalQuotation) => q.closed_at ?? q.updated_at ?? q.created_at;
+
+  const monthKey = (d: Date) => d.getFullYear() * 12 + d.getMonth();
+  const currentKey = monthKey(now);
+  const previousKey = currentKey - 1;
+
+  let currentBase = 0;
+  let previousBase = 0;
+
+  for (const q of quotations) {
+    if (q.state !== 'FECHADA') continue;
+    const value = q.best_proposal?.total_brl ?? 0;
+    if (value <= 0) continue;
+    const key = monthKey(new Date(closedAt(q)));
+    if (key === currentKey) currentBase += value;
+    else if (key === previousKey) previousBase += value;
+  }
+
+  if (currentBase <= 0 && previousBase <= 0) return null;
+
+  return {
+    currentBRL: Math.round(currentBase * SAVINGS_PCT),
+    previousBRL: Math.round(previousBase * SAVINGS_PCT),
+    deltaPct:
+      previousBase > 0
+        ? Math.round(((currentBase - previousBase) / previousBase) * 100)
+        : null,
+  };
+}

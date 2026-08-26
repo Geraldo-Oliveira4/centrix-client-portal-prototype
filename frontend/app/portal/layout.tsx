@@ -27,7 +27,8 @@ export default function PortalLayout({
   useEffect(() => {
     if (isPublic) {
       if (portalSession.isAuthenticated()) {
-        router.replace('/portal/cotacoes');
+        // Landing do portal: a Home. Era `/portal/cotacoes` até a Home existir.
+        router.replace('/portal/home');
         return;
       }
       setAuthChecked(true);

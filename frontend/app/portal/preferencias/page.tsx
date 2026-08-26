@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Bell, Info, Save, SlidersHorizontal } from 'lucide-react';
+import { Bell, Info, Save, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { LoaderComponent, ErrorComponent } from '@arboria-tech/arboria-ui';
 
@@ -232,7 +232,7 @@ export default function PortalPreferenciasPage() {
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               Esta é a mesma lista do toggle de{' '}
               <Link
-                href="/portal/agentes"
+                href="/portal/preferencias/agentes"
                 className="font-medium text-primary hover:underline"
               >
                 Meus Agentes
@@ -242,13 +242,12 @@ export default function PortalPreferenciasPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-dashed pt-4">
-          <Button asChild variant="outline" className="gap-1.5">
-            <Link href="/portal/agentes">
-              Ir para Meus Agentes
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
+        {/* Só o Salvar. Havia um "Ir para Meus Agentes" ao lado dele, de quando
+            Meus Agentes era item da sidebar; com a tela virando aba desta mesma
+            Preferências (26/08/2026) ele passou a mandar o cliente para um lugar
+            visível a dois centímetros dali, e saiu. `justify-end` mantém o
+            Salvar na borda direita, onde ele já renderizava. */}
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-dashed pt-4">
           <Button onClick={handleSave} disabled={saving} className="gap-1.5">
             <Save className="h-4 w-4" />
             {saving ? 'Salvando...' : 'Salvar preferências'}

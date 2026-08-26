@@ -21,6 +21,10 @@ import { ShipmentListTab } from './components/shipment-list-tab';
 import { ShipmentAlertsTab } from './components/shipment-alerts-tab';
 import { buildPriceAlerts } from './lib/price-alerts';
 import { buildShipmentAlerts } from './lib/shipment-alerts';
+import {
+  SHIPMENT_FILTERS,
+  type ShipmentFilterKey,
+} from './lib/shipment-filters';
 
 const READ_KEY = 'portal:shipment-alerts:read';
 
@@ -34,6 +38,12 @@ type ShipmentTab = (typeof TABS)[number];
 const isShipmentTab = (value: string | null): value is ShipmentTab =>
   value != null && (TABS as readonly string[]).includes(value);
 
+// Chaves válidas para `?filtro=`, derivadas de `SHIPMENT_FILTERS` em vez de
+// digitadas aqui: um chip novo passa a ser deep-linkável sozinho, e um removido
+// deixa de ser aceito sem ninguém precisar lembrar desta linha.
+const isShipmentFilterKey = (value: string | null): value is ShipmentFilterKey =>
+  value != null && SHIPMENT_FILTERS.some((f) => f.key === value);
+
 function PortalEmbarquesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -45,6 +55,12 @@ function PortalEmbarquesContent() {
   // Lista tab and expands its search field.
   const tabParam = searchParams.get('tab');
   const buscaParam = searchParams.get('busca');
+  // `?filtro=` semeia o chip do Mapa. É o que faz "Ver no mapa" do farol da Home
+  // chegar com o recorte JÁ aplicado em vez de despejar a carteira inteira e
+  // pedir mais um clique. Valor desconhecido vira null — um filtro que ninguém
+  // reconhece não pode esvaziar a tela, mesma regra de `filterShipments`.
+  const filtroParam = searchParams.get('filtro');
+  const initialMapFilter = isShipmentFilterKey(filtroParam) ? filtroParam : null;
   const [tab, setTab] = useState<ShipmentTab>(
     isShipmentTab(tabParam) ? tabParam : 'lista',
   );
@@ -227,6 +243,7 @@ function PortalEmbarquesContent() {
               readIds={readIds}
               enabledTypes={enabledTypes}
               onSeeAllAlerts={() => setTab('alertas')}
+              initialFilter={initialMapFilter}
             />
           </TabsContent>
         </Tabs>
