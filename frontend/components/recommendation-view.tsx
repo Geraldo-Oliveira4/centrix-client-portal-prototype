@@ -4,7 +4,11 @@ import type { ReactNode } from 'react';
 import { AlertTriangle, CheckCircle2, Star, TriangleAlert } from 'lucide-react';
 import { Badge } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import { formatBRL } from '@/lib/portal-formatters';
 import type { ProposalScore, RecommendationResult } from '@/types/quotation';
+// Type-only: apagado na compilacao, entao o bundle do analista nao passa a
+// depender de nada do portal. O calculo mora no portal porque so ele usa.
+import type { RecommendationGap } from '@/app/portal/cotacao/lib/recommendation-gap';
 
 // Shared, read-only presentation of the AI recommendation. Used by both the
 // analyst RecommendationPanel (which adds the "Sobrescrever" action + dialog via
@@ -36,6 +40,15 @@ import type { ProposalScore, RecommendationResult } from '@/types/quotation';
 // history would invent a data source, and the "Evidência" block on the same
 // screen is the one that actually reads history. Soften the stamp, do not
 // relocate it onto a source that does not exist.
+//
+// SEGUNDA RODADA (27/08/2026): a frase acima, sozinha, ficou rasa. Sem placar E
+// sem fato, a secao virou opiniao. O portal agora recebe `gap` — a maior
+// diferenca REAL entre a recomendada e a segunda colocada, tirada dos mesmos
+// numeros da tabela comparativa logo acima (ver
+// `app/portal/cotacao/lib/recommendation-gap.ts`). Uma ou duas diferencas, em
+// linguagem corrente, e so quando sao vantagem de verdade. Isso NAO e o placar
+// voltando: e um numero que o cliente confere subtraindo duas celulas da tabela
+// com os olhos, nao uma nota que so o modelo sabe produzir.
 
 function ScoreBar({
   value,
@@ -208,6 +221,24 @@ function PortalScoreLine({
   );
 }
 
+/**
+ * Redige as vantagens em linguagem corrente. O plural e explicito porque
+ * "1 dias antes" denuncia string montada por maquina numa tela que esta
+ * justamente tentando soar como uma pessoa explicando.
+ */
+function gapFacts(gap: RecommendationGap): string[] {
+  const facts: string[] = [];
+  if (gap.transitDaysSaved != null) {
+    facts.push(
+      `chega ${gap.transitDaysSaved} ${gap.transitDaysSaved === 1 ? 'dia' : 'dias'} antes`,
+    );
+  }
+  if (gap.brlSaved != null) {
+    facts.push(`custa ${formatBRL(gap.brlSaved)} a menos`);
+  }
+  return facts;
+}
+
 interface RecommendationViewProps {
   recommendation?: RecommendationResult | null;
   /** Shows the loading skeleton; keeps the loading UI in one place for both surfaces. */
@@ -220,6 +251,12 @@ interface RecommendationViewProps {
    * the client does not get the score apparatus.
    */
   variant?: 'default' | 'portal';
+  /**
+   * Portal only: a diferenca real contra a segunda colocada, quando existe.
+   * Ausente (ou null) faz a frase cair na versao qualitativa — nunca inventa
+   * numero para preencher o espaco.
+   */
+  gap?: RecommendationGap | null;
 }
 
 export function RecommendationView({
@@ -227,6 +264,7 @@ export function RecommendationView({
   isLoading,
   headerAction,
   variant = 'default',
+  gap,
 }: RecommendationViewProps) {
   const isPortal = variant === 'portal';
 
@@ -255,6 +293,7 @@ export function RecommendationView({
   const recommendedName = recommendation.scores.find(
     (s) => s.proposal_id === recommendation.recommended_proposal_id,
   )?.agent_name;
+  const portalFacts = isPortal && gap ? gapFacts(gap) : [];
 
   return (
     <div
@@ -306,13 +345,25 @@ export function RecommendationView({
         {isPortal ? (
           // Data, not a stamp: it describes what the comparison found, it does
           // not tell the client what to contract. No green box, no icon, no
-          // score — see the module comment (ZO4).
+          // score — see the module comment (ZO4). Com `gap`, a frase carrega a
+          // diferenca concreta; sem ele, cai na versao qualitativa.
           recommendedName ? (
             <p className="portal-body text-foreground">
               Entre as propostas recebidas,{' '}
-              <span className="font-medium">{recommendedName}</span> foi a que
-              apresentou o melhor equilíbrio entre custo, prazo e condições. A
-              escolha é sua.
+              <span className="font-medium">{recommendedName}</span>{' '}
+              {portalFacts.length > 0 && gap ? (
+                <>
+                  {portalFacts.join(' e ')} que{' '}
+                  <span className="font-medium">{gap.runnerUpName}</span>, a
+                  segunda colocada.
+                </>
+              ) : (
+                <>
+                  foi a que apresentou o melhor equilíbrio entre custo, prazo e
+                  condições.
+                </>
+              )}{' '}
+              A escolha é sua.
             </p>
           ) : null
         ) : (

@@ -36,7 +36,14 @@ function referenceProposal(
  * is still open) against a fabricated sector benchmark. The value is real; the
  * benchmark it is measured against is illustrative.
  */
-export function MarketBlock({ proposals }: { proposals: PortalProposal[] }) {
+export function MarketBlock({
+  proposals,
+  className,
+}: {
+  proposals: PortalProposal[];
+  /** `h-full` quando o bloco divide a linha com a Confiabilidade. */
+  className?: string;
+}) {
   const ref = referenceProposal(proposals);
   const value = ref?.total_brl ?? null;
   const benchmark = value != null ? Math.round(value * BENCHMARK_FACTOR) : null;
@@ -54,14 +61,22 @@ export function MarketBlock({ proposals }: { proposals: PortalProposal[] }) {
       title="Mercado"
       question="O preço está competitivo?"
       provenance="preview"
+      className={className}
       footnote="O valor desta cotação é real (proposta recebida). O benchmark do setor é ilustrativo — não há base de preços de mercado neste protótipo."
     >
+      {/* `justify-center` só importa quando este bloco divide a linha com a
+          Confiabilidade (que carrega a Evidência dentro e é bem mais alta): o
+          grid estica os dois na mesma altura, e sem isto o conteúdo curto
+          ficava grudado no topo com ~300px de vazio abaixo — igualar altura sem
+          distribuir o conteúdo lê como card truncado, não como par equilibrado.
+          Sozinho em largura total o efeito é nulo, porque aí não há altura
+          sobrando. */}
       {value == null ? (
         <p className="portal-body text-portal-neutral">
           Esta cotação ainda não tem proposta com valor para comparar.
         </p>
       ) : (
-        <div className="space-y-4">
+        <div className="flex h-full flex-col justify-center gap-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="portal-card-muted space-y-1 p-3">
               <p className="portal-small text-portal-neutral">

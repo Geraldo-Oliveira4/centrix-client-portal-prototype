@@ -1241,9 +1241,9 @@ Distribuição dos blocos (o `provenance` de cada um **não muda** com o local):
 | Bloco (arquivo) | Onde vive agora | Badge | Real vs Mockado |
 |---|---|---|---|
 | Decisão (`decision-block.tsx`) | **Coberta** pelo painel "Recomendação" (`recommendation-panel.tsx`) no detalhe da cotação — o bloco não é mais renderizado (arquivo mantido) | `real` | **Real:** recomendação por IA (score determinístico, exibido sem número) |
-| Confiabilidade (`reliability-block.tsx`) | Detalhe da cotação, painel ao lado das propostas | `preview` | **Real:** nomes dos agentes. **Mock:** scores (`seededInt`), que desde 27/08/2026 só ordenam a lista e escolhem o rótulo — nem número nem barra vão para a tela |
+| Confiabilidade (`reliability-block.tsx` -> `ReliabilityBody`) | Metade de cima do card composto `agent-trust-block.tsx`, no detalhe da cotação | `preview` (no sub-bloco) | **Real:** nomes dos agentes. **Mock:** scores (`seededInt`), que desde 27/08/2026 só ordenam a lista e escolhem o rótulo — nem número nem barra vão para a tela |
 | Mercado (`market-block.tsx`) | Detalhe da cotação, painel ao lado das propostas | `preview` | **Real:** seu preço médio. **Mock:** benchmark do setor (`avg × 1.08`) |
-| Evidência (`evidence-block.tsx`) | Detalhe da cotação, painel ao lado das propostas ("embarques semelhantes") | `real` | **Real:** cards de embarques do histórico **e a frase de conclusão** (`lib/evidence-summary.ts`, sobre `estado`). **Mock:** critério de semelhança (agente + modal, sem rota/produto) |
+| Evidência (`evidence-block.tsx` -> `useEvidence` + `EvidenceBody`) | Metade de baixo do MESMO card ("O que já vimos com esse agente") | `real` (no sub-bloco) | **Real:** cards de embarques do histórico **e a frase de conclusão** (`lib/evidence-summary.ts`, sobre `estado`). **Mock:** critério de semelhança (agente + modal, sem rota/produto) |
 | Risco (`risk-block.tsx`) | Detalhe da cotação, junto da seção Auditoria (só FECHADA) | `preview` | **Real:** sinais de campos reais + refs. **Mock:** a "análise de risco" consolidada |
 | Prazo (`deadline-block.tsx`) | **Removido** de `/portal/embarques` (o "Prazo 87%" não tinha lastro; o resumo da aba Mapa mostra contagem real, não percentual inventado). Arquivo mantido, sem uso — candidato a remoção | `preview` | **Real:** contagem de embarques. **Mock:** % no prazo (constante 87%) |
 
@@ -1305,13 +1305,58 @@ Na mesma rodada, e pelo mesmo motivo (a régua que imitava o placar):
   exibida (`EVIDENCE_WINDOW`), para o cliente conferir a conta na lista logo
   abaixo. Recorte em cascata agente+modal -> modal -> qualquer, e o rodapé
   declara qual foi usado.
-- **Composição de custos recolhida por padrão**
-  (`cotacao/[id]/components/cost-breakdown-section.tsx`): Frete, Total, Transit
-  time e Validade já estão na tabela de propostas, lado a lado com as
-  concorrentes, que é onde a comparação acontece. Abertos no fim da tela eles
-  tinham o peso visual da comparação sem informação nova. Os "Possíveis Custos
-  Adicionais" são a única parte que a tabela não mostra — é ela que justifica o
-  rótulo falar em composição, não em "detalhes".
+- **A seção "Detalhes" foi RECOLHIDA e depois REMOVIDA** (segunda rodada, mesma
+  data). Frete, Total, Transit time e Validade já estão na tabela de propostas,
+  lado a lado com as concorrentes, que é onde a comparação acontece — recolhida
+  a seção ainda custava um clique e uma linha para não entregar nada novo.
+  Foram-se com ela `cost-breakdown-section.tsx`, `proposal-details-card.tsx` e
+  `additional-costs-card.tsx`. **Não reintroduza.** Sobre o último: `AdditionalCostsCard`
+  era a única parte que a tabela não mostrava, mas `Proposal.additional_costs` é
+  JSONB que nenhum seed e nenhum handler deste repositório escreve — era código
+  morto na prática. Quando a extração de PDF passar a preencher a coluna, o
+  lugar dele é uma linha da tabela comparativa, não um card no rodapé.
+
+#### Segunda rodada da mesma tela: fato de volta, sem placar (27/08/2026)
+
+Feedback do Vinicius depois de ver a primeira correção rodando: **"minimalista"
+não é "vazio"**. Sem o placar E sem nenhum número, a Recomendação virou opinião
+sem lastro. As quatro mudanças:
+
+- **A frase carrega a maior diferença REAL contra a segunda colocada**
+  (`app/portal/cotacao/lib/recommendation-gap.ts`, puro e unit-testado):
+  "AGENTE ALPHA custa R$ 600,00 a menos que AGENTE BETA, a segunda colocada".
+  Não é o placar voltando — é uma subtração que o cliente refaz com os olhos
+  sobre duas células da tabela logo acima. Três regras no cabeçalho do módulo, e
+  a do meio é a que não pode afrouxar: **uma dimensão só entra na frase quando é
+  vantagem**. Na COT-2026-0001 a recomendada é mais barata e 4 dias MAIS LENTA;
+  a frase fala do preço e cala sobre o prazo, que continua visível na tabela.
+  Sem vantagem mensurável (proposta única, ou recomendada que vence por rota e
+  perde em preço e prazo) a função devolve `null` e a tela cai na frase
+  qualitativa — genérico é melhor que número torcido.
+- **Confiabilidade e Evidência viraram UM card** (`agent-trust-block.tsx`): as
+  duas respondem "posso confiar nesse agente?" em níveis de certeza diferentes,
+  e separadas nenhuma explicava por que existia — a primeira era rótulo sem
+  prova, a segunda prova sem pergunta. `reliability-block.tsx` e
+  `evidence-block.tsx` passaram a exportar CORPO (`ReliabilityBody`,
+  `useEvidence` + `EvidenceBody`) em vez de card próprio.
+- **A proveniência não se mistura dentro do card composto.** É o único card do
+  portal **sem selo no topo**, e é de propósito: um selo ali teria de mentir
+  sobre uma das metades. Cada `IntelSubBlock` (novo, em `intel-block.tsx`)
+  carrega o seu — a metade ilustrativa mantém a moldura tracejada + "Pré-visualização",
+  a metade real fica na superfície limpa + "Dado real". `IntelBlock` ganhou
+  `provenance` opcional só para isso; não use a versão sem selo para escapar de
+  declarar a proveniência de um bloco simples.
+- **O par lado a lado estica na mesma altura** (o grid perdeu o `items-start`) e
+  o Mercado **centra o próprio conteúdo** (`justify-center`). Igualar altura sem
+  distribuir o conteúdo produzia ~300px de vazio abaixo do texto do Mercado, que
+  lê como card truncado, não como par equilibrado. Medido: 711px nos dois a
+  1440px; a 390px empilham e o `justify-center` não tem efeito, porque não há
+  altura sobrando.
+
+**A ordem da página é narrativa, não arbitrária**: Recomendação (qual escolher)
+-> Confiabilidade com Evidência dentro (posso confiar) -> Mercado (o preço está
+competitivo) -> Dados da cotação (o dado bruto para conferir). Está comentada em
+`cotacao/[id]/page.tsx`; mexer nela quebra a leitura, não só o layout.
 
 #### Radar de Preços (`inteligencia/radar/` + `lib/price-radar.ts`)
 

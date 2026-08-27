@@ -27,16 +27,14 @@ import type { PortalProposal } from '@/types/portal';
 
 import { ClientReferenceTag } from '../../_shared/client-reference-tag';
 import { ModalIcon } from '../../_shared/modal-icon';
-import { ReliabilityBlock } from '../../inteligencia/components/reliability-block';
+import { AgentTrustBlock } from '../../inteligencia/components/agent-trust-block';
 import { MarketBlock } from '../../inteligencia/components/market-block';
 import { RiskBlock } from '../../inteligencia/components/risk-block';
-import { EvidenceBlock } from '../../inteligencia/components/evidence-block';
 import { AuditPreviewSection } from './components/audit-preview-section';
 import { ApproveDialog } from './components/approve-dialog';
 import { CancelDialog } from './components/cancel-dialog';
 import { DeclineDialog } from './components/decline-dialog';
 import { DocumentsSection } from './components/documents-section';
-import { CostBreakdownSection } from './components/cost-breakdown-section';
 import { HistoryTimeline } from './components/history-timeline';
 import { ProposalsTable } from './components/proposals-table';
 import { RecommendationPanel } from './components/recommendation-panel';
@@ -110,8 +108,10 @@ export default function PortalCotacaoDetailPage() {
   // on portal origin — analyst-created quotations never show this card.
   const showShipmentInstruction =
     isPortalOrigin && (canGenerateSI || isApproved(quotation.state));
-  const showProposalDetails =
-    !isDeclined(quotation.state) && !isCancelled(quotation.state) && !needsInfo;
+  // Os tres blocos da narrativa de decisao so fazem sentido com proposta na
+  // mesa: sem elas nao ha o que recomendar, com que confiar nem que comparar.
+  const showIntelligence =
+    !needsInfo && !isCancelled(quotation.state) && proposals.length > 0;
   const showRfqAssembly =
     canAssembleRfq(quotation.state) && proposals.length === 0 && isPortalOrigin;
 
@@ -201,33 +201,43 @@ export default function PortalCotacaoDetailPage() {
         />
       ) : null}
 
-      {/* Decisao: coberta pelo painel "Recomendacao por IA" abaixo (nao duplicada). */}
-      {!needsInfo && !isCancelled(quotation.state) && proposals.length > 0 ? (
-        <RecommendationPanel quotationId={quotation.id} />
+      {/* NARRATIVA DE DECISAO (27/08/2026, feedback do Vinicius). A ordem dos
+          tres blocos abaixo NAO e arbitraria, e e o que a tela responde nesta
+          sequencia:
+
+            1. Recomendacao   -> qual escolher, e por que, com a diferenca real
+                                 contra a segunda colocada
+            2. Confiabilidade -> posso confiar nesse agente (perfil ilustrativo
+                                 + Evidencia real dos embarques passados, MESMO
+                                 card — ver AgentTrustBlock)
+            3. Mercado        -> o preco esta competitivo
+            4. Dados da cotacao (QuotationFooterCard, ja no fim) -> o dado bruto
+                                 para quem quiser conferir
+
+          Decisao primeiro, prova de confianca depois, contexto de preco em
+          seguida, dado bruto por ultimo. Mexer na ordem quebra a leitura, nao
+          so o layout.
+
+          A secao "Detalhes" (Frete/Total/Transit/Validade) foi REMOVIDA nesta
+          data: os quatro numeros ja estao na tabela comparativa, lado a lado
+          com as concorrentes, que e onde a comparacao acontece. Recolhida ela
+          ainda ocupava um clique e uma linha; nao volte com ela. */}
+
+      {/* Decisao: coberta pelo painel "Recomendacao" abaixo (nao duplicada). */}
+      {showIntelligence ? (
+        <RecommendationPanel quotationId={quotation.id} proposals={proposals} />
       ) : null}
 
-      {/* Inteligencia da cotacao (blocos do canvas, relocados) — decisao
-          apoiada por Confiabilidade dos agentes, Mercado (preco) e Evidencia
-          de embarques semelhantes, ao lado da comparacao de propostas. Cada
-          bloco mantem seu ProvenanceBadge (real vs pre-visualizacao). */}
-      {!needsInfo && !isCancelled(quotation.state) && proposals.length > 0 ? (
-        <div className="space-y-4">
-          {/* Linha 1: Confiabilidade e Mercado lado a lado (blocos curtos).
-              Linha 2: Evidencia em largura total (bloco mais alto). Evita o vao
-              a direita que o grid unico de 2 colunas criava. */}
-          <div className="grid items-start gap-4 lg:grid-cols-2">
-            <ReliabilityBlock proposals={proposals} />
-            <MarketBlock proposals={proposals} />
-          </div>
-          <EvidenceBlock quotation={quotation} />
+      {/* Confiabilidade (com Evidencia dentro) e Mercado lado a lado, esticados
+          na mesma altura: sem `items-start` o grid alinha os dois pelo mais
+          alto, e o rodape de cada card desce para a base (`mt-auto` nao e
+          preciso porque IntelBlock ja empurra o corpo com `flex-1`). Abaixo de
+          `lg` empilham na mesma ordem da narrativa. */}
+      {showIntelligence ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <AgentTrustBlock quotation={quotation} proposals={proposals} />
+          <MarketBlock proposals={proposals} className="h-full" />
         </div>
-      ) : null}
-
-      {/* Composicao de custos: recolhida por padrao. Os mesmos numeros ja estao
-          na tabela de propostas acima, lado a lado com as concorrentes — ver o
-          comentario de CostBreakdownSection. */}
-      {showProposalDetails && selected ? (
-        <CostBreakdownSection proposal={selected} />
       ) : null}
 
       <QuotationFooterCard quotation={quotation} />
