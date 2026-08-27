@@ -402,10 +402,13 @@ if the licence never lands (humanist, far closer to Avenir than the geometric
 Montserrat).
 
 **Shared components on a portal surface** — do not fork them. `RecommendationView`
-takes `variant="portal"`, which swaps only its shell and header for
-`.portal-card` + `.portal-h2`; the analyst and public-proposal surfaces keep the
+takes `variant="portal"`; the analyst and public-proposal surfaces keep the
 default. Follow that pattern for any other shared component that has to sit on a
 portal screen.
+
+Desde 27/08/2026 o `variant="portal"` troca também o CORPO, não só a casca —
+e a divergência é o ponto, não deriva. Ver a seção "Recomendação no portal"
+adiante antes de mexer.
 
 **PO do cliente (`client_reference`) — identificador de rastreio adicional.**
 O número que o cliente digita na cotação ("PO-12345") acompanha a jornada
@@ -1237,16 +1240,78 @@ Distribuição dos blocos (o `provenance` de cada um **não muda** com o local):
 
 | Bloco (arquivo) | Onde vive agora | Badge | Real vs Mockado |
 |---|---|---|---|
-| Decisão (`decision-block.tsx`) | **Coberta** pelo painel "Recomendação por IA" (`recommendation-panel.tsx`) no detalhe da cotação — o bloco não é mais renderizado (arquivo mantido) | `real` | **Real:** recomendação por IA (score determinístico) |
-| Confiabilidade (`reliability-block.tsx`) | Detalhe da cotação, painel ao lado das propostas | `preview` | **Real:** nomes dos agentes. **Mock:** scores + média (`seededInt`) |
+| Decisão (`decision-block.tsx`) | **Coberta** pelo painel "Recomendação" (`recommendation-panel.tsx`) no detalhe da cotação — o bloco não é mais renderizado (arquivo mantido) | `real` | **Real:** recomendação por IA (score determinístico, exibido sem número) |
+| Confiabilidade (`reliability-block.tsx`) | Detalhe da cotação, painel ao lado das propostas | `preview` | **Real:** nomes dos agentes. **Mock:** scores (`seededInt`), que desde 27/08/2026 só ordenam a lista e escolhem o rótulo — nem número nem barra vão para a tela |
 | Mercado (`market-block.tsx`) | Detalhe da cotação, painel ao lado das propostas | `preview` | **Real:** seu preço médio. **Mock:** benchmark do setor (`avg × 1.08`) |
-| Evidência (`evidence-block.tsx`) | Detalhe da cotação, painel ao lado das propostas ("embarques semelhantes") | `real` | **Real:** cards de embarques do histórico. **Mock:** critério de semelhança de rota |
+| Evidência (`evidence-block.tsx`) | Detalhe da cotação, painel ao lado das propostas ("embarques semelhantes") | `real` | **Real:** cards de embarques do histórico **e a frase de conclusão** (`lib/evidence-summary.ts`, sobre `estado`). **Mock:** critério de semelhança (agente + modal, sem rota/produto) |
 | Risco (`risk-block.tsx`) | Detalhe da cotação, junto da seção Auditoria (só FECHADA) | `preview` | **Real:** sinais de campos reais + refs. **Mock:** a "análise de risco" consolidada |
 | Prazo (`deadline-block.tsx`) | **Removido** de `/portal/embarques` (o "Prazo 87%" não tinha lastro; o resumo da aba Mapa mostra contagem real, não percentual inventado). Arquivo mantido, sem uso — candidato a remoção | `preview` | **Real:** contagem de embarques. **Mock:** % no prazo (constante 87%) |
 
 Ao mexer num bloco, mantenha o `provenance` coerente com o **headline**: se o
 número em destaque é fabricado, o bloco é `preview` (mesmo que use nomes/valores
 reais em volta) e a footnote deve dizer o que é real e o que é ilustrativo.
+
+#### Recomendação no portal: dado, não carimbo (27/08/2026)
+
+Feedback do Vinicius sobre a tela de escolha de proposta — "mais limpo e menos
+gritante", hierarquia errada, Evidência e Detalhes incompreensíveis. A parte da
+Recomendação não era só peso visual: a caixa verde com "Pontuação geral: X/100"
+e as seis barras ponderadas reproduziam o padrão discutido no discovery original
+da Cotação (**ZO4**), sinalizado pelo Victor Orsi como risco reputacional alto —
+se a Freitas carimba uma recomendação forte e a escolha dá errado, o cliente
+responsabiliza a Freitas. A decisão registrada na época foi introduzir
+recomendação de forma **gradual**, nunca com placar explícito cedo demais. A tela
+tinha pulado direto para a versão mais forte.
+
+**O CÁLCULO NÃO MUDOU.** `recommendation_service` (copiado do Centrix) segue
+intacto, o endpoint segue o mesmo, o analista segue vendo a ferramenta inteira.
+Mudou só a exibição, e só no `variant="portal"`:
+
+- **Sem `total_score` e sem `ScoreBar`.** As seis barras e o 0-100 são a
+  ferramenta de decisão do analista (Camada 2); no cliente elas viram veredito.
+  O portal guarda o RANKING (a ordem da lista) e joga fora o aparato.
+- **`recommendation_text` do backend não é renderizado no portal.** Aquela string
+  traz a pontuação embutida e a frase-carimbo ("Esta rota oferece o melhor
+  custo-benefício"). O portal redige a própria frase a partir do
+  `recommended_proposal_id`, e ela termina em "A escolha é sua".
+- **A frase diz "entre as propostas recebidas", NUNCA "com base no histórico
+  desta rota"** — apesar de a linguagem de histórico ter sido a sugerida no
+  feedback. Não existe histórico de rota por trás disto: `_compute_scores`
+  normaliza custo/prazo/free time/validade ENTRE AS PROPOSTAS DESTA COTAÇÃO e lê
+  rota/frequência dos campos da própria proposta. Invocar histórico trocaria um
+  carimbo por uma fonte inventada — e o bloco "Evidência", na mesma tela, é o que
+  de fato lê histórico. Suavizar o carimbo, sim; realocá-lo para uma fonte que
+  não existe, não.
+- **Selo discreto, sem estrela**: "Melhor equilíbrio", em `portal-info`, na
+  linha do agente. Não é caixa, não é troféu.
+- **O que ficou**: inelegibilidade e validade em risco. São fatos sobre a oferta
+  que o cliente está prestes a escolher, não aparato de pontuação.
+- O título do card no portal é **"Recomendação"** (sem "por IA"); no analista
+  continua "Recomendação por IA".
+
+Na mesma rodada, e pelo mesmo motivo (a régua que imitava o placar):
+
+- **Confiabilidade perdeu a barra de progresso** — texto factual no lugar. A
+  barra tinha altura, pista e preenchimento idênticos aos do `ScoreBar` logo
+  acima; tirar o número de um e manter a régua do outro devolveria a sensação de
+  placar sem sequer ter um número para justificá-la. Mercado não tinha barra e
+  não mudou.
+- **Evidência ganhou conclusão** (`inteligencia/lib/evidence-summary.ts`, puro e
+  unit-testado). A lista crua de embarques não dizia o que significava para a
+  decisão. A conclusão sai SÓ de `estado` — pontualidade ficaria em cima de
+  `tracking_*`, hoje NULL ou `is_mock`, e o bloco perderia o selo "Dado real"
+  que ostenta com razão. Como não há tabela de transição de embarque, a frase
+  fala em ocorrência "em aberto", no presente, e a janela analisada é a janela
+  exibida (`EVIDENCE_WINDOW`), para o cliente conferir a conta na lista logo
+  abaixo. Recorte em cascata agente+modal -> modal -> qualquer, e o rodapé
+  declara qual foi usado.
+- **Composição de custos recolhida por padrão**
+  (`cotacao/[id]/components/cost-breakdown-section.tsx`): Frete, Total, Transit
+  time e Validade já estão na tabela de propostas, lado a lado com as
+  concorrentes, que é onde a comparação acontece. Abertos no fim da tela eles
+  tinham o peso visual da comparação sem informação nova. Os "Possíveis Custos
+  Adicionais" são a única parte que a tabela não mostra — é ela que justifica o
+  rótulo falar em composição, não em "detalhes".
 
 #### Radar de Preços (`inteligencia/radar/` + `lib/price-radar.ts`)
 

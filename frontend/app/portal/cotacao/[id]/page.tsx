@@ -31,14 +31,13 @@ import { ReliabilityBlock } from '../../inteligencia/components/reliability-bloc
 import { MarketBlock } from '../../inteligencia/components/market-block';
 import { RiskBlock } from '../../inteligencia/components/risk-block';
 import { EvidenceBlock } from '../../inteligencia/components/evidence-block';
-import { AdditionalCostsCard } from './components/additional-costs-card';
 import { AuditPreviewSection } from './components/audit-preview-section';
 import { ApproveDialog } from './components/approve-dialog';
 import { CancelDialog } from './components/cancel-dialog';
 import { DeclineDialog } from './components/decline-dialog';
 import { DocumentsSection } from './components/documents-section';
+import { CostBreakdownSection } from './components/cost-breakdown-section';
 import { HistoryTimeline } from './components/history-timeline';
-import { ProposalDetailsCard } from './components/proposal-details-card';
 import { ProposalsTable } from './components/proposals-table';
 import { RecommendationPanel } from './components/recommendation-panel';
 import { RfqDispatchCard } from './components/rfq-dispatch-card';
@@ -224,13 +223,11 @@ export default function PortalCotacaoDetailPage() {
         </div>
       ) : null}
 
-      {showProposalDetails ? (
-        <div className="grid gap-6 md:grid-cols-2">
-          {selected ? <ProposalDetailsCard proposal={selected} /> : <div />}
-          {selected?.additional_costs ? (
-            <AdditionalCostsCard items={selected.additional_costs} />
-          ) : null}
-        </div>
+      {/* Composicao de custos: recolhida por padrao. Os mesmos numeros ja estao
+          na tabela de propostas acima, lado a lado com as concorrentes — ver o
+          comentario de CostBreakdownSection. */}
+      {showProposalDetails && selected ? (
+        <CostBreakdownSection proposal={selected} />
       ) : null}
 
       <QuotationFooterCard quotation={quotation} />

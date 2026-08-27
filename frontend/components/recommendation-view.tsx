@@ -8,9 +8,34 @@ import type { ProposalScore, RecommendationResult } from '@/types/quotation';
 
 // Shared, read-only presentation of the AI recommendation. Used by both the
 // analyst RecommendationPanel (which adds the "Sobrescrever" action + dialog via
-// `headerAction`) and the client portal (which passes no action). Keeping the
-// score rows and card layout here is the single source of truth so the two
-// surfaces never drift.
+// `headerAction`) and the client portal (which passes no action).
+//
+// THE TWO SURFACES DELIBERATELY DIVERGE IN THE BODY (27/08/2026)
+// --------------------------------------------------------------
+// They used to share the score rows. They no longer do, and the split is the
+// point rather than drift:
+//
+//   - the ANALYST is deciding with a scoring tool, and the weights, the bars
+//     and the 0-100 number are the tool. Nothing below changes for them.
+//   - the CLIENT is choosing a supplier. Showing them "Pontuação geral: 87/100"
+//     plus six weighted bars turns a suggestion into a verdict carrying the
+//     Freitas seal, which is exactly the reputational risk raised in the
+//     original Cotação discovery (ZO4, Victor Orsi): if Freitas stamps a strong
+//     recommendation and the shipment goes wrong, the client holds Freitas
+//     responsible. The decision recorded then was to introduce recommendation
+//     GRADUALLY, and never to lead with an explicit score.
+//
+// So the portal keeps the ranking (the order of the list) and drops the
+// apparatus. The calculation is untouched — this is a display change only.
+//
+// WORDING: the portal sentence says "entre as propostas recebidas", NOT "com
+// base no histórico desta rota". There is no route history behind this: the
+// score normalizes cost/transit/free-time/validity ACROSS THE PROPOSALS OF THIS
+// QUOTATION and reads route/frequency off each proposal's own fields (see
+// backend shared/domain/recommendation_service.py::_compute_scores). Claiming
+// history would invent a data source, and the "Evidência" block on the same
+// screen is the one that actually reads history. Soften the stamp, do not
+// relocate it onto a source that does not exist.
 
 function ScoreBar({
   value,
@@ -44,16 +69,13 @@ function ScoreBar({
   );
 }
 
+/** Analyst / public-proposal row: the full scoring tool. Unchanged. */
 function ScoreRow({
   score,
   isRecommended,
-  hideNumericScore,
 }: {
   score: ProposalScore;
   isRecommended: boolean;
-  // Portal surface: the numeric AI score is hidden from the client (product
-  // decision). The comparative bars stay as a qualitative visual.
-  hideNumericScore: boolean;
 }) {
   return (
     <div
@@ -86,7 +108,7 @@ function ScoreRow({
             </Badge>
           )}
         </div>
-        {!hideNumericScore && score.total_score != null && (
+        {score.total_score != null && (
           <span className="text-sm font-bold tabular-nums">
             {Math.round(score.total_score)}
           </span>
@@ -106,25 +128,25 @@ function ScoreRow({
           <span>Prazo (22%)</span>
           <span>Rota (18%)</span>
           <div>
-            <ScoreBar value={score.cost_score} showValue={!hideNumericScore} />
+            <ScoreBar value={score.cost_score} />
           </div>
           <div>
-            <ScoreBar value={score.transit_score} showValue={!hideNumericScore} />
+            <ScoreBar value={score.transit_score} />
           </div>
           <div>
-            <ScoreBar value={score.route_score} showValue={!hideNumericScore} />
+            <ScoreBar value={score.route_score} />
           </div>
           <span>Frequência (14%)</span>
           <span>Free time (10%)</span>
           <span>Validade (8%)</span>
           <div>
-            <ScoreBar value={score.frequency_score} showValue={!hideNumericScore} />
+            <ScoreBar value={score.frequency_score} />
           </div>
           <div>
-            <ScoreBar value={score.free_time_score} showValue={!hideNumericScore} />
+            <ScoreBar value={score.free_time_score} />
           </div>
           <div>
-            <ScoreBar value={score.validity_score} showValue={!hideNumericScore} />
+            <ScoreBar value={score.validity_score} />
           </div>
         </div>
       )}
@@ -139,6 +161,53 @@ function ScoreRow({
   );
 }
 
+/**
+ * Portal row: one plain line per agent. No card border, no bars, no number —
+ * the ranking is the order, and the seal is a word, not a trophy. The warnings
+ * stay: "inelegível" and "validade em risco" are facts about the offer the
+ * client is about to pick, not scoring apparatus.
+ */
+function PortalScoreLine({
+  score,
+  isRecommended,
+}: {
+  score: ProposalScore;
+  isRecommended: boolean;
+}) {
+  return (
+    <li className={cn('py-2', !score.is_eligible && 'opacity-70')}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="portal-body font-medium text-foreground">
+          {score.agent_name}
+        </span>
+        {isRecommended && (
+          <span className="portal-small rounded border border-portal-info/25 bg-portal-info/10 px-2 py-0.5 font-medium text-portal-info">
+            Melhor equilíbrio
+          </span>
+        )}
+        {!score.is_eligible && (
+          <span className="portal-small rounded border border-border px-2 py-0.5 font-medium text-portal-neutral">
+            Fora dos critérios
+          </span>
+        )}
+      </div>
+
+      {score.ineligibility_reason && (
+        <p className="portal-small mt-1 text-portal-neutral">
+          {score.ineligibility_reason}
+        </p>
+      )}
+
+      {score.is_eligible && score.validade_status === 'em_risco' && (
+        <p className="portal-small mt-1 flex items-center gap-1 text-portal-warning">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          Validade curta — confirme o prazo antes de aprovar.
+        </p>
+      )}
+    </li>
+  );
+}
+
 interface RecommendationViewProps {
   recommendation?: RecommendationResult | null;
   /** Shows the loading skeleton; keeps the loading UI in one place for both surfaces. */
@@ -147,12 +216,8 @@ interface RecommendationViewProps {
   headerAction?: ReactNode;
   /**
    * Surface styling. 'default' keeps the analyst / public-proposal look; 'portal'
-   * swaps the outer shell and the header for the Client Portal design system
-   * (.portal-card + .portal-h2) so this panel stops being the one block on the
-   * quotation detail screen that still reads as an internal tool.
-   *
-   * Only the shell and the header change — the score rows and the recommendation
-   * text below are shared markup and stay identical on every surface.
+   * swaps the shell, the header AND the body — see the module comment for why
+   * the client does not get the score apparatus.
    */
   variant?: 'default' | 'portal';
 }
@@ -187,6 +252,10 @@ export function RecommendationView({
     return (b.total_score ?? -1) - (a.total_score ?? -1);
   });
 
+  const recommendedName = recommendation.scores.find(
+    (s) => s.proposal_id === recommendation.recommended_proposal_id,
+  )?.agent_name;
+
   return (
     <div
       className={cn(
@@ -201,7 +270,7 @@ export function RecommendationView({
         )}
       >
         {isPortal ? (
-          <h2 className="portal-h2 text-foreground">Recomendação por IA</h2>
+          <h2 className="portal-h2 text-foreground">Recomendação</h2>
         ) : (
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Recomendação por IA
@@ -212,40 +281,83 @@ export function RecommendationView({
 
       <div className={cn('flex flex-col', isPortal ? 'gap-4 p-6' : 'gap-3 p-4')}>
         {recommendation.is_overridden && recommendation.override && (
-          <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+          <div
+            className={cn(
+              'flex items-start gap-2',
+              isPortal
+                ? 'portal-body rounded-md border border-portal-warning/25 bg-portal-warning/10 px-3 py-2 text-foreground'
+                : 'rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800',
+            )}
+          >
             <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-px" />
             <div>
               <span className="font-medium">
-                Override manual aplicado — {recommendation.override.agent_name}.
+                {isPortal
+                  ? `Ajuste manual da Freitas — ${recommendation.override.agent_name}.`
+                  : `Override manual aplicado — ${recommendation.override.agent_name}.`}
               </span>{' '}
-              <span className="text-amber-700">
+              <span className={isPortal ? 'text-portal-neutral' : 'text-amber-700'}>
                 {recommendation.override.justification}
               </span>
             </div>
           </div>
         )}
 
-        {recommendation.recommendation_text && (
-          <div className="flex items-start gap-2 rounded-md bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-800">
-            <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-            <p className="whitespace-pre-wrap leading-relaxed">
-              {recommendation.recommendation_text}
+        {isPortal ? (
+          // Data, not a stamp: it describes what the comparison found, it does
+          // not tell the client what to contract. No green box, no icon, no
+          // score — see the module comment (ZO4).
+          recommendedName ? (
+            <p className="portal-body text-foreground">
+              Entre as propostas recebidas,{' '}
+              <span className="font-medium">{recommendedName}</span> foi a que
+              apresentou o melhor equilíbrio entre custo, prazo e condições. A
+              escolha é sua.
             </p>
-          </div>
+          ) : null
+        ) : (
+          recommendation.recommendation_text && (
+            <div className="flex items-start gap-2 rounded-md bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-800">
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <p className="whitespace-pre-wrap leading-relaxed">
+                {recommendation.recommendation_text}
+              </p>
+            </div>
+          )
         )}
 
-        <div className="flex flex-col gap-2">
-          {sortedScores.map((score) => (
-            <ScoreRow
-              key={score.proposal_id}
-              score={score}
-              isRecommended={
-                score.proposal_id === recommendation.recommended_proposal_id
-              }
-              hideNumericScore={isPortal}
-            />
-          ))}
-        </div>
+        {isPortal ? (
+          <div className="space-y-3">
+            <ul className="divide-y">
+              {sortedScores.map((score) => (
+                <PortalScoreLine
+                  key={score.proposal_id}
+                  score={score}
+                  isRecommended={
+                    score.proposal_id === recommendation.recommended_proposal_id
+                  }
+                />
+              ))}
+            </ul>
+            <p className="portal-small border-t border-dashed pt-3 text-portal-neutral">
+              Comparação feita sobre as propostas desta cotação — preço, transit
+              time, rota, frequência, free time e validade. Não é uma indicação
+              da Freitas sobre qual contratar.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {sortedScores.map((score) => (
+              <ScoreRow
+                key={score.proposal_id}
+                score={score}
+                isRecommended={
+                  score.proposal_id === recommendation.recommended_proposal_id
+                }
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

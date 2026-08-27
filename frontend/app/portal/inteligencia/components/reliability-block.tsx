@@ -7,21 +7,28 @@ import type { PortalProposal } from '@/types/portal';
 import { IntelBlock } from './intel-block';
 import { seededInt } from '../lib/intel-helpers';
 
-// Maps the (fabricated) 0-100 reliability score to a qualitative tier. The
-// client never sees the numeric AI score (product decision) — only this label
-// and the comparative bars.
+// Rótulo qualitativo do score (fabricado) de confiabilidade. O cliente nunca vê
+// o número — decisão de produto — e desde 27/08/2026 também não vê a BARRA.
+//
+// A barra tinha o mesmo desenho do score da Recomendação logo acima: mesma
+// altura, mesma pista cinza, mesmo preenchimento proporcional. Tirar a
+// pontuação de lá e manter a régua aqui devolveria a sensação de placar que o
+// feedback do Vinicius (27/08/2026) pediu para remover — e sem sequer ter um
+// número para justificar a régua. Continua sendo `seededInt` que ordena os
+// agentes; o que sai é o desenho, não o cálculo.
 function reliabilityLabel(score: number): string {
-  if (score >= 90) return 'Muito alta';
-  if (score >= 80) return 'Alta';
-  return 'Média';
+  if (score >= 90) return 'muito alta';
+  if (score >= 80) return 'alta';
+  return 'média';
 }
 
 /**
  * MIXED, headline is MOCK. Scoped to a SINGLE quotation: it scores the agents
  * that actually sent a proposal for this quotation (real names), comparing them
  * against each other. The reliability scores themselves are fabricated — there
- * is no agent performance history apuration in this prototype yet. The numeric
- * score is not shown to the client; it drives the qualitative label and the bars.
+ * is no agent performance history apuration in this prototype yet. Neither the
+ * number nor a bar is shown to the client: the score only orders the list and
+ * picks the qualitative word.
  */
 export function ReliabilityBlock({ proposals }: { proposals: PortalProposal[] }) {
   const names = Array.from(
@@ -49,38 +56,21 @@ export function ReliabilityBlock({ proposals }: { proposals: PortalProposal[] })
           : 'Os nomes dos agentes são reais (propostas desta cotação). A confiabilidade exibida é ilustrativa — ainda não há histórico de desempenho apurado neste protótipo.'
       }
     >
-      {agents.length === 0 ? (
+      {agents.length === 0 || !top ? (
         <p className="portal-body text-portal-neutral">
           Nenhuma proposta com agente identificado nesta cotação.
         </p>
       ) : (
-        <div className="space-y-4">
-          <div>
-            <p className="text-2xl font-semibold leading-none text-foreground">
-              {top ? reliabilityLabel(top.score) : ''}
-            </p>
-            <p className="portal-small mt-1 text-portal-neutral">
-              {single
-                ? `Confiabilidade de ${top?.name} (ilustrativo)`
-                : 'Melhor confiabilidade entre os agentes desta cotação (ilustrativo)'}
-            </p>
-          </div>
+        <div className="space-y-2">
+          <p className="portal-body text-foreground">
+            <span className="font-medium">{top.name}</span> tem histórico de
+            confiabilidade {reliabilityLabel(top.score)}.
+          </p>
           {single ? null : (
-            <ul className="space-y-2">
-              {agents.map((a) => (
-                <li key={a.name} className="flex items-center gap-3">
-                  <span className="portal-body min-w-0 flex-1 truncate text-foreground">
-                    {a.name}
-                  </span>
-                  <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-portal-info"
-                      style={{ width: `${a.score}%` }}
-                    />
-                  </div>
-                  <span className="portal-small w-20 text-right font-medium text-portal-neutral">
-                    {reliabilityLabel(a.score)}
-                  </span>
+            <ul className="space-y-1">
+              {agents.slice(1).map((a) => (
+                <li key={a.name} className="portal-body text-portal-neutral">
+                  {a.name} — confiabilidade {reliabilityLabel(a.score)}.
                 </li>
               ))}
             </ul>
