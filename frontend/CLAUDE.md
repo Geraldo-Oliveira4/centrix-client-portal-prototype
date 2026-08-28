@@ -1498,10 +1498,13 @@ constantes do lib, nunca digitados na página.
       todas as linhas são FECHADA por construção e um badge idêntico em todas
       seria ruído. Corte em `ROUTE_HISTORY_WINDOW = 3`, declarado na frase
       quando existe ("Abaixo, as 3 mais recentes"), nunca em silêncio.
-    - **O seed atual não exercita este ramo**: só há duas cotações FECHADA
-      (COT-2026-0001 e 0004) e elas estão em rotas diferentes, ambas dentro do
-      Radar. Para a demo mostrar a lista é preciso uma segunda FECHADA numa rota
-      que o Radar não acompanha.
+    - **O seed não exercita este ramo sozinho**: só há duas cotações FECHADA
+      (COT-2026-0001 e 0004), em rotas diferentes uma da outra e ambas dentro do
+      Radar. Quem cobre a lacuna é
+      `backend/scripts/topup_route_history_demo.py`, que cria duas FECHADAS em
+      Izmir → Santos (a rota da COT-2026-0009, fora do Radar). Depois de rodá-lo,
+      a lista aparece na COT-2026-0009 (plural, duas linhas) e nas próprias
+      novas, que se enxergam uma à outra (singular).
   - **O desenho é o mesmo**: `components/price-trend.tsx` (`PriceAlertBadge`,
     `PriceTrendLine`, `PRICE_ALERT_CLASS`) saiu de dentro de `radar/page.tsx` e
     agora serve as duas telas. Duas paletas para a mesma classificação fariam

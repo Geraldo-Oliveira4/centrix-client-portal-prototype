@@ -451,6 +451,33 @@ previsão de chegada existe antes de a carga partir. Cria três embarques novos,
 dois deles em `AVAILABLE` — é o milestone que torna um embarque elegível para a
 Auditoria, que até então mostrava "0 embarques elegíveis" por não existir nenhum.
 
+`backend/scripts/topup_route_history_demo.py` cria as DUAS cotações FECHADAS que
+faltavam numa rota que o Radar de Preços **não** acompanha — sem elas o ramo de
+fallback do bloco "Mercado" (o histórico do cliente na rota) nunca aparece, e a
+razão é aritmética: as duas FECHADAS do seed estão em rotas diferentes uma da
+outra e as duas caem DENTRO do Radar. Só INSERT, dry-run por padrão. Duas
+decisões que sustentam o script:
+
+- **A rota é COPIADA do banco**, não escrita aqui: as cotações novas herdam
+  `origin`/`porto_destino`/`modal` de uma cotação que já existe (`HOST_REFERENCE`
+  = COT-2026-0009, Izmir → Santos). Copiar a ENTRADA garante a mesma chave
+  normalizada sem reimplementar em Python a `quotationRadarRoute` do frontend —
+  uma segunda normalização erraria calada no destino não nomeado, que é o caso
+  mais comum. Que a rota do host cai fora do Radar foi conferido com as próprias
+  funções da tela (`computePriceRadar` + `findQuotationRadarRoute`), e o
+  docstring diz como reconferir.
+- **Idempotente pelo EFEITO, não por referência**: aborta se o cliente já tiver
+  FECHADA naquela rota, que é exatamente a condição que o script existe para
+  criar. As referências são geradas pelo repositório (`_generate_reference`), não
+  chumbadas — número fixo abriria buraco na sequência de qualquer outro banco.
+
+Os fechamentos ficam no passado, em meses distintos (ordenação por recência) e
+**fora do mês corrente e do anterior**, que são as duas janelas que
+`computeSavingsTrend` soma: um fechamento novo caindo ali mudaria o KPI de
+Economia de lambuja. Não toca em COT-2026-0001 nem COT-2026-0004, e não cria
+embarque — logo não pode empurrar a rota para dentro do Radar e invalidar o
+próprio efeito.
+
 `backend/scripts/topup_client_po.py` preenche `client_reference` (a PO do
 cliente) nas oito cotações semeadas que a ganharam no seed. Só UPDATE, e só onde
 a coluna está NULL — cotação que já tem PO (inclusive as criadas pela suíte e2e
