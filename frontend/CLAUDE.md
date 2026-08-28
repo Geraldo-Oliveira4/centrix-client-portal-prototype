@@ -1242,7 +1242,7 @@ Distribuição dos blocos (o `provenance` de cada um **não muda** com o local):
 |---|---|---|---|
 | Decisão (`decision-block.tsx`) | **Coberta** pelo painel "Recomendação" (`recommendation-panel.tsx`) no detalhe da cotação — o bloco não é mais renderizado (arquivo mantido) | `real` | **Real:** recomendação por IA (score determinístico, exibido sem número) |
 | Confiabilidade (`reliability-block.tsx` -> `ReliabilityBody`) | Metade de cima do card composto `agent-trust-block.tsx`, no detalhe da cotação | `preview` (no sub-bloco) | **Real:** nomes dos agentes. **Mock:** scores (`seededInt`), que desde 27/08/2026 só ordenam a lista e escolhem o rótulo — nem número nem barra vão para a tela |
-| Mercado (`market-block.tsx`) | Detalhe da cotação, painel ao lado das propostas | `preview` | **Real:** seu preço médio. **Mock:** benchmark do setor (`avg × 1.08`) |
+| Mercado (`market-block.tsx`) | Detalhe da cotação, painel ao lado das propostas | `preview` | **Real:** seu preço médio. **Mock:** benchmark do setor (`avg × 1.08`) e a tendência da rota, que vem inteira do Radar de Preços (ver abaixo) |
 | Evidência (`evidence-block.tsx` -> `useEvidence` + `EvidenceBody`) | Metade de baixo do MESMO card ("O que já vimos com esse agente") | `real` (no sub-bloco) | **Real:** cards de embarques do histórico **e a frase de conclusão** (`lib/evidence-summary.ts`, sobre `estado`). **Mock:** critério de semelhança (agente + modal, sem rota/produto) |
 | Risco (`risk-block.tsx`) | Detalhe da cotação, junto da seção Auditoria (só FECHADA) | `preview` | **Real:** sinais de campos reais + refs. **Mock:** a "análise de risco" consolidada |
 | Prazo (`deadline-block.tsx`) | **Removido** de `/portal/embarques` (o "Prazo 87%" não tinha lastro; o resumo da aba Mapa mostra contagem real, não percentual inventado). Arquivo mantido, sem uso — candidato a remoção | `preview` | **Real:** contagem de embarques. **Mock:** % no prazo (constante 87%) |
@@ -1414,6 +1414,35 @@ constantes do lib, nunca digitados na página.
   UN/LOCODE em inglês ("Genova, Italy (ITGOA)"). O unit test confere cada valor
   contra `PORTS_*_OPTIONS` de verdade, então uma entrada errada quebra o teste em
   vez de abrir a cotação com o campo vazio — falha silenciosa é a pior espécie.
+- **O bloco "Mercado" do detalhe da cotação mostra a tendência da rota
+  (28/08/2026)**, e não recalcula nada para isso. Ele existia para preencher o
+  vazio que sobrava ao lado da Confiabilidade (medido: 711px nos dois cards a
+  1440px, com ~300px de branco no Mercado), e a regra que o mantém honesto é a
+  de sempre — reusar, não reproduzir:
+  - **`lib/quotation-radar-route.ts`** (puro, unit-testado) só TRADUZ: pega a
+    rota como a cotação a nomeia (`quotationRouteParts`, extraída de
+    `shipment-dimensions.ts` para as duas leituras compartilharem `originOf` /
+    `destinationOf`), aplica a MESMA normalização do Radar
+    (`normalizeRadarRoute`, que é o "Brasil" -> porto de chegada) e procura a
+    chave na lista que `computePriceRadar` devolveu. Uma segunda construção de
+    chave falharia em silêncio justamente no caso mais comum, o da cotação sem
+    porto de destino nomeado.
+  - **Cotação sem origem devolve `null`, sem hub ilustrativo.** Aquele fallback
+    é do EMBARQUE (hash da referência) e uma cotação não tem embarque.
+  - **A busca é contra a lista que a tela do Radar EXIBE**, `limit` incluído —
+    mesma disciplina do alerta de preço da aba Alertas: o bloco termina em "Ver
+    no Radar de Preços", e afirmar tendência de uma rota que a grade de lá não
+    mostra entregaria o cliente numa tela sem o que ele acabou de ler.
+  - **Rota fora do Radar não esconde o bloco**: ele diz qual é a rota e por que
+    ela não está lá, no padrão do "Filtrado por ..." do feed do Mapa. Sumir em
+    silêncio devolveria o vazio que o bloco veio preencher.
+  - **O desenho é o mesmo**: `components/price-trend.tsx` (`PriceAlertBadge`,
+    `PriceTrendLine`, `PRICE_ALERT_CLASS`) saiu de dentro de `radar/page.tsx` e
+    agora serve as duas telas. Duas paletas para a mesma classificação fariam
+    "Alta significativa" mudar de cor conforme a tela.
+  - O grid do par Confiabilidade × Mercado **não mudou** (segue sem
+    `items-start`, com `h-full` no Mercado): medido depois, 732px nos dois a
+    1280px e 654px a 1920px, sem overflow horizontal de 390 a 1920.
 - **O CTA deixa rastro de origem (18/08/2026).** O Radar existe para validar uma
   proposta de produto com dois ou três clientes; validar exige contar "quantas
   cotações saíram daqui?", e até então o clique não deixava marca nenhuma. Agora

@@ -122,6 +122,32 @@ export interface RouteParts {
   destination: string;
 }
 
+export interface QuotationRouteParts {
+  /**
+   * **null** quando a cotação não nomeia a origem. Aqui não há fallback: o hub
+   * ilustrativo de `routePartsOf` é derivado da REFERÊNCIA DO EMBARQUE, e uma
+   * cotação ainda não tem embarque. Inventar uma origem a partir da cotação
+   * nomearia uma rota que ela não nomeia.
+   */
+  origin: string | null;
+  destination: string;
+}
+
+/**
+ * As duas pontas da rota como a COTAÇÃO as nomeia, antes de qualquer fallback.
+ *
+ * Existe para que quem parte da cotação (o bloco Mercado do detalhe) chegue à
+ * mesma rota que quem parte do embarque (`routePartsOf`, logo abaixo, que é seu
+ * único outro consumidor). As duas leituras compartilham `originOf` e
+ * `destinationOf` — uma segunda normalização faria a mesma cotação virar
+ * "Shanghai → Santos" numa tela e "Shanghai → Brasil" na outra.
+ */
+export function quotationRouteParts(
+  quotation: PortalQuotation | undefined,
+): QuotationRouteParts {
+  return { origin: originOf(quotation), destination: destinationOf(quotation) };
+}
+
 /**
  * As duas pontas da rota de um embarque. Cotação primeiro; sem ela, o mesmo hub
  * ilustrativo que o mapa e o card da Lista já usam para este embarque — uma
@@ -142,9 +168,10 @@ export function routePartsOf(
   const quotation = shipment.quotation_id
     ? byId.get(shipment.quotation_id)
     : undefined;
+  const parts = quotationRouteParts(quotation);
   return {
-    origin: originOf(quotation) ?? illustrativeHub(shipment.referencia).name,
-    destination: destinationOf(quotation),
+    origin: parts.origin ?? illustrativeHub(shipment.referencia).name,
+    destination: parts.destination,
   };
 }
 

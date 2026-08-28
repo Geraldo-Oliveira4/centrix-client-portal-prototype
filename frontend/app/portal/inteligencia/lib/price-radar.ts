@@ -37,7 +37,11 @@ import type { QuotationModal } from '@/types/quotation';
 
 import { DESTINATION_PORT } from '../../embarques/lib/port-coordinates.ts';
 import { seededInt } from './intel-helpers.ts';
-import { indexQuotations, routePartsOf } from './shipment-dimensions.ts';
+import {
+  indexQuotations,
+  routePartsOf,
+  type RouteParts,
+} from './shipment-dimensions.ts';
 
 /**
  * Os três desfechos do semáforo. São cores de STATUS, não de marca:
@@ -87,6 +91,31 @@ export interface PriceRadarRoute {
  * telas dependerem de uma constante que existe por outro motivo.
  */
 const DEFAULT_DESTINATION_LABEL = 'Brasil';
+
+/**
+ * A rota como o RADAR a indexa, a partir das duas pontas que
+ * `shipment-dimensions.ts` resolve.
+ *
+ * `routePartsOf` devolve "Brasil" quando a cotação não nomeia UM porto de
+ * destino (a maioria: o campo é lista e vem vazio). Frete é cotado porto a
+ * porto — uma lane "Hamburgo → Brasil" não tem preço. O radar adota a MESMA
+ * representação que o Mapa já adota para a ponta de chegada (`DESTINATION_PORT`,
+ * Santos) em vez de escolher um porto por conta própria: quando a cotação nomear
+ * o destino, os dois passam a mostrar o porto real juntos.
+ *
+ * Exportada porque quem chega pela COTAÇÃO (o bloco Mercado do detalhe, via
+ * `quotation-radar-route.ts`) precisa produzir exatamente a mesma chave que
+ * `computePriceRadar` produziu a partir dos embarques. Duas normalizações
+ * fariam a busca falhar em silêncio para toda rota sem porto de destino
+ * nomeado, que é a maioria delas.
+ */
+export function normalizeRadarRoute(parts: RouteParts): RouteParts & { id: string } {
+  const destination =
+    parts.destination === DEFAULT_DESTINATION_LABEL
+      ? DESTINATION_PORT.name
+      : parts.destination;
+  return { origin: parts.origin, destination, id: `${parts.origin}>${destination}` };
+}
 
 /** Janelas declaradas uma vez — a tela imprime estes números, não outros. */
 export const HISTORICAL_WINDOW_DAYS = 90;
@@ -275,20 +304,9 @@ export function computePriceRadar({
   >();
 
   for (const shipment of shipments) {
-    const parts = routePartsOf(shipment, byId);
-    const { origin } = parts;
-    // `routePartsOf` devolve "Brasil" quando a cotação não nomeia UM porto de
-    // destino (a maioria: o campo é lista e vem vazio). Frete é cotado porto a
-    // porto — um card "Hamburgo → Brasil" não tem preço de lane. O radar adota
-    // a MESMA representação que o Mapa já adota para a ponta de chegada
-    // (`DESTINATION_PORT`, Santos), em vez de escolher um porto por conta
-    // própria: quando a cotação nomear o destino, os dois passam a mostrar o
-    // porto real juntos.
-    const destination =
-      parts.destination === DEFAULT_DESTINATION_LABEL
-        ? DESTINATION_PORT.name
-        : parts.destination;
-    const id = `${origin}>${destination}`;
+    const { origin, destination, id } = normalizeRadarRoute(
+      routePartsOf(shipment, byId),
+    );
     const entry = groups.get(id) ?? { origin, destination, modals: [] };
     entry.modals.push(shipment.modal ?? null);
     groups.set(id, entry);

@@ -7,7 +7,6 @@ import {
   ArrowUpRight,
   Minus,
   Radar,
-  TrendingUp,
 } from 'lucide-react';
 import { LoadingState } from '@arboria-tech/arboria-ui';
 
@@ -19,6 +18,11 @@ import { MODAL_LABELS } from '@/types/quotation';
 
 import { ModalIcon } from '../../_shared/modal-icon';
 import { PagePortalHeader } from '../../_shared/page-header';
+import {
+  PRICE_ALERT_CLASS,
+  PriceAlertBadge,
+  PriceTrendLine,
+} from '../components/price-trend';
 import { flattenQuotations } from '../lib/intel-helpers';
 import {
   HISTORICAL_WINDOW_DAYS,
@@ -49,18 +53,6 @@ import {
  * é a nota de metodologia do rodapé, que declara a janela e o critério de cada
  * número — some ela e a tela passa a afirmar um feed de mercado que não existe.
  */
-
-const ALERT_CLASS: Record<PriceAlertType, string> = {
-  oportunidade: 'border-portal-success/30 bg-portal-success/10 text-portal-success',
-  atencao: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning',
-  alta: 'border-portal-danger/30 bg-portal-danger/10 text-portal-danger',
-};
-
-const ALERT_DOT: Record<PriceAlertType, string> = {
-  oportunidade: 'bg-portal-success',
-  atencao: 'bg-portal-warning',
-  alta: 'bg-portal-danger',
-};
 
 /** Faixa superior do card, na cor do alerta — a leitura de longe. */
 const ALERT_RAIL: Record<PriceAlertType, string> = {
@@ -112,37 +104,6 @@ function VariationLine({ route }: { route: PriceRadarRoute }) {
   );
 }
 
-function TrendLine({ route }: { route: PriceRadarRoute }) {
-  const rising = route.trendPct > 0;
-  const flat = route.trendPct === 0;
-  return (
-    <p className="portal-small flex items-center gap-1.5 text-portal-neutral">
-      <TrendingUp
-        className={cn(
-          'h-4 w-4 shrink-0',
-          flat ? '' : rising ? 'text-portal-danger' : 'text-portal-success',
-          !rising && !flat && 'rotate-180',
-        )}
-      />
-      {flat ? (
-        <>Estável nas últimas {route.trendWindowDays / 7} semanas</>
-      ) : (
-        <>
-          <span
-            className={cn(
-              'font-medium',
-              rising ? 'text-portal-danger' : 'text-portal-success',
-            )}
-          >
-            {rising ? 'Subiu' : 'Caiu'} {Math.abs(route.trendPct)}%
-          </span>
-          nas últimas {route.trendWindowDays / 7} semanas
-        </>
-      )}
-    </p>
-  );
-}
-
 function RouteCard({ route }: { route: PriceRadarRoute }) {
   const alert = route.alert;
   return (
@@ -156,15 +117,7 @@ function RouteCard({ route }: { route: PriceRadarRoute }) {
               {route.origin} <span className="text-portal-neutral">→</span>{' '}
               {route.destination}
             </h2>
-            <span
-              className={cn(
-                'portal-small inline-flex items-center gap-1.5 whitespace-nowrap rounded border px-2 py-0.5 font-medium',
-                ALERT_CLASS[alert.type],
-              )}
-            >
-              <span className={cn('h-2 w-2 rounded-full', ALERT_DOT[alert.type])} />
-              {alert.label}
-            </span>
+            <PriceAlertBadge alert={alert} />
           </div>
           <p className="portal-small flex flex-wrap items-center gap-x-2 gap-y-1 text-portal-neutral">
             <span className="inline-flex items-center gap-1.5">
@@ -191,7 +144,7 @@ function RouteCard({ route }: { route: PriceRadarRoute }) {
 
         <div className="space-y-1.5">
           <VariationLine route={route} />
-          <TrendLine route={route} />
+          <PriceTrendLine route={route} />
         </div>
 
         {/* A frase de ação vem do lib junto do tipo do alerta: cor sem
@@ -199,7 +152,7 @@ function RouteCard({ route }: { route: PriceRadarRoute }) {
         <p
           className={cn(
             'portal-small rounded-lg border px-3 py-2',
-            ALERT_CLASS[alert.type],
+            PRICE_ALERT_CLASS[alert.type],
           )}
         >
           {alert.rationale}

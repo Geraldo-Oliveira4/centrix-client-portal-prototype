@@ -236,7 +236,11 @@ export default function PortalCotacaoDetailPage() {
       {showIntelligence ? (
         <div className="grid gap-4 lg:grid-cols-2">
           <AgentTrustBlock quotation={quotation} proposals={proposals} />
-          <MarketBlock proposals={proposals} className="h-full" />
+          <MarketBlock
+            quotation={quotation}
+            proposals={proposals}
+            className="h-full"
+          />
         </div>
       ) : null}
 
