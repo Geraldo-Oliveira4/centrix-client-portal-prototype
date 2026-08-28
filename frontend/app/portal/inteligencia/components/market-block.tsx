@@ -9,6 +9,7 @@ import { useMyQuotations } from '@/hooks/use-portal-quotations';
 import { useMyShipments } from '@/hooks/use-portal-shipments';
 
 import { flattenQuotations } from '../lib/intel-helpers';
+import { SHOW_PROPOSAL_PROVENANCE } from '../lib/proposal-provenance';
 import { computePriceRadar, formatRadarRoute } from '../lib/price-radar';
 import {
   findQuotationRadarRoute,
@@ -70,35 +71,36 @@ function RouteTrendSection({ quotation }: { quotation?: PortalQuotation }) {
   const route = findQuotationRadarRoute(quotation, routes);
   const { label } = quotationRadarRoute(quotation);
 
+  // Moldura de linha cheia, nao tracejada: a tracejada e a convencao do portal
+  // para dado fabricado, e a Comparacao de Propostas parou de marcar isso em
+  // 28/08/2026. A borda fica porque a tendencia e uma leitura a parte do preco
+  // acima dela, nao porque o numero seja ilustrativo.
   return (
-    <div className="space-y-2 rounded-xl border border-dashed border-border p-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <p className="portal-small text-portal-neutral">Tendência da rota</p>
-        <p className="portal-small text-portal-neutral">Ilustrativo</p>
-      </div>
+    <div className="space-y-2 rounded-xl border border-border p-3">
+      <p className="portal-body text-portal-neutral">Tendência da rota</p>
 
       {isLoading ? (
-        <p className="portal-small text-portal-neutral">Carregando o Radar...</p>
+        <p className="portal-body text-portal-neutral">Carregando o Radar...</p>
       ) : route ? (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="portal-body font-medium text-foreground">
+            <p className="portal-h3 font-normal text-foreground">
               {formatRadarRoute(route)}
             </p>
             <PriceAlertBadge alert={route.alert} />
           </div>
           <PriceTrendLine route={route} />
-          <p className="portal-small text-portal-neutral">{route.alert.rationale}</p>
+          <p className="portal-body text-portal-neutral">{route.alert.rationale}</p>
           <Link
             href="/portal/inteligencia/radar"
-            className="portal-small inline-flex items-center gap-1 font-medium text-primary hover:underline"
+            className="portal-body inline-flex items-center gap-1 font-medium text-primary hover:underline"
           >
             Ver no Radar de Preços
-            <ArrowRight className="h-3.5 w-3.5" />
+            <ArrowRight className="h-4 w-4" />
           </Link>
         </>
       ) : (
-        <p className="portal-small text-portal-neutral">
+        <p className="portal-body text-portal-neutral">
           {label
             ? `A rota "${label}" ainda não está entre as acompanhadas no Radar de Preços, que segue as rotas com mais embarques seus.`
             : 'Esta cotação ainda não nomeia o porto de origem, então não há rota para procurar no Radar de Preços.'}
@@ -107,6 +109,19 @@ function RouteTrendSection({ quotation }: { quotation?: PortalQuotation }) {
     </div>
   );
 }
+
+/**
+ * Rodapé do card. Do texto antigo sobrou só o que NÃO fala de autenticidade: de
+ * onde vem a tendência.
+ *
+ * É transparência funcional, não declaração de proveniência — o bloco termina em
+ * "Ver no Radar de Preços" e o cliente precisa saber que vai reencontrar lá o
+ * MESMO número, não uma segunda leitura da mesma rota. A ressalva de real x
+ * ilustrativo saiu em 28/08/2026 junto com os selos (ver
+ * `lib/proposal-provenance.ts`).
+ */
+const FOOTNOTE =
+  'A tendência da rota é a mesma do Radar de Preços, calculada uma vez.';
 
 /**
  * MIXED, headline is MOCK. Scoped to a SINGLE quotation: it compares THIS
@@ -141,9 +156,9 @@ export function MarketBlock({
       icon={<TrendingUp className="h-5 w-5" />}
       title="Mercado"
       question="O preço está competitivo?"
-      provenance="preview"
+      provenance={SHOW_PROPOSAL_PROVENANCE ? 'preview' : undefined}
       className={className}
-      footnote="O valor desta cotação é real (proposta recebida). O benchmark do setor e a tendência da rota são ilustrativos — não há base de preços de mercado neste protótipo. A tendência é a mesma do Radar de Preços, calculada uma vez."
+      footnote={FOOTNOTE}
     >
       {/* `justify-center` só importa quando este bloco divide a linha com a
           Confiabilidade (que carrega a Evidência dentro e é bem mais alta): o
@@ -154,7 +169,7 @@ export function MarketBlock({
           sobrando. */}
       {value == null ? (
         <div className="flex h-full flex-col justify-center gap-4">
-          <p className="portal-body text-portal-neutral">
+          <p className="portal-h3 font-normal text-portal-neutral">
             Esta cotação ainda não tem proposta com valor para comparar.
           </p>
           {/* A tendência não depende de proposta: ela é da ROTA, e o cliente
@@ -165,30 +180,31 @@ export function MarketBlock({
       ) : (
         <div className="flex h-full flex-col justify-center gap-4">
           <div className="grid grid-cols-2 gap-3">
+            {/* Os dois lados vestem a MESMA superficie desde 28/08/2026: a
+                muted x tracejada era a distincao real x ilustrativo, e ela saiu
+                junto com os rotulos que ficavam sob cada valor. */}
             <div className="portal-card-muted space-y-1 p-3">
-              <p className="portal-small text-portal-neutral">
+              <p className="portal-body text-portal-neutral">
                 Esta cotação ({refLabel})
               </p>
-              <p className="portal-body font-semibold text-foreground">
+              <p className="portal-h3 font-semibold text-foreground">
                 {formatBRL(value)}
               </p>
-              <p className="portal-small text-portal-success">Dado real</p>
             </div>
-            <div className="space-y-1 rounded-xl border border-dashed border-border p-3">
-              <p className="portal-small text-portal-neutral">Benchmark do setor</p>
-              <p className="portal-body font-semibold text-portal-neutral">
+            <div className="portal-card-muted space-y-1 p-3">
+              <p className="portal-body text-portal-neutral">Benchmark do setor</p>
+              <p className="portal-h3 font-semibold text-portal-neutral">
                 {formatBRL(benchmark ?? 0)}
               </p>
-              <p className="portal-small text-portal-neutral">Ilustrativo</p>
             </div>
           </div>
           {deltaPct != null ? (
-            <p className="portal-body text-foreground">
+            <p className="portal-h3 font-normal text-foreground">
               Estimativa: esta cotação está{' '}
               <span className="font-semibold text-portal-success">
                 {deltaPct}% abaixo
               </span>{' '}
-              do benchmark ilustrativo.
+              do benchmark do setor.
             </p>
           ) : null}
 

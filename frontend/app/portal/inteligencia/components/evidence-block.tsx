@@ -26,17 +26,29 @@ function referenceAgentName(proposals: PortalProposal[]): string | null {
   return ref?.agent?.name ?? null;
 }
 
+/**
+ * Rodapé da lista: QUAL recorte foi usado e o que o badge de estado quer dizer.
+ *
+ * A ressalva de proveniência saiu em 28/08/2026 junto com os selos (ver
+ * `lib/proposal-provenance.ts`). O que ficou não fala de autenticidade: fala do
+ * recorte da amostra e de como ler "ocorrência em aberto", que é a situação de
+ * HOJE de cada embarque — e é o que liga a frase de conclusão aos badges
+ * Postergado / Booking divergente da lista.
+ */
+const OCCURRENCE_NOTE =
+  '"Ocorrência em aberto" é a situação de hoje de cada embarque: contam como ocorrência os estados Postergado e Booking divergente.';
+
 export function evidenceFootnote(
   scope: EvidenceScope,
   modalLabel: string | null,
 ): string {
   if (scope === 'agent_modal') {
-    return `Embarques reais do seu histórico com o mesmo agente e o mesmo modal (${modalLabel}). "Ocorrência em aberto" é a situação de hoje — não há histórico de transições de embarque neste protótipo, então o que ocorreu no meio do caminho não é afirmado.`;
+    return `Embarques do seu histórico com o mesmo agente e o mesmo modal (${modalLabel}). ${OCCURRENCE_NOTE}`;
   }
   if (scope === 'modal') {
-    return `Embarques reais do seu histórico filtrados pelo mesmo modal (${modalLabel}); ainda não há embarque com o agente desta proposta. "Ocorrência em aberto" é a situação de hoje — não há histórico de transições de embarque neste protótipo.`;
+    return `Embarques do seu histórico filtrados pelo mesmo modal (${modalLabel}); ainda não há embarque com o agente desta proposta. ${OCCURRENCE_NOTE}`;
   }
-  return 'Embarques reais do seu histórico. Não há embarque no mesmo modal desta cotação ainda, então mostramos os mais recentes. "Ocorrência em aberto" é a situação de hoje — não há histórico de transições de embarque neste protótipo.';
+  return `Embarques do seu histórico. Não há embarque no mesmo modal desta cotação ainda, então mostramos os mais recentes. ${OCCURRENCE_NOTE}`;
 }
 
 /**
@@ -46,8 +58,9 @@ export function evidenceFootnote(
  *
  * A conclusão sai só de `estado`, que é coluna real do GE. Pontualidade ficou de
  * fora de propósito: ela viria de `tracking_*`, hoje NULL ou marcado `is_mock` —
- * ver o cabeçalho de `lib/evidence-summary.ts`. É o que mantém esta metade do
- * card composto com o selo "Dado real" sem ressalva.
+ * ver o cabeçalho de `lib/evidence-summary.ts`. Os selos saíram deste card em
+ * 28/08/2026, a disciplina da conclusão não: a frase continua só afirmando o
+ * que a lista logo abaixo dela deixa conferir.
  *
  * Hook, não componente, porque o card que a hospeda (`AgentTrustBlock`) precisa
  * do `scope` para redigir o rodapé. Devolvê-lo por callback durante o render
@@ -105,7 +118,7 @@ export function EvidenceBody({
                 <p className="portal-body truncate font-medium text-foreground">
                   {s.referencia}
                 </p>
-                <p className="portal-small text-portal-neutral">
+                <p className="portal-body text-portal-neutral">
                   {s.modal ? MODAL_LABELS[s.modal] : '—'}
                   {s.agente_nome ? ` · ${s.agente_nome}` : ''}
                 </p>

@@ -71,14 +71,18 @@ export function IntelBlock({
 }
 
 /**
- * Uma metade de um card composto, com selo proprio.
+ * Uma metade de um card composto.
  *
- * Existe para que Confiabilidade (ilustrativa) e Evidencia (real) possam viver
- * no MESMO card sem que uma empreste a proveniencia da outra: a metade
- * `preview` mantem a moldura tracejada que o portal inteiro usa para dado
- * fabricado, e a metade `real` fica na superficie limpa do card. A regra do
- * modulo continua valendo dentro do card — nada real veste o selo de
- * pre-visualizacao, nada fabricado aparece sem ele.
+ * Existe para que Confiabilidade e Evidencia possam viver no MESMO card sem que
+ * uma empreste a proveniencia da outra: quando os selos estao ligados, a metade
+ * `preview` veste a moldura tracejada que o portal usa para dado fabricado e a
+ * metade `real` fica na superficie limpa do card.
+ *
+ * `provenance` e OPCIONAL pela mesma razao que em `IntelBlock`: a Comparacao de
+ * Propostas deixou de marcar real x ilustrativo em 28/08/2026 (ver
+ * `lib/proposal-provenance.ts`), e omitir a prop tira selo e moldura de uma vez,
+ * sem apagar o componente. Fora desse recorte a regra do modulo continua de pe:
+ * nada real veste o selo de pre-visualizacao, nada fabricado aparece sem ele.
  */
 export function IntelSubBlock({
   title,
@@ -89,7 +93,7 @@ export function IntelSubBlock({
 }: {
   /** Opcional: a primeira metade costuma ser o proprio headline do card. */
   title?: string;
-  provenance: Provenance;
+  provenance?: Provenance;
   children: ReactNode;
   footnote?: ReactNode;
   className?: string;
@@ -103,14 +107,18 @@ export function IntelSubBlock({
         className,
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        {title ? (
-          <h3 className="portal-h3 text-foreground">{title}</h3>
-        ) : (
-          <span aria-hidden="true" />
-        )}
-        <ProvenanceBadge provenance={provenance} />
-      </div>
+      {/* Sem titulo e sem selo nao ha cabecalho: uma linha vazia so somaria um
+          `gap` no meio do card. */}
+      {title || provenance ? (
+        <div className="flex items-start justify-between gap-2">
+          {title ? (
+            <h3 className="portal-h3 text-foreground">{title}</h3>
+          ) : (
+            <span aria-hidden="true" />
+          )}
+          {provenance ? <ProvenanceBadge provenance={provenance} /> : null}
+        </div>
+      ) : null}
 
       <div className="flex-1">{children}</div>
 

@@ -4,8 +4,9 @@ import { ShieldCheck } from 'lucide-react';
 
 import type { PortalProposal, PortalQuotation } from '@/types/portal';
 
+import { SHOW_PROPOSAL_PROVENANCE } from '../lib/proposal-provenance';
 import { IntelBlock, IntelSubBlock } from './intel-block';
-import { ReliabilityBody, reliabilityFootnote } from './reliability-block';
+import { ReliabilityBody } from './reliability-block';
 import { EvidenceBody, evidenceFootnote, useEvidence } from './evidence-block';
 
 /**
@@ -14,16 +15,20 @@ import { EvidenceBody, evidenceFootnote, useEvidence } from './evidence-block';
  * As duas respondem a MESMA pergunta — "posso confiar nesse agente?" — em
  * níveis de certeza diferentes, e separadas na tela nenhuma das duas dizia por
  * que existia: a Confiabilidade era um rótulo sem prova, a Evidência era uma
- * prova sem pergunta. Juntas a leitura fecha: primeiro o perfil ilustrativo,
- * logo abaixo o que de fato já aconteceu com aquele agente.
+ * prova sem pergunta. Juntas a leitura fecha: primeiro o perfil do agente,
+ * logo abaixo o que de fato já aconteceu com ele.
  *
- * A PROVENIÊNCIA NÃO SE MISTURA. Este é o único card do portal sem selo no
- * topo, e é de propósito: um selo ali teria de mentir sobre uma das metades.
- * Cada `IntelSubBlock` carrega o seu — a metade ilustrativa mantém a moldura
- * tracejada e o "Pré-visualização", a metade real fica na superfície limpa com
- * o "Dado real". Não promova este card a um selo único; a regra do módulo (nada
- * real veste o selo de preview, nada fabricado aparece sem ele) vale dentro
- * dele.
+ * A proveniência (real x ilustrativo) deixou de ser marcada nas duas metades em
+ * 28/08/2026 — ver `lib/proposal-provenance.ts`. As metades continuam sendo
+ * `IntelSubBlock` distintos: a composição é de LEITURA (perfil primeiro, prova
+ * depois) e vale independentemente do selo. Se o flag voltar a `true`, cada
+ * metade volta a carregar o selo dela, e nunca um selo único no topo do card —
+ * ele teria de mentir sobre uma das duas.
+ *
+ * `justify-center` só age quando este card é o MAIS BAIXO do par (cliente sem
+ * histórico de embarque, uma proposta só): aí o grid o estica na altura do
+ * Mercado e sem isto o conteúdo ficaria grudado no topo. No caso comum, em que
+ * este card é o mais alto, não sobra folga e o efeito é nulo.
  */
 export function AgentTrustBlock({
   quotation,
@@ -33,6 +38,8 @@ export function AgentTrustBlock({
   proposals: PortalProposal[];
 }) {
   const evidence = useEvidence(quotation);
+  const provenance = SHOW_PROPOSAL_PROVENANCE ? 'preview' : undefined;
+  const realProvenance = SHOW_PROPOSAL_PROVENANCE ? 'real' : undefined;
 
   return (
     <IntelBlock
@@ -41,19 +48,15 @@ export function AgentTrustBlock({
       question="Esse agente é confiável e previsível?"
       className="h-full"
     >
-      <div className="flex h-full flex-col gap-4">
-        <IntelSubBlock
-          provenance="preview"
-          footnote={reliabilityFootnote(proposals)}
-        >
+      <div className="flex h-full flex-col justify-center gap-4">
+        <IntelSubBlock provenance={provenance}>
           <ReliabilityBody proposals={proposals} />
         </IntelSubBlock>
 
         <IntelSubBlock
           title="O que já vimos com esse agente"
-          provenance="real"
+          provenance={realProvenance}
           footnote={evidenceFootnote(evidence.scope, evidence.modalLabel)}
-          className="flex-1"
         >
           <EvidenceBody
             isLoading={evidence.isLoading}

@@ -40,9 +40,14 @@ Telas afetadas e o que mudou em cada uma:
 - **O seed continua limpo.** Banco recém-semeado nasce sem tracking nenhum; quem
   popula é top-up explícito (`O15` trava isso). A demo é uma escolha de quem
   prepara a apresentação, não um efeito colateral do `make seed`.
-- **`ProvenanceBadge` continua existindo e em uso** nos ~8 lugares do portal.
-  Aposentá-lo é decisão separada, ainda não tomada. O que mudou foi o VALOR em
-  alguns pontos (`pending` -> `preview`), não o componente.
+- **`ProvenanceBadge` continua existindo e em uso** nos lugares do portal que o
+  usavam. Aposentá-lo é decisão separada, ainda não tomada. O que mudou foi o
+  VALOR em alguns pontos (`pending` -> `preview`), não o componente. Em
+  28/08/2026 os dois cards da **Comparação de Propostas** (Confiabilidade e
+  Mercado, no detalhe da cotação) deixaram de marcar real x ilustrativo, pelo
+  mesmo motivo do Mapa — recorte escopado, ligado por uma chave
+  (`frontend/app/portal/inteligencia/lib/proposal-provenance.ts`), sem tocar em
+  Auditoria, Mapa nem `tracking_is_mock`.
 - **Nada aqui fabrica número onde a aritmética é real.** On-time rate e desvio
   por rota são CALCULADOS pela mesma `computeDelayRisk` do badge de cada
   embarque; o que é ilustrativo é o dado de entrada. Ausência continua virando

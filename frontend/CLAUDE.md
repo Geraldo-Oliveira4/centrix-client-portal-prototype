@@ -1241,9 +1241,9 @@ Distribuição dos blocos (o `provenance` de cada um **não muda** com o local):
 | Bloco (arquivo) | Onde vive agora | Badge | Real vs Mockado |
 |---|---|---|---|
 | Decisão (`decision-block.tsx`) | **Coberta** pelo painel "Recomendação" (`recommendation-panel.tsx`) no detalhe da cotação — o bloco não é mais renderizado (arquivo mantido) | `real` | **Real:** recomendação por IA (score determinístico, exibido sem número) |
-| Confiabilidade (`reliability-block.tsx` -> `ReliabilityBody`) | Metade de cima do card composto `agent-trust-block.tsx`, no detalhe da cotação | `preview` (no sub-bloco) | **Real:** nomes dos agentes. **Mock:** scores (`seededInt`), que desde 27/08/2026 só ordenam a lista e escolhem o rótulo — nem número nem barra vão para a tela |
-| Mercado (`market-block.tsx`) | Detalhe da cotação, painel ao lado das propostas | `preview` | **Real:** seu preço médio. **Mock:** benchmark do setor (`avg × 1.08`) e a tendência da rota, que vem inteira do Radar de Preços (ver abaixo) |
-| Evidência (`evidence-block.tsx` -> `useEvidence` + `EvidenceBody`) | Metade de baixo do MESMO card ("O que já vimos com esse agente") | `real` (no sub-bloco) | **Real:** cards de embarques do histórico **e a frase de conclusão** (`lib/evidence-summary.ts`, sobre `estado`). **Mock:** critério de semelhança (agente + modal, sem rota/produto) |
+| Confiabilidade (`reliability-block.tsx` -> `ReliabilityBody`) | Metade de cima do card composto `agent-trust-block.tsx`, no detalhe da cotação | **sem selo** (28/08/2026) | **Real:** nomes dos agentes. **Mock:** scores (`seededInt`), que desde 27/08/2026 só ordenam a lista e escolhem o rótulo — nem número nem barra vão para a tela |
+| Mercado (`market-block.tsx`) | Detalhe da cotação, painel ao lado das propostas | **sem selo** (28/08/2026) | **Real:** seu preço médio. **Mock:** benchmark do setor (`avg × 1.08`) e a tendência da rota, que vem inteira do Radar de Preços (ver abaixo) |
+| Evidência (`evidence-block.tsx` -> `useEvidence` + `EvidenceBody`) | Metade de baixo do MESMO card ("O que já vimos com esse agente") | **sem selo** (28/08/2026) | **Real:** cards de embarques do histórico **e a frase de conclusão** (`lib/evidence-summary.ts`, sobre `estado`). **Mock:** critério de semelhança (agente + modal, sem rota/produto) |
 | Risco (`risk-block.tsx`) | Detalhe da cotação, junto da seção Auditoria (só FECHADA) | `preview` | **Real:** sinais de campos reais + refs. **Mock:** a "análise de risco" consolidada |
 | Prazo (`deadline-block.tsx`) | **Removido** de `/portal/embarques` (o "Prazo 87%" não tinha lastro; o resumo da aba Mapa mostra contagem real, não percentual inventado). Arquivo mantido, sem uso — candidato a remoção | `preview` | **Real:** contagem de embarques. **Mock:** % no prazo (constante 87%) |
 
@@ -1339,13 +1339,14 @@ sem lastro. As quatro mudanças:
   prova, a segunda prova sem pergunta. `reliability-block.tsx` e
   `evidence-block.tsx` passaram a exportar CORPO (`ReliabilityBody`,
   `useEvidence` + `EvidenceBody`) em vez de card próprio.
-- **A proveniência não se mistura dentro do card composto.** É o único card do
-  portal **sem selo no topo**, e é de propósito: um selo ali teria de mentir
-  sobre uma das metades. Cada `IntelSubBlock` (novo, em `intel-block.tsx`)
-  carrega o seu — a metade ilustrativa mantém a moldura tracejada + "Pré-visualização",
-  a metade real fica na superfície limpa + "Dado real". `IntelBlock` ganhou
-  `provenance` opcional só para isso; não use a versão sem selo para escapar de
-  declarar a proveniência de um bloco simples.
+- **A proveniência não se misturava dentro do card composto** — cada
+  `IntelSubBlock` (novo, em `intel-block.tsx`) carregava o seu, porque um selo
+  único no topo teria de mentir sobre uma das metades. **Superado em 28/08/2026**
+  (seção seguinte): os dois cards deixaram de marcar proveniência. O que continua
+  valendo é a regra de composição — se os selos voltarem, eles voltam POR METADE,
+  nunca um só no topo. `IntelBlock` e `IntelSubBlock` mantêm `provenance`
+  opcional; não use a versão sem selo para escapar de declarar a proveniência de
+  um bloco simples FORA da Comparação de Propostas.
 - **O par lado a lado estica na mesma altura** (o grid perdeu o `items-start`) e
   o Mercado **centra o próprio conteúdo** (`justify-center`). Igualar altura sem
   distribuir o conteúdo produzia ~300px de vazio abaixo do texto do Mercado, que
@@ -1357,6 +1358,44 @@ sem lastro. As quatro mudanças:
 -> Confiabilidade com Evidência dentro (posso confiar) -> Mercado (o preço está
 competitivo) -> Dados da cotação (o dado bruto para conferir). Está comentada em
 `cotacao/[id]/page.tsx`; mexer nela quebra a leitura, não só o layout.
+
+#### Comparação de Propostas parou de marcar real x ilustrativo (28/08/2026)
+
+Decisão de produto: clientes reais já estão vendo o protótipo, e nos dois cards
+da Comparação de Propostas (Confiabilidade e Mercado) a distinção visível
+estranha mais do que ajuda. Alinha os dois ao padrão que o Mapa segue desde o
+Prompt 15.
+
+- **Uma chave só**: `inteligencia/lib/proposal-provenance.ts`
+  (`SHOW_PROPOSAL_PROVENANCE = false`). `agent-trust-block.tsx` e
+  `market-block.tsx` passam `provenance={flag ? ... : undefined}`, e `IntelBlock`
+  /`IntelSubBlock` já sabiam omitir selo e moldura tracejada quando a prop falta.
+  **Não apague o `ProvenanceBadge` nem os call sites** — reverter é trocar o
+  `false` por `true`.
+- **Saiu junto o que era só moldura**: a borda tracejada dos dois cards, a do
+  mini-card "Benchmark do setor" (agora `portal-card-muted`, igual ao "Esta
+  cotação") e a do bloco "Tendência da rota" (borda de linha cheia). Manter a
+  moldura sem o selo seria a mesma distinção, só que sem legenda.
+- **Os textos que existiam SÓ para declarar proveniência foram removidos como
+  texto, não escondidos pelo flag.** `reliabilityFootnote` deixou de existir (sem
+  a ressalva não sobrava conteúdo); o rodapé da Evidência foi reescrito e ficou
+  com o que é factual — qual recorte da amostra foi usado e o que "ocorrência em
+  aberto" quer dizer (`Postergado` e `Booking divergente`), que é o que liga a
+  frase de conclusão aos badges da lista; o rodapé do Mercado guardou só "A
+  tendência da rota é a mesma do Radar de Preços, calculada uma vez", que é
+  transparência FUNCIONAL (o bloco termina em "Ver no Radar de Preços" e o
+  cliente precisa saber que reencontra o mesmo número), não declaração de
+  autenticidade.
+- **ESCOPO: esses dois cards.** `ProvenanceBadge` segue vivo e em uso na
+  Auditoria, no Mapa e no resto do portal, e `tracking_is_mock` (Meus Embarques)
+  **não** foi tocado — aquele contrato é outro e continua obrigatório.
+- **Tipografia subiu um degrau** no conteúdo dos dois (o mesmo ajuste do Prompt
+  14, `portal-small` -> `portal-body`; as conclusões e os valores em destaque
+  foram para `portal-h3`), porque sem os selos e sem os rótulos sobrava altura na
+  altura igualada do grid. `AgentTrustBlock` ganhou `justify-center` como reforço
+  para o caso em que ELE é o card mais baixo (cliente sem histórico, uma proposta
+  só) — o Mercado já tinha. Medido a 1440px: 568/568px na COT-2026-0001 e
+  539/539px no caso de rota fora do Radar, sem overflow horizontal.
 
 #### Radar de Preços (`inteligencia/radar/` + `lib/price-radar.ts`)
 
