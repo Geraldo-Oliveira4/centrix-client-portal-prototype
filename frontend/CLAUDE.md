@@ -1472,9 +1472,36 @@ constantes do lib, nunca digitados na página.
     mesma disciplina do alerta de preço da aba Alertas: o bloco termina em "Ver
     no Radar de Preços", e afirmar tendência de uma rota que a grade de lá não
     mostra entregaria o cliente numa tela sem o que ele acabou de ler.
-  - **Rota fora do Radar não esconde o bloco**: ele diz qual é a rota e por que
-    ela não está lá, no padrão do "Filtrado por ..." do feed do Mapa. Sumir em
-    silêncio devolveria o vazio que o bloco veio preencher.
+  - **Rota fora do Radar não esconde o bloco**, e desde 28/08/2026 também não
+    para na explicação: ele cai para **as cotações que o cliente já FECHOU
+    naquela mesma rota** (`lib/route-quotation-history.ts`, puro e
+    unit-testado). O preço que o próprio cliente pagou é a única referência
+    honesta que este repositório tem para uma rota que o Radar ignora, e é dado
+    real — referência, valor (`best_proposal.total_brl`, o mesmo campo do card
+    "Esta cotação" e da Economia) e data de fechamento. Quatro regras:
+    - **A rota casa pela MESMA chave normalizada** (`quotationRadarRoute`, sobre
+      `quotationRouteParts` + `normalizeRadarRoute`) usada para procurar no
+      Radar. Uma segunda forma de comparar rota erraria calada no caso mais
+      comum — o destino não nomeado que vira "Brasil" e depois porto de chegada
+      — e o bloco diria "sem histórico" para um cliente que tem cinco.
+    - **Sem histórico na rota, a frase de ausência fica como estava.** A função
+      devolve `null`, não lista vazia: não há o que preencher, e forçar conteúdo
+      ali seria inventar referência de preço onde o cliente não tem nenhuma.
+    - **Não há tendência, média nem comparação** sobre essas linhas. Duas
+      cotações do próprio cliente em meses diferentes não são série de preço de
+      mercado; virar seta de tendência seria fabricar a leitura que o Radar
+      existe para dar. Por isso o título do bloco muda para "Seu histórico nesta
+      rota" neste ramo — "Tendência da rota" com fechamentos embaixo prometeria
+      o que as linhas não entregam.
+    - **O desenho é o da lista da Evidência** (mesma promessa de leitura, do
+      outro lado da tela), com o VALOR à direita no lugar do badge de estado:
+      todas as linhas são FECHADA por construção e um badge idêntico em todas
+      seria ruído. Corte em `ROUTE_HISTORY_WINDOW = 3`, declarado na frase
+      quando existe ("Abaixo, as 3 mais recentes"), nunca em silêncio.
+    - **O seed atual não exercita este ramo**: só há duas cotações FECHADA
+      (COT-2026-0001 e 0004) e elas estão em rotas diferentes, ambas dentro do
+      Radar. Para a demo mostrar a lista é preciso uma segunda FECHADA numa rota
+      que o Radar não acompanha.
   - **O desenho é o mesmo**: `components/price-trend.tsx` (`PriceAlertBadge`,
     `PriceTrendLine`, `PRICE_ALERT_CLASS`) saiu de dentro de `radar/page.tsx` e
     agora serve as duas telas. Duas paletas para a mesma classificação fariam
