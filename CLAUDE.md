@@ -494,6 +494,50 @@ aborta se as referências já existirem e confere os deltas de linha antes de
 commitar. Foi aplicado uma vez no Supabase remoto; num banco limpo, `make seed`
 já cria as nove.
 
+`backend/scripts/reanchor_tracking_demo.py` conserta a única coisa que os
+top-ups de tracking não conseguem: o **envelhecimento** da demo. Os dois top-ups
+ancoram as datas em "agora" e pulam qualquer embarque que já tenha
+`tracking_data_status`, então rodar de novo não faz nada — e alguns dias depois o
+ETA de um embarque "em trânsito" já está no passado. Este script soma o MESMO
+número de dias a todas as datas ilustrativas do cliente demo. O deslocamento
+uniforme é o ponto: preserva `current_eta - first_eta` (o desvio que vira o
+semáforo) e a ordem entre embarques. Só UPDATE, só colunas `tracking_*`, delta de
+linhas ZERO, e não toca em linha com `tracking_is_mock = FALSE`.
+
+### EMB-2026-0013: datas recuadas 10 dias na mão (01/09/2026)
+
+**Se você ler `first_eta: 2026-08-10` no EMB-2026-0013 e achar que é erro de
+digitação, não é.** Está assim de propósito, e desfazer quebra a demo.
+
+O problema: o EMB-2026-0013 tem milestone `ARRIVAL`, ou seja, a carga já chegou,
+e ETA no passado é o estado CORRETO dele. Mas o reanchor desloca todo mundo de
+uma vez, e o deslocamento que o EMB-2026-0001 (`OCEAN_TRANSIT`, o cenário-vitrine
+"em trânsito / no prazo") precisava era +20 dias — o suficiente para empurrar o
+0013 para uma chegada no futuro. Uma carga marcada como "chegou" com data de
+chegada que ainda não aconteceu. O próprio script avisa disso antes de aplicar.
+
+O teto que respeitaria o 0013 era +10, metade do necessário: consertaria cinco
+embarques e deixaria justamente o cenário-vitrine com ETA vencido. Por isso as
+ETAs do 0013 foram recuadas 10 dias ANTES do reanchor cheio, num script pontual
+não commitado (mesmo padrão dos outros ajustes de dado de demo):
+
+    first_eta   2026-08-20 -> 2026-08-10    (depois do +20: 2026-08-30)
+    current_eta 2026-08-21 -> 2026-08-11    (depois do +20: 2026-08-31)
+
+O recuo é **uniforme nas duas datas**, então o desvio `current - first` continua
++1 dia e o semáforo do 0013 não muda. Isso importa porque a mesma
+`delayRiskFromTracking` alimenta o on-time rate do Executivo e o `onTimePct` por
+rota/armador do Performance — que leem a DIFERENÇA, nunca a data absoluta.
+
+Auditado antes de aplicar, e vale reconferir se alguém mexer nisso: a Auditoria
+filtra por `last_milestone === 'AVAILABLE'` (o 0013 é `ARRIVAL`, nem entra e não
+usa data nenhuma); `illustrative-kpis.ts` tira Economia das COTAÇÕES fechadas e
+on-time da diferença de ETAs; `volume-helpers.ts` (gráficos de Performance e
+Executivo) conta por `created_at`, coluna que nada disso toca; e o `price-radar`
+agrupa rota e frequência, sem ETA. Nenhum teste unitário lê o banco — as datas
+`2026-08-20/21` que aparecem em `step-insights.test.ts` e companhia são fixtures
+inline, sem relação com esta linha.
+
 ## Como rodar
 
 ```bash
