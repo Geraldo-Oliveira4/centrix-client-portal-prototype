@@ -143,10 +143,25 @@ AWAITING_AGENTS = (
 )
 
 # Ramo -> (produto, PO, incoterm, dias_atras). A ROTA nao esta aqui: vem do banco.
+# Ramo -> (produto, PO, incoterm, dias_atras, propostas). A ROTA nao esta aqui:
+# vem do banco. As PROPOSTAS estao, e variam por ramo de proposito.
+#
+# Por que variam: as tres cotacoes aparecem lado a lado na demo, e o card
+# "Mercado" imprime o valor da mais barata. Com o mesmo par nas tres, os tres
+# cards mostravam R$ 7.270,00 identico e liam como bug. O valor nao muda o ramo
+# (o ramo sai da ROTA), mas muda o que a demo parece.
+#
+# Cada proposta e (total_value, freight_value) em USD, a mais barata primeiro.
+# O numero do card sai do FREIGHT (+ taxas, convertidos pela ptax), nao do total
+# — ver normalize_proposal_cost_to_brl. Ordem de grandeza por distancia: Izmir
+# (Mediterraneo) abaixo das duas asiaticas, Qingdao um pouco acima de Busan.
 CHOOSE_PROPOSAL = {
-    "tendencia": ("Motores eletricos trifasicos", "PO-2026-1194", "FOB", 6),
-    "historico": ("Chapas de aco galvanizado", "PO-2026-1195", "CIF", 4),
-    "ausencia": ("Ceramica tecnica industrial", "PO-2026-1196", "FOB", 2),
+    "tendencia": ("Motores eletricos trifasicos", "PO-2026-1194", "FOB", 6,
+                  ((4820.0, 4180.0), (5130.0, 4460.0))),   # Busan   -> ~R$ 8.810
+    "historico": ("Chapas de aco galvanizado", "PO-2026-1195", "CIF", 4,
+                  ((3510.0, 3020.0), (3790.0, 3280.0))),   # Izmir   -> ~R$ 6.490
+    "ausencia": ("Ceramica tecnica industrial", "PO-2026-1196", "FOB", 2,
+                 ((5040.0, 4390.0), (5410.0, 4720.0))),    # Qingdao -> ~R$ 9.230
 }
 
 # Deltas exatos que este script pode causar. Qualquer coisa fora disso e bug.
@@ -372,7 +387,7 @@ def main() -> int:
             "historico": (history_host.origin, history_host.porto_destino, history_host.modal),
             "ausencia": (ABSENT_ROUTE_ORIGIN, None, Modal.MARITIMO),
         }
-        for branch, (product, po, incoterm, days_ago) in CHOOSE_PROPOSAL.items():
+        for branch, (product, po, incoterm, days_ago, proposals) in CHOOSE_PROPOSAL.items():
             origin, porto_destino, modal = branch_route[branch]
             q, created_at = _new_quotation(
                 QuotationState.ENVIADA_CLIENTE, product, po, origin, incoterm,
@@ -381,8 +396,9 @@ def main() -> int:
             )
             # Duas propostas: a coluna se chama "Escolha sua proposta", e com uma
             # so nao ha escolha. Nenhuma e vencedora — a escolha e do cliente.
-            _add_proposal(q, agents[0], 3980.0, 3410.0, 29, created_at + timedelta(days=1))
-            _add_proposal(q, agents[1], 4310.0, 3720.0, 25, created_at + timedelta(days=2))
+            for i, (total, freight) in enumerate(proposals):
+                _add_proposal(q, agents[i], total, freight, 29 - i * 4,
+                              created_at + timedelta(days=i + 1))
 
         # --- Verificacao dos deltas ----------------------------------------
         after = _counts(session)
