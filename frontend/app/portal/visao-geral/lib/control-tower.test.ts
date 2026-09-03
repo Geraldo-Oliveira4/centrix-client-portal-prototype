@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  TOWER_COLUMN_LIMIT,
   buildControlTower,
   type ControlTowerInput,
 } from './control-tower.ts';
@@ -61,42 +62,36 @@ const run = (over: Partial<ControlTowerInput> = {}) =>
   buildControlTower({
     shipments: [],
     buckets: {},
-    bucketOrder: ['aguardando_dados', 'buscando_propostas', 'aguardando_aprovacao'],
     realSteps: REAL_STEPS,
     now: NOW,
     ...over,
   });
 
-test('cliente sem nada: as duas colunas vazias, farol todo zero', () => {
+test('cliente sem nada: as duas colunas vazias, sem corte a declarar', () => {
   const tower = run();
-  assert.deepEqual(tower.awaiting, []);
-  assert.deepEqual(tower.attention, []);
-  assert.equal(tower.total, 0);
-  assert.deepEqual(
-    tower.beacons.map((b) => b.count),
-    [0, 0, 0],
-  );
+  assert.deepEqual(tower.awaiting.items, []);
+  assert.deepEqual(tower.attention.items, []);
+  assert.equal(tower.awaiting.total, 0);
+  assert.equal(tower.awaiting.hidden, 0);
+  assert.equal(tower.attention.hidden, 0);
 });
 
 test('cotação em bucket de ação do cliente entra em "Aguardando sua ação"', () => {
   const tower = run({
     buckets: { aguardando_aprovacao: [quotation()] },
   });
-  assert.equal(tower.awaiting.length, 1);
-  assert.equal(tower.awaiting[0].module, 'cotacao');
-  assert.equal(tower.awaiting[0].reference, 'COT-2026-0001');
-  assert.equal(tower.attention.length, 0);
+  assert.equal(tower.awaiting.items.length, 1);
+  assert.equal(tower.awaiting.items[0].module, 'cotacao');
+  assert.equal(tower.awaiting.items[0].reference, 'COT-2026-0001');
+  assert.equal(tower.attention.items.length, 0);
 });
 
 test('bucket que não é de ação do cliente não entra em coluna nenhuma', () => {
   const tower = run({
     buckets: { buscando_propostas: [quotation()] },
   });
-  assert.equal(tower.awaiting.length, 0);
-  assert.equal(tower.attention.length, 0);
-  // Mas continua contando como cotação ativa — é verde, não invisível.
-  assert.equal(tower.total, 1);
-  assert.equal(tower.beacons[0].count, 1);
+  assert.equal(tower.awaiting.items.length, 0);
+  assert.equal(tower.attention.items.length, 0);
 });
 
 test('a coluna 1 usa os MESMOS baldes que o Funil chama de needsAction', () => {
@@ -104,7 +99,7 @@ test('a coluna 1 usa os MESMOS baldes que o Funil chama de needsAction', () => {
   // tem de aparecer aqui sem ninguém editar este módulo.
   for (const bucket of PORTAL_CLIENT_ACTION_BUCKETS) {
     const tower = run({ buckets: { [bucket]: [quotation()] } });
-    assert.equal(tower.awaiting.length, 1, `balde ${bucket} não entrou na coluna 1`);
+    assert.equal(tower.awaiting.items.length, 1, `balde ${bucket} não entrou na coluna 1`);
   }
 });
 
@@ -112,23 +107,23 @@ test('embarque com StepAction pendente entra em "Aguardando sua ação"', () => 
   const tower = run({
     shipments: [shipment({ estado: 'analise_booking' })],
   });
-  assert.equal(tower.awaiting.length, 1);
-  assert.equal(tower.awaiting[0].module, 'embarque');
-  assert.equal(tower.awaiting[0].reference, 'EMB-2026-0001');
+  assert.equal(tower.awaiting.items.length, 1);
+  assert.equal(tower.awaiting.items[0].module, 'embarque');
+  assert.equal(tower.awaiting.items[0].reference, 'EMB-2026-0001');
 });
 
 test('risco médio (attention) vai para "Precisam de atenção", em laranja', () => {
   const tower = run({ shipments: [shipment({ tracking: tracking(2) })] });
-  assert.equal(tower.attention.length, 1);
-  assert.equal(tower.attention[0].tone, 'warning');
-  assert.match(tower.attention[0].description, /2 dias/);
+  assert.equal(tower.attention.items.length, 1);
+  assert.equal(tower.attention.items[0].tone, 'warning');
+  assert.match(tower.attention.items[0].description, /2 dias/);
 });
 
 test('risco alto (delayed) vai para a mesma coluna, em vermelho', () => {
   const tower = run({ shipments: [shipment({ tracking: tracking(9) })] });
-  assert.equal(tower.attention.length, 1);
-  assert.equal(tower.attention[0].tone, 'danger');
-  assert.match(tower.attention[0].description, /9 dias/);
+  assert.equal(tower.attention.items.length, 1);
+  assert.equal(tower.attention.items[0].tone, 'danger');
+  assert.match(tower.attention.items[0].description, /9 dias/);
 });
 
 test('no prazo, pendente e sem dado suficiente não entram em coluna nenhuma', () => {
@@ -139,14 +134,14 @@ test('no prazo, pendente e sem dado suficiente não entram em coluna nenhuma', (
     { ...tracking(0), data_status: 'INCOMPLETE' as const },
   ]) {
     const tower = run({ shipments: [shipment({ tracking: tk })] });
-    assert.equal(tower.attention.length, 0);
-    assert.equal(tower.awaiting.length, 0);
+    assert.equal(tower.attention.items.length, 0);
+    assert.equal(tower.awaiting.items.length, 0);
   }
 });
 
 test('a descrição de prazo não imprime o rótulo do chip, mas usa o mesmo número', () => {
   const tower = run({ shipments: [shipment({ tracking: tracking(5) })] });
-  const { description } = tower.attention[0];
+  const { description } = tower.attention.items[0];
   assert.match(description, /5 dias/);
   // "Atraso, +5 dias" é o texto do chip colado no ETA; fora daquele contexto a
   // linha diz quem moveu a data e contra o quê.
@@ -157,8 +152,8 @@ test('atrasado E com ação pendente aparece SÓ em "Aguardando sua ação"', ()
   const tower = run({
     shipments: [shipment({ estado: 'analise_booking', tracking: tracking(9) })],
   });
-  assert.equal(tower.awaiting.length, 1);
-  assert.equal(tower.attention.length, 0);
+  assert.equal(tower.awaiting.items.length, 1);
+  assert.equal(tower.attention.items.length, 0);
 });
 
 test('nenhum id se repete entre as duas colunas, em nenhum arranjo', () => {
@@ -170,7 +165,7 @@ test('nenhum id se repete entre as duas colunas, em nenhum arranjo', () => {
     ],
     buckets: { aguardando_aprovacao: [quotation()] },
   });
-  const ids = [...tower.awaiting, ...tower.attention].map((i) => i.id);
+  const ids = [...tower.awaiting.items, ...tower.attention.items].map((i) => i.id);
   assert.equal(new Set(ids).size, ids.length);
 });
 
@@ -191,42 +186,97 @@ test('dois gatilhos no mesmo embarque viram UMA linha, não duas', () => {
   );
 
   const tower = run(input);
-  assert.equal(tower.awaiting.length, 1);
+  assert.equal(tower.awaiting.items.length, 1);
   // O gatilho representante é o primeiro da ordem da Home: booking vem antes de
   // documento, porque segura o navio.
-  assert.equal(tower.awaiting[0].reference, 'EMB-2026-0001');
+  assert.equal(tower.awaiting.items[0].reference, 'EMB-2026-0001');
 });
 
-test('o farol fecha: verde + laranja + vermelho = cotações ativas + embarques', () => {
+test('o corte: cada coluna mostra 3, e conta o resto em vez de sumir com ele', () => {
   const tower = run({
-    shipments: [
-      shipment({ id: 'a', referencia: 'EMB-A', estado: 'analise_booking' }),
-      shipment({ id: 'b', referencia: 'EMB-B', estado: 'embarcado', tracking: tracking(7) }),
-      shipment({ id: 'c', referencia: 'EMB-C', estado: 'embarcado', tracking: tracking(0) }),
-    ],
     buckets: {
-      aguardando_aprovacao: [quotation({ id: 'q1', reference: 'COT-1' })],
-      buscando_propostas: [quotation({ id: 'q2', reference: 'COT-2' })],
-      // Fora de `bucketOrder`: Histórico não é carteira ativa e não pode entrar
-      // no denominador.
-      finalizadas: [quotation({ id: 'q3', reference: 'COT-3' })],
+      aguardando_aprovacao: [
+        quotation({ id: 'q1', reference: 'COT-1' }),
+        quotation({ id: 'q2', reference: 'COT-2' }),
+        quotation({ id: 'q3', reference: 'COT-3' }),
+      ],
+      aguardando_dados: [
+        quotation({ id: 'q4', reference: 'COT-4' }),
+        quotation({ id: 'q5', reference: 'COT-5' }),
+      ],
     },
   });
 
-  assert.equal(tower.total, 2 + 3);
-  const sum = tower.beacons.reduce((acc, b) => acc + b.count, 0);
-  assert.equal(sum, tower.total);
-  assert.equal(tower.beacons[2].count, tower.awaiting.length);
-  assert.equal(tower.beacons[1].count, tower.attention.length);
+  assert.equal(tower.awaiting.items.length, TOWER_COLUMN_LIMIT);
+  assert.equal(tower.awaiting.total, 5);
+  assert.equal(tower.awaiting.hidden, 2);
 });
 
-test('o farol nunca conta o mesmo embarque duas vezes', () => {
-  // Um embarque com ação pendente E atraso poderia entrar nas duas parcelas se o
-  // dedupe fosse por gatilho — o farol estouraria o total.
-  const tower = run({
-    shipments: [shipment({ estado: 'analise_booking', tracking: tracking(9) })],
+test('"entre os dois módulos" só é dito quando o resto vem mesmo dos dois', () => {
+  // Só cotação escondida: a frase não pode prometer um embarque que não está lá.
+  const somenteCotacao = run({
+    buckets: {
+      aguardando_aprovacao: Array.from({ length: 5 }, (_, i) =>
+        quotation({ id: `q${i}`, reference: `COT-${i}` }),
+      ),
+    },
   });
-  assert.equal(tower.beacons.reduce((acc, b) => acc + b.count, 0), tower.total);
+  assert.equal(somenteCotacao.awaiting.hidden, 2);
+  assert.equal(somenteCotacao.awaiting.hiddenSpansBothModules, false);
+
+  // Três propostas (que vêm primeiro, por terem prazo) empurram os embarques
+  // para o resto, e aí o resto tem os dois módulos.
+  const misto = run({
+    buckets: {
+      aguardando_aprovacao: Array.from({ length: 3 }, (_, i) =>
+        quotation({ id: `q${i}`, reference: `COT-${i}` }),
+      ),
+      aguardando_dados: [quotation({ id: 'qd', reference: 'COT-D' })],
+    },
+    shipments: [shipment({ id: 's1', referencia: 'EMB-1', estado: 'analise_booking' })],
+  });
+  assert.equal(misto.awaiting.hidden, 2);
+  assert.equal(misto.awaiting.hiddenSpansBothModules, true);
+});
+
+test('a coluna de prazo ordena pelo maior deslize, não pela ordem do payload', () => {
+  const tower = run({
+    shipments: [
+      shipment({ id: 'a', referencia: 'EMB-A', tracking: tracking(2) }),
+      shipment({ id: 'b', referencia: 'EMB-B', tracking: tracking(11) }),
+      shipment({ id: 'c', referencia: 'EMB-C', tracking: tracking(5) }),
+    ],
+  });
+  assert.deepEqual(
+    tower.attention.items.map((i) => i.reference),
+    ['EMB-B', 'EMB-C', 'EMB-A'],
+  );
+});
+
+test('a coluna 1 põe as ações COM prazo antes das sem, e ordena por prazo', () => {
+  // É a propriedade que sustenta "o mais urgente é o de prazo mais próximo": só
+  // `proposta` carrega prazo, e `proposta` é a categoria de menor peso na fila.
+  const tower = run({
+    shipments: [shipment({ id: 's1', referencia: 'EMB-1', estado: 'analise_booking' })],
+    buckets: {
+      aguardando_aprovacao: [
+        quotation({
+          id: 'q-longe',
+          reference: 'COT-LONGE',
+          best_proposal: { validity: '2026-09-30T00:00:00Z' },
+        }),
+        quotation({
+          id: 'q-perto',
+          reference: 'COT-PERTO',
+          best_proposal: { validity: '2026-08-28T00:00:00Z' },
+        }),
+      ],
+    },
+  });
+  assert.deepEqual(
+    tower.awaiting.items.map((i) => i.reference),
+    ['COT-PERTO', 'COT-LONGE', 'EMB-1'],
+  );
 });
 
 test('todo href começa em /portal — nenhuma linha da Torre é decorativa', () => {
@@ -237,7 +287,7 @@ test('todo href começa em /portal — nenhuma linha da Torre é decorativa', ()
     ],
     buckets: { aguardando_aprovacao: [quotation()] },
   });
-  for (const item of [...tower.awaiting, ...tower.attention]) {
+  for (const item of [...tower.awaiting.items, ...tower.attention.items]) {
     assert.ok(item.href.startsWith('/portal'), item.href);
     assert.ok(item.ctaLabel.length > 0);
   }

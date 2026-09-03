@@ -25,6 +25,12 @@
 // total dos dois módulos e um embarque contado duas vezes estouraria a conta.
 // É o que `HomeAction.module` + `HomeAction.recordId` existem para permitir.
 //
+// O FAROL DA TELA NÃO SAI DAQUI. Ele é `countBySemaforo`, o mesmo do Mapa e da
+// Home, e mede RISCO por embarque (verde/laranja/vermelho). As colunas medem
+// QUEM PRECISA AGIR. São duas perguntas diferentes sobre a mesma carteira, e
+// popular uma com a outra daria um número que não responde nenhuma — por isso
+// este módulo devolve só as colunas, e a página busca o farol na fonte de sempre.
+//
 // O QUE ESTE MÓDULO ESCREVE é a DESCRIÇÃO da linha de risco de prazo, pela mesma
 // razão que `home-actions.ts` escreve as dele: os rótulos de `computeDelayRisk`
 // ("Atraso, +5 dias") são de um chip ao lado do ETA, com o embarque em volta, e
@@ -35,7 +41,6 @@ import type { PortalQuotation, PortalBucketKey } from '../../../../types/portal.
 import type {
   EmbarqueEstado,
   PortalShipment,
-  SemaforoTone,
 } from '../../../../types/portal-shipment.ts';
 // Imports relativos COM extensão: este módulo roda no runner nativo do Node
 // (`npm run test:unit`), que não resolve o alias `@/`. Mesma razão de
@@ -70,36 +75,36 @@ export const TOWER_MODULE_LABEL: Record<HomeActionModule, string> = {
   embarque: 'Embarque',
 };
 
-/**
- * Uma bolinha do farol combinado.
- *
- * As três somam o total dos dois módulos — ver `buildControlTower` para a
- * identidade que o teste trava.
- */
-export interface TowerBeacon {
-  tone: SemaforoTone;
-  count: number;
-  label: string;
+/** Uma coluna da Torre: o recorte visível e o que ficou de fora. */
+export interface TowerColumnData {
+  /** Os `TOWER_COLUMN_LIMIT` mais urgentes, já ordenados. */
+  items: TowerItem[];
+  /** Quantos existem no total nesta coluna — o que a tela precisa para não truncar calada. */
+  total: number;
+  /** Quantos ficaram de fora do recorte. */
+  hidden: number;
+  /**
+   * Se os itens escondidos vêm dos DOIS módulos. Decide o texto do rodapé: "entre
+   * os dois módulos" só é dito quando é verdade — a coluna de prazo é só de
+   * embarque e nunca o diz.
+   */
+  hiddenSpansBothModules: boolean;
 }
 
 export interface ControlTower {
-  awaiting: TowerItem[];
-  attention: TowerItem[];
-  beacons: TowerBeacon[];
-  /** Cotações ativas + embarques. O denominador do farol. */
-  total: number;
+  awaiting: TowerColumnData;
+  attention: TowerColumnData;
 }
+
+/**
+ * Quantos itens cada coluna mostra. O resto é CONTADO no rodapé, com link para
+ * o módulo — nunca omitido em silêncio, que leria como "é só isso".
+ */
+export const TOWER_COLUMN_LIMIT = 3;
 
 export interface ControlTowerInput {
   shipments: PortalShipment[];
   buckets: Partial<Record<PortalBucketKey, PortalQuotation[]>>;
-  /**
-   * As colunas do Funil, como o backend as ordena (`PORTAL_BUCKET_ORDER`). É o
-   * que define "cotação ativa" — a MESMA derivação do `activeCount` de
-   * `funnel-tab.tsx`, e não a lista de baldes renderizada, que esconde
-   * `aguardando_dados` quando vazio.
-   */
-  bucketOrder: PortalBucketKey[];
   realSteps: { key: EmbarqueEstado; label: string; description: string }[];
   now: Date;
 }
@@ -122,34 +127,35 @@ const towerItemFromAction = (action: HomeAction): TowerItem => ({
 });
 
 /**
- * As duas colunas, o farol combinado e o total.
+ * As duas colunas, cada uma já cortada em `TOWER_COLUMN_LIMIT`.
  *
- * O FAROL É ÍNDICE DAS COLUNAS, não uma quarta classificação:
+ * ORDEM DAS COLUNAS = URGÊNCIA, e nas duas ela é PRAZO onde existe prazo:
  *
- *     🔴 vermelho = itens em "Aguardando sua ação"   (a bola está com o cliente)
- *     🟠 laranja  = itens em "Precisam de atenção"
- *     🟢 verde    = total − vermelho − laranja
+ *   - "Aguardando sua ação" herda a ordem de `collectHomeActions`, que JÁ é
+ *     "prazo mais próximo primeiro". Não é coincidência: só ações de `proposta`
+ *     carregam prazo (a validade da proposta vencedora — nada em `step-insights`
+ *     data um gatilho de embarque), e `proposta` é a categoria de menor peso em
+ *     `KIND_WEIGHT`. Logo toda ação com prazo precede toda ação sem prazo, e
+ *     entre elas a ordem é por `daysLeft` crescente. Reordenar aqui daria a mesma
+ *     lista e criaria uma segunda definição de urgência para divergir da primeira.
+ *   - "Precisam de atenção" não tem prazo nenhum: nenhum embarque cobra data do
+ *     cliente. A urgência ali é o TAMANHO do deslize da companhia, então a coluna
+ *     ordena por `deltaDays` decrescente — a carga que escorregou mais aparece
+ *     primeiro. Sem esse critério a ordem seria a do payload, que não significa nada.
  *
- *     verde + laranja + vermelho = cotações ativas + embarques
+ * UM ITEM NUNCA APARECE NAS DUAS COLUNAS, e o desempate é sempre para a
+ * primeira: se o cliente já tem o que fazer naquele embarque, o risco de prazo é
+ * contexto da mesma linha, não uma segunda cobrança.
  *
- * Vermelho para a ação do cliente porque a régua aqui é "o que trava se ficar
- * parado", e o que depende dele é o topo dessa régua — nada anda enquanto ele
- * não responde. O verde não é uma lista: é o resto, e é por isso que ele fecha a
- * conta sem que ninguém tenha de somar duas fontes. Um item nunca está nas duas
- * colunas, então as três parcelas são disjuntas por construção.
- *
- * Nada aqui é fabricado: cliente sem itens numa coluna recebe uma coluna vazia,
- * e o farol correspondente marca zero.
+ * Nada aqui é fabricado: cliente sem itens numa coluna recebe uma coluna vazia.
  */
 export function buildControlTower({
   shipments,
   buckets,
-  bucketOrder,
   realSteps,
   now,
 }: ControlTowerInput): ControlTower {
-  // Coluna 1, já ordenada pela mesma prioridade da Home (proposta -> booking ->
-  // documento -> dados, depois prazo mais curto). O primeiro gatilho de um
+  // Coluna 1, já ordenada pela urgência da Home. O primeiro gatilho de um
   // registro é o que representa a linha: sendo a lista ordenada, é o mais urgente.
   const awaiting: TowerItem[] = [];
   const claimed = new Set<string>();
@@ -163,7 +169,7 @@ export function buildControlTower({
 
   // Coluna 2. Só embarque: risco de prazo é medido sobre as duas datas da
   // companhia marítima, e cotação não tem nenhuma.
-  const attention: TowerItem[] = [];
+  const attention: (TowerItem & { deltaDays: number })[] = [];
 
   for (const shipment of shipments) {
     if (claimed.has(`embarque:${shipment.id}`)) continue;
@@ -192,33 +198,34 @@ export function buildControlTower({
       ctaLabel: 'Acompanhar embarque',
       href: `/portal/embarques/${shipment.id}`,
       tone: delayed ? 'danger' : 'warning',
+      // Só para ordenar; não vai para a tela. `deltaDays` é sempre um número aqui:
+      // `attention`/`delayed` só saem de `computeDelayRisk` com as duas datas
+      // válidas. O `?? 0` é cinto de segurança contra uma mudança lá dentro.
+      deltaDays: days ?? 0,
     });
   }
 
-  const activeQuotations = bucketOrder.reduce(
-    (sum, bucket) => sum + (buckets[bucket]?.length ?? 0),
-    0,
+  attention.sort(
+    (a, b) => b.deltaDays - a.deltaDays || a.reference.localeCompare(b.reference),
   );
-  const total = activeQuotations + shipments.length;
 
   return {
-    awaiting,
-    attention,
-    total,
-    beacons: [
-      {
-        tone: 'success',
-        // `Math.max` é cinto de segurança, não regra: as duas colunas são
-        // subconjuntos disjuntos do total por construção (ação de cotação só sai
-        // dos baldes de `bucketOrder`, ação de embarque só sai de `shipments`),
-        // e o teste trava a identidade. Se um balde novo furar isso, a tela
-        // mostra 0 em vez de um número negativo.
-        count: Math.max(0, total - awaiting.length - attention.length),
-        label: 'Em andamento',
-      },
-      { tone: 'warning', count: attention.length, label: 'Precisam de atenção' },
-      { tone: 'danger', count: awaiting.length, label: 'Aguardando sua ação' },
-    ],
+    awaiting: cutColumn(awaiting),
+    attention: cutColumn(attention),
+  };
+}
+
+/** Aplica o corte da coluna e descreve o que ficou de fora. */
+function cutColumn(items: TowerItem[]): TowerColumnData {
+  const visible = items.slice(0, TOWER_COLUMN_LIMIT);
+  const hiddenItems = items.slice(TOWER_COLUMN_LIMIT);
+  const modules = new Set(hiddenItems.map((i) => i.module));
+
+  return {
+    items: visible,
+    total: items.length,
+    hidden: hiddenItems.length,
+    hiddenSpansBothModules: modules.size > 1,
   };
 }
 

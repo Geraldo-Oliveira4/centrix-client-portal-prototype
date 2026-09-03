@@ -7,71 +7,58 @@ import { LoaderComponent, ErrorComponent } from '@arboria-tech/arboria-ui';
 
 import { useMyQuotations } from '@/hooks/use-portal-quotations';
 import { useMyShipments } from '@/hooks/use-portal-shipments';
-import {
-  SEMAFORO_LABELS,
-  countBySemaforo,
-  type SemaforoTone,
-} from '@/types/portal-shipment';
+import { countBySemaforo } from '@/types/portal-shipment';
 
 import { SectionHeading } from '../_shared/page-header';
 import { PortalTabHeader } from '../components/portal-tab-header';
 import { REAL_STEPS } from '../embarques/lib/real-steps';
-import { flattenQuotations } from '../inteligencia/lib/intel-helpers';
-import {
-  computeIllustrativeSavings,
-  computeSavingsTrend,
-} from '../inteligencia/lib/illustrative-kpis';
-import { ActionList } from './components/action-list';
-import { SavingsCard } from './components/savings-card';
-import { buildHomeActions } from './lib/home-actions';
+import { HomeShortcuts } from './components/home-shortcuts';
+import { UrgentActionCard } from './components/urgent-action-card';
+import { collectHomeActions } from './lib/home-actions';
 
 /**
- * Home do Portal do Cliente — a tela que responde três perguntas, nesta ordem:
- * "está tudo bem?", "isto está valendo a pena?" e "o que depende de mim?".
+ * Home do Portal do Cliente — a landing pos-login.
+ *
+ * NESTA TELA A SIDEBAR NAO APARECE (`portal/layout.tsx`): o bloco navy com abas
+ * a substitui. Em qualquer outra tela do portal a sidebar volta, e o bloco navy
+ * nao existe. Foi assim que o mockup foi validado, e a consequencia pratica e
+ * que as abas do cabecalho sao a unica navegacao daqui.
  *
  * SEM ENDPOINT NOVO. Tudo sai de `/portal/quotations` e `/portal/shipments`, as
- * duas chaves SWR que o resto do portal já usa — então abrir a Home não custa um
- * fetch a mais do que abrir Meus Embarques, e nenhum número daqui pode discordar
- * das telas de destino, porque é o mesmo payload.
+ * duas chaves SWR que o resto do portal ja usa — entao abrir a Home nao custa um
+ * fetch a mais do que abrir Meus Embarques, e nenhum numero daqui pode discordar
+ * das telas de destino, porque e o mesmo payload.
  *
- * NENHUM CÁLCULO NOVO. Cada bloco importa a fonte que já existia:
- *   - farol         -> `countBySemaforo` (o mesmo do "Visão do todo" do Mapa)
- *   - economia      -> `illustrative-kpis` (fonte ÚNICA, com Performance e Executivo)
- *   - ações         -> `lib/home-actions`, que roda a pipeline da tela de
- *                      detalhe do embarque + os baldes de ação do Funil
- *   - rodapé        -> `buscando_propostas`, a coluna "Aguardando agentes"
+ * NENHUM CALCULO NOVO:
+ *   - farol -> `countBySemaforo` (o mesmo do "Visao do todo" do Mapa)
+ *   - acao  -> `collectHomeActions`, que roda a pipeline da tela de detalhe do
+ *              embarque + os baldes de acao do Funil
  *
- * A Home é ponto de COMPOSIÇÃO, como `embarques/[id]/page.tsx`: os helpers são
- * puros e testados, e rodam uma vez cada.
+ * A HOME MOSTRA UMA ACAO, NAO A FILA. A fila inteira existe e esta completa —
+ * ela mora na Visao Geral, organizada por modulo. Aqui fica o primeiro item e a
+ * contagem do resto: dezoito linhas empilhadas nao respondem "o que depende de
+ * mim?", elas adiam a resposta.
  *
- * CABEÇALHO NAVY (03/09/2026) — o farol MUDOU DE LUGAR, não de conta. Ele saía
- * do `StatusBeaconCard`, um card branco na primeira dobra; agora as mesmas três
- * contagens de `countBySemaforo` são desenhadas dentro do bloco navy, junto da
- * frase dominante e do "Ver no mapa" que já as acompanhavam. O card foi removido
- * em vez de esvaziado: com o farol no cabeçalho, um segundo farol logo abaixo
- * seria a mesma contagem impressa duas vezes na mesma dobra.
+ * O card "Economia Gerada" saiu (03/09/2026): a Home responde "o que precisa de
+ * mim hoje", e economia e pergunta de Inteligencia, que tem duas telas para ela.
  */
-
-const TONES: SemaforoTone[] = ['success', 'warning', 'danger'];
-
 export default function PortalHomePage() {
   const { shipments, isLoading: loadingShipments, isError: shipmentsError } =
     useMyShipments();
   const { data, isLoading: loadingQuotations, isError: quotationsError } =
     useMyQuotations();
 
-  // UMA leitura de relógio por render, compartilhada pelo corte de mês da
-  // economia, pelos prazos das ações e pela saudação do cabeçalho. Duas chamadas
-  // a `new Date()` podem cair em dias diferentes na virada da meia-noite, e aí
-  // "Expira hoje" discordaria do mês que a economia soma. Mesma disciplina do
-  // detalhe do embarque.
+  // UMA leitura de relogio por render, compartilhada pela saudacao do cabecalho
+  // e pelos prazos das acoes. Duas chamadas a `new Date()` podem cair em dias
+  // diferentes na virada da meia-noite, e ai "Expira hoje" discordaria do prazo
+  // que a fila ordenou. Mesma disciplina do detalhe do embarque.
   const now = useMemo(() => new Date(), []);
 
-  const quotations = useMemo(() => flattenQuotations(data), [data]);
-
+  // A FILA INTEIRA, ja ordenada por urgencia. A tela mostra o primeiro item e
+  // conta o resto — o corte e declarado, nunca silencioso.
   const actions = useMemo(
     () =>
-      buildHomeActions({
+      collectHomeActions({
         shipments,
         buckets: data?.buckets ?? {},
         realSteps: REAL_STEPS,
@@ -80,45 +67,25 @@ export default function PortalHomePage() {
     [shipments, data, now],
   );
 
-  const savings = useMemo(
-    () => computeIllustrativeSavings(quotations),
-    [quotations],
-  );
-  const trend = useMemo(
-    () => computeSavingsTrend(quotations, now),
-    [quotations, now],
-  );
-
-  // O FAROL. A fonte é a MESMA do "Visão do todo" do Mapa: `countBySemaforo`
-  // sobre os embarques do cliente, com os rótulos de `SEMAFORO_LABELS` — não há
-  // aritmética nova aqui, e por isso a Home e o Mapa não podem discordar. Pelo
-  // mesmo motivo o rótulo laranja diz "Reprogramado" e não "atraso": atraso é a
-  // régua da companhia marítima (o chip "Com atraso"), e são duas contagens
-  // diferentes — a justificativa completa está em `SEMAFORO_LABELS`.
+  // O FAROL. A fonte e a MESMA do "Visao do todo" do Mapa: `countBySemaforo`
+  // sobre os embarques do cliente — nao ha aritmetica nova aqui, e por isso a
+  // Home e o Mapa nao podem discordar.
   const counts = useMemo(() => countBySemaforo(shipments), [shipments]);
   const needsAttention = counts.warning + counts.danger;
 
-  // "Aguardando retorno" = o balde `buscando_propostas`, a coluna "Aguardando
-  // agentes" do Funil. É deliberadamente o COMPLEMENTO das ações acima: lá está
-  // o que depende do cliente, aqui o que depende do agente. Por isso vive no
-  // rodapé, como link discreto, e não como uma sexta linha de ação.
-  const awaitingAgents = data?.buckets.buscando_propostas?.length ?? 0;
-
   if (loadingShipments || loadingQuotations) return <LoaderComponent />;
   if (shipmentsError || quotationsError) return <ErrorComponent />;
+
+  const remaining = Math.max(0, actions.length - 1);
 
   return (
     <div className="space-y-8">
       <PortalTabHeader
         now={now}
-        beacons={TONES.map((tone) => ({
-          tone,
-          count: counts[tone],
-          label: SEMAFORO_LABELS[tone],
-        }))}
+        counts={counts}
         headline={
-          // O número e a frase mudam juntos: sem nada em aberto a tela dá a boa
-          // notícia em vez de imprimir um "0" grande, que lê como painel quebrado.
+          // O numero e a frase mudam juntos: sem nada em aberto a tela da a boa
+          // noticia em vez de imprimir um "0" grande, que le como painel quebrado.
           needsAttention === 0 ? (
             'Nenhum embarque precisa da sua atenção hoje.'
           ) : (
@@ -130,62 +97,34 @@ export default function PortalHomePage() {
             </>
           )
         }
-        support={`${shipments.length} ${
-          shipments.length === 1
-            ? 'embarque em acompanhamento'
-            : 'embarques em acompanhamento'
-        }`}
-        action={
-          // "Ver no mapa" leva ao chip "Com exceção" JÁ LIGADO, e isso é exato,
-          // não aproximado: aquele chip usa `isExceptionState`, cujos estados são
-          // exatamente os que o semáforo pinta de laranja e vermelho.
-          // `home-actions.test.ts` falha se um estado novo quebrar essa igualdade.
-          //
-          // Branco, não rosa: sobre o navy o rosa da marca fica ilegível, e este
-          // é um link de navegação, não o CTA da tela.
-          <Link
-            href="/portal/embarques?tab=mapa&filtro=excecao"
-            className="portal-small inline-flex items-center gap-1 font-medium text-white/80 hover:text-white hover:underline"
-          >
-            Ver no mapa
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        }
       />
 
-      <SavingsCard savings={savings} trend={trend} />
+      <section className="space-y-3">
+        <SectionHeading title="Sua ação mais urgente" />
+        <UrgentActionCard action={actions[0]} />
 
-      <section className="space-y-4">
-        <SectionHeading
-          title="Ações necessárias"
-          hint={
-            actions.total === 0
-              ? undefined
-              : `${actions.total} ${actions.total === 1 ? 'pendência' : 'pendências'}`
-          }
-        />
-        <ActionList actions={actions.actions} total={actions.total} />
+        {/* O corte e declarado. "Organizadas por modulo" nao e enfeite: e o que
+            a Visao Geral faz de diferente desta tela, e o que justifica mandar o
+            cliente para la em vez de esticar a lista aqui. */}
+        {remaining > 0 ? (
+          <p className="portal-small text-portal-neutral">
+            Mais {remaining} {remaining === 1 ? 'ação aguarda' : 'ações aguardam'}{' '}
+            você — organizadas por módulo na{' '}
+            <Link
+              href="/portal/visao-geral"
+              className="font-medium text-primary hover:underline"
+            >
+              Visão Geral
+            </Link>
+            .
+          </p>
+        ) : null}
       </section>
 
-      {/* Rodapé: atalhos em texto simples, nunca cards. São links para onde a
-          resposta mora, e um card aqui competiria em peso com as ações acima —
-          que são a única coisa desta tela que exige alguma coisa do cliente. */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t pt-4">
-        <Link
-          href="/portal/cotacoes"
-          className="portal-small inline-flex items-center gap-1 text-portal-neutral hover:text-foreground hover:underline"
-        >
-          Cotações aguardando retorno ({awaitingAgents})
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
-        <Link
-          href="/portal/inteligencia/radar"
-          className="portal-small inline-flex items-center gap-1 text-portal-neutral hover:text-foreground hover:underline"
-        >
-          Radar de preços
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
-      </div>
+      <section className="space-y-3">
+        <SectionHeading title="Atalhos" />
+        <HomeShortcuts />
+      </section>
     </div>
   );
 }

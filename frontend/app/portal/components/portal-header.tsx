@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { LogOut, Menu, PackageSearch } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,11 @@ export function PortalHeader() {
   const { client, isLoading } = useMyClient();
   const { toggleMobile } = useSidebar();
   const router = useRouter();
+  const pathname = usePathname();
+  // Na Home nao ha sidebar para abrir (o bloco navy com abas a substitui), entao
+  // o hamburguer sairia da tela sem abrir nada. As abas rolam na horizontal e
+  // fazem a navegacao no mobile.
+  const hasSidebar = pathname !== '/portal/home';
 
   const handleLogout = () => {
     portalSession.clear();
@@ -40,15 +45,17 @@ export function PortalHeader() {
         className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary via-primary/40 to-transparent"
       />
       <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden"
-          onClick={toggleMobile}
-          aria-label="Abrir menu"
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
+        {hasSidebar ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={toggleMobile}
+            aria-label="Abrir menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        ) : null}
         <div className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-primary/8 to-transparent py-1.5 pl-3 pr-6">
           <span className="h-8 w-1 rounded-full bg-gradient-to-b from-primary to-primary/40" />
           <div>

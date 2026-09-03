@@ -1534,31 +1534,84 @@ constantes do lib, nunca digitados na página.
 
 ### Home (`/portal/home/`) — a landing do portal
 
-Desenho validado com Victor Orsi e Vinicius (Claude Design, 26/08/2026). Responde
-três perguntas, nesta ordem: **"está tudo bem?"**, **"isto está valendo a
-pena?"** e **"o que depende de mim?"**. Landing pós-login e primeiro item da
-sidebar; `/portal` é um `redirect()` para cá.
+Desenho validado com Victor Orsi e Vinicius (Claude Design). Landing pós-login;
+`/portal` é um `redirect()` para cá. Revisada em 03/09/2026 para bater com o
+mockup aprovado — as três mudanças abaixo são de FIDELIDADE, não de opinião.
 
-**Rota própria (`/portal/home`), não a raiz `/portal`.** A regra de item ativo da
-sidebar é `pathname.startsWith(href + '/')` — um item com href `/portal` ficaria
-aceso em todas as telas do portal.
+**1. A Home é a única tela SEM SIDEBAR.** O bloco navy com abas
+(`components/portal-tab-header.tsx`) a SUBSTITUI: `portal/layout.tsx` esconde
+`PortalSidebar` quando `pathname === '/portal/home'`, e `portal-header.tsx`
+esconde o hamburguer mobile pelo mesmo motivo (ele abriria um overlay vazio). Em
+qualquer outra tela do portal a sidebar continua exatamente como estava.
+Consequência prática, e ela é aceita: as abas são a única navegação da Home, e
+Auditoria e Minhas Preferências só reaparecem quando o cliente sai dela.
+
+**2. A Home mostra UMA ação, não a fila.** `components/urgent-action-card.tsx`,
+fundo rosa claro (`bg-primary/5`, a única superfície assim no portal) e botão
+primário. A tela tinha a fila inteira e isso derrotava o propósito dela — 18
+linhas empilhadas não respondem "o que depende de mim?", adiam a resposta. A fila
+continua completa, na Visão Geral, e a linha abaixo do card conta quantas ficaram
+("Mais N ações aguardam você — organizadas por módulo na Visão Geral").
+
+- **O "mais urgente" é `collectHomeActions[0]`, e ele É o de prazo mais
+  próximo** — aritmética da fila, não sorte de ordenação: só ações de `proposta`
+  carregam prazo (a validade da proposta vencedora; nada em `step-insights` data
+  um gatilho de embarque) e `proposta` é a categoria de menor peso em
+  `KIND_WEIGHT`. Toda ação com prazo precede toda ação sem prazo, e entre elas a
+  ordem é por `daysLeft` crescente. Reordenar por prazo daria a mesma lista e
+  criaria uma segunda definição de urgência para divergir da primeira; há teste
+  travando a propriedade.
+- **"Atalhos"** (`components/home-shortcuts.tsx`) são quatro pills NEUTRAS, não
+  botões rosa: são navegação, e um segundo rosa disputaria o clique com o card
+  acima. O pill "Documentos" é **inerte** — não existe rota de documentos no
+  portal (eles vivem dentro do detalhe de cada embarque, sem endpoint agregado).
+  Ele aparece porque está no mockup e fica inerte porque a alternativa era mandar
+  o cliente para uma tela que não responde o que o rótulo promete; quando a rota
+  existir, é só preencher `href`.
+
+**3. O card "Economia Gerada" saiu.** A Home responde "o que precisa de mim
+hoje"; economia é pergunta de Inteligência, que já tem duas telas para ela.
+`SavingsCard` e `illustrative-kpis` continuam no repositório e em uso lá — o que
+saiu foi o consumo nesta tela.
+
+**O farol mudou de LUGAR, não de conta.** As três contagens continuam saindo de
+`countBySemaforo` + `SEMAFORO_LABELS` (a mesma fonte do "Visão do todo" da aba
+Mapa); o que mudou é que elas são chips no canto superior direito do bloco navy,
+via `_shared/semaforo-chips.tsx`. `StatusBeaconCard` e `ActionList` foram
+REMOVIDOS, não esvaziados.
 
 **SEM ENDPOINT NOVO E SEM CÁLCULO NOVO.** Tudo sai de `/portal/quotations` e
 `/portal/shipments`, as duas chaves SWR que o resto do portal já usa
-(deduplicadas, não é fetch a mais). Cada bloco importa a fonte que já existia — e
-é isso que impede a Home de discordar da tela para onde ela manda:
+(deduplicadas, não é fetch a mais):
 
 | Bloco | Fonte reusada | Onde a mesma fonte já aparece |
 |---|---|---|
-| Farol de status | `countBySemaforo` + `SEMAFORO_LABELS` (`types/portal-shipment.ts`) | "Visão do todo" da aba Mapa |
-| Economia | `computeIllustrativeSavings` + `computeSavingsTrend` (`inteligencia/lib/illustrative-kpis.ts`) | Performance e Executivo |
-| Ações necessárias | `home/lib/home-actions.ts`, que RODA a pipeline do detalhe do embarque | faixa de Ação Necessária da timeline |
-| Rodapé "aguardando retorno" | balde `buscando_propostas` | coluna "Aguardando agentes" do Funil |
+| Farol (chips no navy) | `countBySemaforo` + `SEMAFORO_LABELS` (`types/portal-shipment.ts`) | "Visão do todo" da aba Mapa, e o farol da Visão Geral |
+| Sua ação mais urgente | `collectHomeActions` (`home/lib/home-actions.ts`), que RODA a pipeline do detalhe do embarque | faixa de Ação Necessária da timeline, e a coluna 1 da Visão Geral |
 
 A Home é ponto de COMPOSIÇÃO, como `embarques/[id]/page.tsx`: uma leitura de
-relógio por render (`now`), compartilhada pelo corte de mês da economia e pelos
+relógio por render (`now`), compartilhada pela saudação do cabeçalho e pelos
 prazos das ações — duas chamadas a `new Date()` cairiam em dias diferentes na
-virada da meia-noite e "Expira hoje" discordaria do mês somado ao lado.
+virada da meia-noite e "Expira hoje" discordaria do prazo que a fila ordenou.
+
+#### Cabeçalho navy com abas (`components/portal-tab-header.tsx`)
+
+- **Navy `#2C2D65` (`brand-navy`) emoldura, nunca convida a clicar.** Rosa
+  (`primary`) continua sendo a única cor de ação; no cabeçalho ela aparece só no
+  filete de 2px da aba ativa, que é o papel de "nav ativa" que a sidebar cumpre
+  nas outras telas.
+- **O bloco é full-bleed** (margens negativas cancelando o `p-6 md:p-8` de
+  `portal/layout.tsx`) porque a aba ativa é pintada com `portal-canvas` e encosta
+  na borda de baixo — ela literalmente continua no fundo da página. Com o bloco
+  recuado, a aba ativa terminaria no ar e o efeito de aba de browser sumiria.
+- **O cabeçalho não conta nada**: `counts` chega pronto.
+- **Toda aba tem destino real.** "Documentos" estava no desenho e ficou de fora
+  porque não existe tela de documentos no portal. Auditoria e Minhas Preferências
+  não entram porque são telas de configuração — a sidebar, que volta assim que o
+  cliente sai da Home, é quem as serve.
+- **`_shared/semaforo-chips.tsx` é um desenho só** para as duas telas de entrada
+  (`variant="navy"` na Home, `light` na Visão Geral). As bolinhas não mudam de
+  cor com o fundo: são semáforo, e semáforo não negocia com o plano de fundo.
 
 #### `lib/home-actions.ts` — a fila do que depende do cliente
 
@@ -1595,80 +1648,35 @@ duas, e a Home pediria um documento que o embarque mostra como entregue.
   Home, porque os textos de `step-insights` são de uma faixa com o embarque em
   volta e estão travados palavra por palavra em `step-insights.test.ts`.
 
-#### Regras dos dois cards da primeira dobra
-
-- **"Ver no mapa" leva ao chip "Com exceção" JÁ LIGADO**, e o recorte é exato:
-  aquele chip usa `isExceptionState`, cujos estados (`postergado`,
-  `booking_divergente`) são exatamente os que o semáforo pinta de laranja e
-  vermelho — ou seja, o N do "precisam da sua atenção". `home-actions.test.ts`
-  falha se um estado novo quebrar essa igualdade.
-- **`?filtro=` é deep link, não persistência.** `embarques/page.tsx` valida o
-  valor contra `SHIPMENT_FILTERS` (chave desconhecida vira `null`, nunca esvazia
-  a tela) e passa `initialFilter` ao `ShipmentMapView`, onde é SEMENTE do
-  `useState`. A regra "não guarde o filtro do Mapa em localStorage" continua
-  valendo — isto é o mesmo mecanismo do `?tab=lista&busca=1` do header.
-- **O número grande da economia é o DO MÊS, não o acumulado**, porque o badge ao
-  lado dele compara meses. A primeira versão mostrava o acumulado com "-100% vs.
-  mês passado" embaixo: as duas afirmações eram verdadeiras, falavam de janelas
-  diferentes, e liam como "a economia acumulada caiu 100%". O acumulado continua
-  na tela, como apoio. Uma pergunta, uma janela.
-- **`computeSavingsTrend` mora em `illustrative-kpis.ts`**, não na Home, e reusa
-  a MESMA `SAVINGS_PCT` do total — economia tem fonte única no portal. Como o
-  percentual é constante, `deltaPct` é a variação do que o cliente REALMENTE
-  fechou de um mês para o outro: ilustrativo é o valor absoluto, não a variação.
-- **Sem base, sem número.** Nenhuma cotação fechada -> o card diz isso em texto;
-  sem mês anterior -> o badge some (não existe variação contra zero). "R$ 0"
-  como resposta a "quanto você economizou" seria acusação, não lacuna — mesma
-  regra do `onTimePct`.
-- **CTA sempre ROSA**, inclusive nas linhas vermelhas: no portal a cor de marca
-  significa AÇÃO e o semáforo significa ESTADO. O tom da linha já aparece no
-  ícone e na barra lateral esquerda.
-- **Queda de economia não é vermelha.** O semáforo fala de saúde de carga;
-  pintar um KPI comercial com ele leria como embarque em risco.
-
-### Cabeçalho navy com abas (`components/portal-tab-header.tsx`) — 03/09/2026
-
-Desenho validado com o Victor Orsi no Claude Design. Serve as **duas telas de
-entrada** do portal, Início e Visão Geral, e só elas — a sidebar continua sendo a
-navegação, e nenhuma outra tela foi tocada.
-
-- **Navy `#2C2D65` (`brand-navy`) emoldura, nunca convida a clicar.** Rosa
-  (`primary`) continua sendo a única cor de ação da tela; no cabeçalho ela
-  aparece só no filete de 2px da aba ativa, que é o mesmo papel de "nav ativa"
-  que a sidebar já lhe dá. Links sobre o navy (o "Ver no mapa" da Home) são
-  brancos: o rosa da marca sobre o navy é ilegível, e aquilo é navegação, não CTA.
-- **O bloco é full-bleed** (margens negativas cancelando o `p-6 md:p-8` de
-  `portal/layout.tsx`) porque a aba ativa é pintada com `portal-canvas` e encosta
-  na borda de baixo — ela literalmente continua no fundo da página. Com o bloco
-  recuado, a aba ativa terminaria no ar e o efeito de aba de browser sumiria.
-- **O cabeçalho não calcula nada.** `beacons` chega pronto: a Home passa
-  `countBySemaforo` (os MESMOS números de antes — o farol mudou de lugar, não de
-  conta) e a Visão Geral passa a contagem combinada dos dois módulos. `StatusBeaconCard`
-  foi REMOVIDO, não esvaziado: com o farol no cabeçalho, um segundo farol na
-  primeira dobra seria a mesma contagem impressa duas vezes.
-- **Toda aba tem destino real.** "Documentos" estava no desenho e ficou de fora
-  porque não existe tela de documentos no portal — eles vivem dentro do detalhe
-  do embarque. Aba decorativa é a mesma coisa que CTA decorativo, e a Home já não
-  admite um.
-
 ### Visão Geral (`/portal/visao-geral/`) — a Torre de Controle
 
-Página nova, **ao lado** de Início e sem substituir nada. A Home responde "como
-minha operação está indo"; esta responde "o que precisa de mim agora", cruzando
-Cotação e Gerenciamento de Embarque numa lista de itens acionáveis.
+Página nova, **ao lado** de Início e sem substituir nada. A Home responde "qual é
+a próxima coisa que eu faço"; esta responde "o que está aberto, por módulo".
 
-**TRÊS SINAIS NA TELA, e só três** (regra dos 5 segundos): o farol combinado no
-cabeçalho, "Aguardando sua ação" e "Precisam de atenção". Nada de KPI, gráfico ou
-atalho extra — quem quiser o quarto número tem uma tela para ele.
+**Cabeçalho BRANCO, sem card escuro em volta.** O bloco navy é da Home, onde
+substitui a sidebar; aqui a sidebar está de volta e um segundo bloco de marca
+competiria com ela. Título preto, subtítulo "Tudo que precisa da sua ação hoje ·
+[data]", farol em chips numa linha — tudo sobre o fundo da página.
 
-**IMUTÁVEL**: sem toggle, sem ordenação escolhida pelo cliente, sem
+**TRÊS SINAIS NA TELA, e só três** (regra dos 5 segundos): farol,
+"Aguardando sua ação" e "Precisam de atenção". Nada de KPI, gráfico ou atalho
+extra — quem quiser o quarto número tem uma tela para ele.
+
+**O FAROL E AS COLUNAS NÃO SE POPULAM.** O farol é `countBySemaforo`: quantas
+operações estão em cada nível de RISCO (verde/laranja/vermelho). As colunas são
+quem PRECISA AGIR. São duas perguntas diferentes sobre a mesma carteira — um
+embarque verde no farol pode ter documento pendente (o estado dele no GE está
+normal, mas a bola está com o cliente), e um laranja pode não exigir nada. Somar
+o tamanho das colunas para imprimir no farol daria um número que não responde
+nenhuma das duas. **Nunca usar um para popular o outro.**
+
+**IMUTÁVEL**, de propósito: sem toggle, sem ordenação escolhida pelo cliente, sem
 personalização. A mesma estrutura para todo cliente é o que faz a Freitas poder
 dizer ao telefone "olha a primeira coluna" e acertar.
 
-**SEM ENDPOINT NOVO E SEM CÁLCULO NOVO.** As mesmas duas chaves SWR do resto do
-portal, deduplicadas. `lib/control-tower.ts` (puro, unit-testado em
-`control-tower.test.ts`, 15 checagens) não classifica nada por conta própria — ele
-CONSOME as três regras que já existiam e as arruma em duas colunas:
+**SEM ENDPOINT NOVO E SEM CÁLCULO NOVO.** `lib/control-tower.ts` (puro,
+unit-testado em `control-tower.test.ts`, 17 checagens) não classifica nada por
+conta própria — consome as regras que já existiam:
 
 | Coluna | Fonte reusada |
 |---|---|
@@ -1676,31 +1684,38 @@ CONSOME as três regras que já existiam e as arruma em duas colunas:
 | Precisam de atenção | `delayRiskFromTracking` -> `computeDelayRisk`, com `attention` ou `delayed` |
 
 - **`collectHomeActions` é novo, `buildHomeActions` não mudou.** O primeiro é a
-  fila inteira e ordenada; o segundo virou um wrapper que aplica o
-  `HOME_ACTION_LIMIT`. O corte é decisão de layout da Home, não parte da regra —
-  e a Torre precisa da fila sem corte.
-- **`HomeAction` ganhou `module` + `recordId`** (aditivo). A Home lista GATILHOS
-  (dois pendentes no mesmo embarque = duas linhas, e ali isso é certo, cada uma
-  com CTA próprio); a Torre lista o REGISTRO, porque o farol tem de fechar com o
-  total dos dois módulos e um embarque contado duas vezes estouraria a conta.
+  fila inteira e ordenada; o segundo é o wrapper que aplica o `HOME_ACTION_LIMIT`.
+  O corte é decisão de layout, não parte da regra.
+- **`HomeAction` ganhou `module` + `recordId`** (aditivo). A Home lista GATILHOS;
+  a Torre lista o REGISTRO, senão um embarque com dois gatilhos ocuparia duas
+  linhas da mesma coluna e o corte de três esconderia outro embarque por causa dele.
 - **Um item nunca aparece nas duas colunas**, e o desempate é sempre para a
   primeira: se o cliente já tem o que fazer naquele embarque, o risco de prazo é
   contexto da mesma linha, não uma segunda cobrança.
-- **O farol combinado é ÍNDICE das colunas**, não uma quarta classificação:
-  🔴 = "Aguardando sua ação", 🟠 = "Precisam de atenção", 🟢 = o resto. A
-  identidade `verde + laranja + vermelho = cotações ativas + embarques` é travada
-  por teste. "Cotação ativa" usa `bucket_order` (as três colunas do Funil), a
-  MESMA derivação do `activeCount` de `funnel-tab.tsx` — não a lista renderizada,
-  que esconde `aguardando_dados` quando vazio.
+- **Corte de `TOWER_COLUMN_LIMIT = 3` por coluna**, com o resto CONTADO no rodapé
+  e link para o módulo. "entre os dois módulos" só é impresso quando os itens
+  escondidos vêm mesmo dos dois (`hiddenSpansBothModules`) — a coluna de prazo é
+  só de embarque e dizê-lo ali prometeria uma cotação que não está no resto.
+- **Ordem = urgência, e é prazo onde existe prazo.** A coluna 1 herda a ordem de
+  `collectHomeActions`, que já é "prazo mais próximo primeiro" (ver a seção da
+  Home). A coluna 2 não tem prazo nenhum — nenhum embarque cobra data do
+  cliente —, então ordena por `deltaDays` decrescente: a carga que escorregou
+  mais aparece primeiro. Sem esse critério a ordem seria a do payload, que não
+  significa nada.
 - **A descrição da linha de prazo é escrita aqui**, e não é `risk.label`
   ("Atraso, +5 dias"): aquele é o texto do chip colado no ETA, dentro do
   embarque. Fora daquele contexto a frase precisa dizer QUEM moveu a data e
-  contra o quê. O NÚMERO é o mesmo `deltaDays` que `computeDelayRisk` devolveu —
-  nada é recalculado, e por isso a linha não pode discordar do badge do embarque.
-- **Sem Aprovação Documental**: só Cotação e Embarque alimentam as colunas.
-- **Sem selo de proveniência**, seguindo a filosofia vigente desde o Prompt 15.
-- **Sem dado fabricado**: coluna sem itens mostra estado vazio em texto, nunca uma
-  linha de exemplo para não parecer quebrada.
+  contra o quê. O NÚMERO é o mesmo `deltaDays` que `computeDelayRisk` devolveu.
+- **O link do rodapé da coluna 1 leva ao Funil** (a tela do `needsAction` de
+  cotação) e à Lista de embarques. A Lista **não tem chip de "ação necessária"**
+  hoje (os quatro são Urgentes, Embarcados, Com atraso, Com exceção), então esse
+  link abre a Lista inteira; criar o chip é decisão de produto, não de layout. O
+  da coluna 2 usa `?filtro=atraso`, que é a MESMA `delayRiskFromTracking` que
+  classifica as linhas dela.
+- **Sem Aprovação Documental** (só Cotação e Embarque alimentam as colunas),
+  **sem selo de proveniência** (filosofia vigente desde o Prompt 15) e **sem dado
+  fabricado**: coluna vazia mostra estado vazio em texto, nunca uma linha de
+  exemplo para não parecer quebrada.
 
 ### Minhas Cotações — Funil, Histórico, Aprovadas e Reprovadas (`/portal/cotacoes/`)
 
