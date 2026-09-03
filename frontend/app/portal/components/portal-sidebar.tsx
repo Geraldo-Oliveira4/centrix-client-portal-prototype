@@ -107,13 +107,24 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
           </button>
         ) : (
           <>
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <Building2 className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold leading-tight truncate">Portal do Cliente</p>
-              <p className="text-xs text-muted-foreground truncate">Freitas Comex</p>
-            </div>
+            {/* A marca leva para a Home, que e a landing do portal. O botao de
+                recolher/fechar fica FORA do Link de proposito: um <button>
+                dentro de um <a> e HTML invalido, e o clique de recolher seria
+                engolido pela navegacao. No mobile o link tambem fecha a gaveta,
+                como os itens de menu abaixo. */}
+            <Link
+              href="/portal/home"
+              onClick={mobile ? toggleMobile : undefined}
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-md transition-opacity hover:opacity-80"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Building2 className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold leading-tight truncate">Portal do Cliente</p>
+                <p className="text-xs text-muted-foreground truncate">Freitas Comex</p>
+              </div>
+            </Link>
             {/* Toggle collapse (desktop) or close (mobile) */}
             {mobile ? (
               <button
