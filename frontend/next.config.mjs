@@ -19,11 +19,20 @@ const nextConfig = {
   // to land on the internal login. Kept temporary (permanent: false, HTTP 307)
   // so browsers do not cache it — the analyst routes still work when typed
   // directly, and re-syncing this frontend with Centrix stays cheap.
+  //
+  // The destination is the portal LANDING, which is `/portal/home` — not the
+  // funnel. It pointed at `/portal/cotacoes` until 03/09/2026 because that WAS
+  // the landing before the Home existed; `app/portal/page.tsx` and
+  // `app/portal/layout.tsx` were updated when the Home shipped and this one was
+  // missed, so the domain root kept opening on Cotações while every in-app path
+  // went to the Home. Whenever the landing moves, THREE places have to move
+  // together: this redirect, `app/portal/page.tsx` and the authenticated bounce
+  // in `app/portal/layout.tsx`.
   async redirects() {
     return [
       {
         source: '/',
-        destination: '/portal/cotacoes',
+        destination: '/portal/home',
         permanent: false,
       },
     ];
