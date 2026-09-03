@@ -1090,8 +1090,9 @@ existing `GET` routes. Their sidebar entries live in
 **não** é read-only: é a área de conta, e as telas dentro dela são as únicas do
 portal que escrevem no backend (ver a seção delas adiante).
 
-**A sidebar tem SEIS itens** (26/08/2026): Início, Minhas Cotações, Meus
-Embarques, Inteligência, Auditoria, Minhas Preferências. Fora a Home, é uma
+**A sidebar tem SETE itens** (03/09/2026): Início, Visão Geral, Minhas Cotações,
+Meus Embarques, Inteligência, Auditoria, Minhas Preferências. Fora a Home e a
+Visão Geral, é uma
 lista de telas OPERACIONAIS: Meus Exportadores e Meus Agentes eram itens de
 primeiro nível e desceram para dentro de Minhas Preferências — são
 cadastro/configuração, e no nível de cima se misturavam com o uso do dia a dia.
@@ -1624,6 +1625,82 @@ duas, e a Home pediria um documento que o embarque mostra como entregue.
   ícone e na barra lateral esquerda.
 - **Queda de economia não é vermelha.** O semáforo fala de saúde de carga;
   pintar um KPI comercial com ele leria como embarque em risco.
+
+### Cabeçalho navy com abas (`components/portal-tab-header.tsx`) — 03/09/2026
+
+Desenho validado com o Victor Orsi no Claude Design. Serve as **duas telas de
+entrada** do portal, Início e Visão Geral, e só elas — a sidebar continua sendo a
+navegação, e nenhuma outra tela foi tocada.
+
+- **Navy `#2C2D65` (`brand-navy`) emoldura, nunca convida a clicar.** Rosa
+  (`primary`) continua sendo a única cor de ação da tela; no cabeçalho ela
+  aparece só no filete de 2px da aba ativa, que é o mesmo papel de "nav ativa"
+  que a sidebar já lhe dá. Links sobre o navy (o "Ver no mapa" da Home) são
+  brancos: o rosa da marca sobre o navy é ilegível, e aquilo é navegação, não CTA.
+- **O bloco é full-bleed** (margens negativas cancelando o `p-6 md:p-8` de
+  `portal/layout.tsx`) porque a aba ativa é pintada com `portal-canvas` e encosta
+  na borda de baixo — ela literalmente continua no fundo da página. Com o bloco
+  recuado, a aba ativa terminaria no ar e o efeito de aba de browser sumiria.
+- **O cabeçalho não calcula nada.** `beacons` chega pronto: a Home passa
+  `countBySemaforo` (os MESMOS números de antes — o farol mudou de lugar, não de
+  conta) e a Visão Geral passa a contagem combinada dos dois módulos. `StatusBeaconCard`
+  foi REMOVIDO, não esvaziado: com o farol no cabeçalho, um segundo farol na
+  primeira dobra seria a mesma contagem impressa duas vezes.
+- **Toda aba tem destino real.** "Documentos" estava no desenho e ficou de fora
+  porque não existe tela de documentos no portal — eles vivem dentro do detalhe
+  do embarque. Aba decorativa é a mesma coisa que CTA decorativo, e a Home já não
+  admite um.
+
+### Visão Geral (`/portal/visao-geral/`) — a Torre de Controle
+
+Página nova, **ao lado** de Início e sem substituir nada. A Home responde "como
+minha operação está indo"; esta responde "o que precisa de mim agora", cruzando
+Cotação e Gerenciamento de Embarque numa lista de itens acionáveis.
+
+**TRÊS SINAIS NA TELA, e só três** (regra dos 5 segundos): o farol combinado no
+cabeçalho, "Aguardando sua ação" e "Precisam de atenção". Nada de KPI, gráfico ou
+atalho extra — quem quiser o quarto número tem uma tela para ele.
+
+**IMUTÁVEL**: sem toggle, sem ordenação escolhida pelo cliente, sem
+personalização. A mesma estrutura para todo cliente é o que faz a Freitas poder
+dizer ao telefone "olha a primeira coluna" e acertar.
+
+**SEM ENDPOINT NOVO E SEM CÁLCULO NOVO.** As mesmas duas chaves SWR do resto do
+portal, deduplicadas. `lib/control-tower.ts` (puro, unit-testado em
+`control-tower.test.ts`, 15 checagens) não classifica nada por conta própria — ele
+CONSOME as três regras que já existiam e as arruma em duas colunas:
+
+| Coluna | Fonte reusada |
+|---|---|
+| Aguardando sua ação | `collectHomeActions` (`home/lib/home-actions.ts`), que já é a união de `PORTAL_CLIENT_ACTION_BUCKETS` (o `needsAction` do Funil) com os `StepAction` `pendente` da timeline |
+| Precisam de atenção | `delayRiskFromTracking` -> `computeDelayRisk`, com `attention` ou `delayed` |
+
+- **`collectHomeActions` é novo, `buildHomeActions` não mudou.** O primeiro é a
+  fila inteira e ordenada; o segundo virou um wrapper que aplica o
+  `HOME_ACTION_LIMIT`. O corte é decisão de layout da Home, não parte da regra —
+  e a Torre precisa da fila sem corte.
+- **`HomeAction` ganhou `module` + `recordId`** (aditivo). A Home lista GATILHOS
+  (dois pendentes no mesmo embarque = duas linhas, e ali isso é certo, cada uma
+  com CTA próprio); a Torre lista o REGISTRO, porque o farol tem de fechar com o
+  total dos dois módulos e um embarque contado duas vezes estouraria a conta.
+- **Um item nunca aparece nas duas colunas**, e o desempate é sempre para a
+  primeira: se o cliente já tem o que fazer naquele embarque, o risco de prazo é
+  contexto da mesma linha, não uma segunda cobrança.
+- **O farol combinado é ÍNDICE das colunas**, não uma quarta classificação:
+  🔴 = "Aguardando sua ação", 🟠 = "Precisam de atenção", 🟢 = o resto. A
+  identidade `verde + laranja + vermelho = cotações ativas + embarques` é travada
+  por teste. "Cotação ativa" usa `bucket_order` (as três colunas do Funil), a
+  MESMA derivação do `activeCount` de `funnel-tab.tsx` — não a lista renderizada,
+  que esconde `aguardando_dados` quando vazio.
+- **A descrição da linha de prazo é escrita aqui**, e não é `risk.label`
+  ("Atraso, +5 dias"): aquele é o texto do chip colado no ETA, dentro do
+  embarque. Fora daquele contexto a frase precisa dizer QUEM moveu a data e
+  contra o quê. O NÚMERO é o mesmo `deltaDays` que `computeDelayRisk` devolveu —
+  nada é recalculado, e por isso a linha não pode discordar do badge do embarque.
+- **Sem Aprovação Documental**: só Cotação e Embarque alimentam as colunas.
+- **Sem selo de proveniência**, seguindo a filosofia vigente desde o Prompt 15.
+- **Sem dado fabricado**: coluna sem itens mostra estado vazio em texto, nunca uma
+  linha de exemplo para não parecer quebrada.
 
 ### Minhas Cotações — Funil, Histórico, Aprovadas e Reprovadas (`/portal/cotacoes/`)
 

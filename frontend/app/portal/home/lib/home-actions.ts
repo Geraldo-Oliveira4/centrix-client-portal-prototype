@@ -53,10 +53,25 @@ import { buildTimelineSteps } from '../../embarques/lib/timeline-steps.ts';
  */
 export type HomeActionKind = 'proposta' | 'booking' | 'documento' | 'dados';
 
+/** De qual dos dois módulos do portal a ação nasceu. */
+export type HomeActionModule = 'cotacao' | 'embarque';
+
 export interface HomeAction {
   /** Estável entre renders: usado como key e para deduplicar. */
   id: string;
   kind: HomeActionKind;
+  /**
+   * O REGISTRO por trás da ação — o módulo e o id da cotação ou do embarque.
+   *
+   * A Home não usa: ela lista uma linha por gatilho, e dois gatilhos do mesmo
+   * embarque são duas linhas legítimas. Quem usa é a Torre de Controle
+   * (`visao-geral`), que lista uma linha por REGISTRO e precisa saber que
+   * `doc:ship-1:coletado` e `booking:ship-1` são o mesmo embarque — sem isso, o
+   * farol combinado contaria o embarque duas vezes e não fecharia com o total
+   * dos módulos. Campo aditivo: nada do que existia mudou de forma.
+   */
+  module: HomeActionModule;
+  recordId: string;
   /** Rótulo curto do registro a que a ação pertence ("Embarque EMB-2026-0004"). */
   category: string;
   title: string;
@@ -176,6 +191,8 @@ function shipmentActions(
       out.push({
         id: `doc:${shipment.id}:${stepKey}`,
         kind: 'documento',
+        module: 'embarque',
+        recordId: shipment.id,
         category: `Embarque ${shipment.referencia}`,
         title: action.title,
         description: names.length
@@ -197,6 +214,8 @@ function shipmentActions(
     out.push({
       id: `booking:${shipment.id}`,
       kind: 'booking',
+      module: 'embarque',
+      recordId: shipment.id,
       category: `Embarque ${shipment.referencia}`,
       title: action.title,
       description: divergent
@@ -233,6 +252,8 @@ function quotationActions(
         out.push({
           id: `proposta:${q.id}`,
           kind: 'proposta',
+          module: 'cotacao',
+          recordId: q.id,
           category: `Cotação ${q.reference}`,
           title: 'Proposta aguardando sua escolha',
           description:
@@ -252,6 +273,8 @@ function quotationActions(
       out.push({
         id: `dados:${q.id}`,
         kind: 'dados',
+        module: 'cotacao',
+        recordId: q.id,
         category: `Cotação ${q.reference}`,
         title: 'Detalhes pendentes',
         description:
@@ -267,19 +290,27 @@ function quotationActions(
 }
 
 /**
- * A fila inteira, ordenada, com o corte declarado.
+ * A fila INTEIRA, ordenada e sem corte.
  *
  * Ordenação: categoria, depois urgência do prazo (quem tem prazo mais curto
  * primeiro; quem não tem prazo vai depois de quem tem), depois o id — o
  * desempate por id existe só para a ordem ser estável entre renders, nunca para
  * significar alguma coisa.
+ *
+ * Exportada porque a coluna "Aguardando sua ação" da Torre de Controle
+ * (`visao-geral/lib/control-tower.ts`) é EXATAMENTE esta fila, agrupada por
+ * registro em vez de por gatilho. Ela consome daqui em vez de reimplementar o
+ * critério: "bola com o cliente" tem de significar a mesma coisa nas duas telas
+ * ou a Torre pediria um documento que a Home já considera entregue. O corte de
+ * `HOME_ACTION_LIMIT` fica de fora de propósito — é decisão de layout da Home,
+ * não parte da regra.
  */
-export function buildHomeActions({
+export function collectHomeActions({
   shipments,
   buckets,
   realSteps,
   now,
-}: HomeActionsInput): HomeActionsResult {
+}: HomeActionsInput): HomeAction[] {
   const all = [
     ...shipments.flatMap((s) => shipmentActions(s, realSteps, now)),
     ...quotationActions(buckets, now),
@@ -294,5 +325,11 @@ export function buildHomeActions({
     return a.id.localeCompare(b.id);
   });
 
+  return all;
+}
+
+/** A fila da Home: a de cima, com o corte declarado. */
+export function buildHomeActions(input: HomeActionsInput): HomeActionsResult {
+  const all = collectHomeActions(input);
   return { actions: all.slice(0, HOME_ACTION_LIMIT), total: all.length };
 }

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   Building2,
   FileText,
+  Gauge,
   LayoutDashboard,
   PanelLeft,
   PanelLeftClose,
@@ -34,6 +35,14 @@ const NAV_ITEMS = [
     href: '/portal/home',
     label: 'Início',
     icon: LayoutDashboard,
+  },
+  // Visao Geral (Torre de Controle) fica AO LADO da Home, nao no lugar dela: a
+  // Home responde "como minha operacao esta indo"; esta responde "o que precisa
+  // de mim agora", cruzando Cotacao e Embarque numa lista de itens acionaveis.
+  {
+    href: '/portal/visao-geral',
+    label: 'Visão Geral',
+    icon: Gauge,
   },
   {
     href: '/portal/cotacoes',
