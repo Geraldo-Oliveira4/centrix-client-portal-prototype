@@ -1538,13 +1538,16 @@ Desenho validado com Victor Orsi e Vinicius (Claude Design). Landing pós-login;
 `/portal` é um `redirect()` para cá. Revisada em 03/09/2026 para bater com o
 mockup aprovado — as três mudanças abaixo são de FIDELIDADE, não de opinião.
 
-**1. A Home é a única tela SEM SIDEBAR.** O bloco navy com abas
-(`components/portal-tab-header.tsx`) a SUBSTITUI: `portal/layout.tsx` esconde
-`PortalSidebar` quando `pathname === '/portal/home'`, e `portal-header.tsx`
-esconde o hamburguer mobile pelo mesmo motivo (ele abriria um overlay vazio). Em
-qualquer outra tela do portal a sidebar continua exatamente como estava.
-Consequência prática, e ela é aceita: as abas são a única navegação da Home, e
-Auditoria e Minhas Preferências só reaparecem quando o cliente sai dela.
+**1. O bloco navy é BANNER INFORMATIVO PURO** (`components/home-banner.tsx`):
+saudação, frase dominante e os chips do farol à direita. **Sem nenhuma função de
+navegação** — não há link ali, nem discreto.
+
+**A NAVEGAÇÃO VIVE SÓ NA SIDEBAR**, e a Home não é exceção de rota: ela renderiza
+`PortalSidebar` como qualquer outra tela, e o hamburguer mobile continua onde
+sempre esteve. Duas tentativas foram feitas e revertidas em 03/09/2026 — uma
+fileira de abas dentro do navy, e a sidebar escondida nesta rota. As duas
+criavam dois lugares para ir ao mesmo lugar, o que dá ao cliente duas respostas
+para "onde eu clico?". **Não reintroduza navegação neste bloco.**
 
 **2. A Home mostra UMA ação, não a fila.** `components/urgent-action-card.tsx`,
 fundo rosa claro (`bg-primary/5`, a única superfície assim no portal) e botão
@@ -1561,13 +1564,13 @@ continua completa, na Visão Geral, e a linha abaixo do card conta quantas ficar
   ordem é por `daysLeft` crescente. Reordenar por prazo daria a mesma lista e
   criaria uma segunda definição de urgência para divergir da primeira; há teste
   travando a propriedade.
-- **"Atalhos"** (`components/home-shortcuts.tsx`) são quatro pills NEUTRAS, não
-  botões rosa: são navegação, e um segundo rosa disputaria o clique com o card
-  acima. O pill "Documentos" é **inerte** — não existe rota de documentos no
-  portal (eles vivem dentro do detalhe de cada embarque, sem endpoint agregado).
-  Ele aparece porque está no mockup e fica inerte porque a alternativa era mandar
-  o cliente para uma tela que não responde o que o rótulo promete; quando a rota
-  existir, é só preencher `href`.
+- **"Atalhos"** (`components/home-shortcuts.tsx`) são TRÊS pills NEUTRAS — Nova
+  cotação, Meus embarques, Cotações aprovadas —, não botões rosa: são navegação,
+  e um segundo rosa disputaria o clique com o card acima. Havia um quarto,
+  "Documentos", renderizado inerte porque não existe rota de documentos no portal
+  (eles vivem dentro do detalhe de cada embarque, sem endpoint agregado). **Ele
+  saiu**: afordância desabilitada ainda é promessa, e o portal não expõe caminho
+  para tela que não existe. Quando a rota existir, o pill volta — com `href`.
 
 **3. O card "Economia Gerada" saiu.** A Home responde "o que precisa de mim
 hoje"; economia é pergunta de Inteligência, que já tem duas telas para ela.
@@ -1594,21 +1597,17 @@ relógio por render (`now`), compartilhada pela saudação do cabeçalho e pelos
 prazos das ações — duas chamadas a `new Date()` cairiam em dias diferentes na
 virada da meia-noite e "Expira hoje" discordaria do prazo que a fila ordenou.
 
-#### Cabeçalho navy com abas (`components/portal-tab-header.tsx`)
+#### Banner navy (`home/components/home-banner.tsx`)
 
-- **Navy `#2C2D65` (`brand-navy`) emoldura, nunca convida a clicar.** Rosa
-  (`primary`) continua sendo a única cor de ação; no cabeçalho ela aparece só no
-  filete de 2px da aba ativa, que é o papel de "nav ativa" que a sidebar cumpre
-  nas outras telas.
-- **O bloco é full-bleed** (margens negativas cancelando o `p-6 md:p-8` de
-  `portal/layout.tsx`) porque a aba ativa é pintada com `portal-canvas` e encosta
-  na borda de baixo — ela literalmente continua no fundo da página. Com o bloco
-  recuado, a aba ativa terminaria no ar e o efeito de aba de browser sumiria.
-- **O cabeçalho não conta nada**: `counts` chega pronto.
-- **Toda aba tem destino real.** "Documentos" estava no desenho e ficou de fora
-  porque não existe tela de documentos no portal. Auditoria e Minhas Preferências
-  não entram porque são telas de configuração — a sidebar, que volta assim que o
-  cliente sai da Home, é quem as serve.
+- **Navy `#2C2D65` (`brand-navy`) emoldura, nunca convida a clicar** — e aqui
+  isso é literal, porque não há o que clicar. Rosa (`primary`) continua sendo a
+  única cor de ação da Home, e aparece uma vez só: no CTA do card "Sua ação mais
+  urgente".
+- **É full-bleed** (margens negativas cancelando o `p-6 md:p-8` de
+  `portal/layout.tsx`) porque é uma FAIXA no topo da área de conteúdo, não um
+  card sobre o canvas. Recuado, viraria mais um cartão entre outros e perderia o
+  papel de cabeçalho da tela.
+- **O banner não conta nada**: `counts` chega pronto.
 - **`_shared/semaforo-chips.tsx` é um desenho só** para as duas telas de entrada
   (`variant="navy"` na Home, `light` na Visão Geral). As bolinhas não mudam de
   cor com o fundo: são semáforo, e semáforo não negocia com o plano de fundo.

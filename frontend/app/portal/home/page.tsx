@@ -10,8 +10,8 @@ import { useMyShipments } from '@/hooks/use-portal-shipments';
 import { countBySemaforo } from '@/types/portal-shipment';
 
 import { SectionHeading } from '../_shared/page-header';
-import { PortalTabHeader } from '../components/portal-tab-header';
 import { REAL_STEPS } from '../embarques/lib/real-steps';
+import { HomeBanner } from './components/home-banner';
 import { HomeShortcuts } from './components/home-shortcuts';
 import { UrgentActionCard } from './components/urgent-action-card';
 import { collectHomeActions } from './lib/home-actions';
@@ -19,10 +19,9 @@ import { collectHomeActions } from './lib/home-actions';
 /**
  * Home do Portal do Cliente — a landing pos-login.
  *
- * NESTA TELA A SIDEBAR NAO APARECE (`portal/layout.tsx`): o bloco navy com abas
- * a substitui. Em qualquer outra tela do portal a sidebar volta, e o bloco navy
- * nao existe. Foi assim que o mockup foi validado, e a consequencia pratica e
- * que as abas do cabecalho sao a unica navegacao daqui.
+ * A SIDEBAR APARECE AQUI COMO EM QUALQUER OUTRA TELA — nao ha excecao de rota.
+ * O bloco navy do topo e BANNER INFORMATIVO, sem nenhuma funcao de navegacao:
+ * saudacao, frase dominante e farol, e nada mais. Navegacao vive so na sidebar.
  *
  * SEM ENDPOINT NOVO. Tudo sai de `/portal/quotations` e `/portal/shipments`, as
  * duas chaves SWR que o resto do portal ja usa — entao abrir a Home nao custa um
@@ -80,7 +79,7 @@ export default function PortalHomePage() {
 
   return (
     <div className="space-y-8">
-      <PortalTabHeader
+      <HomeBanner
         now={now}
         counts={counts}
         headline={

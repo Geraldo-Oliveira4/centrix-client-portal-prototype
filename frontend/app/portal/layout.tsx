@@ -44,19 +44,13 @@ export default function PortalLayout({
   if (!authChecked) return null;
   if (isPublic) return <>{children}</>;
 
-  // A HOME E A UNICA TELA SEM SIDEBAR. La o bloco navy com abas
-  // (`components/portal-tab-header.tsx`) SUBSTITUI a navegacao lateral, e as
-  // duas juntas seriam dois menus concorrentes na mesma tela. Em todas as outras
-  // telas do portal a sidebar continua exatamente como estava.
-  const hideSidebar = pathname === '/portal/home';
-
   return (
     <SidebarProvider>
       {/* Canvas #F5F5F7 behind white cards: with a white page background the
           cards had nothing to sit on, which is half of why every block read as
           the same weight. Page margin is the 32px step (p-8) on desktop. */}
       <div className="flex min-h-screen w-full bg-portal-canvas">
-        {hideSidebar ? null : <PortalSidebar />}
+        <PortalSidebar />
         <main className="flex-1 min-w-0 overflow-auto">
           <PortalHeader />
           <div className="p-6 md:p-8">{children}</div>
