@@ -7,14 +7,16 @@ import { SectionHeading } from '../../../_shared/page-header';
 import { ProvenanceBadge } from '../../../_shared/provenance-badge';
 import type { PerformanceMetrics } from '../../lib/performance-helpers';
 
-// Semantic portal palette (tailwind.config.ts) as hex, for the recharts fills —
-// recharts needs colour strings, not Tailwind classes. Kept in sync with the
-// legend's dots below so the donut and its legend cannot drift.
+// Semantic portal palette for the recharts fills — recharts needs colour
+// strings, not Tailwind classes. Sao as MESMAS variaveis que `bg-portal-*`
+// consome (globals.css), nao mais os hex copiados: copiados, o donut ficava com
+// a paleta de LUZ no tema escuro enquanto a legenda ao lado virava. A var
+// resolve no proprio SVG e repinta sozinha quando o tema troca.
 const STATUS_COLORS = {
-  success: '#1E9E63',
-  info: '#4C6FD1',
-  danger: '#D64545',
-  neutral: '#686A9A',
+  success: 'hsl(var(--portal-success))',
+  info: 'hsl(var(--portal-info))',
+  danger: 'hsl(var(--portal-danger))',
+  neutral: 'hsl(var(--portal-neutral))',
 } as const;
 
 /**

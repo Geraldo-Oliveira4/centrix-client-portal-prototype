@@ -43,18 +43,34 @@ const config = {
         'brand-gold': '#ff9e1b', // RETIRED — analyst screens only
         // Indigo is the brand colour: headings, links, secondary buttons,
         // icons. 12.5:1 on white, so it is the ink the retired pink used to be.
+        //
+        // Tres chaves desta rampa sao THEME-AWARE desde a Fase 2 do dark mode
+        // (DEFAULT, 800 e 100); as demais sao a rampa fixa e continuam hex.
+        // Elas viraram var pelo mesmo motivo do semaforo abaixo: sao as
+        // spellings SEMANTICAS do indigo no portal (tinta, borda de enfase,
+        // superficie-2), e no escuro o indigo de luz da 1.20:1 — 33 tintas e 30
+        // bordas invisiveis. Nenhuma das ~80 chamadas mudou.
+        //
+        //   DEFAULT / 800 -> --indigo         luz #2C2E65  escuro indigo-300
+        //   100           -> --brand-indigo-surface
+        //                                     luz #EAECFC  escuro indigo-800
+        //
+        // 800 e DEFAULT sao o MESMO hex na luz e o mesmo papel: `text-*` e a
+        // tinta, `border-*` e a borda de enfase (aba ativa, chip selecionado).
+        // Se algum dia precisarem divergir, separe em duas vars — nao devolva
+        // hex literal, que e o que quebrava no escuro.
         'brand-indigo': {
-          DEFAULT: '#2C2E65',
+          DEFAULT: 'hsl(var(--indigo) / <alpha-value>)',
           950: '#1A1C31',
           900: '#22244D',
-          800: '#2C2E65',
+          800: 'hsl(var(--indigo) / <alpha-value>)',
           700: '#464A78',
           600: '#686A9A',
           500: '#898CBB',
           400: '#A4A6D5',
           300: '#C1C3F3',
           200: '#D7D9FB',
-          100: '#EAECFC',
+          100: 'hsl(var(--brand-indigo-surface) / <alpha-value>)',
           50: '#F4F5FA',
         },
         // Orange is the CTA and the focus ring, and it is a CEILING of ~10% of
@@ -83,17 +99,38 @@ const config = {
         // distance is now the whole point: the previous #FF9500 sat ONE degree
         // of hue from #F59C27 and the two had become the same colour to the
         // eye. Do not "fix" them towards the palette above.
-        'portal-success': '#1E9E63', // concluded / approved
-        'portal-warning': '#C98A00', // attention / waiting — dot and badge fill
+        //
+        // Os seis sao CSS var desde a Fase 2 do dark mode. Os valores de luz nao
+        // mudaram — sao os mesmos hex que estavam aqui, agora declarados em
+        // `:root` no globals.css, com override no bloco `.dark, .fc-dark`. O
+        // `<alpha-value>` e o que preserva os modificadores `/8`, `/10`, `/25`,
+        // `/30` das 581 chamadas, nenhuma das quais mudou.
+        //
+        // Onde ler cada valor: `styles/globals.css`, blocos `:root` e `.dark`.
+        // Nao devolva hex literal aqui — foi o que impediu o portal inteiro de
+        // ter tema escuro.
+        'portal-success': 'hsl(var(--portal-success) / <alpha-value>)',
+        // attention / waiting — dot and badge fill
+        'portal-warning': 'hsl(var(--portal-warning) / <alpha-value>)',
         // Same meaning as portal-warning, at text contrast. #C98A00 on white is
-        // 2.95:1 and fails AA for copy; this is 5.4:1. Use it ONLY where the
-        // warning is TEXT, never for the dot — two tones for one state is the
-        // price of the semáforo staying legible.
-        'portal-warning-ink': '#8A5E00',
-        'portal-danger': '#D64545', // critical / blocked / divergent
-        'portal-info': '#4C6FD1', // in progress, no action required
-        'portal-neutral': '#686A9A', // secondary metadata (indigo-600)
-        'portal-canvas': '#F4F5FA', // page background behind white cards (mist)
+        // 2.95:1 and fails AA for copy; the light value is 5.4:1. Use it ONLY
+        // where the warning is TEXT, never for the dot — two tones for one state
+        // is the price of the semáforo staying legible on WHITE. No escuro a
+        // regra se inverte e o token colapsa em --portal-warning (o ink e que
+        // reprova la); a distincao continua existindo em codigo para nao
+        // reescrever 38 chamadas.
+        'portal-warning-ink': 'hsl(var(--portal-warning-ink) / <alpha-value>)',
+        // critical / blocked / divergent
+        'portal-danger': 'hsl(var(--portal-danger) / <alpha-value>)',
+        // in progress, no action required
+        'portal-info': 'hsl(var(--portal-info) / <alpha-value>)',
+        // secondary metadata (indigo-600 na luz, indigo-400 no escuro)
+        'portal-neutral': 'hsl(var(--portal-neutral) / <alpha-value>)',
+        // Fundo da pagina atras dos cards: Cinza Nevoa #F4F5FA na luz, Navy
+        // Profundo no escuro. NAO e `--background`, que e branco puro na luz —
+        // trocar um pelo outro apagaria o canvas justamente no tema em que ele
+        // faz o trabalho de dar profundidade ao card branco.
+        'portal-canvas': 'hsl(var(--portal-canvas) / <alpha-value>)',
       },
     },
   },

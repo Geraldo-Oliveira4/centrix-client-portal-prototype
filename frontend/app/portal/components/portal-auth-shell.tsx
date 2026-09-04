@@ -23,6 +23,24 @@ export function PortalAuthShell({
   children,
   footer,
 }: PortalAuthShellProps) {
+  /*
+   * TEMA ESCURO: a tela vira navy inteira, de proposito.
+   *
+   * O painel esquerdo (`.bg-brand-gradient`) JA e escuro nos dois temas — dois
+   * halos laranja sobre a placa Navy Profundo, o unico gradiente que o guia
+   * permite sobre navy. O direito e `bg-background`, que no escuro tambem vira
+   * navy. A divisao entre os dois nao some por isso: quem a faz continua sendo o
+   * halo laranja da esquerda, que e o elemento de marca da tela, e nao o degrau
+   * claro/escuro que existia so por acidente do tema unico.
+   *
+   * O que precisava de retoque era o CARTAO, nao o painel: com `border-0` e
+   * `--card` #23253F sobre o navy #1A1C31 ele fica a 1.12:1 e some. No escuro a
+   * borda volta. `dark:border-border` junto e obrigatorio: o projeto nao aplica
+   * a regra `* { border-color: hsl(var(--border)) }` do shadcn, entao `border`
+   * sozinho herda o cinza #E5E7EB do preflight do Tailwind — um fio claro
+   * demais sobre o navy. Com o token, o fio e o #3D3F56 que o guia descreve
+   * como "borda branca a 12%".
+   */
   return (
     <main className="h-screen flex w-full overflow-hidden">
       <div className="bg-brand-gradient w-full h-full hidden md:flex items-center justify-center relative">
@@ -47,7 +65,7 @@ export function PortalAuthShell({
           <BrandLogo variant="auto" size="md" />
         </div>
 
-        <Card className="w-full max-w-md shadow-elevation border-0 animate-fade-in overflow-auto">
+        <Card className="w-full max-w-md shadow-elevation border-0 dark:border dark:border-border animate-fade-in overflow-auto">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold tracking-tight">
               {title}

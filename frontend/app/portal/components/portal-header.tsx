@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { LogOut, Menu, PackageSearch } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { portalSession } from '@/lib/portal-session';
 import { useMyClient } from '@/hooks/use-portal-quotations';
 
@@ -72,6 +73,13 @@ export function PortalHeader() {
             <span className="hidden sm:inline">Verificar embarque</span>
           </Link>
         </Button>
+        {/* Sol/lua entre o atalho e o avatar. O componente ja existia
+            (`components/theme-toggle.tsx`, com o guard de `mounted` que evita o
+            flash de icone errado na hidratacao) e ate agora so era montado na
+            sidebar do analista. A preferencia deste toggle grava em
+            `portal:theme`, separada da do analista — ver
+            `components/scoped-theme-provider.tsx`. */}
+        <ThemeToggle />
         <Avatar className="h-9 w-9">
           <AvatarFallback className="bg-brand-indigo-100 text-brand-indigo text-xs font-semibold">
             {initials || '??'}

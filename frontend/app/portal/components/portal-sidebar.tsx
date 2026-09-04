@@ -117,11 +117,13 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
               onClick={mobile ? toggleMobile : undefined}
               className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-md transition-opacity hover:opacity-80"
             >
-              {/* Fundo branco -> lockup principal (palavra "freitas" em navy).
-                  A marca ja diz "freitas centrix", entao a segunda linha de
-                  texto que dizia "Freitas Comex" saiu: sobrou so o nome do
-                  PRODUTO, que o logotipo nao carrega. */}
-              <BrandMark variant="principal" width={104} />
+              {/* `auto`, nao `principal`: a sidebar e branca na luz e Navy
+                  Profundo no escuro, e a escolha do lockup e pelo FUNDO. Com o
+                  principal fixo, a palavra "freitas" (navy) ficava navy sobre
+                  navy no tema escuro. A marca ja diz "freitas centrix", entao a
+                  segunda linha de texto que dizia "Freitas Comex" saiu: sobrou
+                  so o nome do PRODUTO, que o logotipo nao carrega. */}
+              <BrandMark variant="auto" width={104} />
               <p className="truncate text-xs text-muted-foreground">Portal do Cliente</p>
             </Link>
             {/* Toggle collapse (desktop) or close (mobile) */}
@@ -165,7 +167,14 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
                     'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
                     slim && 'justify-center px-0 py-2',
                     active
-                      ? 'bg-brand-indigo text-white'
+                      // `brand-indigo` e theme-aware (e a TINTA do portal), entao
+                      // no escuro ele sobe para indigo-300 — certo para texto,
+                      // errado aqui, onde e SUPERFICIE com branco em cima: a
+                      // pilula ficava lavanda clara com texto branco, 1.70:1. No
+                      // escuro a superficie selecionada e indigo-700, um degrau
+                      // fixo da rampa (branco em cima 8.36:1, e 2.00:1 contra a
+                      // sidebar navy, entao a selecao continua se destacando).
+                      ? 'bg-brand-indigo text-white dark:bg-brand-indigo-700'
                       : 'text-foreground hover:bg-muted',
                   )}
                 >

@@ -21,6 +21,11 @@ import type { WeeklyVolume } from '../../lib/volume-helpers';
 // largest orange area in the portal — orange is a 10% ceiling, not a fill.
 // Indigo is the brand colour for data marks; the indigo-600 ticks recede
 // against it on either surface.
+//
+// As duas cores saem de VARIAVEL (`--indigo` para a barra, `--portal-neutral`
+// para os ticks), nao de hex: no escuro o indigo de luz da 1.20:1 contra o
+// canvas e o grafico inteiro sumia — barras invisiveis com os eixos ainda
+// desenhados.
 
 function ChartTooltip({
   active,
@@ -58,14 +63,14 @@ export function WeeklyVolumeChart({ data }: { data: WeeklyVolume[] }) {
               dataKey="label"
               tickLine={false}
               axisLine={false}
-              tick={{ fill: '#686A9A', fontSize: 12 }}
+              tick={{ fill: 'hsl(var(--portal-neutral))', fontSize: 12 }}
             />
             <YAxis
               allowDecimals={false}
               tickLine={false}
               axisLine={false}
               width={28}
-              tick={{ fill: '#686A9A', fontSize: 12 }}
+              tick={{ fill: 'hsl(var(--portal-neutral))', fontSize: 12 }}
             />
             <Tooltip
               cursor={{ fill: 'hsl(var(--muted))', fillOpacity: 0.5 }}
@@ -73,7 +78,7 @@ export function WeeklyVolumeChart({ data }: { data: WeeklyVolume[] }) {
             />
             <Bar
               dataKey="count"
-              fill="#2C2E65"
+              fill="hsl(var(--indigo))"
               radius={[4, 4, 0, 0]}
               maxBarSize={40}
             />

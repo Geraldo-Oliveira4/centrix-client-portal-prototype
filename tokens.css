@@ -1,0 +1,86 @@
+/* ============================================================
+   FREITAS CENTRIX — DESIGN TOKENS (CSS)
+   Fonte única de verdade para web. Importe este arquivo antes
+   de qualquer CSS de componente. Não use hex solto nos componentes:
+   use sempre as variáveis.
+   ============================================================ */
+
+:root {
+  /* ---------- COR · MARCA ---------- */
+  --fc-navy:            #1A1C31;
+  --fc-indigo:          #2C2E65;
+  --fc-orange:          #F59C27;
+  --fc-white:           #FFFFFF;
+  --fc-mist:            #F4F5FA;
+
+  --fc-indigo-950: #1A1C31;
+  --fc-indigo-900: #22244D;
+  --fc-indigo-800: #2C2E65;
+  --fc-indigo-700: #464A78;
+  --fc-indigo-600: #686A9A;
+  --fc-indigo-500: #898CBB;
+  --fc-indigo-400: #A4A6D5;
+  --fc-indigo-300: #C1C3F3;
+  --fc-indigo-200: #D7D9FB;
+  --fc-indigo-100: #EAECFC;
+  --fc-indigo-50:  #F4F5FA;
+
+  --fc-orange-800: #7A4407;
+  --fc-orange-700: #A85E0A;
+  --fc-orange-600: #DD8803;
+  --fc-orange-500: #F59C27;
+  --fc-orange-400: #FEB93C;
+  --fc-orange-300: #FDC959;
+  --fc-orange-200: #FDDB96;
+  --fc-orange-100: #FDE8B8;
+  --fc-orange-50:  #FDF1D9;
+
+  --fc-success:     #1E9E63;
+  --fc-success-bg:  #E3F6EC;
+  --fc-warning:     #C98A00;
+  --fc-warning-bg:  #FFF4D6;
+  --fc-danger:      #D64545;
+  --fc-danger-bg:   #FBE7E7;
+  --fc-info:        #4C6FD1;
+  --fc-info-bg:     #E6ECFB;
+
+  --fc-bg:            var(--fc-mist);
+  --fc-surface:       var(--fc-white);
+  --fc-surface-2:     var(--fc-indigo-100);
+  --fc-ink:           var(--fc-navy);
+  --fc-ink-2:         var(--fc-indigo-700);
+  --fc-ink-3:         var(--fc-indigo-600);
+  --fc-border:        #DDE0EE;
+  --fc-border-strong: var(--fc-indigo-300);
+  --fc-link:          var(--fc-indigo);
+  --fc-focus:         var(--fc-orange);
+
+  /* tema escuro — aplique .fc-dark no container */
+  --fc-dark-bg:        var(--fc-navy);
+  --fc-dark-surface:   #23253F;
+  --fc-dark-ink:       var(--fc-white);
+  --fc-dark-ink-2:     var(--fc-indigo-300);
+  --fc-dark-ink-3:     var(--fc-indigo-400);
+  --fc-dark-border:    rgba(255,255,255,.12);
+  --fc-dark-line:      rgba(255,255,255,.28);
+
+  --fc-font-display: "New Black", "Source Sans Pro", system-ui, sans-serif;
+  --fc-font-body:    "Source Sans Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --fc-radius-xs:  4px;
+  --fc-radius-sm:  8px;
+  --fc-radius-md:  12px;
+  --fc-radius-lg:  16px;
+  --fc-radius-xl:  24px;
+  --fc-radius-2xl: 40px;
+  --fc-radius-pill: 999px;
+
+  --fc-shadow-sm: 0 1px 2px rgba(26,28,49,.06), 0 1px 3px rgba(26,28,49,.08);
+  --fc-shadow-md: 0 4px 12px rgba(26,28,49,.10), 0 2px 4px rgba(26,28,49,.06);
+  --fc-shadow-lg: 0 16px 40px rgba(26,28,49,.16), 0 4px 12px rgba(26,28,49,.08);
+  --fc-shadow-glow-orange: 0 8px 24px rgba(245,156,39,.35);
+
+  --fc-duration-fast: 150ms;
+  --fc-duration-base: 250ms;
+  --fc-duration-slow: 400ms;
+}

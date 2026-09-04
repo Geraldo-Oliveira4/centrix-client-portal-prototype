@@ -141,7 +141,11 @@ function StepDot({
     return (
       <span
         className={cn(
-          'flex shrink-0 items-center justify-center rounded-full bg-portal-success text-white',
+          // O check e icone sobre preenchimento solido: alvo nao-textual, 3:1.
+          // Branco sobre o verde do escuro (#21B06E) da 2.81 e reprova; navy da
+          // 5.4 — a mesma regra do guia para tinta sobre laranja. Na luz nada
+          // muda (branco sobre #1E9E63, 3.43).
+          'flex shrink-0 items-center justify-center rounded-full bg-portal-success text-white dark:text-brand-navy',
           size,
         )}
       >
@@ -153,7 +157,12 @@ function StepDot({
     return (
       <span
         className={cn(
-          'flex shrink-0 items-center justify-center rounded-full border-2 border-portal-success bg-white ring-4 ring-portal-success/15',
+          // `bg-card`, nao `bg-white`: e o mesmo branco na luz e a superficie
+          // elevada #23253F no escuro. Vale para os tres `bg-card` deste
+          // arquivo — os dois circulos de etapa e o cartao da etapa atual, que
+          // hospeda um `.portal-h2`. Com o branco cravado aquele titulo ficava
+          // indigo-300 sobre branco: 1.70:1, ilegivel.
+          'flex shrink-0 items-center justify-center rounded-full border-2 border-portal-success bg-card ring-4 ring-portal-success/15',
           size,
         )}
       >
@@ -174,7 +183,7 @@ function StepDot({
   return (
     <span
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-full border border-border bg-white',
+        'flex shrink-0 items-center justify-center rounded-full border border-border bg-card',
         size,
       )}
     />
@@ -471,7 +480,7 @@ export function ShipmentTimeline({
         {current && (
           <div
             className={cn(
-              'space-y-3 rounded-xl border border-portal-success/30 bg-white p-5',
+              'space-y-3 rounded-xl border border-portal-success/30 bg-card p-5',
               // Na última etapa não há próxima: sem isto o painel fica com um
               // terço de branco ao lado dele.
               next ? 'lg:col-span-2' : 'lg:col-span-3',

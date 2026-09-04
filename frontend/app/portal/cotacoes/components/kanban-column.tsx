@@ -41,7 +41,12 @@ export function KanbanColumn({ bucket, quotations }: KanbanColumnProps) {
         // estranho dentro do proprio card se a coluna esticar sem limite.
         // Com 3 colunas o teto nao morde ate ~1700px de container, entao em
         // 1440px e 1920px elas preenchem a largura inteira.
-        'flex flex-1 min-w-80 max-w-[34rem] flex-col rounded-xl border border-t-4 bg-white/60',
+        // `bg-card/60`, nao `bg-white/60`: na luz e exatamente o mesmo pixel
+        // (--card e branco puro la), e no escuro vira #23253F a 60% sobre o
+        // canvas navy — uma placa levemente elevada. O branco cravado virava
+        // cinza sujo translucido sobre navy, que e o unico jeito de a coluna
+        // ficar pior que sem fundo nenhum.
+        'flex flex-1 min-w-80 max-w-[34rem] flex-col rounded-xl border border-t-4 bg-card/60',
         DEFAULT_ACCENT[bucket],
       )}
     >

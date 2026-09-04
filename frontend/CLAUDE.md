@@ -351,7 +351,11 @@ hierarchy. Use `<PagePortalHeader>` / `<SectionHeading>` from
 - `.portal-card-muted` — supporting detail (dados da cotação, containers,
   observação). No shadow, tinted background, recedes on the canvas.
 
-Page background is `bg-portal-canvas` (#F5F5F7), applied in `app/portal/layout.tsx`.
+Page background is `bg-portal-canvas`, applied in `app/portal/layout.tsx` —
+Cinza Névoa `#F4F5FA` no claro e Navy Profundo no escuro (é um token, não um hex
+cravado; ver a seção de dark mode abaixo). **Não** troque por `bg-background`:
+no claro aquilo é branco puro, e é a diferença entre canvas e card que dá
+profundidade à tela.
 
 **Colour — two systems that must never be merged.**
 
@@ -423,6 +427,95 @@ one that fails (1.9:1) and the fill reads at 5.7:1, which is why
 State→colour maps live next to their type (`ESTADO_BADGE_CLASS` /
 `ESTADO_ACCENT_CLASS` in `types/portal-shipment.ts`) so the badge, the summary
 tile and the progress steps cannot drift apart.
+
+### Dark mode (04/09/2026)
+
+O portal tem tema escuro, ligado pelo sol/lua no `portal-header.tsx`. A regra
+que sustenta a implementação inteira: **nenhuma das ~1.100 chamadas de classe
+mudou** — quem virou foram os TOKENS. Se você precisar escrever um `dark:` num
+componente, pare e pergunte se o token não deveria virar sozinho.
+
+**Mecanismo.** `.dark` no `<html>` (next-themes, `attribute="class"`), com
+`.fc-dark` como ALIAS no mesmo bloco de overrides — é o nome que o Brand System
+usa para contêiner escuro, e serve para um bloco escuro dentro de tela clara.
+`enableSystem` é `false`: o guia descartou `prefers-color-scheme`, o tema é
+escolha explícita.
+
+**Dois escopos de persistência, um provider.** `components/scoped-theme-provider.tsx`
+troca a `storageKey` por rota — `portal:theme` sob `/portal`, `theme` no resto —
+para cliente e analista não compartilharem preferência, pelo mesmo motivo que
+`lib/portal-session.ts` mantém as sessões separadas. **Provider aninhado não
+funciona**: o `ThemeProvider` do next-themes 0.4.6 vira `<>{children}</>` quando
+já existe um acima, descartando as props em silêncio. A troca precisa do `key`
+do React (a `storageKey` só é lida no inicializador do `useState`), e o custo é
+uma remontagem ao cruzar a fronteira /portal ↔ analista. Está tudo no cabeçalho
+do arquivo.
+
+**Onde moram os valores:** `styles/globals.css`, blocos `:root` e
+`.dark, .fc-dark`. O `tailwind.config.ts` só aponta para eles com
+`hsl(var(--x) / <alpha-value>)` — o `<alpha-value>` é o que preserva os `/8`,
+`/10`, `/25`, `/30` das chamadas existentes. **Não devolva hex literal** a
+nenhum destes; foi o que impedia o portal de ter tema escuro:
+
+| Token | Claro | Escuro | Por quê |
+|---|---|---|---|
+| `--indigo` (títulos, `text-brand-indigo`, `border-brand-indigo-800`) | `#2C2E65` | `#C1C3F3` (indigo-300) | o índigo de luz dá **1.20:1** sobre a superfície escura — 47 títulos e 33 tintas sumiam |
+| `--portal-success` | `#1E9E63` | `#21B06E` | 4.35 → 5.31 |
+| `--portal-warning` | `#C98A00` | `#C98A00` | já passa (5.06); o que muda é a placa (abaixo) |
+| `--portal-warning-ink` | `#8A5E00` | = `--portal-warning` | ele existe porque o fill reprova sobre BRANCO; no escuro quem reprova é o ink (2.62), então os dois colapsam |
+| `--portal-danger` | `#D64545` | `#E37E7E` | 3.41 → 5.35 |
+| `--portal-info` | `#4C6FD1` | `#829ADF` | 3.20 → 5.43 |
+| `--portal-neutral` | `#686A9A` | `#A4A6D5` (indigo-400) | o token mais usado do portal (284 chamadas): 2.92 → 6.39 |
+| `--brand-indigo-surface` (`bg-brand-indigo-100`) | `#EAECFC` | `#282A4E` | teto DERIVADO: é a placa mais clara em que as seis tintas do farol ainda cruzam 4.5:1 |
+| `--portal-canvas` | `#F4F5FA` | `#1A1C31` | — |
+| `--border` / `--input` | `#DDE0EE` | `#3D3F56` | era `#2C2E65`, 1.20:1 contra a superfície — borda invisível |
+
+Contraste medido sobre as DUAS superfícies escuras (`#1A1C31` canvas e
+`#23253F` card) e sobre a própria placa `/10`, que é a restrição ligante: o uso
+dominante é `bg-portal-X/10 text-portal-X`, onde a tinta compete com a placa, não
+com a superfície nua.
+
+**A única exceção à regra "só tokens":** `bg-portal-warning/10` ganha um override
+de OPACIDADE no escuro (`/10` → `/8`), porque o alpha é assado na classe pelo
+Tailwind e a correção de "atenção" é de alpha, não de cor (4.42 → 4.55). Uma
+regra centralizada em `globals.css`, não 18 `dark:` nas chamadas.
+
+**`brand-indigo` DEFAULT/800 é TINTA e BORDA, nunca superfície.** No escuro ele
+sobe para indigo-300; usá-lo como `bg-` com texto branco em cima dá 1.70:1 (foi
+o que aconteceu com a pílula ativa da sidebar). Os quatro usos como superfície no
+portal ou são marcas decorativas — barra de dados, fio do header —, que ficam
+melhores claras, ou levam `dark:` explícito.
+
+**Superfície flipa por token, não por `dark:`.** `bg-white` cravado não existe
+mais no portal: é `bg-card` (mesmo branco no claro, `#23253F` no escuro).
+`.portal-card` e `.portal-card-muted` já eram assim.
+
+**O que muda de DESENHO, não só de valor:**
+- **Banner navy da Home** vira `bg-card` com fio inferior branco a 28%. No
+  escuro o canvas já É Navy Profundo, e navy sobre navy não é faixa nenhuma; o
+  papel (faixa distinta no topo) sobrevive, e a identidade passa a ser a tela
+  inteira — a proporção 75/15/10 do guia num layout escuro.
+- **`BrandMark variant="auto"`** (dois `<img>`, um escondido por `dark:`) para a
+  sidebar do portal, cujo fundo acompanha o tema. A escolha do lockup é pelo
+  FUNDO, e com o `principal` fixo a palavra "freitas" ficava navy sobre navy.
+- **Login** (`portal-auth-shell`) fica navy inteiro de propósito: quem divide os
+  painéis é o halo laranja do `.bg-brand-gradient`, não o degrau claro/escuro. O
+  cartão ganha `dark:border dark:border-border` — o projeto não aplica o
+  `* { border-color: hsl(var(--border)) }` do shadcn, então `border` sozinho
+  herda o cinza do preflight.
+- **Mapa (Leaflet)**: os tiles do OSM levam `invert(.92) hue-rotate(180deg)`, e o
+  filtro pega SÓ `.leaflet-tile` — subi-lo para `.leaflet-container` inverteria o
+  semáforo e verde leria vermelho. Popup, controles e atribuição são tematizados
+  à parte em `globals.css`. **Não troque de provedor de tiles**: seria uma
+  segunda dependência de rede, e isso é decisão de produto.
+- **Gráficos (recharts)** e o DOM do Leaflet consomem as MESMAS variáveis via
+  `hsl(var(--x))` — a var cascateia para dentro do SVG e do container do
+  Leaflet, e repinta sozinha na troca de tema. `MAP_NAVY` continua hex de
+  propósito: é disco com anel branco, e virar a var o faria sumir dentro do anel.
+
+**Fora do escopo desta fase, e ainda claro-only:** `/proposta-cliente` (13 placas
+`bg-brand-navy` + `text-white` que precisam de redesenho, não de troca de token)
+e a sidebar do analista, cujo `BrandMark` ainda é `principal` fixo.
 
 **Typography** — **Source Sans 3** in `/portal` (`app/portal/portal-font.ts`,
 applied by `app/portal/layout.tsx`) and in `/proposta-cliente`

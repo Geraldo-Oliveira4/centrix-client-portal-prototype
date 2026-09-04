@@ -94,9 +94,43 @@
     --orange: 34.1 91.2% 55.7%;
     /* Retired magenta — analyst screens only, see the header note. */
     --pink: 331.7 86.4% 43.3%;
+
+    /* Semaforo do Portal do Cliente. Ate a Fase 2 do dark mode estes seis eram
+       hex literais no tailwind.config.ts, e por isso nao viravam no escuro: 581
+       chamadas de `text-portal-X` e `bg-portal-X` teriam precisado de um irmao
+       `dark:`. Agora sao triplas HSL aqui, o tailwind.config.ts aponta para
+       elas com `hsl(var(--x) / <alpha-value>)`, e NENHUMA chamada mudou.
+
+       A tripla NAO carrega alpha propria — o alpha vem do modificador da classe
+       (`bg-portal-success/10`). E a mesma disciplina que o comentario de
+       `--border` no bloco .dark explica: var com alpha embutida produziria cor
+       de alpha duplo em `/50` e companhia.
+
+       Os valores de LUZ sao exatamente os que estavam no tailwind.config.ts. */
+    --portal-success: 152.3 68.1% 36.9%; /* #1E9E63 */
+    --portal-warning: 41.2 100% 39.4%; /* #C98A00 */
+    --portal-warning-ink: 40.9 100% 27.1%; /* #8A5E00 */
+    --portal-danger: 0 63.9% 55.5%; /* #D64545 */
+    --portal-info: 224.2 59.1% 55.9%; /* #4C6FD1 */
+    --portal-neutral: 237.6 19.8% 50.6%; /* #686A9A, indigo-600 */
+
+    /* Superficie-2 do portal: a placa clara sobre a qual mora o par
+       `bg-brand-indigo-100 text-brand-indigo`. Vira var pelo mesmo motivo do
+       farol — 18 chamadas que nao mudam. */
+    --brand-indigo-surface: 233.3 75% 95.3%; /* #EAECFC, indigo-100 */
+
+    /* Canvas do portal (`app/portal/layout.tsx`). Nao e `--background`: aqui
+       ele e branco puro, e o portal precisa da Cinza Nevoa para o card branco
+       ter sobre o que sentar. No escuro os dois convergem no Navy Profundo. */
+    --portal-canvas: 230 37.5% 96.9%; /* #F4F5FA */
   }
 
-  .dark {
+  /* `.fc-dark` e alias, nao regra irma: o Brand System v1.0 nomeia o contexto
+     escuro por classe de conteiner (`.fc-dark` no pai), enquanto o next-themes
+     escreve `.dark` no <html>. Um seletor so, dois nomes — duplicar o bloco
+     criaria duas verdades sobre "esta escuro?". */
+  .dark,
+  .fc-dark {
     --background: 234.8 30.7% 14.7%;
     --foreground: 0 0% 100%;
     --card: 235.7 28.6% 19.2%;
@@ -115,13 +149,81 @@
     --accent-foreground: 0 0% 100%;
     --destructive: 0 63.9% 55.5%;
     --destructive-foreground: 0 0% 100%;
-    /* Opaque indigo, not rgba(255,255,255,.12): `hsl(var(--border))` is also
-       consumed as `border-border/50`, and a var carrying its own alpha would
-       produce an invalid double-alpha colour there. */
-    --border: 237.9 39.3% 28.4%;
-    --input: 237.9 39.3% 28.4%;
+    /* Opaque, not rgba(255,255,255,.12): `hsl(var(--border))` is also consumed
+       as `border-border/50`, and a var carrying its own alpha would produce an
+       invalid double-alpha colour there. O valor e o COMPOSTO do guia —
+       rgba(255,255,255,.12) achatado sobre --fc-dark-surface #23253F — em vez
+       do indigo #2C2E65 que estava aqui e dava 1.20:1 contra a superficie
+       (borda invisivel). Composto: 1.46:1. */
+    --border: 235.2 17% 28.8%; /* #3D3F56 */
+    /* Mesma correcao para a borda de campo: `border-input` veste todo input e
+       o botao `outline` do shadcn, e a 1.20:1 eles ficavam sem contorno. */
+    --input: 235.2 17% 28.8%; /* #3D3F56 */
     --ring: 34.1 91.2% 55.7%;
+
+    /* Titulos. `.portal-h1/h2/h3` pintam com hsl(var(--indigo)), e o indigo de
+       luz (#2C2E65) da 1.20:1 sobre a superficie escura: 47 titulos em 27
+       arquivos simplesmente sumiam. Indigo-300 e o `--fc-dark-ink-2` do
+       tokens.css, ou seja o guia ja tinha respondido: 8.78:1. */
+    --indigo: 237.6 67.6% 85.5%; /* #C1C3F3, indigo-300 */
+
+    /* Semaforo no escuro. Restricao ligante: o uso dominante e o par
+       `bg-portal-X/10 text-portal-X`, entao a tinta compete com a PROPRIA
+       placa, nao com a superficie nua. Matiz e saturacao preservados — o
+       semaforo continua sendo o mesmo semaforo, so a luminosidade sobe. */
+    --portal-success: 152.3 68.4% 41%; /* #21B06E — 5.31:1 sobre #23253F */
+    /* Warning NAO muda de cor: #C98A00 ja da 5.06:1 sobre a superficie. O que
+       muda e a placa — ver a regra de `/10 -> /8` mais abaixo. */
+    --portal-warning: 41.2 100% 39.4%; /* #C98A00 */
+    /* warning-ink deixa de existir como segunda cor: ele nasceu porque #C98A00
+       da 2.95:1 sobre BRANCO. No escuro o problema se inverte (o fill passa com
+       5.06 e o ink reprova com 2.62), entao ele colapsa no proprio warning.
+       Duas cores para um estado so tem preco onde ha doenca. */
+    --portal-warning-ink: 41.2 100% 39.4%; /* = --portal-warning */
+    --portal-danger: 0 64.3% 69.2%; /* #E37E7E — 5.35:1 sobre #23253F */
+    --portal-info: 224.5 59.2% 69.2%; /* #829ADF — 5.43:1 sobre #23253F */
+    /* Neutral e o token mais usado do portal (284 chamadas). Indigo-400 e o
+       `--fc-dark-ink-3` do tokens.css: 6.39:1, sem hex novo. */
+    --portal-neutral: 237.6 36.8% 73.9%; /* #A4A6D5, indigo-400 */
+
+    /* Superficie-2 no escuro. O valor NAO foi escolhido, foi derivado: estas
+       placas hospedam as tintas do farol (`bg-brand-indigo-100` + um
+       `text-portal-*` em cima, o par mais comum do portal), entao o TETO de
+       luminosidade da placa e o ponto em que a tinta mais escura das seis,
+       `--portal-warning` #C98A00, ainda cruza 4.5:1.
+
+       indigo-800 (#2C2E65), que espelharia indigo-100 na rampa, fica ACIMA
+       desse teto: warning 4.22, success 4.45, danger 4.48 — as tres reprovam por
+       pouco, e "por pouco" continua sendo reprovar. Medido em tela, no card
+       "Sua acao mais urgente" da Home.
+
+       #282A4E e a placa mais CLARA que aprova as seis (pior tinta 4.65), e
+       ainda assim le como placa: 1.22:1 contra o canvas navy. Contra o card
+       #23253F ela e sutil (1.09:1) de proposito — nesses casos quem desenha a
+       borda e o `border-brand-indigo-800/20..40` que acompanha quase toda
+       chamada, e que no escuro vira indigo-300 com alpha. */
+    --brand-indigo-surface: 236.8 32.2% 23.1%; /* #282A4E */
+
+    /* No escuro o canvas E o fundo: o card #23253F e que se destaca dele. */
+    --portal-canvas: 234.8 30.7% 14.7%; /* #1A1C31 */
   }
+}
+
+/* Placa de `atencao` no escuro.
+ *
+ * O alpha de um utilitario Tailwind e assado na CLASSE (`bg-portal-warning/10`
+ * compila para `hsl(var(--portal-warning) / 0.1)`), entao ele nao pode virar
+ * por variavel como a cor virou. E `atencao` e o unico tom cuja correcao no
+ * escuro E o alpha, nao a cor: #C98A00 sobre a propria placa /10 da 4.42:1 e
+ * reprova AA por pouco; a /8 da 4.55:1 e passa.
+ *
+ * Uma regra centralizada em vez de um `dark:bg-portal-warning/8` em cada uma
+ * das 18 chamadas — que contrariaria a regra desta fase (nenhuma chamada muda).
+ * `/8` ja e vocabulario do portal: cinco lugares usam essa mesma opacidade.
+ */
+.dark .bg-portal-warning\/10,
+.fc-dark .bg-portal-warning\/10 {
+  background-color: hsl(var(--portal-warning) / 0.08);
 }
 
 /* Glassmorphism effects */
@@ -495,4 +597,59 @@
   border-radius: 0.75rem;
   border: 1px solid hsl(var(--border) / 0.7);
   background-color: hsl(var(--muted) / 0.35);
+}
+
+/* ---------------------------------------------------------------------------
+ * Mapa (Leaflet) no tema escuro
+ *
+ * O OpenStreetMap nao publica um estilo escuro, e trocar de provedor seria uma
+ * SEGUNDA dependencia de rede — decisao de produto, nao detalhe de
+ * implementacao (ver o CLAUDE.md da raiz: os tiles do OSM sao a unica chamada
+ * externa do projeto). O tratamento e o padrao da comunidade: inverter o tile e
+ * girar a matiz de volta, para a agua nao virar laranja.
+ *
+ * O filtro pega SO `.leaflet-tile`. Marcadores, rotas e popup vivem em outros
+ * panes e continuam com as cores que o componente pinta — se o filtro subisse
+ * para `.leaflet-container`, o semaforo sairia invertido e verde leria vermelho.
+ * A atribuicao do OpenStreetMap tambem fica de fora: ela e obrigatoria pela
+ * licenca e precisa continuar legivel.
+ * ------------------------------------------------------------------------- */
+.dark .leaflet-tile,
+.fc-dark .leaflet-tile {
+  filter: invert(0.92) hue-rotate(180deg);
+}
+
+/* O popup e DOM do Leaflet, com fundo branco no CSS da biblioteca. Sem isto ele
+   ficaria uma placa branca sobre o mapa escuro — e a tinta que o componente
+   injeta ja e a do tema escuro (indigo-300), o que a deixaria ilegivel. */
+.dark .leaflet-popup-content-wrapper,
+.dark .leaflet-popup-tip,
+.fc-dark .leaflet-popup-content-wrapper,
+.fc-dark .leaflet-popup-tip {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+.dark .leaflet-container a.leaflet-popup-close-button,
+.fc-dark .leaflet-container a.leaflet-popup-close-button {
+  color: hsl(var(--portal-neutral));
+}
+
+/* Controles (zoom, atribuicao) — o CSS do Leaflet os pinta em branco fixo. */
+.dark .leaflet-bar a,
+.fc-dark .leaflet-bar a {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-bottom-color: hsl(var(--border));
+}
+
+.dark .leaflet-control-attribution,
+.fc-dark .leaflet-control-attribution {
+  background: hsl(var(--card) / 0.85);
+  color: hsl(var(--portal-neutral));
+}
+
+.dark .leaflet-control-attribution a,
+.fc-dark .leaflet-control-attribution a {
+  color: hsl(var(--indigo));
 }

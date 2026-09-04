@@ -32,6 +32,18 @@ import { SemaforoChips } from '../../_shared/semaforo-chips';
  *      elas seguem legiveis sem retoque — os tres hexes sao saturados o
  *      bastante — e por isso nao ha uma segunda paleta aqui.
  *
+ * NO TEMA ESCURO O BANNER TROCA DE SUPERFICIE, e nao e concessao: o canvas da
+ * pagina passa a ser o PROPRIO Navy Profundo, entao um banner `bg-brand-navy`
+ * ficaria invisivel — navy sobre navy, sem faixa nenhuma. Pintar so uma borda em
+ * volta nao resolveria: um bloco da cor do fundo com um fio em volta e um fio,
+ * nao uma placa.
+ *
+ * Ele vai para `--fc-dark-surface` #23253F (`bg-card`, a superficie elevada do
+ * guia) com um fio inferior em `--fc-dark-line`. O PAPEL fica intacto — uma
+ * faixa distinta no topo da area de conteudo — e a identidade nao se perde: no
+ * escuro o navy deixa de ser o banner e passa a ser a tela inteira, que e a
+ * proporcao 75/15/10 do guia aplicada a um layout escuro.
+ *
  * O BANNER NAO CONTA NADA. `counts` chega pronto, do `countBySemaforo` de
  * sempre, que e a mesma fonte do "Visao do todo" do Mapa e do farol da Visao
  * Geral — e e isso que impede as tres telas de discordarem.
@@ -63,7 +75,7 @@ export function HomeBanner({
   const { client } = useMyClient();
 
   return (
-    <div className="-mx-6 -mt-6 bg-brand-navy px-6 py-8 md:-mx-8 md:-mt-8 md:px-8">
+    <div className="-mx-6 -mt-6 border-b border-transparent bg-brand-navy px-6 py-8 dark:border-white/[.28] dark:bg-card md:-mx-8 md:-mt-8 md:px-8">
       {/* Boas-vindas a esquerda, farol no canto superior direito. */}
       <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
         <div className="space-y-1">

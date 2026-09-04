@@ -84,7 +84,7 @@ export function ShipmentDocumentsSection({
                 'flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:gap-4',
                 doc.status === 'pendente'
                   ? 'border-portal-warning/30 bg-portal-warning/[0.04]'
-                  : 'border-border bg-white',
+                  : 'border-border bg-card',
               )}
             >
               <FileText

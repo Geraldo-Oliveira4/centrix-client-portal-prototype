@@ -1,0 +1,20 @@
+/* Botões Freitas Centrix — requer tokens.css. Contêiner escuro: adicione a classe .fc-dark ao pai. */
+.fc-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 20px;border-radius:var(--fc-radius-md);font-family:var(--fc-font-body);font-weight:600;font-size:1rem;line-height:1;border:1.5px solid transparent;text-decoration:none;white-space:nowrap;cursor:pointer}
+.fc-btn--primary{background:var(--fc-orange);color:var(--fc-navy)}
+.fc-btn--primary:hover{background:var(--fc-orange-400)}
+.fc-dark .fc-btn--primary:hover{box-shadow:var(--fc-shadow-glow-orange)}
+.fc-btn--secondary{background:var(--fc-indigo);color:var(--fc-white)}
+.fc-btn--secondary:hover{background:var(--fc-indigo-900)}
+.fc-btn--outline{background:transparent;color:var(--fc-indigo);border-color:var(--fc-indigo)}
+.fc-btn--outline:hover{background:var(--fc-indigo-100)}
+.fc-btn--ghost{background:transparent;color:var(--fc-indigo)}
+.fc-btn--ghost:hover{background:var(--fc-indigo-100)}
+.fc-btn--link{background:transparent;color:var(--fc-indigo);padding:0;height:auto;text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--fc-orange)}
+.fc-btn--danger{background:var(--fc-danger);color:var(--fc-white)}
+.fc-btn--danger:hover{background:#B83A3A}
+.fc-btn[disabled],.fc-btn.is-disabled{opacity:.45;pointer-events:none}
+.fc-dark .fc-btn--outline{color:var(--fc-white);border-color:rgba(255,255,255,.55)}
+.fc-dark .fc-btn--outline:hover{background:rgba(255,255,255,.1)}
+.fc-dark .fc-btn--ghost{color:var(--fc-white)}
+.fc-dark .fc-btn--ghost:hover{background:rgba(255,255,255,.1)}
+.fc-dark .fc-btn--link{color:var(--fc-white)}

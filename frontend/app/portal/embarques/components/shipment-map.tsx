@@ -25,30 +25,40 @@ import { DESTINATION_PORT, originPortOf, type Port } from '../lib/port-coordinat
 // The arc is decorative routing, not a sailed track: a quadratic curve sampled
 // between two ports, with no waypoint claiming to be a position.
 
-// Hex, not Tailwind classes: these colours cross into Leaflet's own DOM (marker
-// divIcons and SVG polylines) where our utility classes are not applied. Kept in
-// sync with the semáforo tokens in tailwind.config.ts by name.
+// CSS var, not Tailwind classes: these colours cross into Leaflet's own DOM
+// (marker divIcons, SVG polylines, popup markup) where our utility classes are
+// not applied — mas a variavel CASCATEIA para la, porque o container do Leaflet
+// e filho da nossa arvore. Eram hex copiados ate a Fase 2 do dark mode, e
+// copiados ficavam com a paleta de luz sobre o mapa escuro.
 const TONE_HEX: Record<SemaforoTone, string> = {
-  success: '#1E9E63',
-  warning: '#C98A00',
-  danger: '#D64545',
+  success: 'hsl(var(--portal-success))',
+  warning: 'hsl(var(--portal-warning))',
+  danger: 'hsl(var(--portal-danger))',
 };
 
 // The same three tones at TEXT contrast, for the popup's state label. Only
-// warning differs: #C98A00 on white is 2.95:1 and fails AA for copy, so the
-// label uses portal-warning-ink #8A5E00 (5.4:1) while the dot beside it keeps
-// the fill above. Same split as TONE_TEXT vs TONE_DOT in _shared/tone.ts.
+// warning differs, e so na LUZ: #C98A00 sobre branco e 2.95:1 e reprova AA para
+// copy, entao o rotulo usa portal-warning-ink #8A5E00 (5.4:1) enquanto o ponto
+// ao lado mantem o fill acima. No escuro a var `--portal-warning-ink` colapsa em
+// `--portal-warning` (la o ink e que reprova), e os dois voltam a ser um so sem
+// este arquivo saber. Mesmo split de TONE_TEXT vs TONE_DOT em _shared/tone.ts.
 const TONE_INK_HEX: Record<SemaforoTone, string> = {
-  success: '#1E9E63',
-  warning: '#8A5E00',
-  danger: '#D64545',
+  success: 'hsl(var(--portal-success))',
+  warning: 'hsl(var(--portal-warning-ink))',
+  danger: 'hsl(var(--portal-danger))',
 };
 
 // Navy Profundo for the map furniture (markers, cluster badges), Indigo for
 // popup ink and the link — the Brand System split of what used to be one navy.
+//
+// MAP_NAVY continua HEX de proposito: e o disco do destino e o badge de
+// cluster, os dois com anel branco de 2.5-3px em volta e numero branco dentro.
+// O anel e que os separa do fundo, e ele funciona igual sobre o mapa claro e
+// sobre o invertido — virar a var faria o disco acompanhar o canvas e sumir
+// dentro do proprio anel.
 const MAP_NAVY = '#1A1C31';
-const MAP_INDIGO = '#2C2E65';
-const MAP_MUTED = '#686A9A';
+const MAP_INDIGO = 'hsl(var(--indigo))';
+const MAP_MUTED = 'hsl(var(--portal-neutral))';
 
 interface Plotted {
   shipment: PortalShipment;

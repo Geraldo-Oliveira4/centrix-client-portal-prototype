@@ -18,6 +18,12 @@ import { cn } from '@/lib/utils';
  * Os dois lockups tem geometria IDENTICA (so muda a cor da palavra "freitas":
  * navy no principal, branco no negativo), entao uma constante serve aos dois.
  *
+ * A variante `auto` existe porque a REGRA e o fundo, e o fundo passou a
+ * depender do tema: a sidebar do Portal do Cliente e branca na luz e Navy
+ * Profundo no escuro, entao nenhuma das duas escolhas fixas serve. Ela e
+ * resolvida em CSS (dois <img>, um escondido por `dark:`), nao em JS, para nao
+ * depender do tema resolvido e nao piscar a marca errada na hidratacao.
+ *
  * O `simbolo` (o "x" laranja) e outro caso: viewBox JUSTO (791,4 x 805,2 de um
  * quadro de 791,14 x 805,61), entao ele nao leva compensacao nenhuma. Ele
  * existe para as caixas pequenas — sidebar recolhida, favicon, avatar — onde o
@@ -47,16 +53,29 @@ const SIMBOLO_RATIO = 805.61 / 791.14;
 interface BrandMarkProps {
   /**
    * Escolha pelo FUNDO, nao pelo contexto: claro -> principal, escuro ->
-   * negativo. `simbolo` e por TAMANHO, nao por fundo — o laranja tem contraste
-   * suficiente nos dois.
+   * negativo, e `auto` quando o fundo acompanha o tema. `simbolo` e por
+   * TAMANHO, nao por fundo — o laranja tem contraste suficiente nos dois.
    */
-  variant: keyof typeof SOURCES | 'simbolo';
+  variant: keyof typeof SOURCES | 'simbolo' | 'auto';
   /** Largura da ARTE em px. No lockup a caixa fica com ~43,6% dessa altura. */
   width: number;
   className?: string;
 }
 
 export function BrandMark({ variant, width, className }: BrandMarkProps) {
+  if (variant === 'auto') {
+    return (
+      <>
+        <BrandMark variant="principal" width={width} className={cn('dark:hidden', className)} />
+        <BrandMark
+          variant="negativo"
+          width={width}
+          className={cn('hidden dark:block', className)}
+        />
+      </>
+    );
+  }
+
   if (variant === 'simbolo') {
     return (
       <img

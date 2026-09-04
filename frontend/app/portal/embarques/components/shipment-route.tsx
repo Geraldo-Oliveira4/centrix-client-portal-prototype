@@ -102,7 +102,7 @@ export function ShipmentRoute({
         <span className="absolute left-0 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-portal-neutral" />
         <span
           className={cn(
-            'absolute right-0 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 bg-white',
+            'absolute right-0 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 bg-card',
             arrived ? 'border-portal-success' : 'border-border',
           )}
         />
@@ -116,7 +116,7 @@ export function ShipmentRoute({
         >
           <span
             className={cn(
-              'flex h-7 w-7 items-center justify-center rounded-full border-2 bg-white shadow-sm',
+              'flex h-7 w-7 items-center justify-center rounded-full border-2 bg-card shadow-sm',
               vehicleTone,
             )}
             aria-hidden="true"

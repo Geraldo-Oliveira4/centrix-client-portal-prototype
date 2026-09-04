@@ -53,9 +53,15 @@ export default function PortalLayout({
 
   return (
     <SidebarProvider>
-      {/* Canvas #F4F5FA (Cinza Nevoa) behind white cards: with a white page background the
-          cards had nothing to sit on, which is half of why every block read as
-          the same weight. Page margin is the 32px step (p-8) on desktop. */}
+      {/* Canvas atras dos cards: com fundo branco os cards nao tinham sobre o
+          que sentar, que e metade do motivo de todo bloco ter o mesmo peso.
+          Margem da pagina no passo de 32px (p-8) no desktop.
+
+          Continua `bg-portal-canvas`, mas o TOKEN passou a virar com o tema
+          (globals.css, `--portal-canvas`): Cinza Nevoa #F4F5FA na luz, Navy
+          Profundo no escuro. Trocar a classe por `bg-background` teria
+          apagado o canvas na LUZ — `--background` e branco puro ali, e e a
+          diferenca entre canvas e card que da profundidade a tela. */}
       <div
         className={`flex min-h-screen w-full bg-portal-canvas ${portalFont.variable} font-[family-name:var(--font-source-sans)]`}
       >

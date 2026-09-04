@@ -6,7 +6,7 @@ import { AuthProvider } from './context/auth/auth-context';
 import SideNavbar from '@/components/side-navbar';
 import { cn } from '@/lib/utils';
 import { ToastProvider } from '@/components/toast-provider';
-import { ThemeProvider } from '@/components/theme-provider';
+import { ScopedThemeProvider } from '@/components/scoped-theme-provider';
 
 const montserrat = Montserrat({
   subsets: ['latin'],
@@ -52,12 +52,7 @@ export default function RootLayout({
           montserrat.className,
         )}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <ScopedThemeProvider>
           <AuthProvider>
             <ToastProvider />
             <SideNavbar />
@@ -65,7 +60,7 @@ export default function RootLayout({
               {children}
             </div>
           </AuthProvider>
-        </ThemeProvider>
+        </ScopedThemeProvider>
       </body>
     </html>
   );
