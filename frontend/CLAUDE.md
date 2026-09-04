@@ -338,8 +338,9 @@ The portal screens follow a small explicit system so the pages stop hand-rolling
 sizes and every card stops carrying the same visual weight. Defined once in
 `styles/globals.css` (type + surfaces) and `tailwind.config.ts` (colours).
 
-**Type scale** — `.portal-h1` (28/700), `.portal-h2` (20/600), `.portal-h3`
+**Type scale** — `.portal-h1` (28/600), `.portal-h2` (20/600), `.portal-h3`
 (16/600), `.portal-body` (14/400), `.portal-small` (12/400), all line-height 1.5.
+As tres primeiras sao **New Black**; corpo e small ficam na fonte do body.
 Emphasis inside cards uses `font-medium`, not bold: at 14px bold flattens the
 hierarchy. Use `<PagePortalHeader>` / `<SectionHeading>` from
 `app/portal/_shared/page-header.tsx` rather than a bare `<h1>`/`<h2>`.
@@ -431,10 +432,70 @@ rather than global on purpose, so migrating the portal did not restyle screens
 nobody asked about. When the analyst side migrates, the font moves to the root
 and the two scoped loaders collapse into one.
 
-The brand guide specifies **New Black** for headings, which is **not applied**:
-there is no licensed webfont file for it yet, so headings and body share Source
-Sans 3. This is an open brand pendency, not an oversight — the same status the
-previous guide's **Avenir** had, and for the same reason.
+**New Black nos titulos, desde 04/09/2026** — a pendencia de marca que esta
+secao registrava foi fechada. Os dois pesos que o guia usa vivem em
+`public/fonts/` (`NewBlackTypeface-Medium.woff2` = 500,
+`NewBlackTypeface-SemiBold.woff2` = 600), sao declarados por `@font-face` no
+TOPO de `styles/globals.css` (antes de qualquer CSS de componente, porque
+`.portal-h1/h2/h3` dependem da familia ja estar declarada) e aplicados nas tres
+classes de titulo com peso 600.
+
+Tres coisas a nao afrouxar:
+
+- **A pilha de fallback passa pela VARIAVEL, nao pelo nome literal**:
+  `'New Black', var(--font-source-sans), 'Source Sans 3', sans-serif`. O
+  `next/font` gera um family name com hash (`__Source_Sans_3_dee724`), entao um
+  `'Source Sans 3'` literal so casaria com a fonte instalada na maquina do
+  visitante — o fallback estaria quebrado sem ninguem notar.
+- **`font-display: swap`**: titulo em Source Sans por 200ms e melhor que titulo
+  invisivel.
+- **So o SemiBold e pre-carregado** (`<link rel="preload">` em
+  `app/layout.tsx`), porque e o unico peso da primeira dobra. O `crossOrigin` do
+  preload e obrigatorio mesmo em mesma origem — sem ele o preload nao casa com o
+  fetch CORS da fonte e o arquivo desce duas vezes. O peso 500 fica para o
+  carregamento normal e hoje nao tem consumidor: **nao existe classe de
+  h4/subtitulo** no portal.
+
+### Logotipo: `components/brand-mark.tsx`
+
+Desde 04/09/2026 o logotipo oficial (Brand System v1.0) e VETOR, servido de
+`public/logos/`, e passa todo pelo `BrandMark`. Nenhum arquivo raster de marca e
+mais referenciado pelo portal nem pela proposta do cliente.
+
+**A escolha e pelo FUNDO, nao pelo contexto:**
+
+| Variante | Arquivo | Onde |
+|---|---|---|
+| `principal` | `freitas-centrix-vertical-principal.svg` | fundo claro: sidebar do portal, sidebar do analista, estados vazios do `StatusMessage` |
+| `negativo` | `freitas-centrix-vertical-negativo.svg` | fundo escuro: header navy de `/proposta-cliente/[token]` |
+| `simbolo` | `freitas-centrix-simbolo-laranja.svg` | caixas pequenas: sidebar do analista recolhida, favicon |
+
+Quatro coisas que precisam continuar valendo:
+
+- **Os lockups tem clear-space embutido no viewBox** — a arte ocupa
+  1486,2 x 648,1 de um quadro de 2179,77 x 1642,83, sobrando ~30% de altura e
+  ~16% de largura. A compensacao e CSS (a prop `width` vale a largura da ARTE, e
+  margens negativas descontam o padding do quadro), nunca recorte do SVG. Sem
+  ela, o logotipo aparece minusculo boiando no meio da caixa e desalinhado do
+  texto ao lado. Os arquivos em `public/logos/` seguem intocados.
+- **`<img>` puro, nunca `next/image`**: o otimizador do Next recusa SVG sem
+  `dangerouslyAllowSVG` no `next.config.js`, e vetor nao ganha nada sendo
+  reamostrado para avif/webp. Vale para `BrandMark` e para o `StatusMessage`.
+- **O `simbolo` e escolhido por TAMANHO, nao por fundo** (o laranja tem
+  contraste nos dois). Ele existe para caixas onde o lockup viraria uma palavra
+  ilegivel de poucos pixels. Nao o use onde o lockup cabe: sozinho ele nao diz o
+  nome.
+- **O logotipo ja diz "freitas centrix"** — por isso o texto redundante ao lado
+  dele saiu nos tres lugares onde existia ("Freitas Comex" na sidebar do portal,
+  "Centrix" na do analista, "freitas" no header navy da proposta). O que sobra
+  ao lado da marca e so o que ela NAO carrega: o nome do produto, ou a
+  referencia da proposta.
+
+**Ainda em raster, de proposito, e fora do escopo desta migracao:**
+`components/brand-logo.tsx` (`/freitas-logo.png`, usado por `/login`,
+`/register` e `/confirm-email`), o rodape de `/proposta-cliente/[token]` e o
+header de `/proposta/[token]`. Os dois ultimos tem defeitos proprios anotados no
+relatorio da migracao; nenhum deles e tela do portal.
 
 **Shared components on a portal surface** — do not fork them. `RecommendationView`
 takes `variant="portal"`; the analyst and public-proposal surfaces keep the

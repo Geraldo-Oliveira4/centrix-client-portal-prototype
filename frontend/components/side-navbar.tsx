@@ -34,12 +34,12 @@ import {
   Truck,
   Globe,
 } from 'lucide-react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from './ui/button';
 import React from 'react';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { cn } from '@/lib/utils';
+import { BrandMark } from '@/components/brand-mark';
 import {
   Tooltip,
   TooltipContent,
@@ -283,17 +283,17 @@ function CollapsedGroupItem({
 function BrandLogo({ showText = true, small = false }: { showText?: boolean, small?: boolean }) {
   return (
     <div className={cn("flex items-center", showText ? "gap-2" : "")}>
-      <Image
-        src="/freitascomex-logo.jpeg"
-        alt="Freitas Comex"
-        width={small ? 28 : 36}
-        height={small ? 28 : 36}
-        className="rounded-full object-cover"
-      />
-      {showText && (
-        <span className={cn("font-bold text-foreground tracking-tight", small ? "text-lg" : "text-xl")}>
-          Centrix
-        </span>
+      {/* Sidebar de fundo claro -> lockup principal. Substitui o
+          freitascomex-logo.jpeg, que era um raster recortado em circulo. A
+          marca ja diz "freitas centrix", entao a palavra "Centrix" ao lado
+          saiu junto: mostrar as duas era escrever o nome do produto duas
+          vezes, uma delas fora da tipografia da marca. */}
+      {showText ? (
+        <BrandMark variant="principal" width={small ? 96 : 120} />
+      ) : (
+        /* Sidebar recolhida: o lockup a 28px seria uma palavra ilegivel; o
+           simbolo e a marca desenhada para esta caixa. */
+        <BrandMark variant="simbolo" width={small ? 24 : 30} />
       )}
     </div>
   );

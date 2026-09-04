@@ -14,10 +14,11 @@ import { Source_Sans_3 } from 'next/font/google';
  *      numa branch separada — trocar a fonte na raiz mudaria aquelas telas sem
  *      que ninguem tivesse pedido.
  *
- * O guia de marca pede New Black nos titulos; ela ainda nao tem arquivo de
- * fonte licenciado, entao titulo e corpo dividem a Source Sans 3 por enquanto.
- * Isso e uma pendencia de marca em aberto, nao um descuido — a mesma nota que
- * valia para a Avenir no guia anterior.
+ * Esta e a fonte do CORPO. Desde 04/09/2026 os TITULOS sao New Black, carregada
+ * por `@font-face` em `styles/globals.css` (os .woff2 estao em `public/fonts/`)
+ * e aplicada em `.portal-h1/h2/h3`. A Source Sans continua sendo o fallback
+ * dessas tres classes, entao o titulo nunca fica invisivel se a New Black
+ * falhar. A pendencia de marca que esta nota registrava foi fechada.
  */
 export const portalFont = Source_Sans_3({
   subsets: ['latin'],

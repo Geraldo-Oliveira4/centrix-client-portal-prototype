@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Building2,
   FileText,
   Gauge,
   LayoutDashboard,
@@ -16,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 
+import { BrandMark } from '@/components/brand-mark';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -115,15 +115,14 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
             <Link
               href="/portal/home"
               onClick={mobile ? toggleMobile : undefined}
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-md transition-opacity hover:opacity-80"
+              className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-md transition-opacity hover:opacity-80"
             >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-indigo-100 text-brand-indigo">
-                <Building2 className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold leading-tight truncate">Portal do Cliente</p>
-                <p className="text-xs text-muted-foreground truncate">Freitas Comex</p>
-              </div>
+              {/* Fundo branco -> lockup principal (palavra "freitas" em navy).
+                  A marca ja diz "freitas centrix", entao a segunda linha de
+                  texto que dizia "Freitas Comex" saiu: sobrou so o nome do
+                  PRODUTO, que o logotipo nao carrega. */}
+              <BrandMark variant="principal" width={104} />
+              <p className="truncate text-xs text-muted-foreground">Portal do Cliente</p>
             </Link>
             {/* Toggle collapse (desktop) or close (mobile) */}
             {mobile ? (

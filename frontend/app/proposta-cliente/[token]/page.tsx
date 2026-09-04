@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import axios from 'axios';
 import { StatusMessage } from '@/components/status-message';
+import { BrandMark } from '@/components/brand-mark';
 import { QuotationSummaryCard } from './components/quotation-summary-card';
 import { ProposalsClientTable } from './components/proposals-client-table';
 import { EstimatedArrivalSection } from './components/estimated-arrival-section';
@@ -67,23 +68,16 @@ export default function PropostaClientePage() {
 
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Image
-              src="/freitas-logo-branca.png"
-              alt="Freitas"
-              width={36}
-              height={36}
-              className="shrink-0"
-            />
-            <div>
-              <p className="text-base font-semibold text-white leading-tight tracking-wide">
-                freitas
+            {/* Fundo navy -> lockup negativo. A palavra "freitas" que ficava ao
+                lado do raster saiu: ela era o wordmark rescrito a mao em
+                Source Sans, e agora vem dentro do proprio logotipo. Sobra a
+                linha que o logotipo nao carrega — a referencia da proposta. */}
+            <BrandMark variant="negativo" width={104} className="shrink-0" />
+            {data && (
+              <p className="text-xs text-white/60">
+                Proposta Comercial — {data.quotation.reference}
               </p>
-              {data && (
-                <p className="text-xs text-white/60 mt-0.5">
-                  Proposta Comercial — {data.quotation.reference}
-                </p>
-              )}
-            </div>
+            )}
           </div>
 
           <div className="hidden sm:flex items-center gap-1.5">
@@ -106,7 +100,7 @@ export default function PropostaClientePage() {
             title="Link invalido"
             description="Este link nao existe ou expirou. Entre em contato com a equipe Freitas COMEX."
             onRetry={fetchData}
-            logoSrc="/freitas-logo-azul.png"
+            logoSrc="/logos/freitas-centrix-vertical-principal.svg"
             titleClassName="text-brand-indigo"
           />
         )}
@@ -116,7 +110,7 @@ export default function PropostaClientePage() {
             title="Cotacao encerrada"
             description="Esta cotacao foi encerrada. Se voce acredita que isso e um erro, tente novamente antes de entrar em contato com a equipe Freitas COMEX."
             onRetry={fetchData}
-            logoSrc="/freitas-logo-azul.png"
+            logoSrc="/logos/freitas-centrix-vertical-principal.svg"
             titleClassName="text-brand-indigo"
           />
         )}
@@ -126,7 +120,7 @@ export default function PropostaClientePage() {
             title="Erro ao carregar"
             description="Nao foi possivel carregar os dados. Tente novamente em alguns instantes."
             onRetry={fetchData}
-            logoSrc="/freitas-logo-azul.png"
+            logoSrc="/logos/freitas-centrix-vertical-principal.svg"
             titleClassName="text-brand-indigo"
           />
         )}

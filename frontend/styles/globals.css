@@ -3,6 +3,30 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
+ * New Black — tipografia de titulo do Brand System v1.0. Fica AQUI, no topo,
+ * antes de qualquer CSS de componente, porque `.portal-h1/h2/h3` mais abaixo
+ * dependem da familia ja estar declarada.
+ *
+ * So dois pesos sao carregados, que sao os dois que o guia usa: 600 (SemiBold)
+ * nos titulos e 500 (Medium) reservado para subtitulo. `font-display: swap`
+ * mantem o texto legivel em Montserrat enquanto o .woff2 nao chega — titulo
+ * invisivel e pior que titulo na fonte errada por 200ms.
+ * ------------------------------------------------------------------------- */
+@font-face {
+  font-family: 'New Black';
+  src: url('/fonts/NewBlackTypeface-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'New Black';
+  src: url('/fonts/NewBlackTypeface-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+
+/* ---------------------------------------------------------------------------
  * Freitas Centrix brand palette (Brand System v1.0) — the ONLY source of truth
  * for the identity colours. Each HSL triple below is the exact conversion of
  * the hex in tokens.json / DESIGN.md; do not round the decimals, they are what
@@ -420,14 +444,16 @@
    sites. */
 @layer components {
   .portal-h1 {
+    font-family: 'New Black', var(--font-source-sans), 'Source Sans 3', sans-serif;
     font-size: 28px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.5;
     letter-spacing: -0.01em;
     color: hsl(var(--indigo));
   }
 
   .portal-h2 {
+    font-family: 'New Black', var(--font-source-sans), 'Source Sans 3', sans-serif;
     font-size: 20px;
     font-weight: 600;
     line-height: 1.5;
@@ -435,6 +461,7 @@
   }
 
   .portal-h3 {
+    font-family: 'New Black', var(--font-source-sans), 'Source Sans 3', sans-serif;
     font-size: 16px;
     font-weight: 600;
     line-height: 1.5;
