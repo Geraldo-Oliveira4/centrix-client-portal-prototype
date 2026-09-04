@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import Image from 'next/image';
 import axios from 'axios';
 import { StatusMessage } from '@/components/status-message';
 import { BrandMark } from '@/components/brand-mark';
@@ -168,17 +167,16 @@ export default function PropostaClientePage() {
                 </p>
               </div>
 
-              <div className="flex items-center justify-center gap-2 py-1">
-                <Image
-                  src="/freitas-logo.png"
-                  alt="Freitas"
-                  width={18}
-                  height={18}
-                  className="opacity-60"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Freitas COMEX
-                </p>
+              {/* Assinatura do documento. Fundo claro -> lockup principal, e nao
+                  o simbolo: com o texto "Freitas COMEX" removido (mesmo criterio
+                  dos outros pontos desta pagina), a marca passa a ser a UNICA
+                  coisa que nomeia o remetente aqui — e o "x" laranja sozinho nao
+                  diz nome nenhum, leria como enfeite. Os 18px do raster anterior
+                  nao sao restricao: o container e uma linha centrada numa coluna
+                  de 300px. A opacidade cai de 60% para 70% porque o lockup e
+                  navy sobre branco, nao mais um PNG branco lavado. */}
+              <div className="flex items-center justify-center py-1">
+                <BrandMark variant="principal" width={88} className="opacity-70" />
               </div>
             </aside>
 
