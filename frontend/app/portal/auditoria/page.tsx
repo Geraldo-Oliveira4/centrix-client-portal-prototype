@@ -94,8 +94,8 @@ export default function AuditoriaPage() {
           o que a tela É (referência visual do fluxo), não o que falta. O selo
           `preview` do cabeçalho e o prefixo EXEMPLO- das referências continuam
           intactos — são eles que dizem, por linha, o que é ilustrativo. */}
-      <div className="flex items-start gap-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4">
-        <Wrench className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+      <div className="flex items-start gap-3 rounded-xl border border-dashed border-brand-indigo-800/40 bg-brand-indigo-100 p-4">
+        <Wrench className="mt-0.5 h-5 w-5 shrink-0 text-brand-indigo" />
         <p className="portal-body text-foreground">
           <span className="font-medium">Referência visual</span> — o fluxo
           completo de auditoria, com dados de exemplo. A fonte real entra com a
@@ -189,7 +189,7 @@ export default function AuditoriaPage() {
       </section>
 
       <section className="portal-card space-y-3 p-6">
-        <p className="portal-h3 text-foreground">
+        <p className="portal-h3">
           Procurando a conferência das cotações fechadas?
         </p>
         <p className="portal-body max-w-3xl text-portal-neutral">

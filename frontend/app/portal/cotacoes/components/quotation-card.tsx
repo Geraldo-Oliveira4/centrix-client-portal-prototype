@@ -112,7 +112,7 @@ export function QuotationCard({ quotation, bucket }: QuotationCardProps) {
           {quotation.created_by_me ? <span>· Criada por você</span> : null}
         </div>
         {needsInfo ? (
-          <AlertCircle className="h-4 w-4 shrink-0 text-portal-warning" />
+          <AlertCircle className="h-4 w-4 shrink-0 text-portal-warning-ink" />
         ) : (
           <ArrowRight className="h-4 w-4 shrink-0 text-portal-neutral" />
         )}
@@ -189,7 +189,7 @@ export function QuotationCard({ quotation, bucket }: QuotationCardProps) {
             e.stopPropagation();
             window.location.href = buildNeedsInfoMailto(quotation.reference);
           }}
-          className="portal-small mt-3 inline-flex items-center gap-1 rounded border border-portal-warning/40 bg-portal-warning/10 px-2 py-1 font-medium text-portal-warning hover:bg-portal-warning/20"
+          className="portal-small mt-3 inline-flex items-center gap-1 rounded border border-portal-warning/40 bg-portal-warning/10 px-2 py-1 font-medium text-portal-warning-ink hover:bg-portal-warning/20"
         >
           Enviar informações
           <ArrowRight className="h-3 w-3" />

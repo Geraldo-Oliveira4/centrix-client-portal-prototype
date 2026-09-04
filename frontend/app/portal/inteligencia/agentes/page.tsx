@@ -65,14 +65,14 @@ const TONE_STYLE: Record<
   },
   above: {
     label: (kind) => (kind === 'price' ? 'Acima da média' : 'Mais lento'),
-    className: 'text-portal-warning',
+    className: 'text-portal-warning-ink',
     icon: ArrowUp,
   },
 };
 
 const RELIABILITY_STYLE: Record<ReliabilityLabel, string> = {
   Alta: 'border-portal-success/25 bg-portal-success/10 text-portal-success',
-  Média: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning',
+  Média: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning-ink',
   Baixa: 'border-portal-neutral/30 bg-muted text-portal-neutral',
 };
 
@@ -182,8 +182,8 @@ export default function AgentesPage() {
       />
 
       {/* Banner de topo: o painel inteiro é ilustrativo, não só a última coluna. */}
-      <div className="flex items-start gap-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4">
-        <Wrench className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+      <div className="flex items-start gap-3 rounded-xl border border-dashed border-brand-indigo-800/40 bg-brand-indigo-100 p-4">
+        <Wrench className="mt-0.5 h-5 w-5 shrink-0 text-brand-indigo" />
         <p className="portal-body text-foreground">
           <span className="font-medium">Ranking ilustrativo</span> — a
           metodologia definitiva do score de agentes está em correção (o cálculo
@@ -196,7 +196,7 @@ export default function AgentesPage() {
       <section className="space-y-4 rounded-xl border border-dashed border-border bg-muted/20 p-6">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="space-y-1">
-            <p className="portal-h2 text-foreground">Agentes nas suas cotações</p>
+            <p className="portal-h2">Agentes nas suas cotações</p>
             <p className="portal-small max-w-3xl text-portal-neutral">
               Ordenado por volume. Preço e prazo são comparados à média das suas
               próprias cotações — não a um benchmark de mercado.

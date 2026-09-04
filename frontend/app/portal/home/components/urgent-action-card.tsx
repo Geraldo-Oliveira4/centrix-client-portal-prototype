@@ -50,7 +50,7 @@ const KIND_ICON: Record<HomeActionKind, LucideIcon> = {
 
 const TONE_ICON: Record<HomeAction['tone'], string> = {
   danger: 'text-portal-danger',
-  warning: 'text-portal-warning',
+  warning: 'text-portal-warning-ink',
   info: 'text-portal-info',
 };
 
@@ -78,7 +78,7 @@ export function UrgentActionCard({ action }: { action: HomeAction | undefined })
   const deadline = action.deadline ? daysUntil(action.deadline) : null;
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-primary/20 bg-primary/5 p-6 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-4 rounded-lg border border-brand-indigo-800/20 bg-brand-indigo-100 p-6 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 gap-3">
         <Icon className={cn('mt-0.5 h-5 w-5 shrink-0', TONE_ICON[action.tone])} />
         <div className="min-w-0 space-y-1">
@@ -99,7 +99,7 @@ export function UrgentActionCard({ action }: { action: HomeAction | undefined })
               </span>
             ) : null}
           </div>
-          <p className="portal-h3 text-foreground">{action.title}</p>
+          <p className="portal-h3">{action.title}</p>
           <p className="portal-small text-portal-neutral">{action.description}</p>
         </div>
       </div>

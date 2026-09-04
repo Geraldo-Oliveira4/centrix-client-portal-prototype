@@ -158,7 +158,7 @@ function RouteTrendSection({ quotation }: { quotation?: PortalQuotation }) {
       ) : route ? (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="portal-h3 font-normal text-foreground">
+            <p className="portal-h3 font-normal">
               {formatRadarRoute(route)}
             </p>
             <PriceAlertBadge alert={route.alert} />
@@ -167,7 +167,7 @@ function RouteTrendSection({ quotation }: { quotation?: PortalQuotation }) {
           <p className="portal-body text-portal-neutral">{route.alert.rationale}</p>
           <Link
             href="/portal/inteligencia/radar"
-            className="portal-body inline-flex items-center gap-1 font-medium text-primary hover:underline"
+            className="portal-body inline-flex items-center gap-1 font-medium text-brand-indigo hover:underline"
           >
             Ver no Radar de Preços
             <ArrowRight className="h-4 w-4" />
@@ -266,7 +266,7 @@ export function MarketBlock({
               <p className="portal-body text-portal-neutral">
                 Esta cotação ({refLabel})
               </p>
-              <p className="portal-h3 font-semibold text-foreground">
+              <p className="portal-h3 font-semibold">
                 {formatBRL(value)}
               </p>
             </div>
@@ -278,7 +278,7 @@ export function MarketBlock({
             </div>
           </div>
           {deltaPct != null ? (
-            <p className="portal-h3 font-normal text-foreground">
+            <p className="portal-h3 font-normal">
               Estimativa: esta cotação está{' '}
               <span className="font-semibold text-portal-success">
                 {deltaPct}% abaixo

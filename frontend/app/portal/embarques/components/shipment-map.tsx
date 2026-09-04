@@ -29,10 +29,26 @@ import { DESTINATION_PORT, originPortOf, type Port } from '../lib/port-coordinat
 // divIcons and SVG polylines) where our utility classes are not applied. Kept in
 // sync with the semáforo tokens in tailwind.config.ts by name.
 const TONE_HEX: Record<SemaforoTone, string> = {
-  success: '#00B050',
-  warning: '#FF9500',
-  danger: '#FF3B30',
+  success: '#1E9E63',
+  warning: '#C98A00',
+  danger: '#D64545',
 };
+
+// The same three tones at TEXT contrast, for the popup's state label. Only
+// warning differs: #C98A00 on white is 2.95:1 and fails AA for copy, so the
+// label uses portal-warning-ink #8A5E00 (5.4:1) while the dot beside it keeps
+// the fill above. Same split as TONE_TEXT vs TONE_DOT in _shared/tone.ts.
+const TONE_INK_HEX: Record<SemaforoTone, string> = {
+  success: '#1E9E63',
+  warning: '#8A5E00',
+  danger: '#D64545',
+};
+
+// Navy Profundo for the map furniture (markers, cluster badges), Indigo for
+// popup ink and the link — the Brand System split of what used to be one navy.
+const MAP_NAVY = '#1A1C31';
+const MAP_INDIGO = '#2C2E65';
+const MAP_MUTED = '#686A9A';
 
 interface Plotted {
   shipment: PortalShipment;
@@ -52,7 +68,7 @@ function markerIcon(tone: SemaforoTone): L.DivIcon {
 function destinationIcon(): L.DivIcon {
   return L.divIcon({
     className: '',
-    html: `<span style="display:block;width:16px;height:16px;border-radius:9999px;background:#2C2D65;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></span>`,
+    html: `<span style="display:block;width:16px;height:16px;border-radius:9999px;background:${MAP_NAVY};border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></span>`,
     iconSize: [16, 16],
     iconAnchor: [8, 8],
   });
@@ -70,27 +86,27 @@ function destinationIcon(): L.DivIcon {
 function popupHtml(shipment: PortalShipment, port: Port): string {
   const tone = ESTADO_SEMAFORO[shipment.estado];
   const po = shipment.client_reference
-    ? `<div style="font-size:12px;color:#8E8E93;margin-top:2px">PO ${shipment.client_reference}</div>`
+    ? `<div style="font-size:12px;color:${MAP_MUTED};margin-top:2px">PO ${shipment.client_reference}</div>`
     : '';
   return `
     <div style="min-width:196px;font-family:inherit">
-      <div style="font-size:14px;font-weight:600;color:#2C2D65">${shipment.referencia}</div>
+      <div style="font-size:14px;font-weight:600;color:${MAP_INDIGO}">${shipment.referencia}</div>
       ${po}
-      <div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;font-weight:500;color:${TONE_HEX[tone]}">
+      <div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;font-weight:500;color:${TONE_INK_HEX[tone]}">
         <span style="width:8px;height:8px;border-radius:9999px;background:${TONE_HEX[tone]}"></span>
         ${ESTADO_LABELS[shipment.estado]}
       </div>
       <dl style="margin:10px 0 0;font-size:12px;line-height:1.5">
-        <dt style="color:#8E8E93">Posição no mapa</dt>
-        <dd style="margin:0;color:#2C2D65;font-weight:500">${port.name}, ${port.country}</dd>
-        <dt style="color:#8E8E93;margin-top:6px">Destino</dt>
-        <dd style="margin:0;color:#2C2D65;font-weight:500">${DESTINATION_PORT.name}, ${DESTINATION_PORT.country}</dd>
+        <dt style="color:${MAP_MUTED}">Posição no mapa</dt>
+        <dd style="margin:0;color:${MAP_INDIGO};font-weight:500">${port.name}, ${port.country}</dd>
+        <dt style="color:${MAP_MUTED};margin-top:6px">Destino</dt>
+        <dd style="margin:0;color:${MAP_INDIGO};font-weight:500">${DESTINATION_PORT.name}, ${DESTINATION_PORT.country}</dd>
       </dl>
-      <div style="margin-top:8px;font-size:11px;color:#8E8E93;line-height:1.4">
+      <div style="margin-top:8px;font-size:11px;color:${MAP_MUTED};line-height:1.4">
         O ponto marca o porto, não a posição do navio em trânsito.
       </div>
       <a href="/portal/embarques/${shipment.id}"
-         style="display:inline-block;margin-top:10px;font-size:13px;font-weight:600;color:#CE0F69;text-decoration:none">
+         style="display:inline-block;margin-top:10px;font-size:13px;font-weight:600;color:${MAP_INDIGO};text-decoration:none">
         Ver detalhes &rarr;
       </a>
     </div>
@@ -118,7 +134,7 @@ function ClusteredMarkers({ plotted }: { plotted: Plotted[] }) {
       iconCreateFunction: (cluster) =>
         L.divIcon({
           className: '',
-          html: `<span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9999px;background:#2C2D65;color:#fff;font-size:12px;font-weight:600;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)">${cluster.getChildCount()}</span>`,
+          html: `<span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9999px;background:${MAP_NAVY};color:#fff;font-size:12px;font-weight:600;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)">${cluster.getChildCount()}</span>`,
           iconSize: [30, 30],
           iconAnchor: [15, 15],
         }),

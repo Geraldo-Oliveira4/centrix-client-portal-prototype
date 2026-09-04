@@ -221,13 +221,17 @@ export const SEMAFORO_LABELS: Record<SemaforoTone, string> = {
 
 const SEMAFORO_BADGE_CLASS: Record<SemaforoTone, string> = {
   success: 'bg-portal-success/10 text-portal-success border-portal-success/25',
-  warning: 'bg-portal-warning/10 text-portal-warning border-portal-warning/30',
+  warning: 'bg-portal-warning/10 text-portal-warning-ink border-portal-warning/30',
   danger: 'bg-portal-danger/10 text-portal-danger border-portal-danger/30',
 };
 
+// TEXT, not fill: warning is spelled portal-warning-ink #8A5E00 (5.4:1) rather
+// than portal-warning #C98A00 (2.95:1, fails AA for copy). The badge and dot
+// maps above keep the fill — same rule as TONE_TEXT vs TONE_DOT in
+// _shared/tone.ts.
 const SEMAFORO_ACCENT_CLASS: Record<SemaforoTone, string> = {
   success: 'text-portal-success',
-  warning: 'text-portal-warning',
+  warning: 'text-portal-warning-ink',
   danger: 'text-portal-danger',
 };
 

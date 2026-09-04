@@ -47,7 +47,7 @@ import type { DelayRisk } from '../lib/delay-risk';
 const TONE_CHIP: Record<ArrivalTone, string> = {
   neutral: 'border-border bg-muted text-portal-neutral',
   success: 'border-portal-success/25 bg-portal-success/10 text-portal-success',
-  warning: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning',
+  warning: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning-ink',
   danger: 'border-portal-danger/30 bg-portal-danger/10 text-portal-danger',
 };
 
@@ -88,7 +88,7 @@ export function ArrivalIndicator({
           {/* A data fica em `text-foreground` em qualquer cenário: quem carrega
               o semáforo é o chip ao lado. Pintar os dois de vermelho faria a
               própria data parecer duvidosa, quando o que está ruim é o prazo. */}
-          <span className="portal-h1 text-foreground">
+          <span className="portal-h1">
             {formatLongDate(countdown.iso)}
           </span>
           <span

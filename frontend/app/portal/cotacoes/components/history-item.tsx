@@ -55,7 +55,7 @@ const CONFERENCE_ICON: Record<SemaforoTone, typeof CheckCircle2> = {
 
 const CONFERENCE_TEXT: Record<SemaforoTone, string> = {
   success: 'text-portal-success',
-  warning: 'text-portal-warning',
+  warning: 'text-portal-warning-ink',
   danger: 'text-portal-danger',
 };
 
@@ -101,7 +101,7 @@ export function HistoryItem({
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href={`/portal/cotacao/${quotation.id}`}
-              className="portal-body font-medium text-foreground hover:text-primary"
+              className="portal-body font-medium text-foreground hover:text-brand-indigo"
             >
               {quotation.reference}
             </Link>

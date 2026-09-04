@@ -212,7 +212,7 @@ function PortalScoreLine({
       )}
 
       {score.is_eligible && score.validade_status === 'em_risco' && (
-        <p className="portal-small mt-1 flex items-center gap-1 text-portal-warning">
+        <p className="portal-small mt-1 flex items-center gap-1 text-portal-warning-ink">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
           Validade curta — confirme o prazo antes de aprovar.
         </p>

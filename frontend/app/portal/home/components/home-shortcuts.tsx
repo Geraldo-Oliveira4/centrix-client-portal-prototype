@@ -38,7 +38,7 @@ export function HomeShortcuts() {
         <li key={label}>
           <Link
             href={href}
-            className="portal-body inline-flex items-center gap-2 rounded-full border bg-background px-4 py-2 font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+            className="portal-body inline-flex items-center gap-2 rounded-full border bg-background px-4 py-2 font-medium text-foreground transition-colors hover:border-brand-indigo-800/40 hover:text-brand-indigo"
           >
             <Icon className="h-4 w-4 shrink-0" />
             {label}

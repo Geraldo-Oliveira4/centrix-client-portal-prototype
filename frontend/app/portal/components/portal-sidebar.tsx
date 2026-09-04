@@ -117,7 +117,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
               onClick={mobile ? toggleMobile : undefined}
               className="flex min-w-0 flex-1 items-center gap-2 rounded-md transition-opacity hover:opacity-80"
             >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-indigo-100 text-brand-indigo">
                 <Building2 className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
@@ -166,7 +166,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
                     'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
                     slim && 'justify-center px-0 py-2',
                     active
-                      ? 'bg-primary text-primary-foreground'
+                      ? 'bg-brand-indigo text-white'
                       : 'text-foreground hover:bg-muted',
                   )}
                 >

@@ -71,7 +71,7 @@ export function ProposalApprovalSection({
               className={cn(
                 'flex items-center justify-between gap-3 rounded-lg border px-4 py-3',
                 proposal.is_recommended
-                  ? 'border-brand-gold bg-brand-gold/5'
+                  ? 'border-brand-orange-500 bg-brand-orange-50'
                   : 'border-border',
               )}
             >
@@ -79,7 +79,7 @@ export function ProposalApprovalSection({
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-medium">{proposal.agent_name}</span>
                   {proposal.is_recommended && (
-                    <span className="text-[10px] font-semibold bg-brand-gold text-brand-navy px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] font-semibold bg-brand-orange-100 text-brand-orange-800 px-1.5 py-0.5 rounded">
                       Recomendada
                     </span>
                   )}
@@ -102,7 +102,7 @@ export function ProposalApprovalSection({
                   <span className="text-xs text-muted-foreground">Confirmar?</span>
                   <Button
                     size="sm"
-                    className="h-7 text-xs bg-brand-pink hover:bg-[#b00d5a] text-white border-0"
+                    className="h-7 text-xs bg-brand-orange-500 hover:bg-brand-orange-400 text-brand-navy border-0"
                     disabled={loading}
                     onClick={() => handleApprove(proposal)}
                   >
@@ -125,8 +125,8 @@ export function ProposalApprovalSection({
                   className={cn(
                     'h-8 text-xs shrink-0',
                     proposal.is_recommended
-                      ? 'bg-brand-pink hover:bg-[#b00d5a] text-white border-0'
-                      : 'border-brand-navy text-brand-navy hover:bg-brand-navy/5',
+                      ? 'bg-brand-orange-500 hover:bg-brand-orange-400 text-brand-navy border-0'
+                      : 'border-brand-indigo text-brand-indigo hover:bg-brand-indigo-100',
                   )}
                   onClick={() => setConfirming(proposal.proposal_id)}
                 >
@@ -147,13 +147,13 @@ interface ApprovalSuccessBannerProps {
 
 export function ApprovalSuccessBanner({ agentName }: ApprovalSuccessBannerProps) {
   return (
-    <div className="rounded-lg border border-brand-navy/30 bg-brand-navy/5 p-5 flex items-start gap-3">
-      <CheckCircle2 className="w-5 h-5 text-brand-pink shrink-0 mt-0.5" />
+    <div className="rounded-lg border border-brand-indigo-800/30 bg-brand-indigo-100 p-5 flex items-start gap-3">
+      <CheckCircle2 className="w-5 h-5 text-brand-indigo shrink-0 mt-0.5" />
       <div>
-        <p className="text-sm font-semibold text-brand-navy">
+        <p className="text-sm font-semibold text-brand-indigo">
           Proposta aprovada com sucesso!
         </p>
-        <p className="text-sm text-brand-navy/80 mt-0.5">
+        <p className="text-sm text-brand-indigo/80 mt-0.5">
           Voce aprovou a proposta do agente <strong>{agentName}</strong>. Nossa equipe foi
           notificada e entrara em contato em breve para dar continuidade ao processo.
         </p>

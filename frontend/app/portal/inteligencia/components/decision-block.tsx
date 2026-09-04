@@ -70,7 +70,7 @@ export function DecisionBlock() {
 
           <Link
             href={`/portal/cotacao/${candidate.id}`}
-            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+            className="inline-flex items-center gap-1 text-sm font-medium text-brand-indigo hover:underline"
           >
             Ver recomendação completa
             <ArrowRight className="h-4 w-4" />

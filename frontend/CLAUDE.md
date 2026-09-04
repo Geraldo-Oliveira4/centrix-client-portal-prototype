@@ -354,52 +354,87 @@ Page background is `bg-portal-canvas` (#F5F5F7), applied in `app/portal/layout.t
 
 **Colour — two systems that must never be merged.**
 
-*System 1 — identity (guia de marca Freitas).* Three colours, defined once as
-CSS variables in `styles/globals.css` (`--pink`/`--primary`, `--orange`/`--accent`,
-`--navy`/`--foreground`) and spelled as Tailwind tokens in `tailwind.config.ts`
-(`brand-pink`, `brand-gold`, `brand-navy`). The HSL triples carry decimals on
-purpose — they are the exact conversion of the hex and rounding them moves the
-rendered colour off-brand.
+Migrated to the **Freitas Centrix Brand System v1.0** on 04/09/2026 (root
+`tokens.json` + `DESIGN.md`, which are the source of truth). Scope of that
+migration: `/portal` and `/proposta-cliente` only. The analyst screens
+(`cotacao/`, `inbox/`, the non-portal `home/` and `embarques/`) were NOT touched
+file-by-file and are migrating on a separate branch — they inherit the new token
+VALUES from the two shared files below, which is intended, but their call sites
+still spell the old roles.
 
-| Colour | Hex | Pantone | Where |
-|---|---|---|---|
-| Rosa/magenta (primária) | `#CE0F69` | 214 C | actions, links, active nav, `preview` seal (`--primary`) |
-| Laranja (secundária) | `#FF9E1B` | 1375 C | shadcn hover/focus (`--accent`), brand gradients |
-| Azul-marinho (terciária) | `#2C2D65` | 2119 C | all headings and dark text (`--foreground`), auth-shell plate |
+*System 1 — identity.* Defined once as CSS variables in `styles/globals.css`
+(`--navy`, `--indigo`, `--orange`, plus the shadcn roles) and spelled as Tailwind
+tokens in `tailwind.config.ts` (`brand-navy`, `brand-indigo-*`, `brand-orange-*`,
+`brand-mist`). The HSL triples carry decimals on purpose — they are the exact
+conversion of the hex and rounding them moves the rendered colour off-brand.
 
-`--accent-foreground` is the navy, not white: white on `#FF9E1B` is 2.07:1, and
-`bg-accent` is only ever used paired with it.
+| Colour | Hex | Where |
+|---|---|---|
+| Navy Profundo | `#1A1C31` | dark surfaces (Home banner, card header bars, map markers) AND body ink (`--foreground`) |
+| Índigo | `#2C2E65` | the brand colour: headings (`.portal-h1/h2/h3`), links, active nav, icons, chart marks, `preview` seal |
+| Laranja | `#F59C27` | CTA surface (`--primary`), focus ring (`--ring`), accents. A **ceiling** of ~10%, not a target |
+
+Three rules that outrank convenience:
+
+1. **The old `--primary` split in two.** It used to be one magenta doing both
+   the action surface and the ink. Now the SURFACE is orange and the INK is
+   índigo. `text-primary` is banned in `/portal`: orange on white is 2.2:1. Ink
+   is `text-brand-indigo`; an orange *highlight* on white is
+   `brand-orange-800` `#7A4407` (7.9:1).
+2. **Text on orange is always Navy Profundo** (`--primary-foreground`, 7.7:1),
+   never white (2.1:1).
+3. **`--accent` is índigo-100, not orange.** `bg-accent` is every shadcn
+   hover/focus surface in the app; orange there would blow the 10% ceiling on
+   the first screen and shout louder than the real CTA.
+
+The retired magenta `#CE0F69` survives ONLY as `--pink` / `brand-pink` /
+`brand-gold`, for the analyst screens still on the old palette. Nothing under
+`/portal` or `/proposta-cliente` may reference them.
 
 *System 2 — status semáforo (`/portal` only).* STATE, never actions, and
 **deliberately not aligned to the brand guide**:
 
 | Token | Hex | Meaning |
 |---|---|---|
-| `portal-success` | `#00B050` | done / approved |
-| `portal-warning` | `#FF9500` | waiting / attention |
-| `portal-danger` | `#FF3B30` | critical / divergent |
-| `portal-info` | `#2E5CFF` | in progress, nothing required from the client |
-| `portal-neutral` | `#8E8E93` | secondary metadata |
+| `portal-success` | `#1E9E63` | done / approved |
+| `portal-warning` | `#C98A00` | waiting / attention — dot and badge FILL |
+| `portal-warning-ink` | `#8A5E00` | the same state, as TEXT |
+| `portal-danger` | `#D64545` | critical / divergent |
+| `portal-info` | `#4C6FD1` | in progress, nothing required from the client |
+| `portal-neutral` | `#686A9A` | secondary metadata |
 
-`portal-warning` is `#FF9500`, **not** the brand orange `#FF9E1B`. Aligning it
-would make "atenção" indistinguishable from a branded surface — the whole point
-of a semáforo is that its colour means one thing only. Do not "fix" the semantic
-palette towards the brand palette; a colour audit that touches System 1 must
-leave System 2 byte-identical.
+`portal-warning` is `#C98A00`, **not** the brand orange `#F59C27`. The old
+`#FF9500` had to move: it sat **one degree of hue** from the new brand orange,
+so "atenção" and "CTA" had become the same colour to the eye. The rule did not
+change — the semáforo must stay unmistakable — the distance did. Do not "fix"
+the semantic palette towards the brand palette.
+
+**Warning has two tones, and this is not a drift.** `#C98A00` on white is 2.95:1
+and fails AA for copy, so every place where warning is TEXT or an icon uses
+`portal-warning-ink` `#8A5E00` (5.4:1); the dot and the badge fill keep
+`#C98A00`. The split lives in `TONE_TEXT` vs `TONE_DOT` (`_shared/tone.ts`) and
+`SEMAFORO_ACCENT_CLASS` vs `SEMAFORO_BADGE_CLASS` (`types/portal-shipment.ts`),
+and is mirrored in hex by `TONE_INK_HEX` vs `TONE_HEX` in `shipment-map.tsx`.
+**The rule inverts on dark surfaces**: on the navy Home banner the ink is the
+one that fails (1.9:1) and the fill reads at 5.7:1, which is why
+`home/page.tsx` uses `text-portal-warning` there and is the single exception.
 
 State→colour maps live next to their type (`ESTADO_BADGE_CLASS` /
 `ESTADO_ACCENT_CLASS` in `types/portal-shipment.ts`) so the badge, the summary
 tile and the progress steps cannot drift apart.
 
-**Typography** — Montserrat (`app/layout.tsx`, `next/font/google`) app-wide,
-including `/portal`; `.portal-h1/h2/h3` set size and weight only and inherit it.
-The brand guide specifies **Avenir** for headings, which is **not applied**:
-Avenir is a Monotype/Linotype family with no free web license and is absent from
-Google Fonts. Do not swap it in until Freitas provides the webfont license —
-this is an open brand pendency, not an oversight. `Source_Sans_3` is loaded, but
-only by `app/proposta-cliente/layout.tsx`, and is the natural fallback candidate
-if the licence never lands (humanist, far closer to Avenir than the geometric
-Montserrat).
+**Typography** — **Source Sans 3** in `/portal` (`app/portal/portal-font.ts`,
+applied by `app/portal/layout.tsx`) and in `/proposta-cliente`
+(`app/proposta-cliente/layout.tsx`). The root `app/layout.tsx` stays on
+**Montserrat** because it also serves the analyst screens; the swap is scoped
+rather than global on purpose, so migrating the portal did not restyle screens
+nobody asked about. When the analyst side migrates, the font moves to the root
+and the two scoped loaders collapse into one.
+
+The brand guide specifies **New Black** for headings, which is **not applied**:
+there is no licensed webfont file for it yet, so headings and body share Source
+Sans 3. This is an open brand pendency, not an oversight — the same status the
+previous guide's **Avenir** had, and for the same reason.
 
 **Shared components on a portal surface** — do not fork them. `RecommendationView`
 takes `variant="portal"`; the analyst and public-proposal surfaces keep the

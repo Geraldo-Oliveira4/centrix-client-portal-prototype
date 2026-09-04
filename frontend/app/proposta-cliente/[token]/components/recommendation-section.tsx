@@ -30,17 +30,17 @@ export function RecommendationSection({
   if (noneEligibleByValidity) {
     return (
       <div className="rounded-lg border bg-card overflow-hidden">
-        <div className="bg-[#2c2d65] px-4 py-3 flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-[#ff9e1b]" />
+        <div className="bg-brand-navy px-4 py-3 flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-brand-orange-500" />
           <p className="text-xs font-semibold text-white/90 uppercase tracking-wide">
             Recomendacao IA
           </p>
         </div>
         <div className="flex flex-col items-center gap-2 py-6 text-center">
           <div className="flex gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#ce0f69]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#2c2d65]/30" />
+            <span className="h-2.5 w-2.5 rounded-full bg-brand-orange-400" />
+            <span className="h-2.5 w-2.5 rounded-full bg-brand-orange-500" />
+            <span className="h-2.5 w-2.5 rounded-full bg-brand-indigo/30" />
           </div>
           <p className="text-sm font-medium text-muted-foreground">
             Recomendacao indisponivel no momento
@@ -57,17 +57,17 @@ export function RecommendationSection({
 
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
-      <div className="bg-[#2c2d65] px-4 py-3 flex items-center gap-2">
-        <span className="h-2 w-2 rounded-full bg-[#ff9e1b]" />
+      <div className="bg-brand-navy px-4 py-3 flex items-center gap-2">
+        <span className="h-2 w-2 rounded-full bg-brand-orange-500" />
         <p className="text-xs font-semibold text-white/90 uppercase tracking-wide">
           Recomendacao IA
         </p>
       </div>
       <div className="flex flex-col items-center gap-2 py-6 text-center">
         <div className="flex gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-[#ff9e1b]" />
-          <span className="h-2.5 w-2.5 rounded-full bg-[#ce0f69]" />
-          <span className="h-2.5 w-2.5 rounded-full bg-[#2c2d65]/30" />
+          <span className="h-2.5 w-2.5 rounded-full bg-brand-orange-400" />
+          <span className="h-2.5 w-2.5 rounded-full bg-brand-orange-500" />
+          <span className="h-2.5 w-2.5 rounded-full bg-brand-indigo/30" />
         </div>
         <p className="text-sm font-medium text-muted-foreground">
           Analise em preparacao

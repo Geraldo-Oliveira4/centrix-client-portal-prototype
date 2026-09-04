@@ -23,10 +23,11 @@ import { SemaforoChips } from '../../_shared/semaforo-chips';
  * DUAS REGRAS DE COR, e as duas vem do guia de marca (ver "Client Portal design
  * system" no CLAUDE.md do frontend):
  *
- *   1. Navy #2C2D65 (`brand-navy`) e IDENTIDADE. Ele emoldura, nunca convida a
- *      clicar — e agora isso e literal, porque nao ha o que clicar aqui. Rosa
- *      (`primary`) continua sendo a unica cor de acao da Home, e ela aparece uma
- *      vez so: no CTA do card "Sua acao mais urgente".
+ *   1. Navy Profundo #1A1C31 (`brand-navy`) e IDENTIDADE. Ele emoldura, nunca
+ *      convida a clicar — e agora isso e literal, porque nao ha o que clicar
+ *      aqui. Laranja (`primary`, #F59C27) e a unica cor de acao da Home desde a
+ *      migracao de marca v1.0, e ela aparece uma vez so: no CTA do card "Sua
+ *      acao mais urgente".
  *   2. As bolinhas do farol continuam no semaforo, que e ESTADO. Sobre o navy
  *      elas seguem legiveis sem retoque — os tres hexes sao saturados o
  *      bastante — e por isso nao ha uma segunda paleta aqui.

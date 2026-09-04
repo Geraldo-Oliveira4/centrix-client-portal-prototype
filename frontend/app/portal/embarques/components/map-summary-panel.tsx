@@ -22,7 +22,7 @@ import {
 
 const TONE_TEXT: Record<SemaforoTone, string> = {
   success: 'text-portal-success',
-  warning: 'text-portal-warning',
+  warning: 'text-portal-warning-ink',
   danger: 'text-portal-danger',
 };
 
@@ -47,7 +47,7 @@ export function MapSummaryPanel({ shipments }: { shipments: PortalShipment[] }) 
     // mapa — peso visual sem informação.
     <section className="portal-card space-y-5 self-start p-5">
       <div className="space-y-0.5">
-        <p className="portal-h3 text-foreground">Visão do todo</p>
+        <p className="portal-h3">Visão do todo</p>
         <p className="portal-small text-portal-neutral">
           {shipments.length}{' '}
           {shipments.length === 1

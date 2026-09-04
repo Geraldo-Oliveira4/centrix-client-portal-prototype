@@ -28,7 +28,7 @@ export function ProposalsTable({
   return (
     <section className="portal-card overflow-hidden">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b px-6 py-4">
-        <h2 className="portal-h2 text-foreground">
+        <h2 className="portal-h2">
           Propostas Disponíveis ({proposals.length})
         </h2>
         <p className="portal-small text-portal-neutral">

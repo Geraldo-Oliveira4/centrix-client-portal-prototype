@@ -7,7 +7,7 @@ import { Award, Clock } from 'lucide-react';
 
 export function LowestCostBadge() {
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-brand-pink text-white px-1.5 py-0.5 rounded">
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-brand-orange-500 text-brand-navy px-1.5 py-0.5 rounded">
       <Award className="w-3 h-3" />
       Menor Preço
     </span>

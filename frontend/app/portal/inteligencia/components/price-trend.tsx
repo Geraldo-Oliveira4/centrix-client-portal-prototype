@@ -21,7 +21,7 @@ import type { PriceAlert, PriceAlertType, PriceRadarRoute } from '../lib/price-r
 
 export const PRICE_ALERT_CLASS: Record<PriceAlertType, string> = {
   oportunidade: 'border-portal-success/30 bg-portal-success/10 text-portal-success',
-  atencao: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning',
+  atencao: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning-ink',
   alta: 'border-portal-danger/30 bg-portal-danger/10 text-portal-danger',
 };
 

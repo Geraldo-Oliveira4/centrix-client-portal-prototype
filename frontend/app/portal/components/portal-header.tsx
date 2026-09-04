@@ -37,7 +37,7 @@ export function PortalHeader() {
     <header className="relative flex items-center justify-between border-b bg-background px-4 py-3 md:px-6">
       <span
         aria-hidden="true"
-        className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary via-primary/40 to-transparent"
+        className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand-indigo via-brand-indigo/40 to-transparent"
       />
       <div className="flex items-center gap-3">
         <Button
@@ -49,10 +49,10 @@ export function PortalHeader() {
         >
           <Menu className="h-5 w-5" />
         </Button>
-        <div className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-primary/8 to-transparent py-1.5 pl-3 pr-6">
-          <span className="h-8 w-1 rounded-full bg-gradient-to-b from-primary to-primary/40" />
+        <div className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-brand-indigo-100 to-transparent py-1.5 pl-3 pr-6">
+          <span className="h-8 w-1 rounded-full bg-gradient-to-b from-brand-indigo to-brand-indigo/40" />
           <div>
-            <p className="portal-small font-medium uppercase tracking-wide text-primary">
+            <p className="portal-small font-medium uppercase tracking-wide text-brand-indigo">
               Portal do Cliente
             </p>
             <p className="portal-body font-medium text-foreground">
@@ -73,7 +73,7 @@ export function PortalHeader() {
           </Link>
         </Button>
         <Avatar className="h-9 w-9">
-          <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+          <AvatarFallback className="bg-brand-indigo-100 text-brand-indigo text-xs font-semibold">
             {initials || '??'}
           </AvatarFallback>
         </Avatar>

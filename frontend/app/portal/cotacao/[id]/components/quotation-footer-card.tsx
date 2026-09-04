@@ -6,7 +6,7 @@ import type { PortalQuotation } from '@/types/portal';
 export function QuotationFooterCard({ quotation }: { quotation: PortalQuotation }) {
   return (
     <section className="portal-card-muted space-y-3 p-6">
-      <h2 className="portal-h3 text-foreground">Dados da cotação</h2>
+      <h2 className="portal-h3">Dados da cotação</h2>
       <Field label="Solicitada em" value={formatDate(quotation.created_at)} />
       <Field label="Carga" value={formatTotals(quotation.totals, quotation.modal)} />
       <Field label="Produto" value={quotation.product} />

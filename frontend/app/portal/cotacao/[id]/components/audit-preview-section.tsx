@@ -38,8 +38,8 @@ export function AuditPreviewSection({ quotationId }: { quotationId: string }) {
     <section className="space-y-4 rounded-xl border border-dashed border-border bg-muted/20 p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h2 className="portal-h2 text-foreground">Auditoria</h2>
-          <span className="portal-small inline-flex items-center gap-1.5 rounded border border-dashed border-primary/40 bg-primary/5 px-2 py-0.5 font-medium text-primary">
+          <h2 className="portal-h2">Auditoria</h2>
+          <span className="portal-small inline-flex items-center gap-1.5 rounded border border-dashed border-brand-indigo-800/40 bg-brand-indigo-100 px-2 py-0.5 font-medium text-brand-indigo">
             <FlaskConical className="h-3.5 w-3.5" />
             Pré-visualização
           </span>

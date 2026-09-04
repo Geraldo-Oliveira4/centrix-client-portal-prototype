@@ -56,13 +56,13 @@ export default function PropostaClientePage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="relative overflow-hidden bg-[#2c2d65] px-6 lg:px-10 py-4">
+      <header className="relative overflow-hidden bg-brand-navy px-6 lg:px-10 py-4">
         {/* Decorative circles echoing the brand dot motif */}
         <div className="pointer-events-none absolute right-0 top-0 bottom-0 flex items-center gap-4 pr-8 opacity-15">
-          <div className="h-20 w-20 rounded-full bg-[#ff9e1b]" />
-          <div className="h-12 w-12 rounded-full bg-[#ce0f69]" />
-          <div className="h-7 w-7 rounded-full bg-[#ff9e1b]" />
-          <div className="h-4 w-4 rounded-full bg-[#ce0f69]" />
+          <div className="h-20 w-20 rounded-full bg-brand-orange-500" />
+          <div className="h-12 w-12 rounded-full bg-brand-orange-500" />
+          <div className="h-7 w-7 rounded-full bg-brand-orange-500" />
+          <div className="h-4 w-4 rounded-full bg-brand-orange-500" />
         </div>
 
         <div className="relative flex items-center justify-between">
@@ -87,7 +87,7 @@ export default function PropostaClientePage() {
           </div>
 
           <div className="hidden sm:flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#ff9e1b]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-orange-500" />
             <span className="text-xs text-white/50 tracking-wider uppercase">Portal do Cliente</span>
           </div>
         </div>
@@ -107,7 +107,7 @@ export default function PropostaClientePage() {
             description="Este link nao existe ou expirou. Entre em contato com a equipe Freitas COMEX."
             onRetry={fetchData}
             logoSrc="/freitas-logo-azul.png"
-            titleClassName="text-[#2c2d65]"
+            titleClassName="text-brand-indigo"
           />
         )}
 
@@ -117,7 +117,7 @@ export default function PropostaClientePage() {
             description="Esta cotacao foi encerrada. Se voce acredita que isso e um erro, tente novamente antes de entrar em contato com a equipe Freitas COMEX."
             onRetry={fetchData}
             logoSrc="/freitas-logo-azul.png"
-            titleClassName="text-[#2c2d65]"
+            titleClassName="text-brand-indigo"
           />
         )}
 
@@ -127,7 +127,7 @@ export default function PropostaClientePage() {
             description="Nao foi possivel carregar os dados. Tente novamente em alguns instantes."
             onRetry={fetchData}
             logoSrc="/freitas-logo-azul.png"
-            titleClassName="text-[#2c2d65]"
+            titleClassName="text-brand-indigo"
           />
         )}
 
@@ -148,7 +148,7 @@ export default function PropostaClientePage() {
 
               {data.observations && (
                 <div className="rounded-lg border bg-card p-4">
-                  <p className="text-xs font-semibold text-[#2c2d65] uppercase tracking-wide mb-2">
+                  <p className="text-xs font-semibold text-brand-indigo uppercase tracking-wide mb-2">
                     Mensagem da Freitas COMEX
                   </p>
                   <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
@@ -157,10 +157,10 @@ export default function PropostaClientePage() {
                 </div>
               )}
 
-              <div className="rounded-lg border border-[#ff9e1b]/30 bg-[#ff9e1b]/5 px-4 py-3">
+              <div className="rounded-lg border border-brand-orange-500/30 bg-brand-orange-50 px-4 py-3">
                 <p className="text-xs text-muted-foreground">
                   Link valido ate{' '}
-                  <span className="font-semibold text-[#ce0f69]">
+                  <span className="font-semibold text-brand-orange-800">
                     {new Date(data.expires_at).toLocaleDateString('pt-BR', {
                       day: '2-digit',
                       month: '2-digit',

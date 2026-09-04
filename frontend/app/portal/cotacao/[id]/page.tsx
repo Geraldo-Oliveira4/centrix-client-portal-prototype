@@ -261,7 +261,7 @@ export default function PortalCotacaoDetailPage() {
         </Button>
         <div className="flex flex-wrap items-center gap-2">
           <ModalIcon modal={quotation.modal} className="h-5 w-5 text-portal-neutral" />
-          <h1 className="portal-h1 text-foreground">{quotation.reference}</h1>
+          <h1 className="portal-h1">{quotation.reference}</h1>
           <ClientReferenceTag value={quotation.client_reference} />
           {quotation.incoterm ? (
             <span className="portal-small rounded border px-2 py-0.5 font-medium text-portal-neutral">
@@ -297,7 +297,7 @@ export default function PortalCotacaoDetailPage() {
               ) : null}
             </div>
             {!showActions && needsInfo ? (
-              <span className="inline-flex items-center gap-1 rounded bg-portal-warning/10 px-2.5 py-1 text-xs font-medium text-portal-warning">
+              <span className="inline-flex items-center gap-1 rounded bg-portal-warning/10 px-2.5 py-1 text-xs font-medium text-portal-warning-ink">
                 Aguardando Informações
               </span>
             ) : null}
@@ -313,9 +313,9 @@ export default function PortalCotacaoDetailPage() {
       {isPortalOrigin ? (
         <Tabs defaultValue="cotacao" className="w-full">
           <TabsList>
-            <TabsTrigger value="cotacao">Cotação</TabsTrigger>
-            <TabsTrigger value="documentos">Documentos</TabsTrigger>
-            <TabsTrigger value="historico">Histórico</TabsTrigger>
+            <TabsTrigger className="data-[state=active]:border-brand-indigo-800" value="cotacao">Cotação</TabsTrigger>
+            <TabsTrigger className="data-[state=active]:border-brand-indigo-800" value="documentos">Documentos</TabsTrigger>
+            <TabsTrigger className="data-[state=active]:border-brand-indigo-800" value="historico">Histórico</TabsTrigger>
           </TabsList>
 
           <TabsContent value="cotacao" className="mt-4">

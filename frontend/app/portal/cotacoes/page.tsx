@@ -77,21 +77,21 @@ function PortalCotacoesContent() {
       ) : (
         <Tabs defaultValue={defaultTab} className="space-y-6">
           <TabsList>
-            <TabsTrigger value="funil" className="gap-1.5">
+            <TabsTrigger value="funil" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
               <KanbanSquare className="h-4 w-4" />
               Funil
             </TabsTrigger>
-            <TabsTrigger value="historico" className="gap-1.5">
+            <TabsTrigger value="historico" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
               <History className="h-4 w-4" />
               Histórico
               <TabCount value={closed.length} />
             </TabsTrigger>
-            <TabsTrigger value="fechadas" className="gap-1.5">
+            <TabsTrigger value="fechadas" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
               <CheckCircle2 className="h-4 w-4" />
               Aprovadas
               <TabCount value={approvedCount} />
             </TabsTrigger>
-            <TabsTrigger value="negadas" className="gap-1.5">
+            <TabsTrigger value="negadas" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
               <XCircle className="h-4 w-4" />
               Reprovadas
               <TabCount value={refusedCount} />

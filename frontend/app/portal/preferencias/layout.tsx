@@ -46,7 +46,7 @@ export default function PreferenciasLayout({ children }: { children: ReactNode }
               className={cn(
                 'whitespace-nowrap border-b-2 px-3 py-2 portal-body font-medium transition-colors',
                 active
-                  ? 'border-primary text-foreground'
+                  ? 'border-brand-indigo-800 text-foreground'
                   : 'border-transparent text-portal-neutral hover:text-foreground',
               )}
             >

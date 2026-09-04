@@ -48,7 +48,7 @@ export function ConciliationTable({
     <section className="space-y-4 rounded-xl border border-dashed border-border bg-muted/20 p-6">
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div className="space-y-1">
-          <p className="portal-h3 text-foreground">{example.reference}</p>
+          <p className="portal-h3">{example.reference}</p>
           <p className="portal-small text-portal-neutral">
             {example.route} · {example.agent}
           </p>

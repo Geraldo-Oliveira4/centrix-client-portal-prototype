@@ -9,7 +9,7 @@ import type { PortalProposal, PortalQuotation } from '@/types/portal';
 
 export function EmptyProposalsBlock() {
   return (
-    <div className="rounded-xl border bg-portal-warning/8 px-4 py-6 text-sm text-portal-warning">
+    <div className="rounded-xl border bg-portal-warning/8 px-4 py-6 text-sm text-portal-warning-ink">
       Estamos buscando propostas com os agentes. Você será avisado quando elas chegarem.
     </div>
   );
@@ -55,9 +55,9 @@ export function FinalizedApprovedBanner({ proposal }: { proposal: PortalProposal
 export function NeedsMoreInfoBanner({ quotation }: { quotation: PortalQuotation }) {
   return (
     <div className="rounded-xl border border-portal-warning/30 bg-portal-warning/8 p-4 flex items-start gap-3">
-      <AlertCircle className="h-5 w-5 text-portal-warning shrink-0 mt-0.5" />
+      <AlertCircle className="h-5 w-5 text-portal-warning-ink shrink-0 mt-0.5" />
       <div className="flex-1 space-y-0.5">
-        <p className="portal-h3 text-portal-warning">
+        <p className="portal-h3 text-portal-warning-ink">
           Precisamos de mais informações
         </p>
         <p className="portal-body text-foreground/75">
@@ -103,9 +103,9 @@ export function PendingAnalystReviewBanner({
 }) {
   return (
     <div className="rounded-xl border-l-4 border-portal-warning bg-portal-warning/8 p-4 flex items-start gap-3">
-      <Clock className="h-5 w-5 text-portal-warning shrink-0 mt-0.5" />
+      <Clock className="h-5 w-5 text-portal-warning-ink shrink-0 mt-0.5" />
       <div className="space-y-0.5">
-        <p className="portal-h3 text-portal-warning">
+        <p className="portal-h3 text-portal-warning-ink">
           Sua seleção está em análise pela Freitas
         </p>
         <p className="portal-body text-foreground/75">
@@ -147,9 +147,9 @@ export function SelectionApprovedBanner({
 export function GuardRailBlockBanner({ reason }: { reason: string }) {
   return (
     <div className="rounded-xl border-l-4 border-portal-warning bg-portal-warning/8 p-4 flex items-start gap-3">
-      <AlertCircle className="h-5 w-5 text-portal-warning shrink-0 mt-0.5" />
+      <AlertCircle className="h-5 w-5 text-portal-warning-ink shrink-0 mt-0.5" />
       <div className="space-y-0.5">
-        <p className="portal-h3 text-portal-warning">
+        <p className="portal-h3 text-portal-warning-ink">
           Proposta em revisão pela Freitas
         </p>
         <p className="portal-body text-foreground/75">Mensagem: {reason}</p>

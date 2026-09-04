@@ -59,7 +59,7 @@ export function RouteDeviationsBlock({ routes }: { routes: RouteDeviation[] }) {
                     route.avgDeltaDays > 3
                       ? 'text-portal-danger'
                       : route.avgDeltaDays > 0
-                        ? 'text-portal-warning'
+                        ? 'text-portal-warning-ink'
                         : 'text-portal-success',
                   )}
                 >

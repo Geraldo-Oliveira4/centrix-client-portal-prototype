@@ -57,7 +57,7 @@ export function ReliabilityBody({ proposals }: { proposals: PortalProposal[] }) 
     <div className="space-y-2">
       {/* Um degrau acima do corpo: é a conclusão do bloco, e a altura
           igualada com o Mercado sobra quando tudo aqui é `portal-body`. */}
-      <p className="portal-h3 font-normal text-foreground">
+      <p className="portal-h3 font-normal">
         <span className="font-medium">{top.name}</span> tem histórico de
         confiabilidade {reliabilityLabel(top.score)}.
       </p>

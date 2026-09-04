@@ -7,14 +7,14 @@ import { SectionHeading } from '../../../_shared/page-header';
 import { ProvenanceBadge } from '../../../_shared/provenance-badge';
 import type { PerformanceMetrics } from '../../lib/performance-helpers';
 
-// Semantic portal palette (styles/globals.css) as hex, for the recharts fills —
+// Semantic portal palette (tailwind.config.ts) as hex, for the recharts fills —
 // recharts needs colour strings, not Tailwind classes. Kept in sync with the
 // legend's dots below so the donut and its legend cannot drift.
 const STATUS_COLORS = {
-  success: '#00B050',
-  info: '#2E5CFF',
-  danger: '#FF3B30',
-  neutral: '#8E8E93',
+  success: '#1E9E63',
+  info: '#4C6FD1',
+  danger: '#D64545',
+  neutral: '#686A9A',
 } as const;
 
 /**

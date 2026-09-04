@@ -80,11 +80,11 @@ export function RiskBlock() {
         <ul className="space-y-2">
           {risks.map((risk, i) => (
             <li key={`${risk.id}-${i}`} className="flex items-start gap-2">
-              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-portal-warning" />
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-portal-warning-ink" />
               <p className="portal-body text-foreground">
                 <Link
                   href={`/portal/cotacao/${risk.id}`}
-                  className="font-medium text-primary hover:underline"
+                  className="font-medium text-brand-indigo hover:underline"
                 >
                   {risk.reference}
                 </Link>

@@ -24,7 +24,7 @@ import { delayRiskFromTracking, type DelayRisk } from '../lib/delay-risk';
 
 const TONE_CLASS: Record<'on_time' | 'attention' | 'delayed', string> = {
   on_time: 'border-portal-success/25 bg-portal-success/10 text-portal-success',
-  attention: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning',
+  attention: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning-ink',
   delayed: 'border-portal-danger/30 bg-portal-danger/10 text-portal-danger',
 };
 

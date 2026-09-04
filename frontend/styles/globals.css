@@ -3,76 +3,100 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
- * Freitas brand palette — the three official colours, and the ONLY source of
- * truth for them. Each HSL triple below is the exact conversion of the hex in
- * the brand guide; do not round the decimals, they are what lands the rendered
- * colour on the specified hex.
+ * Freitas Centrix brand palette (Brand System v1.0) — the ONLY source of truth
+ * for the identity colours. Each HSL triple below is the exact conversion of
+ * the hex in tokens.json / DESIGN.md; do not round the decimals, they are what
+ * lands the rendered colour on the specified hex.
  *
- *   Rosa/magenta (primária)  #CE0F69  Pantone 214 C   -> 331.7 86.4% 43.3%
- *   Laranja (secundária)     #FF9E1B  Pantone 1375 C  ->  34.5  100% 55.3%
- *   Azul-marinho (terciária) #2C2D65  Pantone 2119 C  -> 238.9 39.3% 28.4%
+ *   Navy Profundo  #1A1C31  -> 234.8 30.7% 14.7%   dark surface + body ink
+ *   Indigo         #2C2E65  -> 237.9 39.3% 28.4%   brand colour: headings,
+ *                                                  links, secondary buttons
+ *   Laranja        #F59C27  ->  34.1 91.2% 55.7%   CTA, focus ring, accents
  *
- * These three govern IDENTITY (primary actions, links, headers, dark text).
- * They are a different system from the /portal status semáforo
- * (portal-success | portal-warning | portal-danger | portal-info in
- * tailwind.config.ts), which encodes MEANING and deliberately does not follow
- * the brand guide — portal-warning is #FF9500, not the brand orange, so that
- * "atenção" can never be confused with a branded surface. Never collapse the
- * two systems.
+ * The 75/15/10 rule: ~75% structural (navy on dark, white/mist on light), 15%
+ * indigo, at most 10% orange. Orange is a CEILING, not a target — which is why
+ * `--primary` (the CTA surface) is orange but `--accent` (shadcn hover/focus)
+ * is indigo-100: painting every hover orange blows the ceiling on the first
+ * screen. Text on orange is ALWAYS Navy Profundo (7.7:1); orange as small text
+ * on white is 2.2:1 and is forbidden — use brand-orange-800 #7A4407 (7.9:1).
+ *
+ * These govern IDENTITY. They are a different system from the /portal status
+ * semáforo (portal-success | portal-warning | portal-danger | portal-info in
+ * tailwind.config.ts), which encodes MEANING. The two must never be merged:
+ * portal-warning is #C98A00, deliberately far from the brand orange #F59C27,
+ * because the previous #FF9500 sat 1 degree of hue away from it and "atenção"
+ * had become indistinguishable from a branded surface.
+ *
+ * `--pink` below is the retired 2024 magenta. It survives ONLY for the analyst
+ * screens outside /portal and /proposta-cliente (`.bg-blue-gradient`, the
+ * `gradient` button variant), which are being migrated separately. Nothing in
+ * the client portal may reference it.
  * ------------------------------------------------------------------------- */
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 238.9 39.3% 28.4%;
+    /* Body ink is Navy Profundo; HEADINGS are Indigo, applied by .portal-h1/h2/h3
+       below. One variable cannot carry both roles, and rewriting 232 call sites
+       of text-foreground to split them would be the wrong lever. */
+    --foreground: 234.8 30.7% 14.7%;
     --card: 0 0% 100%;
-    --card-foreground: 238.9 39.3% 28.4%;
+    --card-foreground: 234.8 30.7% 14.7%;
     --popover: 0 0% 100%;
-    --popover-foreground: 238.9 39.3% 28.4%;
-    --primary: 331.7 86.4% 43.3%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 331.7 50% 95%;
-    --secondary-foreground: 331.7 86.4% 35%;
-    --muted: 237 20% 95%;
-    --muted-foreground: 237 20% 45%;
-    --accent: 34.5 100% 55.3%;
-    /* Brand navy, not white: white on #FF9E1B is 2.07:1. The accent is only
-       ever used as `bg-accent text-accent-foreground` (shadcn hover/focus). */
-    --accent-foreground: 238.9 39.3% 28.4%;
-    --destructive: 0 84.2% 60.2%;
+    --popover-foreground: 234.8 30.7% 14.7%;
+    /* CTA surface: orange #F59C27 with Navy Profundo on top (7.7:1). NEVER use
+       `text-primary` for ink — orange on white is 2.2:1. Ink is text-brand-indigo. */
+    --primary: 34.1 91.2% 55.7%;
+    --primary-foreground: 234.8 30.7% 14.7%;
+    --secondary: 233.3 75% 95.3%;
+    --secondary-foreground: 237.9 39.3% 28.4%;
+    --muted: 230 37.5% 96.9%;
+    --muted-foreground: 237.6 19.8% 50.6%;
+    /* shadcn hover/focus surface. Indigo-100, NOT the brand orange: this is
+       every menu, dropdown and list hover in the app, and orange here would
+       blow the 10% ceiling and shout louder than the actual CTA. */
+    --accent: 233.3 75% 95.3%;
+    --accent-foreground: 237.9 39.3% 28.4%;
+    --destructive: 0 63.9% 55.5%;
     --destructive-foreground: 0 0% 100%;
-    --border: 237 20% 88%;
-    --input: 237 20% 88%;
-    --ring: 331.7 86.4% 43.3%;
+    --border: 229.4 33.3% 90%;
+    --input: 229.4 33.3% 90%;
+    /* Focus is orange by brand rule, and does not follow the ink colour. */
+    --ring: 34.1 91.2% 55.7%;
     --radius: 0.5rem;
 
     /* Brand colors */
-    --navy: 238.9 39.3% 28.4%;
+    --navy: 234.8 30.7% 14.7%;
+    --indigo: 237.9 39.3% 28.4%;
+    --orange: 34.1 91.2% 55.7%;
+    /* Retired magenta — analyst screens only, see the header note. */
     --pink: 331.7 86.4% 43.3%;
-    --orange: 34.5 100% 55.3%;
   }
 
   .dark {
-    --background: 237 54% 13%;
+    --background: 234.8 30.7% 14.7%;
     --foreground: 0 0% 100%;
-    --card: 237 54% 17%;
+    --card: 235.7 28.6% 19.2%;
     --card-foreground: 0 0% 100%;
-    --popover: 237 54% 17%;
+    --popover: 235.7 28.6% 19.2%;
     --popover-foreground: 0 0% 100%;
-    /* Dark mode keeps the +10% lightness lift the theme already had over the
-       light primary, so the brand pink stays legible on a navy surface. */
-    --primary: 331.7 86.4% 53.3%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 237 40% 22%;
+    /* On the navy surface the CTA keeps the same orange — it already reads at
+       7.7:1 against Navy Profundo, so there is no lightness lift to make. */
+    --primary: 34.1 91.2% 55.7%;
+    --primary-foreground: 234.8 30.7% 14.7%;
+    --secondary: 237.2 38.7% 21.8%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 237 40% 20%;
-    --muted-foreground: 237 20% 65%;
-    --accent: 34.5 100% 55.3%;
-    --accent-foreground: 238.9 39.3% 28.4%;
-    --destructive: 0 72.2% 50.6%;
+    --muted: 237.2 38.7% 21.8%;
+    --muted-foreground: 237.6 67.6% 85.5%;
+    --accent: 237.2 38.7% 21.8%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 63.9% 55.5%;
     --destructive-foreground: 0 0% 100%;
-    --border: 237 40% 23%;
-    --input: 237 40% 23%;
-    --ring: 331.7 86.4% 53.3%;
+    /* Opaque indigo, not rgba(255,255,255,.12): `hsl(var(--border))` is also
+       consumed as `border-border/50`, and a var carrying its own alpha would
+       produce an invalid double-alpha colour there. */
+    --border: 237.9 39.3% 28.4%;
+    --input: 237.9 39.3% 28.4%;
+    --ring: 34.1 91.2% 55.7%;
   }
 }
 
@@ -107,17 +131,19 @@
   );
 }
 
-/* Brand gradient with glow effect: the three official colours and nothing else
-   — #CE0F69 glow, #FF9E1B glow, #2C2D65 plate. */
+/* Brand gradient with glow effect.
+   Brand System v1.0: two orange glows (top-left, bottom-right) over the Navy
+   Profundo plate, both at .30 — the only gradient the guide allows over navy,
+   with orange as light rather than as a filled area. */
 .bg-brand-gradient {
   background: radial-gradient(
       ellipse at top left,
-      rgba(206, 15, 105, 0.35) 0%,
+      rgba(245, 156, 39, 0.3) 0%,
       transparent 55%
     ),
     radial-gradient(
       ellipse at bottom right,
-      rgba(255, 158, 27, 0.3) 0%,
+      rgba(245, 156, 39, 0.3) 0%,
       transparent 55%
     ),
     hsl(var(--navy));
@@ -366,31 +392,54 @@
  * page title: at 14-16px, bold reads as heavy and flattens the hierarchy, which
  * is what made every card feel equally loud.
  *
- * Action/link colour stays the Freitas brand pink, --primary = #CE0F69 (see the
- * brand palette block at the top of this file). The semantic palette below is
- * for STATE only (done / attention / critical / secondary) and lives in
- * tailwind.config.ts as portal-success | portal-warning | portal-danger |
- * portal-neutral | portal-canvas. portal-warning is #FF9500, NOT the brand
- * orange #FF9E1B — a status colour must never be mistakable for a branded
- * surface, so the two are kept visibly apart on purpose.
+ * ACTION vs INK, since Brand System v1.0 split what used to be one colour:
+ * the CTA SURFACE is orange (--primary #F59C27, always with Navy Profundo
+ * text on it), and the INK — links, active nav, icons — is Indigo #2C2E65
+ * (`text-brand-indigo`). Never `text-primary`: orange on white is 2.2:1.
+ *
+ * The semantic palette below is for STATE only (done / attention / critical /
+ * secondary) and lives in tailwind.config.ts as portal-success |
+ * portal-warning | portal-danger | portal-neutral | portal-canvas.
+ * portal-warning is #C98A00, NOT the brand orange #F59C27 — a status colour
+ * must never be mistakable for a branded surface, and the previous #FF9500 sat
+ * one degree of hue from the new brand orange, so the two are pushed apart on
+ * purpose. `portal-warning-ink` #8A5E00 is the same meaning at text contrast
+ * (5.4:1); the dot and the badge keep #C98A00.
  * ------------------------------------------------------------------------- */
-.portal-h1 {
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.5;
-  letter-spacing: -0.01em;
-}
 
-.portal-h2 {
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.5;
-}
+/* Headings carry the brand colour: Indigo on light surfaces, per the guide;
+   body text stays Navy Profundo (--foreground).
 
-.portal-h3 {
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.5;
+   In `@layer components` ON PURPOSE. Un-layered, these rules would sit after
+   `@tailwind utilities` in the file and — at equal specificity — beat the
+   `text-*` utility at the call site, turning `portal-h1 text-white` on the navy
+   banner indigo. Layered, the utility always wins, so a heading that
+   deliberately overrides the colour (the navy banner, the semáforo banners)
+   keeps doing it. The corollary: a heading that WANTS indigo must not carry a
+   redundant `text-foreground`, which is why those were dropped from the call
+   sites. */
+@layer components {
+  .portal-h1 {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+    color: hsl(var(--indigo));
+  }
+
+  .portal-h2 {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: hsl(var(--indigo));
+  }
+
+  .portal-h3 {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: hsl(var(--indigo));
+  }
 }
 
 .portal-body {

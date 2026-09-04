@@ -19,7 +19,7 @@ export function PagePortalHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="space-y-1">
-        <h1 className="portal-h1 text-foreground">{title}</h1>
+        <h1 className="portal-h1">{title}</h1>
         {subtitle ? (
           <p className="portal-small text-portal-neutral">{subtitle}</p>
         ) : null}
@@ -49,7 +49,7 @@ export function SectionHeading({
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2">
         {icon ? <span className="text-portal-neutral">{icon}</span> : null}
-        <h2 className="portal-h2 text-foreground">{title}</h2>
+        <h2 className="portal-h2">{title}</h2>
         {hint ? <span className="portal-small text-portal-neutral">{hint}</span> : null}
       </div>
       {action}

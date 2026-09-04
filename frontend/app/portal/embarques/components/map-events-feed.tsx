@@ -43,7 +43,7 @@ const TYPE_ICON: Record<AlertType, LucideIcon> = {
 
 const TONE_TEXT: Record<SemaforoTone, string> = {
   success: 'text-portal-success',
-  warning: 'text-portal-warning',
+  warning: 'text-portal-warning-ink',
   danger: 'text-portal-danger',
 };
 
@@ -85,7 +85,7 @@ export function MapEventsFeed({
   return (
     <section className="portal-card flex h-full flex-col p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="portal-h3 text-foreground">Eventos recentes</p>
+        <p className="portal-h3">Eventos recentes</p>
         <ProvenanceBadge provenance="preview" />
       </div>
 
@@ -144,7 +144,7 @@ export function MapEventsFeed({
         <button
           type="button"
           onClick={onSeeAll}
-          className="portal-small mt-4 self-start font-medium text-primary hover:underline"
+          className="portal-small mt-4 self-start font-medium text-brand-indigo hover:underline"
         >
           Ver todos os {visible.length} na aba Alertas →
         </button>

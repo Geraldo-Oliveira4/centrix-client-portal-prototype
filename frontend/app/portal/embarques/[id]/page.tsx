@@ -220,13 +220,13 @@ export default function PortalEmbarqueDetailPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="portal-h1 text-foreground">{shipment.referencia}</h1>
+              <h1 className="portal-h1">{shipment.referencia}</h1>
               {/* Sua referência (PO), herdada da cotação que gerou o embarque.
                   Ao lado da EMB-XXXX, nunca no lugar dela. */}
               <ClientReferenceTag value={shipment.client_reference} />
               <EstadoBadge estado={shipment.estado} />
               {shipment.carga_urgente && (
-                <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-2 py-0.5 font-medium text-portal-warning">
+                <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-2 py-0.5 font-medium text-portal-warning-ink">
                   <AlertTriangle className="h-3.5 w-3.5" />
                   Carga urgente
                 </span>
@@ -327,7 +327,7 @@ export default function PortalEmbarqueDetailPage() {
             {trackingExample && (
               <Link
                 href={`/portal/embarques/${trackingExample.id}`}
-                className="portal-small inline-flex items-center gap-1 text-portal-neutral underline-offset-4 hover:text-primary hover:underline"
+                className="portal-small inline-flex items-center gap-1 text-portal-neutral underline-offset-4 hover:text-brand-indigo hover:underline"
               >
                 Ver exemplo com dado de tracking preenchido
                 <ArrowRight className="h-3.5 w-3.5" />

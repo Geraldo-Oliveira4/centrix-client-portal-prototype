@@ -113,7 +113,7 @@ function RouteCard({ route }: { route: PriceRadarRoute }) {
       <div className="flex flex-1 flex-col gap-4 p-5">
         <header className="space-y-2">
           <div className="flex flex-wrap items-start justify-between gap-2">
-            <h2 className="portal-h3 text-foreground">
+            <h2 className="portal-h3">
               {route.origin} <span className="text-portal-neutral">→</span>{' '}
               {route.destination}
             </h2>
@@ -133,7 +133,7 @@ function RouteCard({ route }: { route: PriceRadarRoute }) {
         <div className="space-y-1">
           <p className="portal-small text-portal-neutral">Preço de referência</p>
           <p className="flex flex-wrap items-baseline gap-1.5">
-            <span className="portal-h1 text-foreground">
+            <span className="portal-h1">
               {formatMoney(route.currentPrice, route.currency)}
             </span>
             <span className="portal-small text-portal-neutral">

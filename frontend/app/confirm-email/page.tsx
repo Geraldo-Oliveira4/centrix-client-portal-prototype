@@ -28,7 +28,7 @@ const ConfirmEmailPage = () => {
           <div className="text-white">
             <h1 className="text-3xl font-bold mb-4">Centrix</h1>
             <div className="mt-8">
-              <div className="w-16 h-1 bg-gradient-to-r from-brand-pink to-brand-gold rounded mx-auto" />
+              <div className="w-16 h-1 bg-brand-orange-500 rounded mx-auto" />
             </div>
           </div>
         </div>

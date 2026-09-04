@@ -58,7 +58,7 @@ export function ProvenanceBadge({
   return (
     <span
       className={cn(
-        'portal-small inline-flex items-center gap-1.5 rounded border border-dashed border-primary/40 bg-primary/5 px-2 py-0.5 font-medium text-primary',
+        'portal-small inline-flex items-center gap-1.5 rounded border border-dashed border-brand-indigo-800/40 bg-brand-indigo-100 px-2 py-0.5 font-medium text-brand-indigo',
         className,
       )}
     >

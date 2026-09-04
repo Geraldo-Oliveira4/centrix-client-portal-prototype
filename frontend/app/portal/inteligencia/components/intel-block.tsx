@@ -52,7 +52,7 @@ export function IntelBlock({
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="text-portal-neutral">{icon}</span>
-            <h2 className="portal-h2 text-foreground">{title}</h2>
+            <h2 className="portal-h2">{title}</h2>
           </div>
           {provenance ? <ProvenanceBadge provenance={provenance} /> : null}
         </div>
@@ -112,7 +112,7 @@ export function IntelSubBlock({
       {title || provenance ? (
         <div className="flex items-start justify-between gap-2">
           {title ? (
-            <h3 className="portal-h3 text-foreground">{title}</h3>
+            <h3 className="portal-h3">{title}</h3>
           ) : (
             <span aria-hidden="true" />
           )}

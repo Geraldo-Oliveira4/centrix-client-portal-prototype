@@ -196,8 +196,8 @@ function PortalNovaCotacaoContent() {
           preenchidos numa tela de criação leem como resíduo de um rascunho
           antigo — e o cliente apaga o que estava certo. */}
       {routeLabel && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/[0.04] px-4 py-3">
-          <Radar className="h-5 w-5 shrink-0 text-primary" />
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-indigo-800/30 bg-brand-indigo-100 px-4 py-3">
+          <Radar className="h-5 w-5 shrink-0 text-brand-indigo" />
           <p className="portal-body text-foreground/80">
             Rota e modal já preenchidos a partir do{' '}
             <span className="font-medium text-foreground">Radar de Preços</span>{' '}
@@ -208,8 +208,8 @@ function PortalNovaCotacaoContent() {
 
       <Tabs defaultValue="manual">
         <TabsList>
-          <TabsTrigger value="manual">Preencher manualmente</TabsTrigger>
-          <TabsTrigger value="upload">Enviar arquivos</TabsTrigger>
+          <TabsTrigger className="data-[state=active]:border-brand-indigo-800" value="manual">Preencher manualmente</TabsTrigger>
+          <TabsTrigger className="data-[state=active]:border-brand-indigo-800" value="upload">Enviar arquivos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="manual" className="mt-4">

@@ -170,7 +170,7 @@ function PortalEmbarquesContent() {
       ) : shipments.length === 0 ? (
         <div className="space-y-4 rounded-xl border border-dashed border-border bg-muted/20 p-10 text-center">
           <div className="space-y-1">
-            <p className="portal-h3 text-foreground">
+            <p className="portal-h3">
               Você ainda não tem embarques ativos
             </p>
             <p className="portal-small text-portal-neutral">
@@ -192,11 +192,11 @@ function PortalEmbarquesContent() {
           className="space-y-6"
         >
           <TabsList>
-            <TabsTrigger value="lista" className="gap-1.5">
+            <TabsTrigger value="lista" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
               <List className="h-4 w-4" />
               Lista
             </TabsTrigger>
-            <TabsTrigger value="alertas" className="gap-1.5">
+            <TabsTrigger value="alertas" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
               <Bell className="h-4 w-4" />
               Alertas
               {unreadCount > 0 && (
@@ -205,7 +205,7 @@ function PortalEmbarquesContent() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="mapa" className="gap-1.5">
+            <TabsTrigger value="mapa" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
               <MapIcon className="h-4 w-4" />
               Mapa
             </TabsTrigger>

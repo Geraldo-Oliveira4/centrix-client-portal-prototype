@@ -119,7 +119,7 @@ export interface StepActionEvent {
 
 const RISK_CHIP_CLASS: Record<StepRiskLevel, string> = {
   low: 'border-portal-success/25 bg-portal-success/10 text-portal-success',
-  moderate: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning',
+  moderate: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning-ink',
   high: 'border-portal-danger/30 bg-portal-danger/10 text-portal-danger',
 };
 
@@ -231,7 +231,7 @@ function ScheduleChangeLine({
   className?: string;
 }) {
   return (
-    <p className={cn('portal-small text-portal-warning', className)}>
+    <p className={cn('portal-small text-portal-warning-ink', className)}>
       {scheduleChangeText(change)}
     </p>
   );
@@ -279,10 +279,10 @@ function ActionCallout({
       {done ? (
         <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-portal-success" />
       ) : (
-        <BellRing className="mt-0.5 h-5 w-5 shrink-0 text-portal-warning" />
+        <BellRing className="mt-0.5 h-5 w-5 shrink-0 text-portal-warning-ink" />
       )}
       <div className="min-w-0 flex-1 space-y-1">
-        <p className="portal-h3 text-foreground">{action.title}</p>
+        <p className="portal-h3">{action.title}</p>
         <p className="portal-body text-foreground/80">{action.description}</p>
         <p className="portal-small text-portal-neutral">Etapa: {step.label}</p>
       </div>
@@ -481,7 +481,7 @@ export function ShipmentTimeline({
               Etapa atual
             </span>
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="portal-h2 text-foreground">{current.label}</h3>
+              <h3 className="portal-h2">{current.label}</h3>
               {current.isArrival && (
                 <CustomsClearedTag clearance={customsClearance} />
               )}
@@ -726,7 +726,7 @@ export function ShipmentTimeline({
                         aria-label={scheduleChangeText(insight.scheduleChange)}
                         role="img"
                       >
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-portal-warning" />
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-portal-warning-ink" />
                       </span>
                     )}
                     {/* Um badge para todo o trecho travado: repeti-lo em quatro
@@ -746,7 +746,7 @@ export function ShipmentTimeline({
                           Concluída
                         </span>
                       ) : (
-                        <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-1.5 py-0.5 font-medium text-portal-warning">
+                        <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-1.5 py-0.5 font-medium text-portal-warning-ink">
                           <BellRing className="h-3.5 w-3.5" />
                           Ação
                         </span>

@@ -185,7 +185,7 @@ export function ShipmentMapView({
               <button
                 type="button"
                 onClick={() => setFilter(null)}
-                className="portal-small font-medium text-primary hover:underline"
+                className="portal-small font-medium text-brand-indigo hover:underline"
               >
                 Ver todos os {shipments.length} embarques
               </button>

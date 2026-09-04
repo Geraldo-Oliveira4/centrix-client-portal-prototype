@@ -97,7 +97,7 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
               className={cn(
                 'text-[10px] font-medium px-2 py-1 rounded border transition-colors',
                 filter === f
-                  ? 'bg-white text-brand-navy border-white'
+                  ? 'bg-white text-brand-indigo border-white'
                   : 'text-white/70 border-white/30 hover:border-white/60',
               )}
             >
@@ -126,16 +126,16 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
                     className={cn(
                       'text-left px-4 py-3 w-[220px]',
                       i > 0 && 'border-l',
-                      p.is_recommended && 'bg-brand-gold/10 border-t-4 border-t-brand-gold',
+                      p.is_recommended && 'bg-brand-orange-50 border-t-4 border-t-brand-orange-500',
                     )}
                   >
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center gap-1.5">
-                        {p.is_recommended && <Star className="w-4 h-4 shrink-0 fill-brand-gold text-brand-gold" />}
+                        {p.is_recommended && <Star className="w-4 h-4 shrink-0 fill-brand-orange-500 text-brand-orange-500" />}
                         <span className="text-sm font-semibold">{p.agent_name}</span>
                       </div>
                       {p.is_recommended && (
-                        <span className="inline-flex items-center w-fit text-[10px] font-semibold bg-brand-gold text-brand-navy px-1.5 py-0.5 rounded">
+                        <span className="inline-flex items-center w-fit text-[10px] font-semibold bg-brand-orange-100 text-brand-orange-800 px-1.5 py-0.5 rounded">
                           Recomendada
                         </span>
                       )}
@@ -144,8 +144,8 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
                         {p.is_lowest_transit && <LowestTransitBadge />}
                         <ValidadeStatusBadge status={p.validade_status} />
                         {p.is_winner && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-brand-navy text-white border border-brand-gold px-1.5 py-0.5 rounded">
-                            <Trophy className="w-3 h-3 text-brand-gold" />
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-brand-navy text-white border border-brand-orange-500 px-1.5 py-0.5 rounded">
+                            <Trophy className="w-3 h-3 text-brand-orange-500" />
                             Escolhida
                           </span>
                         )}
@@ -275,7 +275,7 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
                       'px-4 py-2.5',
                       i > 0 && 'border-l',
                       p.free_time_dias != null && p.free_time_dias === maxFreeTime
-                        ? 'text-brand-navy font-bold'
+                        ? 'text-brand-indigo font-bold'
                         : 'text-muted-foreground',
                     )}
                   >
@@ -289,7 +289,7 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
             <tr className="border-b bg-muted/10">
               <td className="px-4 py-2.5 text-xs text-muted-foreground sticky left-0 bg-muted/10">Prazo (dias)</td>
               {sorted.map((p, i) => (
-                <td key={p.proposal_id} className={cn('px-4 py-2.5', i > 0 && 'border-l', p.is_lowest_transit && 'text-brand-navy font-bold')}>
+                <td key={p.proposal_id} className={cn('px-4 py-2.5', i > 0 && 'border-l', p.is_lowest_transit && 'text-brand-indigo font-bold')}>
                   {p.transit_time}
                 </td>
               ))}
@@ -346,7 +346,7 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
               {sorted.map((p, i) => (
                 <td key={p.proposal_id} className={cn('px-4 py-2.5', i > 0 && 'border-l')}>
                   {p.insurance_included ? (
-                    <Shield className="w-4 h-4 text-brand-pink" />
+                    <Shield className="w-4 h-4 text-brand-indigo" />
                   ) : (
                     <ShieldOff className="w-4 h-4 text-muted-foreground/40" />
                   )}
@@ -370,7 +370,7 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
             <tr className="border-b bg-muted/5">
               <td className="px-4 py-2.5 text-xs text-muted-foreground sticky left-0 bg-muted/5">Frete Internacional</td>
               {sorted.map((p, i) => (
-                <td key={p.proposal_id} className={cn('px-4 py-2.5 font-medium', i > 0 && 'border-l', p.freight_value === minFreight && 'text-brand-pink')}>
+                <td key={p.proposal_id} className={cn('px-4 py-2.5 font-medium', i > 0 && 'border-l', p.freight_value === minFreight && 'text-brand-orange-800')}>
                   {formatCurrencyCode(p.freight_value, p.freight_currency)}
                 </td>
               ))}
@@ -387,8 +387,8 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
             </tr>
 
             {/* Total ALL IN */}
-            <tr className="bg-brand-navy/5">
-              <td className="px-4 py-3 text-xs font-bold text-brand-navy uppercase tracking-wide sticky left-0 bg-brand-navy/5">Total ALL IN</td>
+            <tr className="bg-brand-indigo-50">
+              <td className="px-4 py-3 text-xs font-bold text-brand-indigo uppercase tracking-wide sticky left-0 bg-brand-indigo-50">Total ALL IN</td>
               {sorted.map((p, i) => (
                 <td key={p.proposal_id} className={cn('px-4 py-3 font-bold text-sm', i > 0 && 'border-l', 'text-foreground')}>
                   {formatMultiCurrency(sumsByProposal[p.proposal_id].total)}
@@ -398,8 +398,8 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
 
             {/* Total em BRL (normalizado) */}
             {sorted.some((p) => p.total_brl != null) && (
-              <tr className="bg-brand-navy/10 border-t-2 border-brand-navy/20">
-                <td className="px-4 py-3 text-xs font-bold text-brand-navy uppercase tracking-wide sticky left-0 bg-brand-navy/10">
+              <tr className="bg-brand-indigo-100 border-t-2 border-brand-indigo-800/20">
+                <td className="px-4 py-3 text-xs font-bold text-brand-indigo uppercase tracking-wide sticky left-0 bg-brand-indigo-100">
                   Total em BRL
                   <span className="block text-[9px] font-normal text-muted-foreground normal-case">aprox. à taxa PTAX</span>
                 </td>
@@ -409,7 +409,7 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
                     className={cn(
                       'px-4 py-3 font-bold text-sm',
                       i > 0 && 'border-l',
-                      p.is_lowest_cost ? 'text-brand-pink' : 'text-foreground',
+                      p.is_lowest_cost ? 'text-brand-orange-800' : 'text-foreground',
                     )}
                   >
                     {formatBRL(p.total_brl)}
@@ -438,7 +438,11 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
                       <span
                         className={cn(
                           'text-sm font-semibold tabular-nums',
-                          p.score >= 70 ? 'text-brand-pink' : p.score >= 40 ? 'text-brand-gold' : 'text-muted-foreground',
+                          p.score >= 70
+                            ? 'text-portal-success'
+                            : p.score >= 40
+                              ? 'text-portal-warning-ink'
+                              : 'text-muted-foreground',
                         )}
                       >
                         {Math.round(p.score)}/100
@@ -494,7 +498,7 @@ function ObservationsCell({ text }: { text: string }) {
       <span>{expanded ? text : `${text.slice(0, OBSERVATIONS_LIMIT)}...`}</span>
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="inline-flex items-center gap-0.5 text-[10px] font-medium text-brand-navy hover:underline w-fit"
+        className="inline-flex items-center gap-0.5 text-[10px] font-medium text-brand-indigo hover:underline w-fit"
       >
         {expanded ? (
           <>Ver menos <ChevronUp className="w-3 h-3" /></>

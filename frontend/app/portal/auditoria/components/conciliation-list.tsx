@@ -41,7 +41,7 @@ export function ConciliationList({
             onClick={() => onOpen(example)}
             className={cn(
               'block w-full space-y-3 rounded-xl border border-dashed border-border bg-muted/20 p-4 text-left transition-colors',
-              'hover:border-primary/40 hover:bg-muted/40',
+              'hover:border-brand-indigo-800/40 hover:bg-muted/40',
             )}
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
@@ -56,7 +56,7 @@ export function ConciliationList({
               <div className="flex flex-wrap items-center gap-2">
                 <DivergenceBadge divergences={divergences} />
                 {hasContestable && (
-                  <span className="portal-small inline-flex items-center gap-1.5 rounded border border-portal-warning/30 bg-portal-warning/10 px-2 py-0.5 font-medium text-portal-warning">
+                  <span className="portal-small inline-flex items-center gap-1.5 rounded border border-portal-warning/30 bg-portal-warning/10 px-2 py-0.5 font-medium text-portal-warning-ink">
                     <Gavel className="h-3.5 w-3.5" />
                     Sugerimos contestar
                   </span>
@@ -69,7 +69,7 @@ export function ConciliationList({
                 {example.lines.length}{' '}
                 {example.lines.length === 1 ? 'item conciliado' : 'itens conciliados'}
               </span>
-              <span className="portal-small inline-flex items-center gap-1 font-medium text-primary">
+              <span className="portal-small inline-flex items-center gap-1 font-medium text-brand-indigo">
                 Ver detalhe
                 <ChevronRight className="h-4 w-4" />
               </span>

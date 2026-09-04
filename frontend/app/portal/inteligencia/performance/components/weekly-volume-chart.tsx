@@ -15,9 +15,12 @@ import type { WeeklyVolume } from '../../lib/volume-helpers';
 // Single-series bar chart: embarques opened per week (real, from created_at).
 // One hue, so no categorical palette / legend — the section title names it.
 // Marks: thin bars, 4px rounded top ends anchored to the baseline; recessive
-// horizontal grid; per-bar hover tooltip. Fill is hsl(var(--primary)) so it
-// tracks the brand pink in both light and dark themes; neutral grey ticks read
-// on either surface.
+// horizontal grid; per-bar hover tooltip. Fill is Indigo #2C2E65, hard-coded
+// rather than hsl(var(--primary)): since Brand System v1.0 --primary is the
+// ORANGE CTA surface, and a full-width bar chart in it would be the single
+// largest orange area in the portal — orange is a 10% ceiling, not a fill.
+// Indigo is the brand colour for data marks; the indigo-600 ticks recede
+// against it on either surface.
 
 function ChartTooltip({
   active,
@@ -55,14 +58,14 @@ export function WeeklyVolumeChart({ data }: { data: WeeklyVolume[] }) {
               dataKey="label"
               tickLine={false}
               axisLine={false}
-              tick={{ fill: '#8E8E93', fontSize: 12 }}
+              tick={{ fill: '#686A9A', fontSize: 12 }}
             />
             <YAxis
               allowDecimals={false}
               tickLine={false}
               axisLine={false}
               width={28}
-              tick={{ fill: '#8E8E93', fontSize: 12 }}
+              tick={{ fill: '#686A9A', fontSize: 12 }}
             />
             <Tooltip
               cursor={{ fill: 'hsl(var(--muted))', fillOpacity: 0.5 }}
@@ -70,7 +73,7 @@ export function WeeklyVolumeChart({ data }: { data: WeeklyVolume[] }) {
             />
             <Bar
               dataKey="count"
-              fill="hsl(var(--primary))"
+              fill="#2C2E65"
               radius={[4, 4, 0, 0]}
               maxBarSize={40}
             />

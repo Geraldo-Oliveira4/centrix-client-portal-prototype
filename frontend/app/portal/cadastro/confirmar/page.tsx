@@ -105,7 +105,7 @@ export default function PortalConfirmarCadastroPage() {
             >
               {resending ? 'Reenviando...' : 'Reenviar código'}
             </Button>
-            <Button asChild variant="link" className="w-full" disabled={loading}>
+            <Button asChild variant="link" className="w-full text-brand-indigo" disabled={loading}>
               <Link href="/portal/login">Voltar ao login</Link>
             </Button>
           </div>

@@ -46,7 +46,7 @@ export function QuotationSummaryCard({ data, variant = 'default' }: QuotationSum
 
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
-      <div className="bg-[#2c2d65] px-4 py-3">
+      <div className="bg-brand-navy px-4 py-3">
         <p className="text-xs font-semibold text-white/90 uppercase tracking-wide">
           Resumo da Solicitação
         </p>
@@ -55,7 +55,7 @@ export function QuotationSummaryCard({ data, variant = 'default' }: QuotationSum
         {fields.map((f) => (
           <div key={f.label}>
             <p className="text-xs text-muted-foreground">{f.label}</p>
-            <p className="text-sm font-medium text-[#2c2d65]">{f.value}</p>
+            <p className="text-sm font-medium text-brand-indigo">{f.value}</p>
           </div>
         ))}
       </div>

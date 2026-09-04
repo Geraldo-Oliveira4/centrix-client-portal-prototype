@@ -17,7 +17,7 @@ export function EstimatedArrivalSection({ proposals }: EstimatedArrivalSectionPr
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
       <div className="bg-brand-navy px-4 py-3 flex items-center gap-2">
-        <Calendar className="w-3.5 h-3.5 text-brand-gold" />
+        <Calendar className="w-3.5 h-3.5 text-brand-orange-500" />
         <p className="text-xs font-semibold text-white/90 uppercase tracking-wide">
           Chegada Estimada
         </p>
@@ -28,14 +28,14 @@ export function EstimatedArrivalSection({ proposals }: EstimatedArrivalSectionPr
             key={p.proposal_id}
             className={cn(
               'flex items-center justify-between gap-3 rounded border px-3 py-2',
-              p.is_lowest_transit && 'border-brand-pink/40 bg-brand-pink/5',
+              p.is_lowest_transit && 'border-brand-indigo-800/40 bg-brand-indigo-100',
             )}
           >
             <span className="text-sm font-medium truncate">{p.agent_name}</span>
             <span
               className={cn(
                 'text-xs whitespace-nowrap',
-                p.is_lowest_transit ? 'text-brand-pink font-semibold' : 'text-muted-foreground',
+                p.is_lowest_transit ? 'text-brand-indigo font-semibold' : 'text-muted-foreground',
               )}
             >
               {formatEstimatedArrival(p.transit_time)}

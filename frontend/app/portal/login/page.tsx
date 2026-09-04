@@ -111,7 +111,7 @@ export default function PortalLoginPage() {
             <Button asChild className="w-full" variant="outline" disabled={loading}>
               <Link href="/portal/cadastro">Criar nova conta</Link>
             </Button>
-            <Button asChild variant="link" className="w-full" disabled={loading}>
+            <Button asChild variant="link" className="w-full text-brand-indigo" disabled={loading}>
               <Link href="/portal/esqueci-senha">Esqueci minha senha</Link>
             </Button>
           </div>

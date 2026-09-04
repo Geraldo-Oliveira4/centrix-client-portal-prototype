@@ -89,6 +89,11 @@ export default function PortalHomePage() {
             'Nenhum embarque precisa da sua atenção hoje.'
           ) : (
             <>
+              {/* portal-warning (#C98A00), nao o warning-ink: o ink existe para
+                  texto sobre fundo CLARO, e aqui o numero esta sobre o navy do
+                  banner, onde ele daria 1.9:1. O tom de preenchimento da 5.7:1
+                  sobre navy. Regra: o ink e para fundo claro, a fill e para
+                  fundo escuro — nao o contrario. */}
               <span className="text-portal-warning">{needsAttention}</span>{' '}
               {needsAttention === 1
                 ? 'embarque precisa da sua atenção hoje'
@@ -111,7 +116,7 @@ export default function PortalHomePage() {
             você — organizadas por módulo na{' '}
             <Link
               href="/portal/visao-geral"
-              className="font-medium text-primary hover:underline"
+              className="font-medium text-brand-indigo hover:underline"
             >
               Visão Geral
             </Link>

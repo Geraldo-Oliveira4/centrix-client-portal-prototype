@@ -40,7 +40,7 @@ const TYPE_ICON: Record<AlertType, LucideIcon> = {
 
 const TONE_TEXT: Record<SemaforoTone, string> = {
   success: 'text-portal-success',
-  warning: 'text-portal-warning',
+  warning: 'text-portal-warning-ink',
   danger: 'text-portal-danger',
 };
 
@@ -84,7 +84,7 @@ export function ShipmentAlertsTab({
       {/* Preview framing: there is no real push/exception engine in this prototype. */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h2 className="portal-h2 text-foreground">Notificações</h2>
+          <h2 className="portal-h2">Notificações</h2>
           <ProvenanceBadge provenance="preview" />
         </div>
         <Button
@@ -151,7 +151,7 @@ export function ShipmentAlertsTab({
                 className={cn(
                   'overflow-hidden rounded-lg border transition-colors',
                   isRead && 'border-border bg-transparent',
-                  !isRead && !isUrgent && 'border-primary/20 bg-primary/[0.03]',
+                  !isRead && !isUrgent && 'border-brand-indigo-800/20 bg-brand-indigo-100',
                   isUrgent && 'border-portal-danger/30 bg-portal-danger/[0.04]',
                 )}
               >
@@ -161,7 +161,7 @@ export function ShipmentAlertsTab({
                   disabled={isRead}
                   className={cn(
                     'flex w-full items-start gap-3 p-3 text-left transition-colors',
-                    !isRead && !isUrgent && 'hover:bg-primary/5',
+                    !isRead && !isUrgent && 'hover:bg-brand-indigo-100',
                     isUrgent && 'hover:bg-portal-danger/10',
                   )}
                 >
@@ -211,7 +211,7 @@ export function ShipmentAlertsTab({
                 <div className="border-t border-inherit px-3 py-2">
                   <Link
                     href={alert.link.href}
-                    className="portal-small inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                    className="portal-small inline-flex items-center gap-1 font-medium text-brand-indigo hover:underline"
                   >
                     {alert.link.label}
                     <ArrowRight className="h-3.5 w-3.5" />

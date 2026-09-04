@@ -144,7 +144,7 @@ export default function PortalAgentesPage() {
                 <div className="flex items-center gap-4">
                   <Link
                     href="/portal/inteligencia/agentes"
-                    className="portal-small inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                    className="portal-small inline-flex items-center gap-1 font-medium text-brand-indigo hover:underline"
                   >
                     Ver performance
                     <ArrowRight className="h-4 w-4" />
@@ -168,7 +168,7 @@ export default function PortalAgentesPage() {
       {/* CTA de rodapé: pedido para a fila da Freitas, não cadastro direto. */}
       <section className="portal-card-muted flex flex-wrap items-center justify-between gap-4 p-6">
         <div className="space-y-1">
-          <p className="portal-h3 text-foreground">
+          <p className="portal-h3">
             Precisa de um agente que não está na lista?
           </p>
           <p className="portal-body max-w-2xl text-portal-neutral">

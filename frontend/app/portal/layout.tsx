@@ -6,6 +6,7 @@ import { portalSession } from '@/lib/portal-session';
 import { PortalHeader } from './components/portal-header';
 import { PortalSidebar } from './components/portal-sidebar';
 import { SidebarProvider } from './components/sidebar-context';
+import { portalFont } from './portal-font';
 
 const PUBLIC_PATHS = [
   '/portal/login',
@@ -42,14 +43,22 @@ export default function PortalLayout({
   }, [isPublic, pathname, router]);
 
   if (!authChecked) return null;
-  if (isPublic) return <>{children}</>;
+  if (isPublic) {
+    return (
+      <div className={`${portalFont.variable} font-[family-name:var(--font-source-sans)]`}>
+        {children}
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>
-      {/* Canvas #F5F5F7 behind white cards: with a white page background the
+      {/* Canvas #F4F5FA (Cinza Nevoa) behind white cards: with a white page background the
           cards had nothing to sit on, which is half of why every block read as
           the same weight. Page margin is the 32px step (p-8) on desktop. */}
-      <div className="flex min-h-screen w-full bg-portal-canvas">
+      <div
+        className={`flex min-h-screen w-full bg-portal-canvas ${portalFont.variable} font-[family-name:var(--font-source-sans)]`}
+      >
         <PortalSidebar />
         <main className="flex-1 min-w-0 overflow-auto">
           <PortalHeader />

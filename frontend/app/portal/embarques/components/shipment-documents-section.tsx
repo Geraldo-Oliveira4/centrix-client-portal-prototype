@@ -39,7 +39,7 @@ const STATUS_LABEL: Record<ShipmentDocumentStatus, string> = {
 };
 
 const STATUS_CLASS: Record<ShipmentDocumentStatus, string> = {
-  pendente: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning',
+  pendente: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning-ink',
   em_analise: 'border-portal-info/30 bg-portal-info/10 text-portal-info',
   aprovado: 'border-portal-success/25 bg-portal-success/10 text-portal-success',
 };
@@ -91,7 +91,7 @@ export function ShipmentDocumentsSection({
                 className={cn(
                   'h-5 w-5 shrink-0',
                   doc.status === 'pendente'
-                    ? 'text-portal-warning'
+                    ? 'text-portal-warning-ink'
                     : 'text-portal-neutral',
                 )}
               />

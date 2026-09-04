@@ -35,7 +35,7 @@ const TONE_BAR: Record<TowerItem['tone'], string> = {
 
 const MODULE_BADGE: Record<TowerItem['module'], string> = {
   cotacao: 'bg-portal-info/10 text-portal-info border-portal-info/25',
-  embarque: 'bg-brand-navy/10 text-brand-navy border-brand-navy/20',
+  embarque: 'bg-brand-indigo-100 text-brand-indigo border-brand-indigo-800/20',
 };
 
 export interface TowerColumnLink {
@@ -64,7 +64,7 @@ export function TowerColumn({
     <section className="portal-card flex flex-col gap-4 p-6">
       <div className="space-y-1">
         <div className="flex items-center gap-2">
-          <h2 className="portal-h2 text-foreground">{title}</h2>
+          <h2 className="portal-h2">{title}</h2>
           <span className="portal-small tabular-nums text-portal-neutral">
             {total}
           </span>
@@ -111,7 +111,7 @@ export function TowerColumn({
               </p>
               <Link
                 href={item.href}
-                className="portal-small mt-2 inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                className="portal-small mt-2 inline-flex items-center gap-1 font-medium text-brand-indigo hover:underline"
               >
                 {item.ctaLabel}
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -133,7 +133,7 @@ export function TowerColumn({
               {index > 0 ? ' ou ' : ''}
               <Link
                 href={link.href}
-                className="font-medium text-primary hover:underline"
+                className="font-medium text-brand-indigo hover:underline"
               >
                 {link.label}
               </Link>

@@ -18,9 +18,9 @@ import type {
  */
 
 const ACTIVE_CLASS: Record<ShipmentFilterCount['tone'], string> = {
-  neutral: 'border-primary bg-primary/10 text-primary',
+  neutral: 'border-brand-indigo-800 bg-brand-indigo-100 text-brand-indigo',
   success: 'border-portal-success bg-portal-success/10 text-portal-success',
-  warning: 'border-portal-warning bg-portal-warning/10 text-portal-warning',
+  warning: 'border-portal-warning bg-portal-warning/10 text-portal-warning-ink',
   danger: 'border-portal-danger bg-portal-danger/10 text-portal-danger',
 };
 
@@ -52,7 +52,7 @@ export function ShipmentFilterChips({
         aria-pressed={active === null}
         className={cn(
           CHIP_CLASS,
-          active === null ? 'border-primary bg-primary/10 text-primary' : IDLE_CLASS,
+          active === null ? 'border-brand-indigo-800 bg-brand-indigo-100 text-brand-indigo' : IDLE_CLASS,
         )}
       >
         Todos

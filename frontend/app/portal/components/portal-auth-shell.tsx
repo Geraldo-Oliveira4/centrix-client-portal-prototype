@@ -36,7 +36,7 @@ export function PortalAuthShell({
               Acompanhe suas cotações e propostas Freitas Comex em um só lugar.
             </p>
             <div className="mt-8">
-              <div className="w-16 h-1 bg-gradient-to-r from-brand-pink to-brand-gold rounded mx-auto" />
+              <div className="w-16 h-1 bg-brand-orange-500 rounded mx-auto" />
             </div>
           </div>
         </div>

@@ -83,7 +83,7 @@ function ShipmentCard({ shipment }: { shipment: PortalShipment }) {
   return (
     <Link
       href={`/portal/embarques/${shipment.id}`}
-      className="portal-card block space-y-3 p-4 transition-colors hover:border-primary/40 hover:bg-muted/30"
+      className="portal-card block space-y-3 p-4 transition-colors hover:border-brand-indigo-800/40 hover:bg-muted/30"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -94,7 +94,7 @@ function ShipmentCard({ shipment }: { shipment: PortalShipment }) {
               do portal não tem cotação e, portanto, não tem PO. */}
           <ClientReferenceTag value={shipment.client_reference} />
           {shipment.carga_urgente && (
-            <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-1.5 py-0.5 font-medium text-portal-warning">
+            <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-1.5 py-0.5 font-medium text-portal-warning-ink">
               <AlertTriangle className="h-3.5 w-3.5" />
               Urgente
             </span>
@@ -121,7 +121,7 @@ function ShipmentCard({ shipment }: { shipment: PortalShipment }) {
             // the portal: dashed border + the "Pré-visualização" seal, so the
             // dates below can never be mistaken for a carrier feed.
             shipment.tracking?.is_mock &&
-              'rounded-lg border border-dashed border-primary/40 bg-primary/[0.03] px-2 py-1',
+              'rounded-lg border border-dashed border-brand-indigo-800/40 bg-brand-indigo-100 px-2 py-1',
           )}
         >
           <span className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
@@ -333,7 +333,7 @@ export function ShipmentListTab({
                     className={cn(
                       'portal-small block w-full rounded px-2 py-1.5 text-left transition-colors',
                       origin === 'all'
-                        ? 'bg-primary/10 font-medium text-primary'
+                        ? 'bg-brand-indigo-100 font-medium text-brand-indigo'
                         : 'text-portal-neutral hover:bg-muted',
                     )}
                   >
@@ -347,7 +347,7 @@ export function ShipmentListTab({
                       className={cn(
                         'portal-small block w-full rounded px-2 py-1.5 text-left transition-colors',
                         origin === name
-                          ? 'bg-primary/10 font-medium text-primary'
+                          ? 'bg-brand-indigo-100 font-medium text-brand-indigo'
                           : 'text-portal-neutral hover:bg-muted',
                       )}
                     >

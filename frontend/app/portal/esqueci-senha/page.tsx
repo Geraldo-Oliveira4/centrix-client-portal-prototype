@@ -118,7 +118,7 @@ export default function PortalEsqueciSenhaPage() {
         footer={
           <>
             <Separator className="my-6" />
-            <Button asChild variant="link" className="w-full" disabled={loading}>
+            <Button asChild variant="link" className="w-full text-brand-indigo" disabled={loading}>
               <Link href="/portal/login">Voltar ao login</Link>
             </Button>
           </>
@@ -173,7 +173,7 @@ export default function PortalEsqueciSenhaPage() {
             >
               Reenviar para outro e-mail
             </Button>
-            <Button asChild variant="link" className="w-full" disabled={loading}>
+            <Button asChild variant="link" className="w-full text-brand-indigo" disabled={loading}>
               <Link href="/portal/login">Voltar ao login</Link>
             </Button>
           </div>

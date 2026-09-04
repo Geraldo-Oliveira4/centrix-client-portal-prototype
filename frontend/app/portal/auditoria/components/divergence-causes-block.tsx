@@ -75,7 +75,7 @@ export function DivergenceCausesBlock({
               aria-label={`${cause.sharePct}% das divergências`}
             >
               <span
-                className={cn('block h-2 rounded-full bg-primary')}
+                className={cn('block h-2 rounded-full bg-brand-indigo')}
                 style={{ width: `${Math.max((cause.sharePct / max) * 100, 4)}%` }}
               />
             </span>

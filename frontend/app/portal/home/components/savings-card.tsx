@@ -49,7 +49,7 @@ export function SavingsCard({
           <p className="portal-small font-medium uppercase tracking-wide text-portal-neutral">
             Economia gerada
           </p>
-          <p className="portal-h2 text-foreground">Ainda sem cotação fechada.</p>
+          <p className="portal-h2">Ainda sem cotação fechada.</p>
           <p className="portal-small text-portal-neutral">
             A economia aparece assim que a primeira cotação for aprovada.
           </p>
@@ -131,7 +131,7 @@ function DetailLink() {
   return (
     <Link
       href="/portal/inteligencia/performance"
-      className="portal-small mt-auto inline-flex items-center gap-1 self-start font-medium text-primary hover:underline"
+      className="portal-small mt-auto inline-flex items-center gap-1 self-start font-medium text-brand-indigo hover:underline"
     >
       Ver detalhamento
       <ArrowRight className="h-3.5 w-3.5" />

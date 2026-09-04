@@ -124,7 +124,7 @@ export function PortalExporterSelect({
                               {exporter.name}
                             </span>
                             {exporter.cargo_profile === 'PERIGOSA' && (
-                              <span className="text-xs text-portal-warning truncate">
+                              <span className="text-xs text-portal-warning-ink truncate">
                                 Perfil: Perigosa
                               </span>
                             )}
@@ -157,7 +157,7 @@ export function PortalExporterSelect({
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-medium text-sm">{selected.name}</span>
               {selected.cargo_profile === 'PERIGOSA' ? (
-                <span className="inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-1.5 py-0.5 text-portal-warning">
+                <span className="inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-1.5 py-0.5 text-portal-warning-ink">
                   <ShieldAlert className="h-3 w-3" />
                   {CARGO_PROFILE_LABELS[selected.cargo_profile]}
                 </span>

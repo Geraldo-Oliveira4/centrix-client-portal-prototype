@@ -64,7 +64,7 @@ export function RequestAgentModal({
         </DialogHeader>
 
         {submitted ? (
-          <div className="space-y-3 rounded-lg border border-dashed border-primary/40 bg-primary/5 p-4">
+          <div className="space-y-3 rounded-lg border border-dashed border-brand-indigo-800/40 bg-brand-indigo-100 p-4">
             <p className="portal-body font-medium text-foreground">
               Nada foi enviado.
             </p>

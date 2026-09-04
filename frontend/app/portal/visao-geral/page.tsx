@@ -77,7 +77,7 @@ export default function PortalControlTowerPage() {
     <div className="space-y-8">
       <div className="space-y-4">
         <div className="space-y-1">
-          <h1 className="portal-h1 text-foreground">Visão Geral</h1>
+          <h1 className="portal-h1">Visão Geral</h1>
           <p className="portal-small text-portal-neutral">
             Tudo que precisa da sua ação hoje · {formatLongDate(now.toISOString())}
           </p>

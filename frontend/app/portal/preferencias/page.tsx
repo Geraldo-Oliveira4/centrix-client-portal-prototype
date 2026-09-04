@@ -119,7 +119,7 @@ export default function PortalPreferenciasPage() {
           Escolha o que aparece no seu feed de alertas. É a mesma configuração de{' '}
           <Link
             href="/portal/embarques?tab=alertas"
-            className="font-medium text-primary hover:underline"
+            className="font-medium text-brand-indigo hover:underline"
           >
             Meus Embarques · Alertas
           </Link>
@@ -143,7 +143,7 @@ export default function PortalPreferenciasPage() {
 
       {/* Bloco 2 — Perfil de operação (DNA). Moldura tracejada + selo no bloco
           inteiro: as escolhas ficam salvas, mas ainda não realimentam a cotação. */}
-      <section className="space-y-4 rounded-xl border border-dashed border-primary/40 bg-primary/[0.03] p-6">
+      <section className="space-y-4 rounded-xl border border-dashed border-brand-indigo-800/40 bg-brand-indigo-100 p-6">
         <SectionHeading
           title="Perfil de operação"
           icon={<SlidersHorizontal className="h-5 w-5" />}
@@ -233,7 +233,7 @@ export default function PortalPreferenciasPage() {
               Esta é a mesma lista do toggle de{' '}
               <Link
                 href="/portal/preferencias/agentes"
-                className="font-medium text-primary hover:underline"
+                className="font-medium text-brand-indigo hover:underline"
               >
                 Meus Agentes
               </Link>
