@@ -17,3 +17,5 @@ frontend/tsconfig.tsbuildinfo
 # Local runtime artifacts
 backend/*.log
 cloudflared.deb
+.vercel
+.env*

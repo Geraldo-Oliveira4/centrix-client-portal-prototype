@@ -3,7 +3,7 @@
 import { CalendarClock } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import { formatLongDate } from '@/lib/portal-formatters';
+import { formatShipmentEta } from '../lib/shipment-date';
 import type { PortalShipmentTracking } from '@/types/portal-shipment';
 
 import {
@@ -89,7 +89,7 @@ export function ArrivalIndicator({
               o semáforo é o chip ao lado. Pintar os dois de vermelho faria a
               própria data parecer duvidosa, quando o que está ruim é o prazo. */}
           <span className="portal-h1">
-            {formatLongDate(countdown.iso)}
+            {formatShipmentEta(countdown.iso, true)}
           </span>
           <span
             className={cn(

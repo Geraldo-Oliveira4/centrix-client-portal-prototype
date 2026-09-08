@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { formatShortDate } from '@/lib/portal-formatters';
+import { formatShipmentEta } from '../lib/shipment-date';
 import type { PortalShipmentTracking } from '@/types/portal-shipment';
 
 import { IncompleteDataBadge } from '../../_shared/incomplete-data-badge';
@@ -39,7 +39,7 @@ export function ShipmentEtaBadge({
         )}
         title={actual ? 'Chegada confirmada pela companhia' : 'Previsão da companhia'}
       >
-        {formatShortDate(tracking.current_eta)}
+        {formatShipmentEta(tracking.current_eta)}
       </span>
     );
   }

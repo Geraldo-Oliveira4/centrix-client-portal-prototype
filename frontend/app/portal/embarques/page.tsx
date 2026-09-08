@@ -214,6 +214,7 @@ function PortalEmbarquesContent() {
           <TabsContent value="lista">
             <ShipmentListTab
               shipments={shipments}
+              quotations={flattenQuotations(quotationsData)}
               isLoading={false}
               searchOpen={searchOpen}
               onSearchOpenChange={setSearchOpen}
