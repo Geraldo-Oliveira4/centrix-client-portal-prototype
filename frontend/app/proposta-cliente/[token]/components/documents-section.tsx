@@ -44,9 +44,9 @@ function FileList({ entries }: { entries: { filename: string; url: string }[] })
           className="h-8 text-xs gap-1.5"
           onClick={() => downloadFile(url, filename)}
         >
-          <FileText className="w-5 h-5" />
+          <FileText className="w-4 h-4" />
           {filename}
-          <Download className="w-5 h-5 text-muted-foreground" />
+          <Download className="w-4 h-4 text-muted-foreground" />
         </Button>
       ))}
     </div>
@@ -85,7 +85,7 @@ export function DocumentsSection({ proposals, quotationDocumentUrls }: Documents
                 className="h-7 text-xs gap-1.5"
                 onClick={() => downloadAll(quotationEntries)}
               >
-                <Download className="w-5 h-5" />
+                <Download className="w-4 h-4" />
                 Baixar todos ({quotationEntries.length})
               </Button>
             )}
@@ -110,7 +110,7 @@ export function DocumentsSection({ proposals, quotationDocumentUrls }: Documents
                 className="h-7 text-xs gap-1.5"
                 onClick={() => downloadAll(agentEntries)}
               >
-                <Download className="w-5 h-5" />
+                <Download className="w-4 h-4" />
                 Baixar todos ({agentEntries.length})
               </Button>
             )}

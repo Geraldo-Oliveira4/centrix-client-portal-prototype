@@ -164,7 +164,7 @@ export function PortalFiltersMenu({
             className="w-full gap-1.5 text-portal-neutral"
             onClick={() => onChange({ ...EMPTY_PORTAL_FILTERS, query: values.query })}
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
             Limpar filtros
           </Button>
         )}

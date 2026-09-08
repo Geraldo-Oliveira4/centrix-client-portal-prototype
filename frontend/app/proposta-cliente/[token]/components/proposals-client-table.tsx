@@ -470,7 +470,7 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
                           className="h-7 text-xs gap-1.5 w-fit"
                           onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
                         >
-                          <Download className="w-5 h-5" />
+                          <Download className="w-4 h-4" />
                           {filename}
                         </Button>
                       ))
@@ -501,9 +501,9 @@ function ObservationsCell({ text }: { text: string }) {
         className="inline-flex items-center gap-0.5 text-[10px] font-medium text-brand-indigo hover:underline w-fit"
       >
         {expanded ? (
-          <>Ver menos <ChevronUp className="w-5 h-5" /></>
+          <>Ver menos <ChevronUp className="w-4 h-4" /></>
         ) : (
-          <>Ver mais <ChevronDown className="w-5 h-5" /></>
+          <>Ver mais <ChevronDown className="w-4 h-4" /></>
         )}
       </button>
     </div>

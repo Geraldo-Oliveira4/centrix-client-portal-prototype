@@ -1245,6 +1245,20 @@ Fora da régua, de propósito, e por isso intocados: ilustração de estado vazi
 `.portal-h1`, o glifo do nó da timeline (tamanho atado ao diâmetro do círculo) e
 `ModalIcon`, cujo tamanho vem do call site.
 
+**A quinta exceção é a que mais se parece com a régua, e por isso precisa estar
+escrita: afordância compacta embutida em elemento denso fica em 16px, mesmo
+sendo `<Button>`.** São controles que moram DENTRO de uma linha de tabela, de um
+chip ou de um popover de filtro — o `Download` da célula de anexo e o
+`ChevronUp/ChevronDown` do "Ver mais" em `proposals-client-table.tsx`, os quatro
+de `documents-section.tsx`, o `X` de "Limpar filtros" em `portal-filters.tsx`.
+A régua dos 20px é para **botão de ação autônomo**, aquele que o cliente
+atravessa a tela para clicar; esses aqui são adorno de uma linha que já existe,
+e o próprio call site diz isso — `size="sm"` com caixa `h-7`/`h-8` e rótulo em
+`text-xs`/`text-[10px]`. Um ícone de 20px numa caixa de 28px encosta nas duas
+bordas e dá ao controle mais peso do que a linha que ele serve. **Ao acrescentar
+um botão-ícone, a pergunta não é "é `<Button>`?" e sim "ele é a ação da tela ou
+um detalhe de uma linha?".**
+
 > Class names composed in `types/` are only picked up because
 > `./types/**/*.{ts,tsx}` is in the Tailwind `content` globs. Keep it there.
 
