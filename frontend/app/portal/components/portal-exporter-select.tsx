@@ -187,7 +187,7 @@ export function PortalExporterSelect({
             disabled={disabled}
             aria-label="Remover exportador selecionado"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </Button>
         </div>
       ) : null}

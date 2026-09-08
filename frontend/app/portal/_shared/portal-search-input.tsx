@@ -75,7 +75,7 @@ export function PortalSearchInput({
         }}
         className="absolute right-2 top-1/2 -translate-y-1/2 text-portal-neutral hover:text-foreground"
       >
-        <X className="h-5 w-5" />
+        <X className="h-4 w-4" />
       </button>
     </div>
   );

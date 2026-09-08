@@ -1250,7 +1250,10 @@ escrita: afordância compacta embutida em elemento denso fica em 16px, mesmo
 sendo `<Button>`.** São controles que moram DENTRO de uma linha de tabela, de um
 chip ou de um popover de filtro — o `Download` da célula de anexo e o
 `ChevronUp/ChevronDown` do "Ver mais" em `proposals-client-table.tsx`, os quatro
-de `documents-section.tsx`, o `X` de "Limpar filtros" em `portal-filters.tsx`.
+de `documents-section.tsx`, o `X` de "Limpar filtros" em `portal-filters.tsx`, o
+`X` de remover exportador em `portal-exporter-select.tsx` (caixa `h-6 w-6`, a
+mais apertada do portal) e o `X` de fechar busca em `portal-search-input.tsx`,
+que mora dentro do próprio input.
 A régua dos 20px é para **botão de ação autônomo**, aquele que o cliente
 atravessa a tela para clicar; esses aqui são adorno de uma linha que já existe,
 e o próprio call site diz isso — `size="sm"` com caixa `h-7`/`h-8` e rótulo em
