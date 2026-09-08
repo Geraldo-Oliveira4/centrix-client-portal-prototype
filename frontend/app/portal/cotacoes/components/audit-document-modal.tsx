@@ -53,7 +53,7 @@ function UploadSlot({
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
       <div className="flex min-w-0 items-center gap-2">
-        <FileText className="h-5 w-5 shrink-0 text-portal-neutral" />
+        <FileText className="h-4 w-4 shrink-0 text-portal-neutral" />
         <div className="min-w-0">
           <p className="portal-body font-medium text-foreground">{label}</p>
           {uploadedName ? (
@@ -77,9 +77,9 @@ function UploadSlot({
           onClick={() => inputRef.current?.click()}
         >
           {uploading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
-            <Upload className="h-4 w-4" />
+            <Upload className="h-5 w-5" />
           )}
           Selecionar
         </Button>

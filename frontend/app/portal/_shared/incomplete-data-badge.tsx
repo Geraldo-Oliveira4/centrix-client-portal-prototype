@@ -40,7 +40,7 @@ export function IncompleteDataBadge({
         className,
       )}
     >
-      <CircleDashed className="h-3.5 w-3.5" />
+      <CircleDashed className="h-4 w-4" />
       {label}
     </span>
   );
@@ -60,7 +60,7 @@ export function IncompleteDataNote({
         className,
       )}
     >
-      <CircleDashed className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      <CircleDashed className="mt-0.5 h-4 w-4 shrink-0" />
       <span>{children}</span>
     </p>
   );

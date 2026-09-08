@@ -68,7 +68,7 @@ export default function PortalExportadoresPage() {
                   <TableCell>
                     {exporter.cargo_profile === 'PERIGOSA' ? (
                       <span className="portal-small inline-flex items-center gap-1.5 rounded border border-portal-warning/30 bg-portal-warning/10 px-2 py-0.5 font-medium text-portal-warning-ink">
-                        <ShieldAlert className="h-3.5 w-3.5" />
+                        <ShieldAlert className="h-4 w-4" />
                         {CARGO_PROFILE_LABELS[exporter.cargo_profile]}
                       </span>
                     ) : (

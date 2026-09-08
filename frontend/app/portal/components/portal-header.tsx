@@ -69,7 +69,7 @@ export function PortalHeader() {
             this button navigated and then did nothing. */}
         <Button variant="ghost" size="sm" asChild>
           <Link href="/portal/embarques?tab=lista&busca=1">
-            <PackageSearch className="h-4 w-4 sm:mr-2" />
+            <PackageSearch className="h-5 w-5 sm:mr-2" />
             <span className="hidden sm:inline">Verificar embarque</span>
           </Link>
         </Button>
@@ -86,7 +86,7 @@ export function PortalHeader() {
           </AvatarFallback>
         </Avatar>
         <Button variant="ghost" size="sm" onClick={handleLogout}>
-          <LogOut className="h-4 w-4 mr-2" />
+          <LogOut className="h-5 w-5 mr-2" />
           Sair
         </Button>
       </div>

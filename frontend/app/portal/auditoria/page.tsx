@@ -95,7 +95,7 @@ export default function AuditoriaPage() {
           `preview` do cabeçalho e o prefixo EXEMPLO- das referências continuam
           intactos — são eles que dizem, por linha, o que é ilustrativo. */}
       <div className="flex items-start gap-3 rounded-xl border border-dashed border-brand-indigo-800/40 bg-brand-indigo-100 p-4">
-        <Wrench className="mt-0.5 h-5 w-5 shrink-0 text-brand-indigo" />
+        <Wrench className="mt-0.5 h-6 w-6 shrink-0 text-brand-indigo" />
         <p className="portal-body text-foreground">
           <span className="font-medium">Referência visual</span> — o fluxo
           completo de auditoria, com dados de exemplo. A fonte real entra com a
@@ -110,7 +110,7 @@ export default function AuditoriaPage() {
       <section className="portal-card space-y-4 p-6">
         <SectionHeading
           title="Quando a auditoria dispara"
-          icon={<PackageCheck className="h-5 w-5" />}
+          icon={<PackageCheck className="h-6 w-6" />}
           action={<ProvenanceBadge provenance="preview" />}
         />
         <p className="portal-body max-w-3xl text-portal-neutral">
@@ -172,7 +172,7 @@ export default function AuditoriaPage() {
               className="gap-1.5 -ml-2"
               onClick={() => setOpenReference(null)}
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-5 w-5" />
               Voltar para a lista
             </Button>
             <ConciliationTable
@@ -201,7 +201,7 @@ export default function AuditoriaPage() {
           <Button asChild variant="outline" className="gap-1.5">
             <Link href="/portal/cotacoes?tab=historico">
               Ir para Minhas Cotações · Histórico
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-5 w-5" />
             </Link>
           </Button>
         </div>

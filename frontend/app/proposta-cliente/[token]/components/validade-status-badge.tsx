@@ -11,7 +11,7 @@ export function ValidadeStatusBadge({ status }: ValidadeStatusBadgeProps) {
   if (status === 'em_risco') {
     return (
       <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-300 px-1.5 py-0.5 rounded">
-        <AlertTriangle className="w-3 h-3" />
+        <AlertTriangle className="w-4 h-4" />
         Validade em risco
       </span>
     );
@@ -19,7 +19,7 @@ export function ValidadeStatusBadge({ status }: ValidadeStatusBadgeProps) {
   if (status === 'expirada') {
     return (
       <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-red-100 text-red-700 border border-red-300 px-1.5 py-0.5 rounded">
-        <AlertTriangle className="w-3 h-3" />
+        <AlertTriangle className="w-4 h-4" />
         Vencida
       </span>
     );

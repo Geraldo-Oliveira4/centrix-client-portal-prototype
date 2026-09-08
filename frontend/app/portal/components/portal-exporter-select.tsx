@@ -78,7 +78,7 @@ export function PortalExporterSelect({
               className="flex-1 basis-48 min-w-0 justify-between font-normal"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <Building2 className="w-4 h-4 shrink-0 text-muted-foreground" />
+                <Building2 className="w-5 h-5 shrink-0 text-muted-foreground" />
                 {selected ? (
                   <span className="truncate">{selected.name}</span>
                 ) : (
@@ -146,7 +146,7 @@ export function PortalExporterSelect({
           disabled={disabled}
           className="shrink-0"
         >
-          <Plus className="mr-1.5 h-4 w-4" />
+          <Plus className="mr-1.5 h-5 w-5" />
           Cadastrar novo
         </Button>
       </div>
@@ -158,7 +158,7 @@ export function PortalExporterSelect({
               <span className="font-medium text-sm">{selected.name}</span>
               {selected.cargo_profile === 'PERIGOSA' ? (
                 <span className="inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-1.5 py-0.5 text-portal-warning-ink">
-                  <ShieldAlert className="h-3 w-3" />
+                  <ShieldAlert className="h-4 w-4" />
                   {CARGO_PROFILE_LABELS[selected.cargo_profile]}
                 </span>
               ) : (
@@ -187,7 +187,7 @@ export function PortalExporterSelect({
             disabled={disabled}
             aria-label="Remover exportador selecionado"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-5 w-5" />
           </Button>
         </div>
       ) : null}

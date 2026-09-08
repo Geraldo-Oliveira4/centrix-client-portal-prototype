@@ -164,7 +164,7 @@ function RouteCard({ route }: { route: PriceRadarRoute }) {
               href={`/portal/nova-cotacao?${quotationPrefillParams(route).toString()}`}
             >
               Cotar agora
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-5 w-5" />
             </Link>
           </Button>
         </div>

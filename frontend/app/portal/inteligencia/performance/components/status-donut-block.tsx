@@ -40,7 +40,7 @@ export function StatusDonutBlock({ metrics }: { metrics: PerformanceMetrics }) {
     <section className="portal-card space-y-4 p-6">
       <SectionHeading
         title="Cotações por status"
-        icon={<FileText className="h-5 w-5" />}
+        icon={<FileText className="h-6 w-6" />}
         action={<ProvenanceBadge provenance="real" />}
       />
       {metrics.totalQuotations === 0 ? (

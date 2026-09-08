@@ -22,7 +22,7 @@ export function DecisionBlock() {
 
   return (
     <IntelBlock
-      icon={<Sparkles className="h-5 w-5" />}
+      icon={<Sparkles className="h-6 w-6" />}
       title="Decisão"
       question="Estou tomando a melhor decisão para minha carga?"
       provenance="real"

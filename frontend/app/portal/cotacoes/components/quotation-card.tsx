@@ -49,12 +49,20 @@ interface ScoreBadgeProps {
 // Qualitative "recommended" seal. The numeric AI score is deliberately NOT shown
 // to the client (product decision): the portal surfaces the recommendation, not
 // the model's number.
+//
+// INFO (azul), nao SUCCESS (verde): a paleta semantica do portal separa
+// `portal-success` = OUTCOME (o que aconteceu — Vencedora, Menor preco) de
+// `portal-info` = SYSTEM-SAID (o que o sistema sugere). O criterio esta escrito
+// em `cotacao/[id]/components/proposals-table.tsx`, e la o mesmo selo
+// "Recomendada" ja e azul. Recomendacao nao e resultado: em verde, o card do
+// Funil dizia que a cotacao tinha um desfecho bom antes de ela ter desfecho
+// nenhum. Este e o mesmo tratamento do irmao, tint por tint.
 function ScoreBadge({ score }: ScoreBadgeProps) {
   if (!score || score.total == null) return null;
 
   return (
-    <span className="portal-small inline-flex items-center gap-1 rounded bg-portal-success/10 px-1.5 py-0.5 font-medium text-portal-success">
-      <Sparkles className="h-3 w-3" />
+    <span className="portal-small inline-flex items-center gap-1 rounded bg-portal-info/15 px-1.5 py-0.5 font-medium text-portal-info">
+      <Sparkles className="h-4 w-4" />
       Recomendada
     </span>
   );
@@ -105,7 +113,7 @@ export function QuotationCard({ quotation, bucket }: QuotationCardProps) {
           {quotation.incoterm ? <span>· {quotation.incoterm}</span> : null}
           {isUrgent ? (
             <span className="portal-small inline-flex items-center gap-1 rounded bg-portal-danger/10 px-1.5 py-0.5 font-medium text-portal-danger">
-              <Zap className="h-3 w-3" />
+              <Zap className="h-4 w-4" />
               {quotation.urgency === 'VIP' ? 'VIP' : 'Urgente'}
             </span>
           ) : null}
@@ -133,7 +141,7 @@ export function QuotationCard({ quotation, bucket }: QuotationCardProps) {
         </div>
       ) : (
         <p className="portal-small mt-3 inline-flex items-center gap-1.5 text-portal-neutral">
-          <Hourglass className="h-3.5 w-3.5" />
+          <Hourglass className="h-4 w-4" />
           {awaitingProposals
             ? 'Agentes ainda não enviaram propostas'
             : needsInfo
@@ -192,7 +200,7 @@ export function QuotationCard({ quotation, bucket }: QuotationCardProps) {
           className="portal-small mt-3 inline-flex items-center gap-1 rounded border border-portal-warning/40 bg-portal-warning/10 px-2 py-1 font-medium text-portal-warning-ink hover:bg-portal-warning/20"
         >
           Enviar informações
-          <ArrowRight className="h-3 w-3" />
+          <ArrowRight className="h-5 w-5" />
         </button>
       ) : null}
     </Link>

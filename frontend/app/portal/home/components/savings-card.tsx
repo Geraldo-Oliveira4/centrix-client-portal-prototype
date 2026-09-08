@@ -101,9 +101,9 @@ export function SavingsCard({
             )}
           >
             {trend.deltaPct >= 0 ? (
-              <TrendingUp className="h-3.5 w-3.5" />
+              <TrendingUp className="h-4 w-4" />
             ) : (
-              <TrendingDown className="h-3.5 w-3.5" />
+              <TrendingDown className="h-4 w-4" />
             )}
             {trend.deltaPct >= 0 ? '+' : ''}
             {trend.deltaPct}% vs. mês passado
@@ -134,7 +134,7 @@ function DetailLink() {
       className="portal-small mt-auto inline-flex items-center gap-1 self-start font-medium text-brand-indigo hover:underline"
     >
       Ver detalhamento
-      <ArrowRight className="h-3.5 w-3.5" />
+      <ArrowRight className="h-4 w-4" />
     </Link>
   );
 }

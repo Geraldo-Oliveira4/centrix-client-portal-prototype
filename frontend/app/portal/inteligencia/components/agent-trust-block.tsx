@@ -43,7 +43,7 @@ export function AgentTrustBlock({
 
   return (
     <IntelBlock
-      icon={<ShieldCheck className="h-5 w-5" />}
+      icon={<ShieldCheck className="h-6 w-6" />}
       title="Confiabilidade"
       question="Esse agente é confiável e previsível?"
       className="h-full"

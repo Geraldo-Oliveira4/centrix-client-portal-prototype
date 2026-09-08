@@ -64,7 +64,7 @@ export function RiskBlock() {
 
   return (
     <IntelBlock
-      icon={<ShieldAlert className="h-5 w-5" />}
+      icon={<ShieldAlert className="h-6 w-6" />}
       title="Risco"
       question="Quais riscos podem aparecer depois?"
       provenance="preview"

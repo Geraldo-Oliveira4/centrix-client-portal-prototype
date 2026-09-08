@@ -134,7 +134,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
                 className="p-1.5 rounded-md hover:bg-muted text-muted-foreground shrink-0 transition-colors"
                 aria-label="Fechar menu"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             ) : (
               <button
@@ -143,7 +143,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
                 className="p-1.5 rounded-md hover:bg-muted text-muted-foreground shrink-0 transition-colors"
                 aria-label="Recolher menu"
               >
-                <PanelLeftClose className="h-4 w-4" />
+                <PanelLeftClose className="h-5 w-5" />
               </button>
             )}
           </>

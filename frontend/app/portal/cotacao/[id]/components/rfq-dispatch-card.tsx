@@ -225,7 +225,7 @@ export function RfqDispatchCard({
 
             <div className="flex justify-end">
               <Button onClick={handleDispatch} disabled={!canSubmit}>
-                <Send className="mr-2 h-4 w-4" />
+                <Send className="mr-2 h-5 w-5" />
                 {submitting ? 'Enviando...' : 'Enviar solicitação'}
               </Button>
             </div>

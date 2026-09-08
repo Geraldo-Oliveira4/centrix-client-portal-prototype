@@ -37,7 +37,7 @@ function DeltaPill({ delta }: { delta: Delta }) {
       : 'text-portal-danger';
   return (
     <p className={cn('inline-flex items-center gap-1 portal-small font-medium', color)}>
-      <Icon className="h-3.5 w-3.5" />
+      <Icon className="h-4 w-4" />
       {up ? '+' : ''}
       {delta.pct}%
       {delta.label ? (

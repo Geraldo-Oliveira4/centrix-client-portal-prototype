@@ -95,7 +95,7 @@ function ShipmentCard({ shipment }: { shipment: PortalShipment }) {
           <ClientReferenceTag value={shipment.client_reference} />
           {shipment.carga_urgente && (
             <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-1.5 py-0.5 font-medium text-portal-warning-ink">
-              <AlertTriangle className="h-3.5 w-3.5" />
+              <AlertTriangle className="h-4 w-4" />
               Urgente
             </span>
           )}
@@ -275,7 +275,7 @@ export function ShipmentListTab({
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5">
-                <SlidersHorizontal className="h-4 w-4" />
+                <SlidersHorizontal className="h-5 w-5" />
                 Filtros
                 {activeFilters > 0 && (
                   <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
@@ -400,7 +400,7 @@ export function ShipmentListTab({
       )}
 
       <p className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
-        <Info className="h-3.5 w-3.5" />
+        <Info className="h-4 w-4" />
         Origem aproximada por região é ilustrativa. ETA e risco de atraso ficam
         pendentes até a integração de rastreamento da companhia marítima.
       </p>

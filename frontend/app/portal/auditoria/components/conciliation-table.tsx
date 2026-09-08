@@ -130,7 +130,7 @@ export function ConciliationTable({
                           className="gap-1.5"
                           onClick={() => onDispute(line)}
                         >
-                          <Gavel className="h-4 w-4" />
+                          <Gavel className="h-5 w-5" />
                           Sugerimos contestar
                         </Button>
                       ) : null}

@@ -227,7 +227,7 @@ export default function PortalEmbarqueDetailPage() {
               <EstadoBadge estado={shipment.estado} />
               {shipment.carga_urgente && (
                 <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-2 py-0.5 font-medium text-portal-warning-ink">
-                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <AlertTriangle className="h-4 w-4" />
                   Carga urgente
                 </span>
               )}
@@ -239,14 +239,14 @@ export default function PortalEmbarqueDetailPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" asChild>
               <a href={buildShipmentUpdateMailto(shipment.referencia)}>
-                <RefreshCw className="mr-2 h-4 w-4" />
+                <RefreshCw className="mr-2 h-5 w-5" />
                 Solicitar atualização
               </a>
             </Button>
             {shipment.quotation_id && (
               <Button variant="outline" size="sm" asChild>
                 <Link href={`/portal/cotacao/${shipment.quotation_id}`}>
-                  <FileText className="mr-2 h-4 w-4" />
+                  <FileText className="mr-2 h-5 w-5" />
                   Ver documentos
                 </Link>
               </Button>
@@ -294,7 +294,7 @@ export default function PortalEmbarqueDetailPage() {
               <p className="portal-small text-portal-neutral">Modal</p>
               <p className="portal-body font-medium text-foreground">
                 <span className="inline-flex items-center gap-2">
-                  <ModalIcon modal={shipment.modal} className="h-5 w-5" />
+                  <ModalIcon modal={shipment.modal} className="h-4 w-4" />
                   {shipment.modal ? MODAL_LABELS[shipment.modal] : '—'}
                 </span>
               </p>
@@ -330,7 +330,7 @@ export default function PortalEmbarqueDetailPage() {
                 className="portal-small inline-flex items-center gap-1 text-portal-neutral underline-offset-4 hover:text-brand-indigo hover:underline"
               >
                 Ver exemplo com dado de tracking preenchido
-                <ArrowRight className="h-3.5 w-3.5" />
+                <ArrowRight className="h-4 w-4" />
               </Link>
             )}
             {/* The post-embarque steps only advance from tracking data, so when
@@ -407,7 +407,7 @@ export default function PortalEmbarqueDetailPage() {
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <Field label="Modal">
                   <span className="inline-flex items-center gap-2">
-                    <ModalIcon modal={shipment.modal} className="h-5 w-5" />
+                    <ModalIcon modal={shipment.modal} className="h-4 w-4" />
                     {shipment.modal ? MODAL_LABELS[shipment.modal] : '—'}
                   </span>
                 </Field>
@@ -443,7 +443,7 @@ export default function PortalEmbarqueDetailPage() {
           <AccordionItem value="containers">
             <AccordionTrigger className="text-base font-semibold text-foreground hover:no-underline">
               <span className="flex items-center gap-2">
-                <Container className="h-5 w-5 text-portal-neutral" />
+                <Container className="h-6 w-6 text-portal-neutral" />
                 Containers
                 <span className="portal-small text-portal-neutral">
                   {shipment.containers.length}

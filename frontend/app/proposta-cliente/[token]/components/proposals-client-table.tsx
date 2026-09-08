@@ -145,13 +145,13 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
                         <ValidadeStatusBadge status={p.validade_status} />
                         {p.is_winner && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-brand-navy text-white border border-brand-orange-500 px-1.5 py-0.5 rounded">
-                            <Trophy className="w-3 h-3 text-brand-orange-500" />
+                            <Trophy className="w-4 h-4 text-brand-orange-500" />
                             Escolhida
                           </span>
                         )}
                         {p.updated_after_sent && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-blue-100 text-blue-700 border border-blue-300 px-1.5 py-0.5 rounded">
-                            <RefreshCw className="w-3 h-3" />
+                            <RefreshCw className="w-4 h-4" />
                             Atualizada
                           </span>
                         )}
@@ -470,7 +470,7 @@ export function ProposalsClientTable({ proposals, quotation }: ProposalsClientTa
                           className="h-7 text-xs gap-1.5 w-fit"
                           onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
                         >
-                          <Download className="w-3 h-3" />
+                          <Download className="w-5 h-5" />
                           {filename}
                         </Button>
                       ))
@@ -501,9 +501,9 @@ function ObservationsCell({ text }: { text: string }) {
         className="inline-flex items-center gap-0.5 text-[10px] font-medium text-brand-indigo hover:underline w-fit"
       >
         {expanded ? (
-          <>Ver menos <ChevronUp className="w-3 h-3" /></>
+          <>Ver menos <ChevronUp className="w-5 h-5" /></>
         ) : (
-          <>Ver mais <ChevronDown className="w-3 h-3" /></>
+          <>Ver mais <ChevronDown className="w-5 h-5" /></>
         )}
       </button>
     </div>

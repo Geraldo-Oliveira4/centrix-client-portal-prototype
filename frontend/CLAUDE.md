@@ -408,6 +408,14 @@ The retired magenta `#CE0F69` survives ONLY as `--pink` / `brand-pink` /
 | `portal-info` | `#4C6FD1` | in progress, nothing required from the client |
 | `portal-neutral` | `#686A9A` | secondary metadata |
 
+**`success` e `info` dividem por FONTE, não por simpatia:** `portal-success` é
+DESFECHO — o que já aconteceu (Vencedora, Menor preço, etapa concluída) — e
+`portal-info` é o que o SISTEMA SUGERE (Recomendada, Mais rápido). O critério
+está escrito em `cotacao/[id]/components/proposals-table.tsx` e vale para todo
+selo "Recomendada" do portal: o do card do Funil (`cotacoes/components/quotation-card.tsx`)
+era verde e foi corrigido em 08/09/2026 — em verde, o card dizia que a cotação
+tinha desfecho bom antes de ela ter desfecho nenhum. Recomendação nunca é verde.
+
 `portal-warning` is `#C98A00`, **not** the brand orange `#F59C27`. The old
 `#FF9500` had to move: it sat **one degree of hue** from the new brand orange,
 so "atenção" and "CTA" had become the same colour to the eye. The rule did not
@@ -1212,7 +1220,30 @@ mostra botão de envio ou de download.
 sections) / `p-6` (24, card padding) / `space-y-8` (32, between page blocks).
 Do not introduce `p-3`, `gap-3`, `space-y-5` or other off-grid steps in `/portal`.
 
-**Icons** — outline (lucide), `h-5 w-5` (20px), always paired with a label.
+**Icons** — outline (lucide-react, a única lib de ícone do projeto), sempre
+acompanhados de um rótulo. Duas regras, e a primeira não mora no call site:
+
+- **Traço 1,75, por CSS, uma regra só.** O guia pede 1,75 e o lucide desenha
+  com 2. `html:has(.fc-brand-scope) svg.lucide { stroke-width: 1.75 }`
+  (`styles/globals.css`, fim do arquivo) resolve os 203 ícones de `/portal` e
+  `/proposta-cliente` de uma vez — atributo de apresentação perde para CSS, e a
+  0.378 do lucide não expõe provider de contexto. **Não escreva
+  `strokeWidth={1.75}` num componente**: seria a 204ª cópia de um número que já
+  tem dono. A âncora é o `html` porque Dialog e Popover são Radix Portal e
+  renderizam fora da árvore do layout; o escopo é a classe `.fc-brand-scope`,
+  nos layouts do portal e da proposta, e as telas do analista continuam em 2.
+- **Tamanho por CONTEXTO, não um valor único**: 16px (`h-4 w-4`) inline em texto
+  ou badge · 20px (`h-5 w-5`) dentro de botão · 24px (`h-6 w-6`) como ícone de
+  identidade de card, banner/callout ou cabeçalho de seção. `h-4 w-4` era o
+  tamanho genérico de tudo e por isso botão e card ficavam um degrau abaixo do
+  guia; ao acrescentar um ícone, escolha pelo lugar dele, e **nunca faça
+  find-replace de uma classe de tamanho** — a mesma classe é correta num
+  contexto e errada no vizinho.
+
+Fora da régua, de propósito, e por isso intocados: ilustração de estado vazio
+(`h-16 w-16`, `h-6 w-6` centralizado), ícone de título de página ao lado de um
+`.portal-h1`, o glifo do nó da timeline (tamanho atado ao diâmetro do círculo) e
+`ModalIcon`, cujo tamanho vem do call site.
 
 > Class names composed in `types/` are only picked up because
 > `./types/**/*.{ts,tsx}` is in the Tailwind `content` globs. Keep it there.

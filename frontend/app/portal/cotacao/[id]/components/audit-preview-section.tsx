@@ -40,7 +40,7 @@ export function AuditPreviewSection({ quotationId }: { quotationId: string }) {
         <div className="flex items-center gap-2">
           <h2 className="portal-h2">Auditoria</h2>
           <span className="portal-small inline-flex items-center gap-1.5 rounded border border-dashed border-brand-indigo-800/40 bg-brand-indigo-100 px-2 py-0.5 font-medium text-brand-indigo">
-            <FlaskConical className="h-3.5 w-3.5" />
+            <FlaskConical className="h-4 w-4" />
             Pré-visualização
           </span>
         </div>

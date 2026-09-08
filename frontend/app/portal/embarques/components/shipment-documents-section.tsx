@@ -61,7 +61,7 @@ export function ShipmentDocumentsSection({
     <section id="documentos" className="portal-card space-y-4 scroll-mt-6 p-6">
       <SectionHeading
         title="Documentos"
-        icon={<FileText className="h-5 w-5" />}
+        icon={<FileText className="h-6 w-6" />}
         hint={
           pending > 0
             ? `${documents.length} documentos · ${pending} aguardando você`
@@ -89,7 +89,7 @@ export function ShipmentDocumentsSection({
             >
               <FileText
                 className={cn(
-                  'h-5 w-5 shrink-0',
+                  'h-4 w-4 shrink-0',
                   doc.status === 'pendente'
                     ? 'text-portal-warning-ink'
                     : 'text-portal-neutral',
@@ -130,7 +130,7 @@ export function ShipmentDocumentsSection({
                   className="w-full gap-2 sm:w-auto"
                   onClick={() => onUpload(doc)}
                 >
-                  <Upload className="h-4 w-4" />
+                  <Upload className="h-5 w-5" />
                   Enviar arquivo
                 </Button>
               ) : (
@@ -141,7 +141,7 @@ export function ShipmentDocumentsSection({
                     className="gap-2"
                     onClick={() => onOpen(doc, 'view')}
                   >
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-5 w-5" />
                     Visualizar
                   </Button>
                   <Button
@@ -150,7 +150,7 @@ export function ShipmentDocumentsSection({
                     className="gap-2 text-portal-neutral hover:text-foreground"
                     onClick={() => onOpen(doc, 'download')}
                   >
-                    <Download className="h-4 w-4" />
+                    <Download className="h-5 w-5" />
                     Baixar
                   </Button>
                 </div>

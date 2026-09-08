@@ -30,7 +30,7 @@ export function CarrierUsageBlock({ carriers }: { carriers: CarrierUsage[] }) {
       <SectionHeading
         title="Armadores / cias mais usados"
         hint="quem opera o navio ou o avião"
-        icon={<Anchor className="h-5 w-5" />}
+        icon={<Anchor className="h-6 w-6" />}
         action={<ProvenanceBadge provenance="preview" />}
       />
 
@@ -83,7 +83,7 @@ export function CarrierUsageBlock({ carriers }: { carriers: CarrierUsage[] }) {
       )}
 
       <p className="inline-flex items-start gap-1.5 portal-small border-t border-dashed pt-3 text-portal-neutral">
-        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <Info className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
           <span className="font-medium text-foreground">Real:</span> o nome do
           armador (campo da proposta vencedora) e a contagem de embarques.{' '}

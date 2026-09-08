@@ -94,7 +94,7 @@ export function ShipmentActionModal({
         {submitted && (
           <div className="space-y-3">
             <div className="flex items-start gap-3 rounded-lg border border-portal-success/25 bg-portal-success/[0.07] p-4">
-              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-portal-success" />
+              <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-portal-success" />
               <div className="space-y-1">
                 <p className="portal-body font-medium text-foreground">
                   {prompt?.successTitle}

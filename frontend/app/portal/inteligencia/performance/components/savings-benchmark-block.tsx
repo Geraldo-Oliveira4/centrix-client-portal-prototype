@@ -48,7 +48,7 @@ export function SavingsBenchmarkBlock({
       <SectionHeading
         title="Economia e Benchmark"
         hint="quanto você economiza e como isso se compara ao mercado"
-        icon={<TrendingDown className="h-5 w-5" />}
+        icon={<TrendingDown className="h-6 w-6" />}
         action={<ProvenanceBadge provenance="preview" />}
       />
 
@@ -111,7 +111,7 @@ export function SavingsBenchmarkBlock({
       </dl>
 
       <p className="inline-flex items-start gap-1.5 portal-small border-t border-dashed pt-3 text-portal-neutral">
-        <Landmark className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <Landmark className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
           Bloco em construção: a estrutura está definida, os números chegam com o
           Data Lake. Enquanto a fonte não existe, o portal prefere não mostrar

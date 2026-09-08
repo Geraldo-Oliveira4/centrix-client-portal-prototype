@@ -148,7 +148,7 @@ interface ApprovalSuccessBannerProps {
 export function ApprovalSuccessBanner({ agentName }: ApprovalSuccessBannerProps) {
   return (
     <div className="rounded-lg border border-brand-indigo-800/30 bg-brand-indigo-100 p-5 flex items-start gap-3">
-      <CheckCircle2 className="w-5 h-5 text-brand-indigo shrink-0 mt-0.5" />
+      <CheckCircle2 className="w-6 h-6 text-brand-indigo shrink-0 mt-0.5" />
       <div>
         <p className="text-sm font-semibold text-brand-indigo">
           Proposta aprovada com sucesso!

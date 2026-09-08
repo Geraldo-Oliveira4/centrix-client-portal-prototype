@@ -225,7 +225,7 @@ export function ShipmentMapView({
           ))}
         </div>
         <span className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
-          <Info className="h-3.5 w-3.5" />
+          <Info className="h-4 w-4" />
           Cada ponto marca o porto do embarque, não a posição do navio — o
           rastreamento da companhia ainda não está integrado.
         </span>

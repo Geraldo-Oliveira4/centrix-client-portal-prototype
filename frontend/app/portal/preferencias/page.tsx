@@ -112,7 +112,7 @@ export default function PortalPreferenciasPage() {
       <section className="portal-card space-y-4 p-6">
         <SectionHeading
           title="Notificações"
-          icon={<Bell className="h-5 w-5" />}
+          icon={<Bell className="h-6 w-6" />}
           hint="mesmas opções da aba Alertas"
         />
         <p className="portal-body max-w-3xl text-portal-neutral">
@@ -146,7 +146,7 @@ export default function PortalPreferenciasPage() {
       <section className="space-y-4 rounded-xl border border-dashed border-brand-indigo-800/40 bg-brand-indigo-100 p-6">
         <SectionHeading
           title="Perfil de operação"
-          icon={<SlidersHorizontal className="h-5 w-5" />}
+          icon={<SlidersHorizontal className="h-6 w-6" />}
           hint="seu DNA de importação"
           action={<ProvenanceBadge provenance="preview" />}
         />
@@ -229,7 +229,7 @@ export default function PortalPreferenciasPage() {
               emptyText="Nenhum agente disponível na sua conta."
             />
             <p className="inline-flex items-start gap-1.5 portal-small text-portal-neutral">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <Info className="mt-0.5 h-4 w-4 shrink-0" />
               Esta é a mesma lista do toggle de{' '}
               <Link
                 href="/portal/preferencias/agentes"
@@ -249,7 +249,7 @@ export default function PortalPreferenciasPage() {
             Salvar na borda direita, onde ele já renderizava. */}
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-dashed pt-4">
           <Button onClick={handleSave} disabled={saving} className="gap-1.5">
-            <Save className="h-4 w-4" />
+            <Save className="h-5 w-5" />
             {saving ? 'Salvando...' : 'Salvar preferências'}
           </Button>
         </div>

@@ -19,7 +19,7 @@ export function BestArrivalBanner({ proposal }: { proposal: PortalProposal }) {
   const arrival = addDays(proposal.transit_time ?? 0);
   return (
     <div className="rounded-xl border-l-4 border-portal-danger/60 bg-portal-danger/8 p-4 flex items-center gap-3">
-      <Calendar className="h-5 w-5 text-portal-danger" />
+      <Calendar className="h-6 w-6 text-portal-danger" />
       <div>
         <p className="portal-body">
           Se fechar hoje com{' '}
@@ -37,7 +37,7 @@ export function FinalizedApprovedBanner({ proposal }: { proposal: PortalProposal
   const arrival = addDays(proposal.transit_time ?? 0);
   return (
     <div className="rounded-xl border-l-4 border-portal-success bg-portal-success/8 p-4 flex items-start gap-3">
-      <CheckCircle2 className="h-5 w-5 text-portal-success shrink-0 mt-0.5" />
+      <CheckCircle2 className="h-6 w-6 text-portal-success shrink-0 mt-0.5" />
       <div className="space-y-0.5">
         <p className="portal-h3 text-portal-success">
           Cotação aprovada com {proposal.agent?.name ?? '—'}
@@ -55,7 +55,7 @@ export function FinalizedApprovedBanner({ proposal }: { proposal: PortalProposal
 export function NeedsMoreInfoBanner({ quotation }: { quotation: PortalQuotation }) {
   return (
     <div className="rounded-xl border border-portal-warning/30 bg-portal-warning/8 p-4 flex items-start gap-3">
-      <AlertCircle className="h-5 w-5 text-portal-warning-ink shrink-0 mt-0.5" />
+      <AlertCircle className="h-6 w-6 text-portal-warning-ink shrink-0 mt-0.5" />
       <div className="flex-1 space-y-0.5">
         <p className="portal-h3 text-portal-warning-ink">
           Precisamos de mais informações
@@ -82,7 +82,7 @@ export function FinalizedDeclinedBanner({
   const reasonLabel = getDeclineReasonLabel(reason);
   return (
     <div className="rounded-xl border-l-4 border-portal-danger bg-portal-danger/8 p-4 flex items-start gap-3">
-      <XCircle className="h-5 w-5 text-portal-danger shrink-0 mt-0.5" />
+      <XCircle className="h-6 w-6 text-portal-danger shrink-0 mt-0.5" />
       <div className="space-y-0.5">
         <p className="portal-h3 text-portal-danger">Cotação reprovada</p>
         {reasonLabel ? (
@@ -103,7 +103,7 @@ export function PendingAnalystReviewBanner({
 }) {
   return (
     <div className="rounded-xl border-l-4 border-portal-warning bg-portal-warning/8 p-4 flex items-start gap-3">
-      <Clock className="h-5 w-5 text-portal-warning-ink shrink-0 mt-0.5" />
+      <Clock className="h-6 w-6 text-portal-warning-ink shrink-0 mt-0.5" />
       <div className="space-y-0.5">
         <p className="portal-h3 text-portal-warning-ink">
           Sua seleção está em análise pela Freitas
@@ -127,7 +127,7 @@ export function SelectionApprovedBanner({
 }) {
   return (
     <div className="rounded-xl border-l-4 border-portal-success bg-portal-success/8 p-4 flex items-start gap-3">
-      <CheckCircle2 className="h-5 w-5 text-portal-success shrink-0 mt-0.5" />
+      <CheckCircle2 className="h-6 w-6 text-portal-success shrink-0 mt-0.5" />
       <div className="space-y-0.5">
         <p className="portal-h3 text-portal-success">
           Sua escolha foi aprovada pela Freitas
@@ -147,7 +147,7 @@ export function SelectionApprovedBanner({
 export function GuardRailBlockBanner({ reason }: { reason: string }) {
   return (
     <div className="rounded-xl border-l-4 border-portal-warning bg-portal-warning/8 p-4 flex items-start gap-3">
-      <AlertCircle className="h-5 w-5 text-portal-warning-ink shrink-0 mt-0.5" />
+      <AlertCircle className="h-6 w-6 text-portal-warning-ink shrink-0 mt-0.5" />
       <div className="space-y-0.5">
         <p className="portal-h3 text-portal-warning-ink">
           Proposta em revisão pela Freitas
@@ -161,7 +161,7 @@ export function GuardRailBlockBanner({ reason }: { reason: string }) {
 export function FinalizedCancelledBanner() {
   return (
     <div className="rounded-xl border-l-4 border-portal-neutral bg-portal-neutral/8 p-4 flex items-start gap-3">
-      <Ban className="h-5 w-5 text-portal-neutral shrink-0 mt-0.5" />
+      <Ban className="h-6 w-6 text-portal-neutral shrink-0 mt-0.5" />
       <div className="space-y-0.5">
         <p className="portal-h3 text-portal-neutral">
           Cotação cancelada

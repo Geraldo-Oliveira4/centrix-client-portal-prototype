@@ -13,7 +13,7 @@ const sourceSans = Source_Sans_3({
 // The root layout still renders but SideNavbar skips /proposta-cliente/* routes.
 export default function PropostaClienteLayout({ children }: { children: ReactNode }) {
   return (
-    <div className={`min-h-screen w-full bg-background ${sourceSans.variable} font-[family-name:var(--font-source-sans)]`}>
+    <div className={`fc-brand-scope min-h-screen w-full bg-background ${sourceSans.variable} font-[family-name:var(--font-source-sans)]`}>
       {children}
     </div>
   );

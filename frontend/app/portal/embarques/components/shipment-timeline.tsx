@@ -198,7 +198,7 @@ function StepDot({
 function ForecastTag({ iso }: { iso: string }) {
   return (
     <span className="portal-small inline-flex items-center gap-1.5 rounded border border-border bg-muted px-2 py-0.5 font-medium text-portal-neutral">
-      <CalendarClock className="h-3.5 w-3.5" />
+      <CalendarClock className="h-4 w-4" />
       Previsto: {formatShortDate(iso)}
     </span>
   );
@@ -251,7 +251,7 @@ function CustomsClearedTag({ clearance }: { clearance?: CustomsClearance | null 
   if (!clearance?.clearedAt) return null;
   return (
     <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-success/25 bg-portal-success/10 px-1.5 py-0.5 font-medium text-portal-success">
-      <ShieldCheck className="h-3.5 w-3.5" />
+      <ShieldCheck className="h-4 w-4" />
       Desembaraçado
     </span>
   );
@@ -286,9 +286,9 @@ function ActionCallout({
       )}
     >
       {done ? (
-        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-portal-success" />
+        <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-portal-success" />
       ) : (
-        <BellRing className="mt-0.5 h-5 w-5 shrink-0 text-portal-warning-ink" />
+        <BellRing className="mt-0.5 h-6 w-6 shrink-0 text-portal-warning-ink" />
       )}
       <div className="min-w-0 flex-1 space-y-1">
         <p className="portal-h3">{action.title}</p>
@@ -303,7 +303,7 @@ function ActionCallout({
             onAction?.({ stepKey: step.key, stepLabel: step.label, action })
           }
         >
-          <Icon className="h-4 w-4" />
+          <Icon className="h-5 w-5" />
           {action.ctaLabel}
         </Button>
       )}
@@ -430,7 +430,7 @@ export function ShipmentTimeline({
     <div className="space-y-6">
       {isException && (
         <div className="flex items-start gap-2 rounded-xl border border-portal-danger/30 bg-portal-danger/5 p-4">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-portal-danger" />
+          <AlertTriangle className="mt-0.5 h-6 w-6 shrink-0 text-portal-danger" />
           <div className="space-y-1">
             <p className="portal-h3 text-portal-danger">{ESTADO_LABELS[estado]}</p>
             <p className="portal-body text-foreground/80">
@@ -735,7 +735,7 @@ export function ShipmentTimeline({
                         aria-label={scheduleChangeText(insight.scheduleChange)}
                         role="img"
                       >
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-portal-warning-ink" />
+                        <AlertTriangle className="h-4 w-4 shrink-0 text-portal-warning-ink" />
                       </span>
                     )}
                     {/* Um badge para todo o trecho travado: repeti-lo em quatro
@@ -751,12 +751,12 @@ export function ShipmentTimeline({
                     {insight?.action &&
                       (insight.action.status === 'concluida' ? (
                         <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-success/25 bg-portal-success/10 px-1.5 py-0.5 font-medium text-portal-success">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <CheckCircle2 className="h-4 w-4" />
                           Concluída
                         </span>
                       ) : (
                         <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-1.5 py-0.5 font-medium text-portal-warning-ink">
-                          <BellRing className="h-3.5 w-3.5" />
+                          <BellRing className="h-4 w-4" />
                           Ação
                         </span>
                       ))}

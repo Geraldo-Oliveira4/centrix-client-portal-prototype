@@ -71,7 +71,7 @@ export default function PortalAgentesPage() {
       <section className="portal-card space-y-3 p-6">
         <SectionHeading
           title="Uso da sua conta"
-          icon={<Users className="h-5 w-5" />}
+          icon={<Users className="h-6 w-6" />}
         />
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
           <p className="text-3xl font-semibold leading-none text-foreground">
@@ -108,7 +108,7 @@ export default function PortalAgentesPage() {
           hint="pré-aprovados pela Freitas"
         />
         <p className="inline-flex items-start gap-1.5 portal-small text-portal-neutral">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
           Pausar um agente o tira das suas próximas solicitações de cotação.
           Cotações já enviadas não mudam.
         </p>
@@ -129,7 +129,7 @@ export default function PortalAgentesPage() {
                     </p>
                     {agent.certificacao_oea && (
                       <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-success/25 bg-portal-success/10 px-1.5 py-0.5 font-medium text-portal-success">
-                        <ShieldCheck className="h-3.5 w-3.5" />
+                        <ShieldCheck className="h-4 w-4" />
                         OEA
                       </span>
                     )}

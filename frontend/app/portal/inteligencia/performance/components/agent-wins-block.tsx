@@ -27,7 +27,7 @@ export function AgentWinsBlock({ agentWins }: { agentWins: AgentWins[] }) {
     <section className="portal-card space-y-4 p-6">
       <SectionHeading
         title="Cotações vencidas por agente"
-        icon={<Trophy className="h-5 w-5" />}
+        icon={<Trophy className="h-6 w-6" />}
         action={<ProvenanceBadge provenance="real" />}
       />
       {agentWins.length === 0 ? (
@@ -39,7 +39,7 @@ export function AgentWinsBlock({ agentWins }: { agentWins: AgentWins[] }) {
         <div className="space-y-4">
           {leader ? (
             <div className="inline-flex items-center gap-2 rounded-lg border border-portal-success/25 bg-portal-success/10 px-3 py-2">
-              <Award className="h-5 w-5 shrink-0 text-portal-success" />
+              <Award className="h-4 w-4 shrink-0 text-portal-success" />
               <p className="portal-body text-foreground">
                 <span className="font-semibold">{leader.name}</span> é seu parceiro
                 mais frequente

@@ -164,9 +164,9 @@ export function HistoryItem({
                 className="flex w-full items-center gap-2 text-left"
               >
                 {expanded ? (
-                  <ChevronDown className="h-4 w-4 shrink-0 text-portal-neutral" />
+                  <ChevronDown className="h-5 w-5 shrink-0 text-portal-neutral" />
                 ) : (
-                  <ChevronRight className="h-4 w-4 shrink-0 text-portal-neutral" />
+                  <ChevronRight className="h-5 w-5 shrink-0 text-portal-neutral" />
                 )}
                 <span className="portal-small text-portal-neutral">
                   Conferência de dados:
@@ -212,7 +212,7 @@ export function HistoryItem({
                       className="gap-1.5"
                       onClick={onSendDocuments}
                     >
-                      <FileUp className="h-4 w-4" />
+                      <FileUp className="h-5 w-5" />
                       Enviar documentação
                     </Button>
                   </div>

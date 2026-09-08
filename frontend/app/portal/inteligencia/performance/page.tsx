@@ -144,7 +144,7 @@ export default function PerformancePage() {
         <StatNumber
           size="hero"
           label="Taxa de aprovação"
-          icon={<CheckCircle2 className="h-5 w-5" />}
+          icon={<CheckCircle2 className="h-4 w-4" />}
           value={m.approvalRate != null ? `${m.approvalRate}%` : '—'}
           tone={approvalTone(m.approvalRate)}
           badge={<ProvenanceBadge provenance="real" />}
@@ -157,7 +157,7 @@ export default function PerformancePage() {
         <StatNumber
           size="hero"
           label="On-time rate"
-          icon={<Timer className="h-5 w-5" />}
+          icon={<Timer className="h-4 w-4" />}
           value={onTime ? `${onTime.pct}%` : undefined}
           badge={onTime ? undefined : <ProvenanceBadge provenance="pending" />}
           caption={
@@ -232,7 +232,7 @@ export default function PerformancePage() {
         />
         <WeeklyVolumeChart data={weekly} />
         <p className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
-          <Info className="h-3.5 w-3.5" />
+          <Info className="h-4 w-4" />
           Contagem real por semana de abertura. Filtro por rota fica para uma
           próxima etapa — o embarque ainda não carrega rota real (a origem no mapa
           é ilustrativa).

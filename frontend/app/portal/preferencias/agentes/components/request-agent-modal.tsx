@@ -112,7 +112,7 @@ export function RequestAgentModal({
                 disabled={!name.trim()}
                 onClick={() => setSubmitted(true)}
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-5 w-5" />
                 Enviar pedido
               </Button>
             </>

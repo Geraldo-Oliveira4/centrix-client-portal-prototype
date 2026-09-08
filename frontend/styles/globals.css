@@ -653,3 +653,39 @@
 .fc-dark .leaflet-control-attribution a {
   color: hsl(var(--indigo));
 }
+
+/* ---------------------------------------------------------------------------
+ * Espessura de traco dos icones — Brand System v1.0
+ *
+ * O guia pede stroke 1,75. O lucide-react cria todo icone com
+ * `stroke-width="2"` como ATRIBUTO de apresentacao (`Icon` em
+ * lucide-react/dist, `defaultAttributes`), e atributo de apresentacao perde
+ * para qualquer regra CSS — por isso uma regra resolve os 187 icones das 63
+ * telas em escopo sem tocar em nenhum call site. A lib nao expoe provider de
+ * contexto na 0.378 (conferido: nao ha `createContext` no bundle), entao a
+ * alternativa seria um wrapper e 63 arquivos de import reescritos.
+ *
+ * POR QUE O ESCOPO ESTA ANCORADO NO `html`, E NAO NA DIV DO LAYOUT:
+ * Dialog e Popover (`components/ui/{dialog,popover}.tsx`) usam Radix Portal e
+ * renderizam em `document.body`, FORA da arvore do layout do portal. Uma regra
+ * escopada na div do layout deixaria de fora os icones de todo modal e todo
+ * popover — o Send do rascunho de contestacao, o Upload do modal de documento,
+ * o SlidersHorizontal dos filtros. Ancorar em `html:has(...)` alcanca o
+ * portalizado pelo mesmo caminho que `.fc-dark` ja usa para o tema escuro.
+ *
+ * `:has()` e Baseline 2023 (Chrome 105+, Safari 15.4+, Firefox 121+). Onde nao
+ * houver suporte o traco fica em 2 — degrada, nao quebra.
+ *
+ * ESCOPO: so /portal e /proposta-cliente, marcados por `.fc-brand-scope` no
+ * layout de cada um. As telas do analista migram em branch separada e nao
+ * podem mudar de traco por efeito colateral desta regra.
+ *
+ * CONSEQUENCIA A CONHECER: por vencer o atributo, esta regra tambem venceria um
+ * `strokeWidth={x}` passado como prop dentro do escopo. Nao ha nenhum hoje (os
+ * dois `strokeWidth` do frontend estao em `<svg>` escritos a mao, fora daqui);
+ * se algum dia um icone precisar de traco proprio, ele precisa de classe ou
+ * `style`, nao da prop.
+ * ------------------------------------------------------------------------- */
+html:has(.fc-brand-scope) svg.lucide {
+  stroke-width: 1.75;
+}

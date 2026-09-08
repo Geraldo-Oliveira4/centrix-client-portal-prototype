@@ -114,7 +114,7 @@ export function TowerColumn({
                 className="portal-small mt-2 inline-flex items-center gap-1 font-medium text-brand-indigo hover:underline"
               >
                 {item.ctaLabel}
-                <ArrowRight className="h-3.5 w-3.5" />
+                <ArrowRight className="h-4 w-4" />
               </Link>
             </li>
           ))}

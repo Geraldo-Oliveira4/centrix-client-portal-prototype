@@ -71,7 +71,7 @@ export function DisputeDraftModal({
         {sent ? (
           <div className="space-y-4">
             <div className="flex items-start gap-2 rounded-lg border border-dashed border-border bg-muted/20 p-4">
-              <Check className="mt-0.5 h-5 w-5 shrink-0 text-portal-neutral" />
+              <Check className="mt-0.5 h-6 w-6 shrink-0 text-portal-neutral" />
               <div className="space-y-1">
                 <p className="portal-body font-medium text-foreground">
                   Rascunho concluído — nada foi enviado
@@ -139,7 +139,7 @@ export function DisputeDraftModal({
                     key={name}
                     className="portal-small inline-flex items-center gap-1.5 text-portal-neutral"
                   >
-                    <Paperclip className="h-3.5 w-3.5" />
+                    <Paperclip className="h-4 w-4" />
                     {name}
                     <span className="text-portal-neutral">· anexo local, não enviado</span>
                   </li>
@@ -153,7 +153,7 @@ export function DisputeDraftModal({
                 className="gap-1.5"
                 onClick={() => setEditing((v) => !v)}
               >
-                <Pencil className="h-4 w-4" />
+                <Pencil className="h-5 w-5" />
                 {editing ? 'Concluir edição' : 'Editar'}
               </Button>
               <Button
@@ -161,11 +161,11 @@ export function DisputeDraftModal({
                 className="gap-1.5"
                 onClick={() => fileRef.current?.click()}
               >
-                <Paperclip className="h-4 w-4" />
+                <Paperclip className="h-5 w-5" />
                 Anexar documentação
               </Button>
               <Button className="gap-1.5" onClick={() => setSent(true)}>
-                <Send className="h-4 w-4" />
+                <Send className="h-5 w-5" />
                 Enviar
               </Button>
             </div>

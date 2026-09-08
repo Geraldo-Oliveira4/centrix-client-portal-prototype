@@ -27,7 +27,7 @@ export function RouteDeviationsBlock({ routes }: { routes: RouteDeviation[] }) {
       <SectionHeading
         title="Rotas com maiores desvios"
         hint="média de dias sobre o primeiro ETA"
-        icon={<Route className="h-5 w-5" />}
+        icon={<Route className="h-6 w-6" />}
         action={<ProvenanceBadge provenance="preview" />}
       />
 

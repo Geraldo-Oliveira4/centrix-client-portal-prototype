@@ -58,7 +58,7 @@ export function UrgentActionCard({ action }: { action: HomeAction | undefined })
   if (!action) {
     return (
       <div className="portal-card flex items-start gap-3 p-6">
-        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-portal-success" />
+        <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-portal-success" />
         <div className="space-y-1">
           <p className="portal-body font-medium text-foreground">
             Nada depende de você agora.
@@ -80,7 +80,7 @@ export function UrgentActionCard({ action }: { action: HomeAction | undefined })
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-brand-indigo-800/20 bg-brand-indigo-100 p-6 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 gap-3">
-        <Icon className={cn('mt-0.5 h-5 w-5 shrink-0', TONE_ICON[action.tone])} />
+        <Icon className={cn('mt-0.5 h-6 w-6 shrink-0', TONE_ICON[action.tone])} />
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="portal-small text-portal-neutral">
@@ -107,7 +107,7 @@ export function UrgentActionCard({ action }: { action: HomeAction | undefined })
       <Button asChild className="shrink-0 gap-1.5 self-start sm:self-center">
         <Link href={action.href}>
           {action.ctaLabel}
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="h-5 w-5" />
         </Link>
       </Button>
     </div>

@@ -232,7 +232,7 @@ export function MarketBlock({
 
   return (
     <IntelBlock
-      icon={<TrendingUp className="h-5 w-5" />}
+      icon={<TrendingUp className="h-6 w-6" />}
       title="Mercado"
       question="O preço está competitivo?"
       provenance={SHOW_PROPOSAL_PROVENANCE ? 'preview' : undefined}

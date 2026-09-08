@@ -36,7 +36,7 @@ export function ClientReferenceTag({
       )}
       title={`Sua referência (PO): ${value}`}
     >
-      <Tag className="h-3 w-3 shrink-0" />
+      <Tag className="h-4 w-4 shrink-0" />
       <span className="truncate">PO {value}</span>
     </span>
   );

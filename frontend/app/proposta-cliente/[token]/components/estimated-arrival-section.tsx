@@ -17,7 +17,7 @@ export function EstimatedArrivalSection({ proposals }: EstimatedArrivalSectionPr
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
       <div className="bg-brand-navy px-4 py-3 flex items-center gap-2">
-        <Calendar className="w-3.5 h-3.5 text-brand-orange-500" />
+        <Calendar className="w-4 h-4 text-brand-orange-500" />
         <p className="text-xs font-semibold text-white/90 uppercase tracking-wide">
           Chegada Estimada
         </p>

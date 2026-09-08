@@ -65,13 +65,13 @@ export function ProposalsTable({
                       <div className="flex flex-wrap justify-center gap-1 min-h-[1rem]">
                         {isWinner && (
                           <span className="inline-flex items-center gap-1 rounded bg-portal-success/15 px-1.5 py-0.5 text-xs font-medium text-portal-success">
-                            <CheckCircle2 className="h-3 w-3" />
+                            <CheckCircle2 className="h-4 w-4" />
                             Vencedora
                           </span>
                         )}
                         {!locked && p.is_recommended && (
                           <span className="inline-flex items-center gap-1 rounded bg-portal-info/15 px-1.5 py-0.5 text-xs text-portal-info">
-                            <Sparkles className="h-3 w-3" />
+                            <Sparkles className="h-4 w-4" />
                             Recomendada
                           </span>
                         )}

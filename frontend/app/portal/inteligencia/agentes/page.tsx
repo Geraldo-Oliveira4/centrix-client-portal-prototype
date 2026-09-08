@@ -183,7 +183,7 @@ export default function AgentesPage() {
 
       {/* Banner de topo: o painel inteiro é ilustrativo, não só a última coluna. */}
       <div className="flex items-start gap-3 rounded-xl border border-dashed border-brand-indigo-800/40 bg-brand-indigo-100 p-4">
-        <Wrench className="mt-0.5 h-5 w-5 shrink-0 text-brand-indigo" />
+        <Wrench className="mt-0.5 h-6 w-6 shrink-0 text-brand-indigo" />
         <p className="portal-body text-foreground">
           <span className="font-medium">Ranking ilustrativo</span> — a
           metodologia definitiva do score de agentes está em correção (o cálculo

@@ -94,7 +94,7 @@ export function ShipmentAlertsTab({
           onClick={onMarkAllRead}
           disabled={unread === 0}
         >
-          <CheckCheck className="h-4 w-4" />
+          <CheckCheck className="h-5 w-5" />
           Marcar todas como lidas
         </Button>
       </div>
@@ -214,7 +214,7 @@ export function ShipmentAlertsTab({
                     className="portal-small inline-flex items-center gap-1 font-medium text-brand-indigo hover:underline"
                   >
                     {alert.link.label}
-                    <ArrowRight className="h-3.5 w-3.5" />
+                    <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
               </li>

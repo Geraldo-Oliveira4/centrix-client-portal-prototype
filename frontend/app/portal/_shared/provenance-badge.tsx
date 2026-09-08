@@ -37,7 +37,7 @@ export function ProvenanceBadge({
           className,
         )}
       >
-        <CheckCircle2 className="h-3.5 w-3.5" />
+        <CheckCircle2 className="h-4 w-4" />
         Dado real
       </span>
     );
@@ -50,7 +50,7 @@ export function ProvenanceBadge({
           className,
         )}
       >
-        <PlugZap className="h-3.5 w-3.5" />
+        <PlugZap className="h-4 w-4" />
         Pendente integração
       </span>
     );
@@ -62,7 +62,7 @@ export function ProvenanceBadge({
         className,
       )}
     >
-      <FlaskConical className="h-3.5 w-3.5" />
+      <FlaskConical className="h-4 w-4" />
       Pré-visualização
     </span>
   );

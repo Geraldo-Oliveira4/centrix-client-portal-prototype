@@ -180,7 +180,7 @@ function PortalEmbarquesContent() {
           </div>
           <Button asChild>
             <Link href="/portal/nova-cotacao">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-5 w-5" />
               Criar cotação
             </Link>
           </Button>

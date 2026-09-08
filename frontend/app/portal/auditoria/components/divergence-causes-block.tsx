@@ -36,7 +36,7 @@ export function DivergenceCausesBlock({
       <section className="space-y-4 rounded-xl border border-dashed border-border bg-muted/20 p-6">
         <SectionHeading
           title="Causas mais comuns de divergência"
-          icon={<BarChart3 className="h-5 w-5" />}
+          icon={<BarChart3 className="h-6 w-6" />}
           action={<ProvenanceBadge provenance="preview" />}
         />
         <p className="portal-body text-portal-neutral">
@@ -56,7 +56,7 @@ export function DivergenceCausesBlock({
       <SectionHeading
         title="Causas mais comuns de divergência"
         hint="o que mais diverge entre o contratado e o cobrado"
-        icon={<BarChart3 className="h-5 w-5" />}
+        icon={<BarChart3 className="h-6 w-6" />}
         action={<ProvenanceBadge provenance="preview" />}
       />
 

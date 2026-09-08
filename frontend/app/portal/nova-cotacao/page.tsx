@@ -197,7 +197,7 @@ function PortalNovaCotacaoContent() {
           antigo — e o cliente apaga o que estava certo. */}
       {routeLabel && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-indigo-800/30 bg-brand-indigo-100 px-4 py-3">
-          <Radar className="h-5 w-5 shrink-0 text-brand-indigo" />
+          <Radar className="h-6 w-6 shrink-0 text-brand-indigo" />
           <p className="portal-body text-foreground/80">
             Rota e modal já preenchidos a partir do{' '}
             <span className="font-medium text-foreground">Radar de Preços</span>{' '}
@@ -255,7 +255,7 @@ function PortalNovaCotacaoContent() {
               >
                 {phase === 'submitting' ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Enviando...
                   </>
                 ) : (

@@ -45,7 +45,7 @@ export default function PortalLayout({
   if (!authChecked) return null;
   if (isPublic) {
     return (
-      <div className={`${portalFont.variable} font-[family-name:var(--font-source-sans)]`}>
+      <div className={`fc-brand-scope ${portalFont.variable} font-[family-name:var(--font-source-sans)]`}>
         {children}
       </div>
     );
@@ -63,7 +63,7 @@ export default function PortalLayout({
           apagado o canvas na LUZ — `--background` e branco puro ali, e e a
           diferenca entre canvas e card que da profundidade a tela. */}
       <div
-        className={`flex min-h-screen w-full bg-portal-canvas ${portalFont.variable} font-[family-name:var(--font-source-sans)]`}
+        className={`fc-brand-scope flex min-h-screen w-full bg-portal-canvas ${portalFont.variable} font-[family-name:var(--font-source-sans)]`}
       >
         <PortalSidebar />
         <main className="flex-1 min-w-0 overflow-auto">

@@ -185,7 +185,7 @@ export function HistoryTab({
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5">
-                <SlidersHorizontal className="h-4 w-4" />
+                <SlidersHorizontal className="h-5 w-5" />
                 Filtros
                 {activeFilters > 0 && (
                   <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
