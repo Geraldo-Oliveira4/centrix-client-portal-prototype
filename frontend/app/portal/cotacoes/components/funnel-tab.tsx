@@ -132,7 +132,7 @@ export function FunnelTab({ data }: { data: PortalQuotationsResponse }) {
       ) : filteredTotal === 0 ? (
         <EmptyState message="Nenhuma cotação corresponde à busca ou aos filtros aplicados." />
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-5 overflow-x-auto pb-5">
           {activeBuckets.map((bucket) => (
             <KanbanColumn
               key={bucket}

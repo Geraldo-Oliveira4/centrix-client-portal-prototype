@@ -158,7 +158,7 @@ function PortalEmbarquesContent() {
         }.`;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-9">
       <PagePortalHeader title="Meus Embarques" subtitle={subtitle} />
 
       {isLoading ? (
