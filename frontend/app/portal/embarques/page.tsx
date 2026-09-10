@@ -16,7 +16,7 @@ import { useAlertTypePreferences } from '../_shared/alert-type-preferences';
 import { PagePortalHeader } from '../_shared/page-header';
 import { flattenQuotations } from '../inteligencia/lib/intel-helpers';
 import { computePriceRadar } from '../inteligencia/lib/price-radar';
-import { ShipmentMapView } from './components/shipment-map-view';
+import { ShipmentMapWorkspace } from './components/shipment-map-workspace';
 import { ShipmentListTab } from './components/shipment-list-tab';
 import { ShipmentAlertsTab } from './components/shipment-alerts-tab';
 import { buildPriceAlerts } from './lib/price-alerts';
@@ -91,7 +91,7 @@ function PortalEmbarquesContent() {
       shipments,
       quotations: flattenQuotations(quotationsData),
     });
-    // Uma lista só, para os dois consumidores (aba Alertas e feed do Mapa)
+    // Eventos da aba Alertas, incluindo os sinais de preço.
     // continuarem lendo a mesma coisa. A ordenação é de quem exibe
     // (`sortAlertsForFeed`), não daqui.
     return [
@@ -188,7 +188,7 @@ function PortalEmbarquesContent() {
       ) : (
         <Tabs
           value={tab}
-          onValueChange={(v) => setTab(v as ShipmentTab)}
+          onValueChange={(v) => { setTab(v as ShipmentTab); router.replace(`/portal/embarques?tab=${v}`, { scroll: false }); }}
           className="space-y-6"
         >
           <TabsList>
@@ -232,18 +232,10 @@ function PortalEmbarquesContent() {
             />
           </TabsContent>
 
-          {/* Mapa — geografia real (Leaflet + OSM) em 3 colunas: resumo | mapa |
-              eventos. As laterais são leitura agregada, nenhuma delas filtra o
-              mapa: a regra "sem filtro/busca/card solto" segue valendo. O feed
-              da direita é o MESMO dado da aba Alertas, incluindo as preferências
-              de tipo e o que já foi lido. */}
+          {/* Mapa amplo, resumo contextual e a mesma carteira priorizada. */}
           <TabsContent value="mapa">
-            <ShipmentMapView
+            <ShipmentMapWorkspace
               shipments={shipments}
-              alerts={alerts}
-              readIds={readIds}
-              enabledTypes={enabledTypes}
-              onSeeAllAlerts={() => setTab('alertas')}
               initialFilter={initialMapFilter}
             />
           </TabsContent>

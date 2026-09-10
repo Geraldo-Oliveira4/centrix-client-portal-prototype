@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildShipmentOverview, hasArrived } from './shipment-overview.ts';
+import { buildShipmentOverview, compareShipmentOverview, hasArrived } from './shipment-overview.ts';
 import { collectHomeActions } from '../../home/lib/home-actions.ts';
 import {
   SHIPMENT_STEPS,
@@ -18,6 +18,7 @@ const ship = (id, eta = '2026-09-10', overrides = {}) => ({
   id,
   referencia: id,
   estado: 'coletado',
+  carga_urgente: false,
   created_at: '2026-08-01T12:00:00Z',
   tracking: {
     first_eta: '2026-09-08',
@@ -33,6 +34,25 @@ const action = (id, recordId, module = 'embarque') => ({
   id,
   recordId,
   module,
+});
+
+test('map and list prioritize actions, urgent loads within each group, then arrivals', () => {
+  const data = [ship('normal', null), ship('delayed'), ship('action'), ship('urgent-action', '2026-09-14', { carga_urgente: true })];
+  const { groups } = buildShipmentOverview(data, [action('a', 'action'), action('b', 'urgent-action')], now);
+  assert.deepEqual([...data].sort((a,b) => compareShipmentOverview(a,b,groups,now)).map(s=>s.id), ['urgent-action','action','delayed','normal']);
+  assert.equal(data[0].id, 'normal');
+});
+
+test('upcoming mode uses ETA before urgency and unknown dates sort last', () => {
+  const data = [ship('unknown', null), ship('urgent', '2026-09-14', { carga_urgente: true }), ship('soon', '2026-09-10')];
+  const { groups } = buildShipmentOverview(data, [], now);
+  assert.deepEqual([...data].sort((a,b) => compareShipmentOverview(a,b,groups,now,'upcoming')).map(s=>s.id), ['soon','urgent','unknown']);
+});
+
+test('equal or missing dates have deterministic reference ordering', () => {
+  const data = [ship('Z', null), ship('A', null)];
+  const { groups } = buildShipmentOverview(data, [], now);
+  assert.deepEqual(data.sort((a,b) => compareShipmentOverview(a,b,groups,now)).map(s=>s.id), ['A','Z']);
 });
 test('counts each shipment once and allows overlap between all three indicators', () => {
   const s = ship('one');

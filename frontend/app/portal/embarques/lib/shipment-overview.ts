@@ -66,3 +66,25 @@ export function buildShipmentOverview(
   }
   return { groups, actionsByShipment };
 }
+
+/** Shared ordering for the list and its geographic view. */
+export function compareShipmentOverview(
+  a: PortalShipment,
+  b: PortalShipment,
+  groups: Record<ShipmentOverviewKey, Set<string>>,
+  now: Date,
+  metric: ShipmentOverviewKey | null = null,
+): number {
+  const eta = (s: PortalShipment) =>
+    arrivalDay(s.tracking?.current_eta) ?? Infinity;
+  if (metric === 'upcoming')
+    return eta(a) - eta(b) || a.referencia.localeCompare(b.referencia);
+  const priority = (s: PortalShipment) =>
+    groups.action.has(s.id) ? 0 : groups.delayed.has(s.id) ? 1 : hasArrived(s, now) ? 3 : 2;
+  return (
+    priority(a) - priority(b) ||
+    Number(b.carga_urgente) - Number(a.carga_urgente) ||
+    eta(a) - eta(b) ||
+    a.referencia.localeCompare(b.referencia)
+  );
+}
