@@ -2,8 +2,14 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ChevronRight, Info, SlidersHorizontal } from 'lucide-react';
-
+import {
+  AlertTriangle,
+  ArrowRight,
+  CalendarDays,
+  ChevronRight,
+  Clock3,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -19,17 +25,14 @@ import {
   SelectValue,
 } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { formatShortDate } from '@/lib/portal-formatters';
-import { MODAL_LABELS } from '@/types/quotation';
 import {
+  ESTADO_DESCRIPTIONS,
   ESTADO_SEMAFORO,
-  SEMAFORO_DOT_CLASS,
   SEMAFORO_LABELS,
-  countBySemaforo,
   type PortalShipment,
   type SemaforoTone,
 } from '@/types/portal-shipment';
-
+import type { PortalQuotation } from '@/types/portal';
 import {
   ClientReferenceTag,
   matchesClientReference,
@@ -37,340 +40,433 @@ import {
 import { ModalIcon } from '../../_shared/modal-icon';
 import { PortalSearchInput } from '../../_shared/portal-search-input';
 import { ProvenanceBadge } from '../../_shared/provenance-badge';
-import { ShipmentDelayRiskBadge } from './delay-risk-badge';
-import { EstadoBadge } from './estado-badge';
-import { ShipmentEtaBadge } from './eta-badge';
-import { ShipmentFilterChips } from './shipment-filter-chips';
 import {
-  countShipmentFilters,
-  filterShipments,
-  type ShipmentFilterKey,
-} from '../lib/shipment-filters';
-import { ORIGINS, originIndex } from '../lib/shipment-origins';
+  collectHomeActions,
+  type HomeAction,
+} from '../../home/lib/home-actions';
+import {
+  indexQuotations,
+  routePartsOf,
+} from '../../inteligencia/lib/shipment-dimensions';
+import { EstadoBadge } from './estado-badge';
+import { arrivalDay, formatShipmentEta } from '../lib/shipment-date';
+import { REAL_STEPS } from '../lib/real-steps';
+import { delayRiskFromTracking } from '../lib/delay-risk';
+import {
+  buildShipmentOverview,
+  compareShipmentOverview,
+  hasArrived,
+  SHIPMENT_OVERVIEW_LABELS,
+  type ShipmentOverviewKey,
+} from '../lib/shipment-overview';
 
-// Normalise a reference for comparison: case- and whitespace-insensitive.
-const normalize = (value: string) => value.trim().toUpperCase().replace(/\s+/g, '');
+const normalize = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '');
+const METRICS = [
+  {
+    key: 'action' as const,
+    icon: AlertTriangle,
+    description: 'Embarques com ações pendentes',
+  },
+  {
+    key: 'delayed' as const,
+    icon: Clock3,
+    description: 'Previsão posterior à chegada original',
+  },
+  {
+    key: 'upcoming' as const,
+    icon: CalendarDays,
+    description: 'No porto ou aeroporto de destino',
+  },
+];
+const ROW_GRID =
+  'lg:grid lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1.1fr)_minmax(0,.85fr)_minmax(0,1fr)] lg:gap-6';
 
-type StatusFilter = SemaforoTone | 'all';
-type PeriodFilter = 'all' | '30' | '90';
-
-// Os predicados dos chips (Urgentes / Embarcados / Com atraso / Com exceção)
-// moram em `lib/shipment-filters.ts` desde que o Mapa passou a oferecer os
-// mesmos recortes — uma definição só para as duas abas. Ver o cabeçalho de lá.
-
-const originOf = (referencia: string) => ORIGINS[originIndex(referencia)];
-
-function SemaforoCounter({ shipments }: { shipments: PortalShipment[] }) {
-  const counts = countBySemaforo(shipments);
-  const tones: SemaforoTone[] = ['success', 'warning', 'danger'];
+function ShipmentCard({
+  shipment,
+  quotation,
+  route,
+  actions,
+  now,
+}: {
+  shipment: PortalShipment;
+  quotation: PortalQuotation | undefined;
+  route: { origin: string; destination: string };
+  actions: HomeAction[];
+  now: Date;
+}) {
+  const href = `/portal/embarques/${shipment.id}`;
+  const action = actions[0];
+  const risk = delayRiskFromTracking(shipment.tracking);
+  const arrived = hasArrived(shipment, now);
+  const eta =
+    shipment.tracking?.data_status === 'INCOMPLETE'
+      ? null
+      : arrivalDay(shipment.tracking?.current_eta);
+  const etaLabel =
+    eta == null ? null : formatShipmentEta(shipment.tracking?.current_eta);
   return (
-    <div className="flex items-center gap-4">
-      {tones.map((tone) => (
-        <span key={tone} className="inline-flex items-center gap-1.5">
-          <span className={cn('h-2.5 w-2.5 rounded-full', SEMAFORO_DOT_CLASS[tone])} />
-          <span className="portal-body font-medium text-foreground">
-            {counts[tone]}
-          </span>
-          <span className="portal-small text-portal-neutral">{SEMAFORO_LABELS[tone]}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function ShipmentCard({ shipment }: { shipment: PortalShipment }) {
-  const origin = originOf(shipment.referencia);
-  return (
-    <Link
-      href={`/portal/embarques/${shipment.id}`}
-      className="portal-card block space-y-3 p-4 transition-colors hover:border-brand-indigo-800/40 hover:bg-muted/30"
+    <article
+      className={cn(
+        'portal-card p-4 transition-colors hover:border-brand-indigo-800/40 sm:p-5',
+        action && 'border-l-[3px] border-l-brand-orange',
+      )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="portal-body font-medium text-foreground">
-            {shipment.referencia}
-          </span>
-          {/* A PO vem da cotação que originou o embarque; embarque aberto fora
-              do portal não tem cotação e, portanto, não tem PO. */}
-          <ClientReferenceTag value={shipment.client_reference} />
-          {shipment.carga_urgente && (
-            <span className="portal-small inline-flex items-center gap-1 rounded border border-portal-warning/30 bg-portal-warning/10 px-1.5 py-0.5 font-medium text-portal-warning-ink">
-              <AlertTriangle className="h-4 w-4" />
-              Urgente
+      <div className={cn(ROW_GRID, 'grid grid-cols-1 gap-4 sm:grid-cols-2')}>
+        <div className="min-w-0">
+          <Link
+            href={href}
+            className="text-base font-semibold leading-snug text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+          >
+            {quotation?.product?.trim() ||
+              shipment.client_reference ||
+              shipment.referencia}
+          </Link>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <ClientReferenceTag value={shipment.client_reference} />
+            <span className="portal-small text-portal-neutral">
+              {shipment.referencia}
             </span>
+          </div>
+          <p className="portal-small mt-2 flex items-start gap-1.5 text-portal-neutral">
+            <ModalIcon
+              modal={shipment.modal}
+              className="mt-0.5 h-4 w-4 shrink-0"
+            />
+            <span>
+              {route.origin} → {route.destination}
+            </span>
+          </p>
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <EstadoBadge estado={shipment.estado} />
+            {shipment.carga_urgente && (
+              <span className="portal-small font-medium text-portal-warning-ink">
+                Urgente
+              </span>
+            )}
+          </div>
+          <p className="portal-small mt-2 leading-relaxed text-portal-neutral">
+            {arrived
+              ? 'A companhia confirmou a chegada ao destino.'
+              : ESTADO_DESCRIPTIONS[shipment.estado]}
+          </p>
+        </div>
+        <div className="min-w-0">
+          <p className="portal-small text-portal-neutral">
+            {arrived ? 'Chegada confirmada' : 'Chegada prevista'}
+          </p>
+          <p
+            className={cn(
+              'mt-0.5 font-semibold',
+              etaLabel
+                ? 'text-xl tracking-tight text-foreground'
+                : 'portal-body text-portal-neutral',
+            )}
+          >
+            {etaLabel ?? 'A confirmar'}
+          </p>
+          {risk.deltaDays != null && eta != null && (
+            <p
+              className={cn(
+                'portal-small mt-1',
+                risk.deltaDays > 0
+                  ? 'text-portal-warning-ink'
+                  : 'text-portal-neutral',
+              )}
+            >
+              {risk.deltaDays > 0
+                ? `+${risk.deltaDays} ${risk.deltaDays === 1 ? 'dia' : 'dias'} vs. previsão inicial`
+                : 'Dentro da previsão inicial'}
+            </p>
+          )}
+          {shipment.tracking?.is_mock && (
+            <div className="mt-1.5">
+              <ProvenanceBadge provenance="preview" />
+            </div>
           )}
         </div>
-        <EstadoBadge estado={shipment.estado} />
-      </div>
-
-      {/* Rota — origem ilustrativa (ver legenda). ETA e risco de atraso saem do
-          bloco `tracking` (ShipsGo): hoje todos os campos vêm NULL, então os
-          dois badges caem em "Pendente integração" — nenhum número inventado.
-          Três estados possíveis por badge: data real | Pendente integração |
-          Sem dado suficiente (a fonte respondeu, a companhia não reportou). */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <span className="portal-small text-portal-neutral">
-          {origin.name}, {origin.country}
-          <span className="mx-1.5">→</span>
-          Brasil
-        </span>
-        <div
-          className={cn(
-            'flex flex-wrap items-center gap-x-3 gap-y-1',
-            // Demo tracking is framed like every other illustrative surface in
-            // the portal: dashed border + the "Pré-visualização" seal, so the
-            // dates below can never be mistaken for a carrier feed.
-            shipment.tracking?.is_mock &&
-              'rounded-lg border border-dashed border-brand-indigo-800/40 bg-brand-indigo-100 px-2 py-1',
-          )}
-        >
-          <span className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
-            ETA
-            <ShipmentEtaBadge tracking={shipment.tracking} />
-          </span>
-          <span className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
-            Risco de atraso
-            <ShipmentDelayRiskBadge tracking={shipment.tracking} />
-          </span>
-          {shipment.tracking?.is_mock && <ProvenanceBadge provenance="preview" />}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-2 border-t pt-3">
-        <span className="inline-flex items-center gap-2 portal-small text-portal-neutral">
-          <ModalIcon modal={shipment.modal} className="h-4 w-4" />
-          {shipment.modal ? MODAL_LABELS[shipment.modal] : '—'}
-          <span className="text-border">·</span>
-          Aberto em {formatShortDate(shipment.created_at)}
-          {shipment.agente_nome ? (
+        <div className="flex min-w-0 flex-col items-start justify-center">
+          {action ? (
             <>
-              <span className="text-border">·</span>
-              {shipment.agente_nome}
+              <p className="portal-small mb-2 font-medium text-portal-warning-ink">
+                Sua ação é necessária
+              </p>
+              <Link
+                href={action.href}
+                className="portal-small inline-flex min-h-9 items-center gap-2 rounded-md border border-brand-orange/40 bg-brand-orange/10 px-3 py-2 font-semibold text-foreground transition-colors hover:bg-brand-orange/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                {action.ctaLabel}
+                <ArrowRight className="h-4 w-4 shrink-0" />
+              </Link>
+              {actions.length > 1 && (
+                <span className="portal-small mt-1.5 text-portal-neutral">
+                  +{actions.length - 1}{' '}
+                  {actions.length === 2
+                    ? 'ação no detalhe'
+                    : 'ações no detalhe'}
+                </span>
+              )}
             </>
-          ) : null}
-        </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-portal-neutral" />
+          ) : (
+            <>
+              <p className="portal-small text-portal-neutral">
+                Sem ação pendente para você
+              </p>
+              <Link
+                href={href}
+                className="portal-small mt-2 inline-flex min-h-9 items-center gap-1 font-semibold text-brand-indigo hover:underline"
+              >
+                Acompanhar embarque
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            </>
+          )}
+        </div>
       </div>
-    </Link>
-  );
-}
-
-function CardSkeleton() {
-  return (
-    <div className="portal-card space-y-3 p-4">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-5 w-24" />
-      </div>
-      <Skeleton className="h-3 w-48" />
-      <Skeleton className="h-8 w-full" />
-    </div>
+    </article>
   );
 }
 
 export function ShipmentListTab({
   shipments,
+  quotations,
   isLoading,
   searchOpen,
   onSearchOpenChange,
 }: {
   shipments: PortalShipment[];
+  quotations: PortalQuotation[];
   isLoading: boolean;
-  /** Driven by the page so the header's "Verificar embarque" can deep-link into
-      this tab with the field already expanded. */
   searchOpen: boolean;
   onSearchOpenChange: (open: boolean) => void;
 }) {
   const [query, setQuery] = useState('');
-  const [status, setStatus] = useState<StatusFilter>('all');
-  const [origin, setOrigin] = useState<string>('all');
+  const [status, setStatus] = useState<SemaforoTone | 'all'>('all');
+  const [origin, setOrigin] = useState('all');
   const [originQuery, setOriginQuery] = useState('');
-  const [period, setPeriod] = useState<PeriodFilter>('all');
-  const [quick, setQuick] = useState<ShipmentFilterKey | null>(null);
-
-  const originsPresent = useMemo(() => {
-    const names = new Set(shipments.map((s) => originOf(s.referencia).name));
-    return ORIGINS.filter((o) => names.has(o.name)).map((o) => o.name);
-  }, [shipments]);
-
-  // Filtro client-side do typeahead. Sem acento e sem caixa, para "genova"
-  // encontrar "Gênova".
-  const matchingOrigins = useMemo(() => {
-    const term = originQuery
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim()
-      .toLowerCase();
-    if (!term) return originsPresent;
-    return originsPresent.filter((name) =>
-      name
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .includes(term),
-    );
-  }, [originsPresent, originQuery]);
-
-  // Chip sem nenhum embarque não é renderizado AQUI: o conjunto da Lista varia
-  // com busca e filtros, e um chip permanentemente zerado no meio dela lê como
-  // funcionalidade quebrada. O Mapa faz a escolha oposta, e o porquê está lá.
-  const quickCounts = useMemo(
-    () => countShipmentFilters(shipments).filter((f) => f.count > 0),
-    [shipments],
+  const [period, setPeriod] = useState('all');
+  const [metric, setMetric] = useState<ShipmentOverviewKey | null>(null);
+  const [urgentOnly, setUrgentOnly] = useState(false);
+  const byQuotation = useMemo(() => indexQuotations(quotations), [quotations]);
+  const routes = useMemo(
+    () => new Map(shipments.map((s) => [s.id, routePartsOf(s, byQuotation)])),
+    [shipments, byQuotation],
   );
-
-  // Um chip que fica visível depois de a lista mudar mas já não tem embarque
-  // nenhum viraria um filtro invisível com resultado vazio.
-  const activeQuick = quickCounts.some((f) => f.key === quick) ? quick : null;
-
-  const filtered = useMemo(() => {
-    const term = query.trim();
-    const normalizedTerm = term ? normalize(term) : '';
-    const cutoff =
-      period === 'all'
-        ? null
-        : Date.now() - Number(period) * 24 * 60 * 60 * 1000;
-    return filterShipments(shipments, activeQuick).filter((s) => {
-      // A busca aceita a referência interna (EMB-XXXX) OU a PO do cliente — é o
-      // mesmo número que ele usa na cotação, e é por ele que ele rastreia.
-      if (
-        normalizedTerm &&
-        !normalize(s.referencia).includes(normalizedTerm) &&
-        !matchesClientReference(s.client_reference, term)
-      ) {
-        return false;
-      }
-      if (status !== 'all' && ESTADO_SEMAFORO[s.estado] !== status) return false;
-      if (origin !== 'all' && originOf(s.referencia).name !== origin) return false;
-      if (cutoff != null && new Date(s.created_at).getTime() < cutoff) return false;
-      return true;
-    });
-  }, [shipments, query, status, origin, period, activeQuick]);
-
+  // One shared pipeline with Home and shipment detail. Count shipments, not tasks.
+  const now = new Date();
+  const { groups, actionsByShipment } = buildShipmentOverview(
+    shipments,
+    collectHomeActions({ shipments, buckets: {}, realSteps: REAL_STEPS, now }),
+    now,
+  );
+  const origins = Array.from(
+    new Set(Array.from(routes.values()).map((r) => r.origin)),
+  ).sort();
+  const matchingOrigins = origins.filter((name) =>
+    normalize(name).includes(normalize(originQuery)),
+  );
   const activeFilters =
-    (status !== 'all' ? 1 : 0) + (origin !== 'all' ? 1 : 0) + (period !== 'all' ? 1 : 0);
+    Number(status !== 'all') +
+    Number(origin !== 'all') +
+    Number(period !== 'all');
+  const clearFilters = () => {
+    setQuery('');
+    setStatus('all');
+    setOrigin('all');
+    setOriginQuery('');
+    setPeriod('all');
+    setMetric(null);
+    setUrgentOnly(false);
+  };
+  const selectMetric = (key: ShipmentOverviewKey) => {
+    clearFilters();
+    setMetric(metric === key ? null : key);
+  };
+  const cutoff =
+    period === 'all' ? null : now.getTime() - Number(period) * 86_400_000;
+  const filtered = shipments
+    .filter((s) => {
+      if (metric && !groups[metric].has(s.id)) return false;
+      if (urgentOnly && !s.carga_urgente) return false;
+      if (status !== 'all' && ESTADO_SEMAFORO[s.estado] !== status)
+        return false;
+      if (origin !== 'all' && routes.get(s.id)?.origin !== origin) return false;
+      if (cutoff != null && new Date(s.created_at).getTime() < cutoff)
+        return false;
+      const term = normalize(query);
+      return (
+        !term ||
+        normalize(s.referencia).includes(term) ||
+        matchesClientReference(s.client_reference, query.trim()) ||
+        normalize(
+          byQuotation.get(s.quotation_id ?? '')?.product ?? '',
+        ).includes(term)
+      );
+    })
+    .sort((a, b) => compareShipmentOverview(a, b, groups, now, metric));
+  const hasFilters = !!metric || !!query || urgentOnly || activeFilters > 0;
 
   return (
-    <div className="space-y-4">
-      {/* Toolbar: counter (left) + icon-only search and compact filter (right) */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SemaforoCounter shipments={shipments} />
+    <div className="space-y-5">
+      <div
+        className="grid overflow-hidden rounded-xl border border-border bg-card md:grid-cols-3"
+        aria-label="Resumo dos embarques"
+      >
+        {METRICS.map(({ key, icon: Icon, description }) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={metric === key}
+            onClick={() => selectMetric(key)}
+            className={cn(
+              'group relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 min-w-0 border-b border-border px-5 py-4 md:block md:py-5 text-left transition-colors last:border-b-0 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-brand-indigo md:border-b-0 md:border-r md:last:border-r-0',
+              metric === key
+                ? 'bg-brand-indigo-100 border-b-2 border-b-brand-indigo'
+                : key === 'action' && groups.action.size > 0
+                  ? 'bg-brand-orange/5 hover:bg-brand-orange/10'
+                  : 'hover:bg-muted/50',
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="portal-body font-medium text-foreground">
+                {SHIPMENT_OVERVIEW_LABELS[key]}
+              </span>
+              <Icon
+                className={cn(
+                  'hidden h-4 w-4 shrink-0 md:block',
+                  key === 'action'
+                    ? 'text-portal-warning-ink'
+                    : 'text-portal-neutral',
+                )}
+              />
+            </div>
+            <div className="col-start-2 row-start-1 row-span-2 flex items-center justify-between self-center md:mt-2 md:items-end">
+              <span className="text-4xl font-semibold tabular-nums tracking-tight text-brand-indigo">
+                {groups[key].size}
+              </span>
+              <ArrowRight className="mb-1 hidden h-4 w-4 text-portal-neutral transition-transform group-hover:translate-x-1 md:block" />
+            </div>
+            <p className="portal-small col-start-1 mt-1 text-portal-neutral md:mt-2">
+              {description}
+            </p>
+          </button>
+        ))}
+      </div>
+      <p className="portal-small !mt-2 text-portal-neutral">
+        Um embarque pode aparecer em mais de um indicador. Próximos 7 dias
+        incluem hoje.
+        {shipments.some((s) => s.tracking?.is_mock) &&
+          ' Rastreamento em pré-visualização.'}
+      </p>
 
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <p
+            className="portal-body font-medium text-foreground"
+            aria-live="polite"
+          >
+            {metric ? SHIPMENT_OVERVIEW_LABELS[metric] : 'Todos os embarques'}
+            <span className="ml-2 font-normal text-portal-neutral">
+              {filtered.length}
+            </span>
+          </p>
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="portal-small min-h-9 text-brand-indigo underline underline-offset-4"
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <PortalSearchInput
             value={query}
             onChange={setQuery}
-            placeholder="EMB-XXXX ou sua PO…"
-            label="Buscar embarque por referência interna ou PO do cliente"
+            placeholder="Carga, PO ou EMB…"
+            label="Buscar por carga, PO ou referência do embarque"
             open={searchOpen}
             onOpenChange={onSearchOpenChange}
           />
-
-          {/* Popover, e não DropdownMenu: o typeahead do DropdownMenu do Radix
-              captura as teclas para navegar entre os itens, então um <input>
-              dentro dele não recebe o que o usuário digita. A busca de Origem
-              precisa de um input de verdade. É também o mesmo controle que
-              Minhas Cotações usa (PortalFiltersMenu), então as duas telas
-              voltam a ter a mesma toolbar. */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5">
-                <SlidersHorizontal className="h-5 w-5" />
-                Filtros
-                {activeFilters > 0 && (
-                  <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
-                    {activeFilters}
-                  </span>
-                )}
+                <SlidersHorizontal className="h-4 w-4" />
+                Filtros{activeFilters > 0 && ` (${activeFilters})`}
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-72 space-y-4">
               <div className="space-y-2">
-                <Label className="portal-small text-portal-neutral">Situação</Label>
+                <Label>Situação operacional</Label>
                 <Select
                   value={status}
-                  onValueChange={(v) => setStatus(v as StatusFilter)}
+                  onValueChange={(value) =>
+                    setStatus(value as SemaforoTone | 'all')
+                  }
                 >
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas</SelectItem>
-                    <SelectItem value="success">
-                      {SEMAFORO_LABELS.success}
-                    </SelectItem>
-                    <SelectItem value="warning">
-                      {SEMAFORO_LABELS.warning}
-                    </SelectItem>
-                    <SelectItem value="danger">
-                      {SEMAFORO_LABELS.danger}
-                    </SelectItem>
+                    {(['success', 'warning', 'danger'] as const).map((tone) => (
+                      <SelectItem key={tone} value={tone}>
+                        {SEMAFORO_LABELS[tone]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Origem: busca, não lista fixa. A lista de portos vem de
-                  port-coordinates.ts (fonte única desde o Prompt 15) e cresce
-                  com a operação — enumerar todos num menu deixa de caber. Só as
-                  origens presentes nos embarques do cliente entram, e o filtro é
-                  client-side sobre elas. */}
               <div className="space-y-2">
-                <Label className="portal-small text-portal-neutral">Origem</Label>
+                <Label>Origem</Label>
                 <Input
                   value={originQuery}
                   onChange={(e) => setOriginQuery(e.target.value)}
-                  placeholder="Buscar porto…"
-                  className="h-9"
-                  aria-label="Buscar porto de origem"
+                  placeholder="Buscar porto ou aeroporto…"
+                  aria-label="Buscar origem"
                 />
-                <div className="max-h-44 space-y-0.5 overflow-y-auto">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOrigin('all');
-                      setOriginQuery('');
-                    }}
-                    className={cn(
-                      'portal-small block w-full rounded px-2 py-1.5 text-left transition-colors',
-                      origin === 'all'
-                        ? 'bg-brand-indigo-100 font-medium text-brand-indigo'
-                        : 'text-portal-neutral hover:bg-muted',
-                    )}
-                  >
-                    Todas
-                  </button>
-                  {matchingOrigins.map((name) => (
+                <div className="max-h-44 overflow-y-auto">
+                  {[
+                    { value: 'all', label: 'Todas' },
+                    ...matchingOrigins.map((name) => ({
+                      value: name,
+                      label: name,
+                    })),
+                  ].map(({ value, label }) => (
                     <button
-                      key={name}
+                      key={value}
                       type="button"
-                      onClick={() => setOrigin(name)}
+                      aria-pressed={origin === value}
+                      onClick={() => setOrigin(value)}
                       className={cn(
-                        'portal-small block w-full rounded px-2 py-1.5 text-left transition-colors',
-                        origin === name
-                          ? 'bg-brand-indigo-100 font-medium text-brand-indigo'
-                          : 'text-portal-neutral hover:bg-muted',
+                        'portal-small block w-full rounded px-2 py-2 text-left',
+                        origin === value
+                          ? 'bg-brand-indigo-100 font-semibold text-brand-indigo'
+                          : 'hover:bg-muted',
                       )}
                     >
-                      {name}
+                      {label}
                     </button>
                   ))}
                   {matchingOrigins.length === 0 && (
-                    <p className="portal-small px-2 py-1.5 text-portal-neutral">
-                      Nenhum porto encontrado.
+                    <p className="portal-small p-2 text-portal-neutral">
+                      Nenhuma origem encontrada.
                     </p>
                   )}
                 </div>
               </div>
-
               <div className="space-y-2">
-                <Label className="portal-small text-portal-neutral">
-                  Período (abertura)
-                </Label>
-                <Select
-                  value={period}
-                  onValueChange={(v) => setPeriod(v as PeriodFilter)}
-                >
-                  <SelectTrigger className="h-9">
+                <Label>Período de abertura</Label>
+                <Select value={period} onValueChange={setPeriod}>
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -382,51 +478,66 @@ export function ShipmentListTab({
               </div>
             </PopoverContent>
           </Popover>
+          <Button
+            variant={urgentOnly ? 'secondary' : 'outline'}
+            size="sm"
+            aria-pressed={urgentOnly}
+            onClick={() => setUrgentOnly(!urgentOnly)}
+          >
+            Urgentes
+          </Button>
         </div>
       </div>
-
-      {/* Filtros rápidos: um clique para os recortes do dia a dia. Ficam abaixo
-          da toolbar e acima da lista porque respondem "o que preciso olhar
-          agora", enquanto o menu Filtros responde "quero recortar por
-          dimensão". Chip sem nenhum embarque não é renderizado — um chip
-          permanentemente zerado lê como funcionalidade quebrada. */}
-      {quickCounts.length > 0 && (
-        <ShipmentFilterChips
-          filters={quickCounts}
-          active={activeQuick}
-          total={shipments.length}
-          onChange={setQuick}
-        />
-      )}
-
-      <p className="inline-flex items-center gap-1.5 portal-small text-portal-neutral">
-        <Info className="h-4 w-4" />
-        Origem aproximada por região é ilustrativa. ETA e risco de atraso ficam
-        pendentes até a integração de rastreamento da companhia marítima.
-      </p>
-
+      <div
+        className={cn(
+          ROW_GRID,
+          'portal-small !mb-2 hidden px-5 text-portal-neutral lg:grid',
+        )}
+      >
+        <span>Carga / referência</span>
+        <span>Situação</span>
+        <span>Chegada ao destino</span>
+        <span>Próxima ação</span>
+      </div>
       {isLoading ? (
         <div className="space-y-3">
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
+          {[1, 2, 3].map((n) => (
+            <Skeleton key={n} className="h-32 w-full" />
+          ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-muted/20 p-6 text-center">
-          <p className="portal-body font-medium text-foreground">
-            Nenhum embarque encontrado
+        <div className="portal-card p-8 text-center">
+          <p className="portal-body font-medium">
+            Nenhum embarque neste recorte
           </p>
-          <p className="portal-small text-portal-neutral">
-            Ajuste a busca ou os filtros para ver seus embarques.
+          <p className="portal-small mt-1 text-portal-neutral">
+            Ajuste a busca ou limpe os filtros para ver os demais embarques.
           </p>
+          <Button variant="outline" className="mt-4" onClick={clearFilters}>
+            Ver todos os embarques
+          </Button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3" aria-label="Lista de embarques">
           {filtered.map((shipment) => (
-            <ShipmentCard key={shipment.id} shipment={shipment} />
+            <ShipmentCard
+              key={shipment.id}
+              shipment={shipment}
+              now={now}
+              quotation={byQuotation.get(shipment.quotation_id ?? '')}
+              route={routes.get(shipment.id)!}
+              actions={actionsByShipment.get(shipment.id) ?? []}
+            />
           ))}
         </div>
       )}
+      <p className="portal-small text-portal-neutral">
+        Ordenação:{' '}
+        {metric === 'upcoming'
+          ? 'chegada mais próxima primeiro.'
+          : 'suas pendências primeiro, depois atrasos e demais embarques.'}{' '}
+        Rotas sem cotação vinculada são ilustrativas.
+      </p>
     </div>
   );
 }

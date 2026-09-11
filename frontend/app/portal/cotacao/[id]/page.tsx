@@ -249,7 +249,7 @@ export default function PortalCotacaoDetailPage() {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-9">
       <div className="flex flex-wrap items-center gap-3">
         <Button
           variant="ghost"

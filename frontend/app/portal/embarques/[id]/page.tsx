@@ -205,7 +205,7 @@ export default function PortalEmbarqueDetailPage() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-9">
       <div className="space-y-4">
         <Button
           variant="ghost"
@@ -272,7 +272,7 @@ export default function PortalEmbarqueDetailPage() {
           do embarque, e a orientação de "no máximo três indicadores no topo"
           (Vinicius) é sobre o que exige leitura de estado — a data aqui, o badge
           de estado no header e a faixa de Ação Necessária na timeline. */}
-      <section className="portal-card space-y-5 p-6">
+      <section className="portal-card space-y-5 p-5 md:p-7">
         <div className="grid gap-6 lg:grid-cols-3">
           <ArrivalIndicator
             className="lg:col-span-2"
@@ -320,7 +320,7 @@ export default function PortalEmbarqueDetailPage() {
           comes from a future Camada 2 (Inova / Portal Único) that is not
           integrated, and it is not guaranteed for every process — so it renders
           nothing at all rather than a permanent grey placeholder. */}
-      <section className="portal-card space-y-6 p-6">
+      <section className="portal-card space-y-6 p-5 md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <SectionHeading title="Acompanhamento" />
           <div className="flex flex-wrap items-center gap-3">

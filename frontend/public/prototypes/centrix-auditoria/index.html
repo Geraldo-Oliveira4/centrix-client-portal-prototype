@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Centrix · Auditoria conectada</title>
+  <link rel="stylesheet" href="styles.css">
+  <script>if(new URLSearchParams(location.search).has("embed"))document.documentElement.classList.add("embedded");</script>
+</head>
+<body>
+  <a class="skip" href="#main">Ir para o conteúdo</a>
+  <aside id="sidebar"></aside>
+  <div class="workspace">
+    <header class="topbar"><button class="icon-btn mobile-menu" aria-label="Abrir menu" data-action="menu">☰</button><div class="account"><span>PORTAL DO CLIENTE</span><strong>CLIENTE DEMO</strong></div><div class="top-right"><span class="prototype">Protótipo navegável · dados ilustrativos</span><span class="avatar" aria-label="Cliente demo">CD</span></div></header>
+    <main id="main" tabindex="-1"></main>
+    <footer class="prototype-footer">Proposta de experiência · Cotação → Embarque → Auditoria <button data-action="reset">Reiniciar demonstração</button></footer>
+  </div>
+  <dialog id="drawer" aria-labelledby="dialog-title"></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="intake.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

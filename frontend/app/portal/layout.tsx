@@ -68,7 +68,7 @@ export default function PortalLayout({
         <PortalSidebar />
         <main className="flex-1 min-w-0 overflow-auto">
           <PortalHeader />
-          <div className="p-6 md:p-8">{children}</div>
+          <div className="mx-auto w-full max-w-[1540px] px-4 py-6 md:px-8 md:py-9">{children}</div>
         </main>
       </div>
     </SidebarProvider>

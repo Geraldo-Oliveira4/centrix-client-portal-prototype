@@ -85,13 +85,13 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
     <aside
       className={cn(
         'flex flex-col h-full bg-background border-r transition-[width] duration-200 shrink-0 overflow-hidden',
-        slim ? 'w-14' : 'w-64',
+        slim ? 'w-14' : 'w-60',
       )}
     >
       {/* Brand */}
       <div
         className={cn(
-          'flex items-center gap-2 border-b shrink-0 px-3 py-4',
+          'flex items-center gap-2 border-b shrink-0 px-5 py-6',
           slim && 'justify-center',
         )}
       >
@@ -151,9 +151,9 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-2">
+      <nav className="flex-1 px-3 py-5">
         <TooltipProvider delayDuration={0}>
-          <ul className="space-y-1">
+          <ul className="space-y-2">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const active =
@@ -164,7 +164,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
                   href={item.href}
                   onClick={mobile ? toggleMobile : undefined}
                   className={cn(
-                    'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
+                    'flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors',
                     slim && 'justify-center px-0 py-2',
                     active
                       // `brand-indigo` e theme-aware (e a TINTA do portal), entao

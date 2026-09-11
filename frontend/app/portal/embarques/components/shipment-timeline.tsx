@@ -13,6 +13,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { formatShortDate } from '@/lib/portal-formatters';
+import { formatShipmentEta } from '../lib/shipment-date';
 import { cn } from '@/lib/utils';
 import {
   ESTADO_DESCRIPTIONS,
@@ -199,7 +200,7 @@ function ForecastTag({ iso }: { iso: string }) {
   return (
     <span className="portal-small inline-flex items-center gap-1.5 rounded border border-border bg-muted px-2 py-0.5 font-medium text-portal-neutral">
       <CalendarClock className="h-4 w-4" />
-      Previsto: {formatShortDate(iso)}
+      Previsto: {formatShipmentEta(iso)}
     </span>
   );
 }
@@ -696,7 +697,7 @@ export function ShipmentTimeline({
                     >
                       {step.occurredAt
                         ? formatShortDate(step.occurredAt)
-                        : `Previsto: ${formatShortDate(step.forecastAt!)}`}
+                        : `Previsto: ${formatShipmentEta(step.forecastAt!)}`}
                     </p>
                   )}
 

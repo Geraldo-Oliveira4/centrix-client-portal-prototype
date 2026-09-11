@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#1A1C31"><title>Visão Geral · Centrix</title><link rel="icon" href="assets/centrix.svg"><link rel="stylesheet" href="style.css?v=20260911-2"><link rel="stylesheet" href="embedded.css?v=20260911-2"></head>
+<body>
+<a class="skip" href="#main">Ir para o conteúdo</a>
+
+<div class="shell">
+  <header class="workspace-context">
+    <span class="demo-label" title="Carteira fictícia · Cenário de 10 set 2026, 10h30"><span class="demo-dot" aria-hidden="true"></span>Dados demonstrativos</span>
+    <div class="context-actions">
+      <label class="profile" title="Perfil de exemplo"><span id="avatar" class="avatar" aria-hidden="true">ML</span><select id="profile" aria-label="Experimentar perfil"><option value="Mariana">Mariana Lopes · Analista</option><option value="Rafael">Rafael Costa · Gestor</option></select></label>
+      <details class="demo-options"><summary aria-label="Opções da demonstração" title="Opções da demonstração"><span aria-hidden="true">⋯</span></summary><div class="demo-menu"><p>Cenário de demonstração<span>10 set 2026 · 10h30</span></p><button id="simulate" class="text-button">Simular atualização</button><button id="reset" class="text-button">Reiniciar cenário</button></div></details>
+    </div>
+  </header>
+  <main id="main" tabindex="-1"><div class="page-heading"><div><h1>Visão Geral</h1><p id="subtitle">Suas prioridades, o contexto e o próximo passo.</p></div><button class="button ask-button" data-cmd="ask"><span data-icon="spark"></span>Perguntar ao Centrix</button></div>
+  <nav class="tabs" aria-label="Perspectiva de trabalho"><a href="#dia" data-tab="dia">Meu dia<span id="my-count"></span></a><a href="#operacao" data-tab="operacao">Operação</a><span class="freshness"><span class="status-dot"></span><span id="snapshot-time">Base do cenário · 10h30</span></span></nav>
+  <div id="update-banner" class="update-banner" hidden></div><div id="content"></div>
+  <footer class="page-foot"><span>Carteira de demonstração · Aurora Indústria</span><span>Horários de São Paulo · Previsões identificam o local de chegada</span></footer>
+  </main>
+</div>
+<div id="backdrop" class="backdrop" hidden></div><aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" hidden></aside>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="data.js?v=20260911-2"></script><script src="app.js?v=20260911-2"></script>
+</body></html>
