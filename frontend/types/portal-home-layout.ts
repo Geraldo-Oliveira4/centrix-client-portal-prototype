@@ -1,14 +1,16 @@
-// EXPERIMENTO INTERNO — Home personalizavel (`/portal/home-personalizada`).
+// Layout da Home do Portal do Cliente (`/portal/home`): os temas que o cliente
+// escolheu no onboarding e os cards que ele deixou ligados.
 //
 // Nao confundir com `PortalPreferences` (types/portal-agent.ts): aquilo e a
 // preferencia OPERACIONAL do cliente (porto, incoterm, agentes pausados) e vive
-// na tabela da migracao 094. Isto e layout de uma rota de teste, tabela e
-// endpoint proprios (migracao 095, `/portal/home-layout-experiment`).
+// na tabela da migracao 094. Isto e layout de tela, com tabela e endpoint
+// proprios (migracao 095, `/portal/home-layout-experiment` — o nome guarda a
+// origem experimental da frente; ver o handler no backend).
 
 import type {
   PortalHomeCard,
   PortalHomeTheme,
-} from '@/app/portal/home-personalizada/lib/home-layout';
+} from '@/app/portal/home/lib/home-layout';
 
 export interface PortalHomeLayout {
   themes: PortalHomeTheme[];

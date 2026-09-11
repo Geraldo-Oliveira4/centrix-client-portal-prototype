@@ -1,4 +1,4 @@
-// EXPERIMENTO INTERNO — layout da Home personalizavel.
+// Layout da Home (`/portal/home`): temas escolhidos e cards ligados.
 //
 // Chave SWR e endpoint PROPRIOS: isto nao passa por `/portal/preferences` nem
 // compartilha cache com `use-portal-agents.ts`. Ver a docstring de

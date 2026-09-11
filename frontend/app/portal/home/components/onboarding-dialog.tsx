@@ -20,6 +20,7 @@ import {
   PORTAL_HOME_THEMES,
   PORTAL_HOME_THEME_DESCRIPTIONS,
   PORTAL_HOME_THEME_LABELS,
+  PORTAL_HOME_THEME_QUESTIONS,
   PORTAL_HOME_CARD_LABELS,
   type PortalHomeTheme,
 } from '../lib/home-layout';
@@ -86,8 +87,8 @@ export function HomeOnboardingDialog({
             Monte a sua Home
           </DialogTitle>
           <DialogDescription>
-            Escolha até {MAX_PORTAL_HOME_THEMES} temas. A Home passa a mostrar só
-            o que pertence a eles — e você pode refazer esta escolha quando
+            Escolha de 1 a {MAX_PORTAL_HOME_THEMES} temas. A sua Home passa a mostrar
+            só o que pertence a eles — e você pode refazer esta escolha quando
             quiser.
           </DialogDescription>
         </DialogHeader>
@@ -126,6 +127,13 @@ export function HomeOnboardingDialog({
                 <span className="min-w-0 space-y-1">
                   <span className="portal-body block font-medium text-foreground">
                     {PORTAL_HOME_THEME_LABELS[theme]}
+                    {/* A pergunta e o que faz o rotulo de uma palavra significar
+                        alguma coisa na primeira visita: "Custos" sozinho nao diz
+                        se a tela mostra gasto, economia ou cotacao. */}
+                    <span className="font-normal text-portal-neutral">
+                      {' '}
+                      — {PORTAL_HOME_THEME_QUESTIONS[theme]}
+                    </span>
                   </span>
                   <span className="portal-small block text-portal-neutral">
                     {PORTAL_HOME_THEME_DESCRIPTIONS[theme]}

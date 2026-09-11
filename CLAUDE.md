@@ -90,7 +90,7 @@ backend/                         # FastAPI (substitui AWS Lambda + API Gateway)
   alembic/                       # COPIADO — migrations 001..089 (+090..095, do protótipo)
   scripts/
     seed_prototype.py            # cliente demo + 9 cotações + agentes + DNA + 7 embarques
-    e2e_test.py                  # suíte E2E (130 checagens)
+    e2e_test.py                  # suíte E2E (131 checagens)
 frontend/                        # CÓPIA do app Next.js do Centrix (só /portal ligado ao backend)
   vendor/arboria-ui, arboria-config   # deps @arboria-tech vendorizadas (file:), sem GitHub Packages
 docker-compose.yml               # Postgres 16 local
@@ -538,52 +538,79 @@ agrupa rota e frequência, sem ETA. Nenhum teste unitário lê o banco — as da
 `2026-08-20/21` que aparecem em `step-insights.test.ts` e companhia são fixtures
 inline, sem relação com esta linha.
 
-## Home personalizável (EXPERIMENTO INTERNO — 11/09/2026)
+## Home personalizável — substituiu a Home fixa (11/09/2026)
 
-**`/portal/home-personalizada` NÃO é a Home do cliente.** A Home validada pelo
-Victor Orsi é `/portal/home` e ela **não foi tocada**: não importa nada do
-diretório do experimento e não sabe que ele existe. É o "voltar ao normal" se a
-frente for descartada.
+**`/portal/home` deixou de ser a 1b fixa.** A Home passou a ser montada pelo
+próprio cliente: ele escolhe de 1 a 3 **temas** num onboarding não-descartável na
+primeira visita e depois liga/desliga os **cards** desses temas num modal
+"Personalizar". "Refazer personalização do zero" fica sempre visível, logo abaixo
+do banner.
 
-A rota também **não entra na sidebar**: quem a conhece chega pela URL. Duas
-"Home" no menu fariam o cliente escolher entre elas, e a escolha não é dele.
+**A via de volta** é `frontend/app/portal/home/page.tsx.bak-1b` (a 1b salva
+inteira, fora do build — a extensão não casa com o `include` do tsconfig nem com
+as extensões de página do Next) e o commit anterior à troca,
+`ea2b5d30cde74d23e32d43e852218602ce39a1e7`, anotado no topo do `page.tsx` novo.
 
-Como funciona: o cliente escolhe até três **temas** (`alertas`, `mapa_mundi`,
-`inteligencia`) num onboarding não-descartável, e depois liga/desliga os **cards**
-desses temas num modal "Personalizar". "Refazer personalização do zero" fica
-visível no topo da própria tela e apaga a linha no banco, reabrindo o onboarding.
+**O topo e o rodapé continuam sendo a 1b**, e não cópias: `HomeBanner` (saudação,
+frase dominante, farol) e `HomeShortcuts` são os mesmos componentes, importados
+dos mesmos arquivos. O que mudou é o MEIO da tela.
+
+| Tema | Pergunta | Cards |
+|---|---|---|
+| `acao` | O que precisa de mim | `acao_urgente` (UrgentActionCard) |
+| `mapa` | Onde está minha carga | `mapa_embarques` (ShipmentMap) |
+| `custos` | Quanto estou gastando | `economia` (SavingsCard) · `tendencia_preco` (PriceTrendCard) |
+
+"Custos", e não "Inteligência": o segundo colide com o item de mesmo nome na
+sidebar, e o rótulo de um tema descreve o que o card mostra, nunca um destino de
+navegação. Há teste unitário travando essa colisão.
+
+**A tabela `centrix_portal_home_layout_experiment` (migração 095) é PRODUÇÃO.**
+Não é mais experimento descartável: sem linha nela o cliente não vê a Home, vê o
+onboarding. O nome da tabela, do endpoint (`/portal/home-layout-experiment`) e do
+módulo (`backend/app/home_layout_experiment.py`) guarda a origem experimental da
+frente — renomear os três exigiria migração e rota nova em produção, sem ganho
+funcional. A migração já está aplicada no remoto.
 
 O que sustenta isso, e não pode afrouxar:
 
-- **Tabela e endpoint próprios** (migração 095,
-  `centrix_portal_home_layout_experiment`, `/portal/home-layout-experiment`).
-  Nada compartilhado com `centrix_portal_client_preferences` / `PUT
-  /portal/preferences`: aquilo é preferência operacional com efeito na próxima
-  cotação, isto é layout de rota de teste. `H8` no e2e trava a fronteira.
-- **O backend mora em `app/home_layout_experiment.py`**, não em
-  `lambdas/client_portal/` — mesma disciplina de `audit_preview.py`. O MODEL
-  também mora lá, e não em `shared/`, para o experimento não virar uma
-  divergência a mais num futuro re-sync com o Centrix.
-- **Duas tabelas tema->card, uma em cada ponta** (`THEME_CARDS` no backend,
+- **Tabela e endpoint próprios, separados de `centrix_portal_client_preferences`
+  / `PUT /portal/preferences`.** Aquilo é preferência operacional com efeito na
+  próxima cotação e tem lista fechada de campos que sustenta a regra de o cliente
+  não editar dado interno da Freitas; isto é layout de tela. Nenhuma linha de
+  código é compartilhada, e `H8` no e2e trava a fronteira.
+- **Duas tabelas tema→card, uma em cada ponta** (`THEME_CARDS` no backend,
   `PORTAL_HOME_LAYOUT_CARDS` em
-  `frontend/app/portal/home-personalizada/lib/home-layout.ts`). Mexeu num lado,
-  mexa no outro; `H11` no e2e compara as duas.
+  `frontend/app/portal/home/lib/home-layout.ts`). Mexeu num lado, mexa no outro;
+  `H11` no e2e compara as duas.
 - **Nenhum card busca dado sozinho.** A página faz as duas chamadas que o portal
   já faz (`/portal/quotations`, `/portal/shipments`) uma vez e passa o resultado
   a todos por `HomeCardProps`. `HOME_LAYOUT_CARD_COMPONENTS` é
   `Record<PortalHomeCard, ...>`: card novo sem componente quebra o build.
 - **Nenhum componente reaproveitado foi editado.** `UrgentActionCard`,
-  `SavingsCard`, `ShipmentMap` e `ShipmentAlertsTab` entram como estão — o que o
-  registro adiciona são wrappers (o `dynamic({ ssr: false })` do Leaflet, o
-  estado de lido/tipos dos alertas).
-- **Ausência de linha é o estado normal** e nenhum seed a popula: é ela que faz
-  o onboarding abrir. Reset APAGA a linha; zerar os campos deixaria a tabela
+  `SavingsCard`, `ShipmentMap`, `PriceAlertBadge` e `PriceTrendLine` entram como
+  estão — o registro só adiciona wrappers.
+- **Ausência de linha é o estado normal** e nenhum seed a popula: é ela que faz o
+  onboarding abrir. Reset APAGA a linha; zerar os campos deixaria a tabela
   dizendo "já onboardou" e o modal nunca mais abriria.
+- **Vocabulário renomeado nesta data.** Os temas se chamavam
+  `alertas`/`mapa_mundi`/`inteligencia`. A tabela estava vazia em todos os bancos,
+  então não houve migração de dado — mas o frontend descarta tema desconhecido
+  (`knownThemes`) e reabre o onboarding, porque uma linha com vocabulário velho
+  não pode virar Home vazia sem saída. `H3b` no e2e garante que os nomes
+  aposentados não voltem a ser aceitos.
+- **`/portal/home-personalizada` virou redirect** para `/portal/home`. A rota
+  chegou a ser servida em produção e foi divulgada por URL; um 404 leria como
+  "a frente foi cancelada".
 
-Apagar a frente inteira = apagar `frontend/app/portal/home-personalizada/`,
-`frontend/hooks/use-portal-home-layout.ts`, `frontend/types/portal-home-layout.ts`,
-`backend/app/home_layout_experiment.py`, a migração 095, as três rotas no fim de
-`app/routers/portal.py` e o bloco `H` do e2e. Nenhuma tela em uso muda.
+**O tema "Ação" tem UM card, e isso não é lacuna.** Um segundo card de farol
+(`farol_resumido`, com as três contagens e atalho por recorte) chegou a existir e
+foi removido na mesma data: o `HomeBanner`, a centímetros dele, já imprime as
+mesmas três contagens — é a mesma razão pela qual o `StatusBeaconCard` saiu em
+03/09/2026. **Não reintroduza um farol como card desta tela**; o do banner é o
+farol da Home. `layoutRows` continua no lib porque a regra dela (metade sem par
+ocupa a fileira inteira) vale para o próximo card meia-largura, mesmo que a
+tabela de hoje não produza mais nenhuma órfã.
 
 ## Como rodar
 
@@ -605,7 +632,7 @@ elegibilidade de RFQ, 404 anti-enumeração, mocks). Rode com banco recém-semea
 ```bash
 docker compose down -v && docker compose up -d
 cd backend && make migrate && make seed && make run &
-.venv/bin/python -m scripts.e2e_test     # -> 130/130 ALL PASS
+.venv/bin/python -m scripts.e2e_test     # -> 131/131 ALL PASS
 ```
 
 A suíte **muta dados** (aprova, recusa, cancela cotações da semente) e exige um

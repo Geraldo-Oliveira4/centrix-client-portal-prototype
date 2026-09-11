@@ -91,7 +91,7 @@ def _home_layout_tables_agree() -> tuple[bool, str]:
 
     ts = (
         Path(__file__).resolve().parents[2]
-        / "frontend/app/portal/home-personalizada/lib/home-layout.ts"
+        / "frontend/app/portal/home/lib/home-layout.ts"
     )
     if not ts.exists():
         return False, f"frontend table not found at {ts}"
@@ -903,13 +903,13 @@ def run():
         "default_incoterm": None, "uses_insurance": None,
     })
 
-    # --- H. Home personalizavel (EXPERIMENTO INTERNO) ---------------------
-    # Rota de demonstracao interna (`/portal/home-personalizada`), tabela e
-    # endpoint PROPRIOS (migracao 095). O que estas checagens protegem nao e a
-    # tela: e a fronteira. O experimento nao pode vazar para o caminho da 094,
-    # e as duas tabelas tema->card (backend e frontend) nao podem divergir — uma
-    # divergencia ali vira 400 no melhor caso e `undefined` no registro do
-    # frontend no pior, e nenhum dos dois aparece antes da demo.
+    # --- H. Layout da Home (`/portal/home`) -------------------------------
+    # Desde 11/09/2026 isto NAO e experimento: a Home personalizavel substituiu
+    # a Home fixa, e sem linha nesta tabela o cliente cai no onboarding em vez
+    # de ver a tela. O que estas checagens protegem nao e o layout: e a
+    # fronteira com a 094, e a sincronia das duas tabelas tema->card (backend e
+    # frontend) — divergencia ali vira 400 no melhor caso e `undefined` no
+    # registro do frontend no pior, e nenhum dos dois aparece antes da demo.
     LAYOUT = "/portal/home-layout-experiment"
 
     # Estado de partida: a tabela nasce vazia e nenhum seed a popula. Um cliente
@@ -922,17 +922,24 @@ def run():
     # Sem `enabled_cards` o backend liga todos os cards dos temas escolhidos —
     # e o que "acabei de escolher estes temas" quer dizer. A regra mora no
     # backend para nao ser duplicada na tela.
-    st, lo = req("PUT", LAYOUT, {"themes": ["alertas", "inteligencia"]})
+    st, lo = req("PUT", LAYOUT, {"themes": ["acao", "custos"]})
     layout = lo.get("layout") or {}
     check("H2 onboarding without enabled_cards enables every card of the themes",
           st == 200
-          and layout.get("themes") == ["alertas", "inteligencia"]
+          and layout.get("themes") == ["acao", "custos"]
           and sorted(layout.get("enabled_cards") or [])
-          == ["acao_urgente", "alertas_embarque", "economia"],
+          == ["acao_urgente", "economia", "tendencia_preco"],
           str(layout))
 
     st, _ = req("PUT", LAYOUT, {"themes": ["financeiro"]})
     check("H3 an unknown theme -> 400", st == 400, str(st))
+
+    # O vocabulario antigo e um caso concreto de "tema desconhecido", e nao um
+    # alias: os temas se chamavam `alertas`/`mapa_mundi`/`inteligencia` ate
+    # 11/09/2026. Aceita-los aqui gravaria linha que o frontend descarta.
+    st, _ = req("PUT", LAYOUT, {"themes": ["inteligencia"]})
+    check("H3b the retired theme vocabulary is not accepted -> 400",
+          st == 400, str(st))
 
     st, _ = req("PUT", LAYOUT, {"themes": []})
     check("H4 choosing no theme at all -> 400", st == 400, str(st))
@@ -940,17 +947,17 @@ def run():
     # Card de tema NAO escolhido nao entra: gravado, ele ficaria salvo e
     # invisivel, e reapareceria sozinho no dia em que o tema fosse escolhido.
     st, _ = req("PUT", LAYOUT,
-                {"themes": ["alertas"], "enabled_cards": ["mapa_embarques"]})
+                {"themes": ["acao"], "enabled_cards": ["mapa_embarques"]})
     check("H5 a card whose theme was not chosen -> 400", st == 400, str(st))
 
     st, _ = req("PUT", LAYOUT,
-                {"themes": ["alertas"], "enabled_cards": ["kanban"]})
+                {"themes": ["acao"], "enabled_cards": ["kanban"]})
     check("H6 an unknown card -> 400", st == 400, str(st))
 
     # Lista VAZIA e diferente de ausente: e o cliente desligando tudo no modal
     # "Personalizar", e a tela tem um estado proprio para isso. Preencher os
     # cards aqui apagaria a escolha dele.
-    st, lo = req("PUT", LAYOUT, {"themes": ["alertas"], "enabled_cards": []})
+    st, lo = req("PUT", LAYOUT, {"themes": ["acao"], "enabled_cards": []})
     check("H7 an empty enabled_cards list is kept empty, not refilled",
           st == 200 and (lo.get("layout") or {}).get("enabled_cards") == [],
           str(lo.get("layout")))
@@ -958,7 +965,7 @@ def run():
     # A FRONTEIRA COM A 094. O experimento tem tabela e endpoint proprios; um
     # PUT de layout nao pode encostar nas preferencias operacionais do cliente.
     st, pr = req("GET", "/portal/preferences")
-    check("H8 the experiment never writes to the client preferences path",
+    check("H8 the home layout never writes to the client preferences path",
           st == 200
           and pr["preferences"]["preferred_port"] is None
           and pr["preferences"]["paused_agent_ids"] == []

@@ -1,24 +1,27 @@
-"""EXPERIMENTO INTERNO — Home personalizavel (`/portal/home-personalizada`).
+"""Layout da Home do Portal do Cliente — temas e cards escolhidos pelo cliente.
 
->>> ISTO NAO E A HOME DO CLIENTE. <<<
+ISTO E PRODUCAO desde 11/09/2026. Nasceu como experimento numa rota separada
+(`/portal/home-personalizada`) e, na mesma data, a Home personalizavel
+SUBSTITUIU a Home fixa: `/portal/home` le daqui, e sem linha nesta tabela o
+cliente cai no onboarding em vez de ver a tela. O nome do arquivo (e o da
+tabela, e o do endpoint) guarda a origem experimental — renomear os tres exigiria
+migracao e uma rota nova em producao, e nao ha ganho funcional nisso.
 
-A Home validada pelo Victor Orsi e `/portal/home`, e ela nao sabe que este
-arquivo existe. Aqui mora o backend de uma ROTA DE TESTE, para demonstracao
-interna: o cliente escolhe ate tres TEMAS num onboarding e depois liga/desliga
-os CARDS desses temas.
+A via de volta para a Home fixa nao passa por aqui: ela e
+`frontend/app/portal/home/page.tsx.bak-1b`, com o commit anterior a troca
+anotado no topo do `page.tsx` novo.
 
 POR QUE EM `app/` E NAO EM `lambdas/client_portal/`
 --------------------------------------------------
-Pela mesma razao do `audit_preview.py`, ainda que por outro motivo de fundo:
-`lambdas/client_portal/` guarda os handlers do portal de verdade — os copiados
-do Centrix e os poucos portados que o cliente final usa. Um experimento de
-layout nao pertence ali. A separacao de diretorio e o aviso: apagar esta frente
-e apagar este arquivo, a migracao 095 e o diretorio
-`frontend/app/portal/home-personalizada/`, sem tocar em handler nenhum.
+Herdado da origem, e mantido de propósito: `lambdas/client_portal/` guarda os
+handlers COPIADOS do Centrix e os poucos portados que espelham handlers de la.
+Este nao tem contrapartida nenhuma no Centrix — a Home do cliente e invencao
+deste repo — e o resto da camada de adaptacao (`agent_pause`, `quotation_origin`,
+`prototype_flow`) ja mora aqui pelo mesmo motivo.
 
 Pela mesma razao o MODEL vive aqui e nao em `shared/database/models/`: `shared/`
 espelha o Centrix e cada arquivo novo la e uma divergencia a mais para um futuro
-re-sync. Uma tabela de experimento nao vale essa divida.
+re-sync.
 
 O QUE ESTE ENDPOINT NAO E
 -------------------------
@@ -26,7 +29,16 @@ Nao e `PUT /portal/preferences`. A tabela da migracao 094 guarda preferencia
 operacional com efeito (prometido) sobre a proxima cotacao, e o handler dela tem
 uma lista fechada de campos que sustenta a regra de o cliente nao editar dado
 interno da Freitas. Este aqui guarda layout de tela. Nenhuma linha de codigo e
-compartilhada entre os dois, de proposito.
+compartilhada entre os dois, de proposito — `H8` no e2e trava a fronteira.
+
+VOCABULARIO RENOMEADO EM 11/09/2026
+-----------------------------------
+Os temas se chamavam `alertas` / `mapa_mundi` / `inteligencia` e passaram a
+`acao` / `mapa` / `custos`. "Inteligencia" saiu porque colide com a aba de
+navegacao de mesmo nome. A tabela estava VAZIA em todos os bancos quando a troca
+aconteceu, entao nao houve migracao de dado; o frontend ainda assim descarta tema
+desconhecido (`knownThemes`) e reabre o onboarding, porque uma linha gravada com
+o vocabulario velho nao pode virar uma Home vazia sem saida.
 
 LISTA FECHADA, MESMA DISCIPLINA DO RESTO DO PORTAL
 --------------------------------------------------
@@ -60,9 +72,9 @@ from shared.observability import logger
 from shared.portal_helpers import get_portal_client_id
 
 # Os tres temas do onboarding. Espelho EXATO de `PortalHomeTheme` em
-# `frontend/app/portal/home-personalizada/lib/home-layout.ts` — as duas listas
+# `frontend/app/portal/home/lib/home-layout.ts` — as duas listas
 # tem de andar juntas, e e por isso que a checagem e2e compara as duas pontas.
-THEMES = ("alertas", "mapa_mundi", "inteligencia")
+THEMES = ("acao", "mapa", "custos")
 
 # Tema -> cards. Espelho de `PORTAL_HOME_LAYOUT_CARDS` do mesmo arquivo.
 #
@@ -70,9 +82,9 @@ THEMES = ("alertas", "mapa_mundi", "inteligencia")
 # tema dele foi escolhido), nao para servi-la: quem monta a tela e o registro do
 # frontend, que e quem conhece os componentes.
 THEME_CARDS = {
-    "alertas": ("acao_urgente", "alertas_embarque"),
-    "mapa_mundi": ("mapa_embarques",),
-    "inteligencia": ("economia",),
+    "acao": ("acao_urgente",),
+    "mapa": ("mapa_embarques",),
+    "custos": ("economia", "tendencia_preco"),
 }
 
 CARDS = tuple(card for cards in THEME_CARDS.values() for card in cards)
