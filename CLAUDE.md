@@ -87,10 +87,10 @@ backend/                         # FastAPI (substitui AWS Lambda + API Gateway)
   lambdas/client_portal*/        # COPIADO do Centrix — handlers originais intactos
                                  #   (+2 novos de exportador, +2 de embarque,
                                  #    +3 de agentes/preferências)
-  alembic/                       # COPIADO — migrations 001..089 (+090..094, do protótipo)
+  alembic/                       # COPIADO — migrations 001..089 (+090..095, do protótipo)
   scripts/
     seed_prototype.py            # cliente demo + 9 cotações + agentes + DNA + 7 embarques
-    e2e_test.py                  # suíte E2E (119 checagens)
+    e2e_test.py                  # suíte E2E (130 checagens)
 frontend/                        # CÓPIA do app Next.js do Centrix (só /portal ligado ao backend)
   vendor/arboria-ui, arboria-config   # deps @arboria-tech vendorizadas (file:), sem GitHub Packages
 docker-compose.yml               # Postgres 16 local
@@ -538,6 +538,53 @@ agrupa rota e frequência, sem ETA. Nenhum teste unitário lê o banco — as da
 `2026-08-20/21` que aparecem em `step-insights.test.ts` e companhia são fixtures
 inline, sem relação com esta linha.
 
+## Home personalizável (EXPERIMENTO INTERNO — 11/09/2026)
+
+**`/portal/home-personalizada` NÃO é a Home do cliente.** A Home validada pelo
+Victor Orsi é `/portal/home` e ela **não foi tocada**: não importa nada do
+diretório do experimento e não sabe que ele existe. É o "voltar ao normal" se a
+frente for descartada.
+
+A rota também **não entra na sidebar**: quem a conhece chega pela URL. Duas
+"Home" no menu fariam o cliente escolher entre elas, e a escolha não é dele.
+
+Como funciona: o cliente escolhe até três **temas** (`alertas`, `mapa_mundi`,
+`inteligencia`) num onboarding não-descartável, e depois liga/desliga os **cards**
+desses temas num modal "Personalizar". "Refazer personalização do zero" fica
+visível no topo da própria tela e apaga a linha no banco, reabrindo o onboarding.
+
+O que sustenta isso, e não pode afrouxar:
+
+- **Tabela e endpoint próprios** (migração 095,
+  `centrix_portal_home_layout_experiment`, `/portal/home-layout-experiment`).
+  Nada compartilhado com `centrix_portal_client_preferences` / `PUT
+  /portal/preferences`: aquilo é preferência operacional com efeito na próxima
+  cotação, isto é layout de rota de teste. `H8` no e2e trava a fronteira.
+- **O backend mora em `app/home_layout_experiment.py`**, não em
+  `lambdas/client_portal/` — mesma disciplina de `audit_preview.py`. O MODEL
+  também mora lá, e não em `shared/`, para o experimento não virar uma
+  divergência a mais num futuro re-sync com o Centrix.
+- **Duas tabelas tema->card, uma em cada ponta** (`THEME_CARDS` no backend,
+  `PORTAL_HOME_LAYOUT_CARDS` em
+  `frontend/app/portal/home-personalizada/lib/home-layout.ts`). Mexeu num lado,
+  mexa no outro; `H11` no e2e compara as duas.
+- **Nenhum card busca dado sozinho.** A página faz as duas chamadas que o portal
+  já faz (`/portal/quotations`, `/portal/shipments`) uma vez e passa o resultado
+  a todos por `HomeCardProps`. `HOME_LAYOUT_CARD_COMPONENTS` é
+  `Record<PortalHomeCard, ...>`: card novo sem componente quebra o build.
+- **Nenhum componente reaproveitado foi editado.** `UrgentActionCard`,
+  `SavingsCard`, `ShipmentMap` e `ShipmentAlertsTab` entram como estão — o que o
+  registro adiciona são wrappers (o `dynamic({ ssr: false })` do Leaflet, o
+  estado de lido/tipos dos alertas).
+- **Ausência de linha é o estado normal** e nenhum seed a popula: é ela que faz
+  o onboarding abrir. Reset APAGA a linha; zerar os campos deixaria a tabela
+  dizendo "já onboardou" e o modal nunca mais abriria.
+
+Apagar a frente inteira = apagar `frontend/app/portal/home-personalizada/`,
+`frontend/hooks/use-portal-home-layout.ts`, `frontend/types/portal-home-layout.ts`,
+`backend/app/home_layout_experiment.py`, a migração 095, as três rotas no fim de
+`app/routers/portal.py` e o bloco `H` do e2e. Nenhuma tela em uso muda.
+
 ## Como rodar
 
 ```bash
@@ -558,7 +605,7 @@ elegibilidade de RFQ, 404 anti-enumeração, mocks). Rode com banco recém-semea
 ```bash
 docker compose down -v && docker compose up -d
 cd backend && make migrate && make seed && make run &
-.venv/bin/python -m scripts.e2e_test     # -> 119/119 ALL PASS
+.venv/bin/python -m scripts.e2e_test     # -> 130/130 ALL PASS
 ```
 
 A suíte **muta dados** (aprova, recusa, cancela cotações da semente) e exige um

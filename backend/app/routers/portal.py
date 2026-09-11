@@ -12,6 +12,11 @@ from fastapi import APIRouter, Request, Response
 from app.agent_pause import filter_paused_agents
 from app.audit_preview import lambda_handler as audit_preview_handler
 from app.event_shim import invoke
+from app.home_layout_experiment import (
+    delete_layout as home_layout_delete,
+    get_layout as home_layout_get,
+    put_layout as home_layout_put,
+)
 from app.prototype_flow import auto_close_approved_quotation
 from app.quotation_exporter import link_exporter
 from app.quotation_origin import annotate as annotate_origins, record_origin
@@ -248,3 +253,24 @@ async def list_my_shipments(request: Request):
 @router.get("/shipments/{id}")
 async def get_my_shipment(request: Request, id: str):
     return await invoke(h["get_my_shipment"], request, {"id": id})
+
+
+# --- Home personalizavel (EXPERIMENTO INTERNO) ------------------------------
+# Rota de demonstracao interna, SEPARADA da Home real (`/portal/home`), que nao
+# passa por aqui e nao sabe que isto existe. Handler em
+# `app/home_layout_experiment.py` — ver a docstring de la para por que o
+# experimento nao mora em `lambdas/client_portal/` nem reaproveita
+# `/portal/preferences`.
+@router.get("/home-layout-experiment")
+async def get_my_home_layout(request: Request):
+    return await invoke(home_layout_get, request)
+
+
+@router.put("/home-layout-experiment")
+async def update_my_home_layout(request: Request):
+    return await invoke(home_layout_put, request)
+
+
+@router.delete("/home-layout-experiment")
+async def reset_my_home_layout(request: Request):
+    return await invoke(home_layout_delete, request)

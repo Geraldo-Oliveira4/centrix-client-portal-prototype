@@ -19,6 +19,7 @@ import sys
 import urllib.error
 import urllib.request
 import uuid
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -69,6 +70,47 @@ def put_bytes(path: str, content: bytes):
 def get_bytes(url: str):
     with urllib.request.urlopen(url) as resp:
         return resp.status, resp.read()
+
+
+# ---------------------------------------------------------------------------
+# Home layout experiment: as duas pontas da tabela tema -> card
+# ---------------------------------------------------------------------------
+
+def _home_layout_tables_agree() -> tuple[bool, str]:
+    """Compara `THEME_CARDS` (backend) com `PORTAL_HOME_LAYOUT_CARDS` (frontend).
+
+    As duas listas sao escritas a mao em linguagens diferentes e precisam andar
+    juntas: o backend valida o que entra na tabela, o frontend resolve card ->
+    componente. Um card acrescentado so no frontend e gravado como 400; um
+    acrescentado so no backend e aceito e depois vira `undefined` no registro.
+    Nenhum dos dois aparece antes da demonstracao.
+    """
+    import re
+
+    from app.home_layout_experiment import THEME_CARDS
+
+    ts = (
+        Path(__file__).resolve().parents[2]
+        / "frontend/app/portal/home-personalizada/lib/home-layout.ts"
+    )
+    if not ts.exists():
+        return False, f"frontend table not found at {ts}"
+
+    src = ts.read_text()
+    block = re.search(
+        r"PORTAL_HOME_LAYOUT_CARDS:\s*Record<[^>]+>\s*=\s*\{(.*?)\n\s*\};",
+        src,
+        re.S,
+    )
+    if not block:
+        return False, "could not parse PORTAL_HOME_LAYOUT_CARDS"
+
+    front: dict[str, tuple[str, ...]] = {}
+    for theme, cards in re.findall(r"(\w+):\s*\[([^\]]*)\]", block.group(1)):
+        front[theme] = tuple(re.findall(r"'([^']+)'", cards))
+
+    back = {k: tuple(v) for k, v in THEME_CARDS.items()}
+    return back == front, f"backend={back} frontend={front}"
 
 
 # ---------------------------------------------------------------------------
@@ -860,6 +902,81 @@ def run():
         "paused_agent_ids": [], "preferred_port": None,
         "default_incoterm": None, "uses_insurance": None,
     })
+
+    # --- H. Home personalizavel (EXPERIMENTO INTERNO) ---------------------
+    # Rota de demonstracao interna (`/portal/home-personalizada`), tabela e
+    # endpoint PROPRIOS (migracao 095). O que estas checagens protegem nao e a
+    # tela: e a fronteira. O experimento nao pode vazar para o caminho da 094,
+    # e as duas tabelas tema->card (backend e frontend) nao podem divergir — uma
+    # divergencia ali vira 400 no melhor caso e `undefined` no registro do
+    # frontend no pior, e nenhum dos dois aparece antes da demo.
+    LAYOUT = "/portal/home-layout-experiment"
+
+    # Estado de partida: a tabela nasce vazia e nenhum seed a popula. Um cliente
+    # sem linha e o que faz o onboarding abrir.
+    req("DELETE", LAYOUT)
+    st, lo = req("GET", LAYOUT)
+    check("H1 a client who never onboarded has no layout row",
+          st == 200 and lo.get("layout") is None, str(lo))
+
+    # Sem `enabled_cards` o backend liga todos os cards dos temas escolhidos —
+    # e o que "acabei de escolher estes temas" quer dizer. A regra mora no
+    # backend para nao ser duplicada na tela.
+    st, lo = req("PUT", LAYOUT, {"themes": ["alertas", "inteligencia"]})
+    layout = lo.get("layout") or {}
+    check("H2 onboarding without enabled_cards enables every card of the themes",
+          st == 200
+          and layout.get("themes") == ["alertas", "inteligencia"]
+          and sorted(layout.get("enabled_cards") or [])
+          == ["acao_urgente", "alertas_embarque", "economia"],
+          str(layout))
+
+    st, _ = req("PUT", LAYOUT, {"themes": ["financeiro"]})
+    check("H3 an unknown theme -> 400", st == 400, str(st))
+
+    st, _ = req("PUT", LAYOUT, {"themes": []})
+    check("H4 choosing no theme at all -> 400", st == 400, str(st))
+
+    # Card de tema NAO escolhido nao entra: gravado, ele ficaria salvo e
+    # invisivel, e reapareceria sozinho no dia em que o tema fosse escolhido.
+    st, _ = req("PUT", LAYOUT,
+                {"themes": ["alertas"], "enabled_cards": ["mapa_embarques"]})
+    check("H5 a card whose theme was not chosen -> 400", st == 400, str(st))
+
+    st, _ = req("PUT", LAYOUT,
+                {"themes": ["alertas"], "enabled_cards": ["kanban"]})
+    check("H6 an unknown card -> 400", st == 400, str(st))
+
+    # Lista VAZIA e diferente de ausente: e o cliente desligando tudo no modal
+    # "Personalizar", e a tela tem um estado proprio para isso. Preencher os
+    # cards aqui apagaria a escolha dele.
+    st, lo = req("PUT", LAYOUT, {"themes": ["alertas"], "enabled_cards": []})
+    check("H7 an empty enabled_cards list is kept empty, not refilled",
+          st == 200 and (lo.get("layout") or {}).get("enabled_cards") == [],
+          str(lo.get("layout")))
+
+    # A FRONTEIRA COM A 094. O experimento tem tabela e endpoint proprios; um
+    # PUT de layout nao pode encostar nas preferencias operacionais do cliente.
+    st, pr = req("GET", "/portal/preferences")
+    check("H8 the experiment never writes to the client preferences path",
+          st == 200
+          and pr["preferences"]["preferred_port"] is None
+          and pr["preferences"]["paused_agent_ids"] == []
+          and "themes" not in pr["preferences"],
+          str(pr.get("preferences")))
+
+    # "Refazer personalizacao do zero" APAGA A LINHA. Zerar os campos deixaria a
+    # linha dizendo "este cliente ja onboardou", e o modal nunca mais abriria —
+    # que e exatamente o que o botao promete desfazer.
+    st, lo = req("DELETE", LAYOUT)
+    check("H9 reset returns a null layout", st == 200 and lo.get("layout") is None,
+          str(lo))
+    st, lo = req("GET", LAYOUT)
+    check("H10 after reset the onboarding reopens (no row)",
+          st == 200 and lo.get("layout") is None, str(lo))
+
+    check("H11 backend and frontend agree on the theme -> card table",
+          *_home_layout_tables_agree())
 
     # --- Summary ----------------------------------------------------------
     passed = sum(1 for ok, _, _ in _results if ok)
