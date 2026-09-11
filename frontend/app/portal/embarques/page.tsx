@@ -211,7 +211,10 @@ function PortalEmbarquesContent() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="lista">
+          <TabsContent value="lista" className="space-y-4">
+            <p className="portal-small text-portal-neutral">
+              Compare seus embarques e veja quais precisam de atenção primeiro.
+            </p>
             <ShipmentListTab
               shipments={shipments}
               quotations={flattenQuotations(quotationsData)}
@@ -221,7 +224,10 @@ function PortalEmbarquesContent() {
             />
           </TabsContent>
 
-          <TabsContent value="alertas">
+          <TabsContent value="alertas" className="space-y-4">
+            <p className="portal-small text-portal-neutral">
+              Veja o que mudou nos seus embarques e o que precisa da sua atenção.
+            </p>
             <ShipmentAlertsTab
               alerts={alerts}
               readIds={readIds}
@@ -233,7 +239,10 @@ function PortalEmbarquesContent() {
           </TabsContent>
 
           {/* Mapa amplo, resumo contextual e a mesma carteira priorizada. */}
-          <TabsContent value="mapa">
+          <TabsContent value="mapa" className="space-y-4">
+            <p className="portal-small text-portal-neutral">
+              Selecione uma origem no mapa ou um embarque na lista para ver um resumo.
+            </p>
             <ShipmentMapWorkspace
               shipments={shipments}
               initialFilter={initialMapFilter}
