@@ -4,6 +4,20 @@ Meta-contexto para qualquer IA (Claude etc.) trabalhando neste repositório.
 Leia isto antes de editar. Convenções específicas do frontend copiado do Centrix
 estão em `frontend/CLAUDE.md`.
 
+## Publicação compartilhada — 11/09/2026
+
+O domínio principal da Vercel acompanha a `main` deste GitHub. Mudanças devem
+partir da `main` atual, ser commitadas e enviadas por branch/PR antes da publicação
+compartilhada. Deploy direto de checkout local não sincroniza o GitHub: um deploy
+posterior da `main` substitui essas mudanças no domínio. Não usar um checkout de
+release antigo como base sem incorporar a `main` atual.
+
+A integração de Vinicius preserva a Home personalizada e acrescenta Meus Embarques
+(hierarquia, mapa/resumo e explicações das abas), Auditoria e Meu dia/Operação.
+Auditoria e Visão Geral carregam demonstrações locais em `frontend/public/prototypes/`
+via iframe; esses assets fazem parte da entrega. São dados ilustrativos, sem nova
+integração de backend. A API local `preview:api` serve apenas à revisão visual.
+
 ## O que é este projeto
 
 Réplica **standalone** do Portal do Cliente do Centrix (plataforma de
