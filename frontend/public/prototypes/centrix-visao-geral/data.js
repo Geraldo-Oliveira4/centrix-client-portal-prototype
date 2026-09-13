@@ -29,3 +29,12 @@ for (const p of INITIAL_PROCESSES) {
   if (p.id==='PR-26014') p.since='2026-09-10';
   if (p.stage===3 && /realizada|realizado/.test(p.milestone)) p.actual=true;
 }
+
+// Explicit fictional commitments: tracking does not infer contacts or reply deadlines.
+const RETURN_CONTEXT = {
+ 'PR-26043': {since:'2026-09-09',expected:'2026-09-11T09:00:00-03:00',lastContact:'2026-09-09T16:10:00-03:00',contact:'operacao@agente.example',module:'Embarques'},
+ 'PR-26027': {since:'2026-09-09',expected:'2026-09-10T10:00:00-03:00',lastContact:'2026-09-09T15:00:00-03:00',contact:'financeiro@aurora.example',module:'Embarques'},
+ 'PR-26006': {since:'2026-09-09',expected:null,lastContact:null,contact:null,module:'Auditoria'}
+};
+for(const p of INITIAL_PROCESSES){if(p.waiting)Object.assign(p.waiting,RETURN_CONTEXT[p.id]);}
+INITIAL_PROCESSES.find(p=>p.id==='PR-26035').events.push({time:'Hoje, 08h20',title:'Posição de trânsito atualizada',text:'Previsão de chegada mantida. Nenhuma decisão solicitada.',source:'Tracking demonstrativo',informational:true});

@@ -10,7 +10,7 @@ export default function VisaoGeralPage() {
   useEffect(() => {
     const hash = /^#(dia|operacao)$/.test(window.location.hash)
       ? window.location.hash : '#dia';
-    setSource('/prototypes/centrix-visao-geral/index.html?v=20260911-2' + hash);
+    setSource('/prototypes/centrix-visao-geral/index.html?v=20260913-central-1' + hash);
   }, []);
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export default function VisaoGeralPage() {
 
   return (
     <div className="space-y-4">
-      {source && <iframe ref={frame} src={source} title="Visão Geral Centrix — Meu dia e Operação" className="block w-full border-0" style={{ height: 'calc(100dvh - 170px)', minHeight: 650 }} />}
+      {source && <iframe ref={frame} src={source} title="Central de trabalho Centrix — Meu dia e Operação" className="block w-full border-0" style={{ height: 'calc(100dvh - 170px)', minHeight: 650 }} />}
     </div>
   );
 }

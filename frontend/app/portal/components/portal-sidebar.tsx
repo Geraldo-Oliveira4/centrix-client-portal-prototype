@@ -41,7 +41,7 @@ const NAV_ITEMS = [
   // de mim agora", cruzando Cotacao e Embarque numa lista de itens acionaveis.
   {
     href: '/portal/visao-geral',
-    label: 'Visão Geral',
+    label: 'Central de trabalho',
     icon: Gauge,
   },
   {
