@@ -1,6 +1,6 @@
 # Detalhe de cotação — prévia local
 
-Implementação React no layout nativo Centrix, em `/portal/cotacoes/previa?cenario=comparar`. Base: main `8a18f7e` (PR #2 integrado). Branch `codex/cotacao-hierarquia`. O detalhe público existente não é substituído por esta rota de revisão.
+Implementação React no layout nativo Centrix, em `/portal/cotacoes/previa?cenario=comparar`. Base: main `8a18f7e` (PR #2 integrado). Branch `codex/cotacao-hierarquia`. A rota de revisão continua isolada. /portal/cotacao/[id] passa a usar o novo layout com dados e ações do backend existente, mantendo o Kanban da main.
 
 ## Executar
 
@@ -42,4 +42,4 @@ Regressão de seleção: escolher Beta → consultar Gamma no Raio X → clicar 
 
 `npm run test:quotation-preview` verifica regras de recomendação, validade/escopo, estados e datas. `npm run build` verifica a rota nativa e tipos. Revisão por navegador: comparação/seleção, erro/repetição, persistência, complemento/envio com destinatário único, chegada de propostas, detalhes e responsividade. Registrar resultados efetivos no esquema vivo do vault.
 
-Plano canônico: `C:\SecondBrain_local\SB_Vini\03_Projetos\Cliente\Ativos\Freitas_Comex\Centrix_SaaS\Plano_Telas_Detalhe_Cotacao.md`. Estado e evidências: `Esquema_Vivo_Portal.md` no mesmo diretório. Nenhum deploy autorizado nesta rodada local.
+Plano canônico: `C:\SecondBrain_local\SB_Vini\03_Projetos\Cliente\Ativos\Freitas_Comex\Centrix_SaaS\Plano_Telas_Detalhe_Cotacao.md`. Estado e evidências: `Esquema_Vivo_Portal.md` no mesmo diretório. Deploy do detalhamento autorizado em 13/09/2026, incluindo abertura pelos cartões sem alteração do Kanban. Ver limites da conexão no GUIA-DEV.md.

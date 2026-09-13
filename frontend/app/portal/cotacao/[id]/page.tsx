@@ -1,16 +1,23 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Ban } from 'lucide-react';
+import React, { useState } from 'react';
+import { useParams } from 'next/navigation';
+import {
+  ArrowLeft,
+  ArrowRight,
+  ChevronDown,
+  ChevronRight,
+  Clock3,
+  Info,
+  Ship,
+  Sparkles,
+} from 'lucide-react';
 import { LoaderComponent, ErrorComponent } from '@arboria-tech/arboria-ui';
-
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui';
-import portal_api from '@/lib/portal-api';
-import type { SIApi } from '@/hooks/use-shipment-instruction';
-import { ShipmentInstructionSection } from '@/components/shipment-instruction-section';
-import { useMyQuotation } from '@/hooks/use-portal-quotations';
+import {
+  useMyQuotation,
+  useMyRecommendation,
+  useQuotationAgents,
+} from '@/hooks/use-portal-quotations';
 import {
   canAssembleRfq,
   canCancel,
@@ -19,344 +26,870 @@ import {
   isAwaitingInfo,
   isCancelled,
   isDeclined,
-  isFinalized,
   isPendingAnalystReview,
 } from '@/lib/portal-state';
-import { formatRoute } from '@/lib/portal-formatters';
-import type { PortalProposal } from '@/types/portal';
-
-import { ClientReferenceTag } from '../../_shared/client-reference-tag';
-import { ModalIcon } from '../../_shared/modal-icon';
-import { AgentTrustBlock } from '../../inteligencia/components/agent-trust-block';
-import { MarketBlock } from '../../inteligencia/components/market-block';
-import { RiskBlock } from '../../inteligencia/components/risk-block';
-import { AuditPreviewSection } from './components/audit-preview-section';
+import {
+  formatBRL,
+  formatCurrency,
+  formatDate,
+  formatRoute,
+  formatTotals,
+} from '@/lib/portal-formatters';
+import type { PortalProposal, PortalQuotation } from '@/types/portal';
+import { MODAL_LABELS, PROPOSAL_ROUTE_TYPE_LABELS } from '@/types/quotation';
+import portal_api from '@/lib/portal-api';
+import type { SIApi } from '@/hooks/use-shipment-instruction';
+import { ShipmentInstructionSection } from '@/components/shipment-instruction-section';
+import { useSidebar } from '../../components/sidebar-context';
+import {
+  EvidenceBody,
+  evidenceFootnote,
+  useEvidence,
+} from '../../inteligencia/components/evidence-block';
 import { ApproveDialog } from './components/approve-dialog';
 import { CancelDialog } from './components/cancel-dialog';
 import { DeclineDialog } from './components/decline-dialog';
 import { DocumentsSection } from './components/documents-section';
 import { HistoryTimeline } from './components/history-timeline';
-import { ProposalsTable } from './components/proposals-table';
 import { RecommendationPanel } from './components/recommendation-panel';
 import { RfqDispatchCard } from './components/rfq-dispatch-card';
 import { QuotationFooterCard } from './components/quotation-footer-card';
+import { AuditPreviewSection } from './components/audit-preview-section';
+import { RiskBlock } from '../../inteligencia/components/risk-block';
 import {
-  BestArrivalBanner,
-  EmptyProposalsBlock,
-  FinalizedApprovedBanner,
-  FinalizedCancelledBanner,
-  FinalizedDeclinedBanner,
-  GuardRailBlockBanner,
   NeedsMoreInfoBanner,
+  GuardRailBlockBanner,
   PendingAnalystReviewBanner,
   SelectionApprovedBanner,
+  FinalizedCancelledBanner,
+  FinalizedDeclinedBanner,
 } from './components/quotation-banners';
+import {
+  proposalIssue,
+  illustrativeAgentHistory,
+  illustrativeMarketReference,
+} from '../lib/detail-model';
+import s from '../../cotacoes/previa/quotation-preview.module.css';
 
-// Portal client hits the shared SI endpoints through portal_api (portal JWT) and
-// the /portal route prefix; the backend authorizes ownership (ARB-2449).
-const PORTAL_SI_API: SIApi = { api: portal_api, basePath: '/portal/quotations' };
+const PORTAL_SI_API: SIApi = {
+  api: portal_api,
+  basePath: '/portal/quotations',
+};
 
 export default function PortalCotacaoDetailPage() {
   const params = useParams<{ id: string }>();
-  const router = useRouter();
-  const { quotation, isLoading, isError } = useMyQuotation(params?.id ?? null);
-
-  const [selectedProposalId, setSelectedProposalId] = useState<string | null>(
-    null,
+  const { quotation, isLoading, isError, mutate } = useMyQuotation(
+    params?.id ?? null,
   );
-  const [approveOpen, setApproveOpen] = useState(false);
-  const [declineOpen, setDeclineOpen] = useState(false);
-  const [cancelOpen, setCancelOpen] = useState(false);
-
-  const proposals = quotation?.proposals ?? [];
-  const winner = useMemo<PortalProposal | undefined>(
-    () => proposals.find((p) => p.is_winner),
-    [proposals],
-  );
-  const finalized = quotation ? isFinalized(quotation.state) : false;
-
-  const selected = useMemo<PortalProposal | undefined>(() => {
-    if (!proposals.length) return undefined;
-    if (winner) return winner;
-    return proposals.find((p) => p.id === selectedProposalId) ?? proposals[0];
-  }, [proposals, selectedProposalId, winner]);
-
   if (isLoading) return <LoaderComponent />;
   if (isError || !quotation) return <ErrorComponent />;
-
-  // Self-service (RFQ dispatch, document upload, history, cancel) is only for
-  // quotations the client created via the portal. Analyst-created quotations are
-  // view/approve only. Default to the self-service view when the flag is absent
-  // (older payloads) to avoid hiding features from portal-origin quotations.
-  const isPortalOrigin = quotation.created_via_portal !== false;
-
-  const showActions = canDecide(quotation.state);
-  const showCancel = canCancel(quotation.state) && isPortalOrigin;
-  const needsInfo = isAwaitingInfo(quotation.state);
-  // The client's selection sits in APROVADA_PELO_CLIENTE both while the guard
-  // rail holds it (under Freitas review) and after an analyst releases it (choice
-  // approved, awaiting close). `guard_rail_active` distinguishes the two so the
-  // "em análise" banner clears the moment the analyst approves the selection.
-  const pendingReview = isPendingAnalystReview(quotation.state);
-  const underReview = pendingReview && !!quotation.guard_rail_active;
-  // Once Freitas approves the selection (guard rail released), a portal-origin
-  // quotation lets the client generate and send the Shipment Instruction himself
-  // (ARB-2449). Analyst-created quotations stay view-only here.
-  const canGenerateSI = isPortalOrigin && pendingReview && !underReview;
-  // The SI card also stays visible read-only after the quotation closes, so the
-  // client keeps seeing the instruction they already sent. Both cases are gated
-  // on portal origin — analyst-created quotations never show this card.
-  const showShipmentInstruction =
-    isPortalOrigin && (canGenerateSI || isApproved(quotation.state));
-  // Os tres blocos da narrativa de decisao so fazem sentido com proposta na
-  // mesa: sem elas nao ha o que recomendar, com que confiar nem que comparar.
-  const showIntelligence =
-    !needsInfo && !isCancelled(quotation.state) && proposals.length > 0;
-  const showRfqAssembly =
-    canAssembleRfq(quotation.state) && proposals.length === 0 && isPortalOrigin;
-
-  // The three review sub-states (under review / approved-can-generate-SI /
-  // approved-processing) drive both the proposals-table hint and the banner slot.
-  // Resolve the tri-state once so the two consumers cannot drift.
-  const proposalsHeaderHint = !pendingReview
-    ? undefined
-    : underReview
-      ? 'Sua seleção está em análise pela Freitas.'
-      : canGenerateSI
-        ? 'Proposta aprovada. Gere a instrução de embarque abaixo.'
-        : 'Proposta selecionada. Em processamento pela Freitas.';
-  const pendingReviewBanner = underReview ? (
-    <PendingAnalystReviewBanner proposal={winner} />
-  ) : canGenerateSI ? null : (
-    <SelectionApprovedBanner proposal={winner} />
+  return (
+    <QuotationDetail
+      key={quotation.id}
+      quotation={quotation}
+      refresh={() => void mutate()}
+    />
   );
+}
 
-  const cotacaoContent = (
-    <div className="space-y-6">
-      {quotation.guard_rail_block_reason ? (
-        <GuardRailBlockBanner reason={quotation.guard_rail_block_reason} />
-      ) : null}
+function QuotationDetail({
+  quotation: q,
+  refresh,
+}: {
+  quotation: PortalQuotation;
+  refresh: () => void;
+}) {
+  const { collapsed } = useSidebar();
+  const [selection, setSelection] = useState<string | null>(null);
+  const [inspected, setInspected] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<'approve' | 'decline' | 'cancel' | null>(
+    null,
+  );
+  const proposals = q.proposals ?? [];
+  const winner = proposals.find((p) => p.is_winner);
+  const chosen = proposals.find((p) => p.id === selection);
+  const { recommendation } = useMyRecommendation(
+    canDecide(q.state) ? q.id : null,
+  );
+  const recommended = proposals.find(
+    (p) =>
+      (recommendation?.recommended_proposal_id
+        ? p.id === recommendation.recommended_proposal_id
+        : p.is_recommended) && !proposalIssue(p),
+  );
+  const profile =
+    proposals.find((p) => p.id === inspected) ??
+    winner ??
+    chosen ??
+    recommended ??
+    proposals[0];
+  const deciding = canDecide(q.state);
+  const portalOrigin = q.created_via_portal !== false;
+  const needsInfo = isAwaitingInfo(q.state);
+  const assembling =
+    portalOrigin && canAssembleRfq(q.state) && !proposals.length;
+  const agents = useQuotationAgents(
+    portalOrigin && canAssembleRfq(q.state) ? q.id : null,
+  );
+  const pendingReview = isPendingAnalystReview(q.state);
+  const underReview = pendingReview && !!q.guard_rail_active;
+  const canGenerateSI = portalOrigin && pendingReview && !underReview;
+  const closed = isApproved(q.state);
+  const cancelled = isCancelled(q.state);
+  const declined = isDeclined(q.state);
+  const waiting =
+    !needsInfo &&
+    !deciding &&
+    !pendingReview &&
+    !closed &&
+    !cancelled &&
+    !declined;
+  const status = needsInfo
+    ? 'Faltam informações'
+    : deciding
+      ? 'Pronta para escolher'
+      : underReview
+        ? 'Escolha em análise'
+        : pendingReview
+          ? 'Escolha liberada'
+          : closed
+            ? 'Cotação fechada'
+            : cancelled
+              ? 'Cotação cancelada'
+              : declined
+                ? 'Cotação recusada'
+                : assembling &&
+                    !agents.isLoading &&
+                    !agents.isError &&
+                    !agents.rfqDispatched
+                  ? 'Solicitação em preparo'
+                  : proposals.length
+                    ? 'Respostas parciais'
+                    : 'Aguardando agentes';
+  const marketReference = illustrativeMarketReference(proposals);
+  const select = (p: PortalProposal) => {
+    if (!deciding || proposalIssue(p)) return;
+    setSelection(p.id);
+    setInspected(null);
+  };
 
-      {showRfqAssembly ? (
-        <RfqDispatchCard
-          quotationId={quotation.id}
-          desiredDeadline={quotation.desired_deadline}
-          originMissing={!quotation.origin && quotation.incoterm !== 'FOB'}
-          onDispatched={() => router.refresh()}
+  return (
+    <div
+      className={s.workspace}
+      style={
+        { '--q-sidebar': collapsed ? '56px' : '240px' } as React.CSSProperties
+      }
+    >
+      <div className={s.backRow}>
+        <a className={s.textButton} href="/portal/cotacoes">
+          <ArrowLeft size={16} /> Minhas cotações
+        </a>
+        <a className={s.textButton} href="/portal/cotacoes/previa?variacoes=1">
+          Ver variações do protótipo
+        </a>
+      </div>
+      <header className={s.heading}>
+        <div>
+          <h1>
+            {q.reference} <span className={s.po}>{q.client_reference}</span>
+          </h1>
+          <p>{q.product || 'Carga não informada'}</p>
+        </div>
+        <span
+          className={
+            s.status +
+            ' ' +
+            (needsInfo ? s.amber : deciding || closed ? s.green : s.neutral)
+          }
+        >
+          <Clock3 size={14} /> {status}
+        </span>
+      </header>
+      <section className={s.context} aria-label="Necessidade da carga">
+        <div className={s.route}>
+          <Ship size={20} />
+          <div>
+            <strong>{formatRoute(q)}</strong>
+            <small>
+              {q.modal ? MODAL_LABELS[q.modal] : 'Modal não informado'} ·{' '}
+              {q.incoterm || 'Incoterm a informar'} ·{' '}
+              {formatTotals(q.totals, q.modal)}
+            </small>
+          </div>
+        </div>
+        <div>
+          <small>Carga pronta em</small>
+          <strong>
+            {q.data_prontidao
+              ? formatDate(q.data_prontidao)
+              : 'Data não informada'}
+          </strong>
+        </div>
+        <div className={s.cargoNeed}>
+          <small>Sua necessidade de chegada</small>
+          <strong>
+            {q.data_limite_necessidade
+              ? 'Até ' + formatDate(q.data_limite_necessidade)
+              : 'Data não informada'}
+          </strong>
+          <span>
+            {q.endereco_entrega_final ||
+              q.porto_destino?.[0] ||
+              q.aeroporto_destino?.[0] ||
+              'Destino a confirmar'}
+          </span>
+        </div>
+        <details className={s.contextNote}>
+          <summary aria-label="Sobre a previsão de chegada">
+            <Info size={16} />
+          </summary>
+          <p>
+            A data necessária orienta sua escolha. Confirme com o agente a
+            saída, a chegada e se o prazo cobre a entrega no endereço desejado.
+          </p>
+        </details>
+      </section>
+
+      {q.guard_rail_block_reason && (
+        <GuardRailBlockBanner reason={q.guard_rail_block_reason} />
+      )}
+      {needsInfo && (
+        <section className={s.panel + ' ' + s.formPanel}>
+          <h2>Complete os dados da solicitação</h2>
+          <p className={s.muted}>
+            Confira o pedido da Freitas e os dados já informados antes de
+            prosseguir.
+          </p>
+          <NeedsMoreInfoBanner quotation={q} />
+        </section>
+      )}
+      {assembling &&
+        (agents.isLoading ? (
+          <LoaderComponent />
+        ) : agents.isError ? (
+          <section className={s.panel + ' ' + s.formPanel}>
+            <p>Não foi possível consultar o envio aos agentes.</p>
+            <button
+              className={s.secondary}
+              onClick={() => void agents.mutate()}
+            >
+              Tentar novamente
+            </button>
+          </section>
+        ) : (
+          <RfqDispatchCard
+            quotationId={q.id}
+            desiredDeadline={q.desired_deadline}
+            originMissing={!q.origin && q.incoterm !== 'FOB'}
+            onDispatched={refresh}
+          />
+        ))}
+      {waiting && (!assembling || agents.rfqDispatched) && (
+        <section className={s.panel + ' ' + s.formPanel}>
+          <h2>
+            {proposals.length
+              ? 'As primeiras propostas chegaram'
+              : 'Estamos aguardando as propostas'}
+          </h2>
+          <p className={s.muted}>
+            A Freitas acompanha as respostas. A escolha fica disponível após a
+            liberação das propostas.
+          </p>
+          <dl className={s.dataGrid}>
+            <div>
+              <dt>Propostas recebidas</dt>
+              <dd>{proposals.length}</dd>
+            </div>
+            <div>
+              <dt>Prazo solicitado para resposta</dt>
+              <dd>
+                {q.desired_deadline
+                  ? formatDate(q.desired_deadline, {
+                      day: '2-digit',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : 'A confirmar'}
+              </dd>
+            </div>
+          </dl>
+          {agents.selectedAgentIds.length > 0 && (
+            <div>
+              {agents.selectedAgentIds.map((id) => {
+                const agent = agents.agents.find((a) => a.id === id);
+                const received = proposals.some((p) => p.agent_id === id);
+                return (
+                  <div className={s.documentRow} key={id}>
+                    <strong>{agent?.name || 'Agente convidado'}</strong>
+                    <span>
+                      {received ? 'Proposta recebida' : 'Aguardando resposta'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+      {underReview && <PendingAnalystReviewBanner proposal={winner} />}
+      {pendingReview && !underReview && (
+        <SelectionApprovedBanner proposal={winner} />
+      )}
+      {closed && (
+        <section className={s.outcome}>
+          <div>
+            <h2>
+              {winner
+                ? 'Contratação confirmada com ' +
+                  (winner.agent?.name || 'agente selecionado')
+                : 'Cotação fechada'}
+            </h2>
+            <p>
+              {winner
+                ? formatBRL(winner.total_brl)
+                : 'Consulte as condições registradas abaixo.'}
+            </p>
+            <a className={s.textButton} href="/portal/embarques">
+              Acompanhar meus embarques <ArrowRight size={16} />
+            </a>
+          </div>
+        </section>
+      )}
+      {cancelled && <FinalizedCancelledBanner />}
+      {declined && (
+        <FinalizedDeclinedBanner
+          reason={q.decline_reason}
+          note={q.decline_note}
         />
-      ) : null}
-
-      {needsInfo ? (
-        <NeedsMoreInfoBanner quotation={quotation} />
-      ) : isCancelled(quotation.state) ? null : proposals.length > 0 ? (
-        <ProposalsTable
-          proposals={proposals}
-          selectedId={selected?.id ?? null}
-          onSelect={setSelectedProposalId}
-          winnerId={winner?.id ?? null}
-          locked={finalized || pendingReview}
-          headerHint={proposalsHeaderHint}
-        />
-      ) : (
-        <EmptyProposalsBlock />
       )}
 
-      {needsInfo ? null : isApproved(quotation.state) && winner ? (
-        <FinalizedApprovedBanner proposal={winner} />
-      ) : pendingReview ? (
-        pendingReviewBanner
-      ) : isCancelled(quotation.state) ? (
-        <FinalizedCancelledBanner />
-      ) : isDeclined(quotation.state) ? (
-        <FinalizedDeclinedBanner
-          reason={quotation.decline_reason}
-          note={quotation.decline_note}
+      {proposals.length > 0 && (
+        <section className={s.panel}>
+          <div className={s.sectionHeading}>
+            <div>
+              <h2>
+                {deciding
+                  ? 'Compare e escolha sua proposta'
+                  : 'Propostas recebidas'}
+              </h2>
+              <p>
+                {deciding
+                  ? 'Veja o valor, o prazo e o que muda entre as ofertas.'
+                  : 'Condições disponíveis para consulta.'}
+              </p>
+            </div>
+            <span className={s.muted}>{proposals.length} ofertas</span>
+          </div>
+          <div className={s.tableWrap}>
+            <table className={s.offersTable}>
+              <thead>
+                <tr>
+                  <th>
+                    <span className={s.srOnly}>Selecionar</span>
+                  </th>
+                  <th>Agente / armador</th>
+                  <th>Valor informado</th>
+                  <th>
+                    Prazo e chegada
+                    {q.data_limite_necessidade && (
+                      <small className={s.needReference}>
+                        Necessária até {formatDate(q.data_limite_necessidade)}
+                      </small>
+                    )}
+                  </th>
+                  <th>Condições</th>
+                  <th>Validade</th>
+                  <th>
+                    <span className={s.srOnly}>Detalhes</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {proposals.map((p) => {
+                  const issue = proposalIssue(p);
+                  const selected = (winner?.id ?? chosen?.id) === p.id;
+                  const difference =
+                    marketReference && p.total_brl > 0
+                      ? Math.round((1 - p.total_brl / marketReference) * 100)
+                      : null;
+                  return (
+                    <React.Fragment key={p.id}>
+                      <tr
+                        className={
+                          (selected ? s.selectedRow : '') +
+                          ' ' +
+                          (deciding && !issue ? s.selectableRow : '')
+                        }
+                        onClick={(event) => {
+                          if (
+                            !(event.target as HTMLElement).closest(
+                              'button, input, a, summary',
+                            )
+                          )
+                            select(p);
+                        }}
+                      >
+                        <td data-label="Selecionar">
+                          <input
+                            type="radio"
+                            name="proposal"
+                            aria-label={
+                              'Selecionar oferta de ' +
+                              (p.agent?.name || 'agente')
+                            }
+                            checked={selected}
+                            disabled={!deciding || !!issue}
+                            onClick={() => setInspected(null)}
+                            onChange={() => select(p)}
+                          />
+                        </td>
+                        <td data-label="Agente / armador">
+                          <strong className={s.agentName}>
+                            {p.agent?.name || 'Agente não informado'}
+                          </strong>
+                          <small>{p.carrier || 'Armador não informado'}</small>
+                          {p.is_winner ? (
+                            <span className={s.recommendedTag}>Escolhida</span>
+                          ) : recommended?.id === p.id ? (
+                            <span className={s.recommendedTag}>
+                              <Sparkles size={11} /> Recomendada
+                            </span>
+                          ) : null}
+                        </td>
+                        <td data-label="Valor informado">
+                          <strong className={s.price}>
+                            {formatBRL(p.total_brl)}
+                          </strong>
+                          {difference !== null && (
+                            <small className={s.marketComparison}>
+                              {difference === 0
+                                ? 'Próximo da referência de mercado'
+                                : `${Math.abs(difference)}% ${difference > 0 ? 'abaixo' : 'acima'} do mercado`}
+                            </small>
+                          )}
+                          <small>Confira a composição e as exclusões</small>
+                        </td>
+                        <td data-label="Prazo e chegada">
+                          <strong>
+                            {p.transit_time == null
+                              ? 'Trânsito não informado'
+                              : p.transit_time + ' dias de trânsito'}
+                          </strong>
+                          <small>Data de chegada a confirmar</small>
+                        </td>
+                        <td data-label="Condições">
+                          <strong>
+                            {p.route_type
+                              ? PROPOSAL_ROUTE_TYPE_LABELS[p.route_type]
+                              : 'Rota a confirmar'}
+                          </strong>
+                          <small>
+                            {p.insurance_included
+                              ? 'Seguro incluído'
+                              : 'Seguro não incluído'}
+                          </small>
+                          <small>
+                            {p.prazo_pagamento_dias == null
+                              ? 'Pagamento a confirmar'
+                              : 'Pagamento em ' +
+                                p.prazo_pagamento_dias +
+                                ' dias'}
+                          </small>
+                        </td>
+                        <td data-label="Validade">
+                          <strong>{formatDate(p.validity)}</strong>
+                          {issue && (
+                            <small className={s.warningText}>{issue}</small>
+                          )}
+                        </td>
+                        <td>
+                          <button
+                            className={s.detailButton}
+                            aria-label={
+                              'Detalhes de ' + (p.agent?.name || 'agente')
+                            }
+                            aria-expanded={expanded === p.id}
+                            onClick={() =>
+                              setExpanded(expanded === p.id ? null : p.id)
+                            }
+                          >
+                            {expanded === p.id ? (
+                              <ChevronDown size={18} />
+                            ) : (
+                              <ChevronRight size={18} />
+                            )}
+                            <span className={s.mobileOnly}>Ver detalhes</span>
+                          </button>
+                        </td>
+                      </tr>
+                      {expanded === p.id && (
+                        <tr className={s.expansionRow}>
+                          <td colSpan={7}>
+                            <ProposalDetails
+                              proposal={p}
+                              marketReference={marketReference}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className={s.tableNote}>
+            <Info size={14} />
+            <span>
+              O prazo de trânsito não confirma uma data de chegada. Confira
+              saída, taxas, free time e entrega final antes de escolher.
+            </span>
+          </div>
+        </section>
+      )}
+
+      {deciding && (
+        <section className={s.recommendation}>
+          <Sparkles size={21} />
+          <div>
+            <h2>
+              {recommended ? 'Recomendação Centrix' : 'Antes de recomendar'}
+            </h2>
+            <p>
+              {recommended ? (
+                <>
+                  <strong>
+                    {recommended.agent?.name || 'Agente recomendado'}
+                  </strong>{' '}
+                  é a indicação entre as propostas recebidas. Confira abaixo os
+                  critérios e as diferenças.
+                </>
+              ) : (
+                'Ainda não há indicação válida para esta cotação. Confira prazo, validade e condições das propostas.'
+              )}
+            </p>
+            <details>
+              <summary>
+                Entender a recomendação <ChevronDown size={13} />
+              </summary>
+              <RecommendationPanel quotationId={q.id} proposals={proposals} />
+              <p>
+                A indicação não confirma atendimento à sua data necessária. A
+                escolha continua sendo sua.
+              </p>
+            </details>
+          </div>
+        </section>
+      )}
+      {profile && !cancelled && !needsInfo && (
+        <AgentProfile
+          quotation={q}
+          proposal={profile}
+          proposals={proposals}
+          chosenId={winner?.id ?? chosen?.id}
+          onInspect={setInspected}
         />
-      ) : selected ? (
-        <BestArrivalBanner proposal={selected} />
-      ) : null}
+      )}
 
-      {/* MOCK - Auditoria real (Camada de Auditoria de Frete/Fatura) é produto
-          separado, sequenciado após GE go-live. Este preview existe apenas para
-          visualização conceitual no debate de produto. Só aparece em cotação
-          FECHADA, que é quando existe proposta vencedora com valor real para
-          servir de base ao comparativo. */}
-      {isApproved(quotation.state) ? (
-        <>
-          <AuditPreviewSection quotationId={quotation.id} />
-          {/* Risco (bloco do canvas, relocado) — vive junto da Auditoria porque
-              trata dos riscos que aparecem depois do fechamento. Preview: os
-              sinais vêm de campos reais, a análise consolidada é ilustrativa. */}
-          <RiskBlock />
-        </>
-      ) : null}
-
-      {showShipmentInstruction ? (
+      {portalOrigin && (canGenerateSI || closed) && (
         <ShipmentInstructionSection
-          quotation={quotation}
-          onSent={() => router.refresh()}
+          quotation={q}
+          onSent={refresh}
           variant="portal"
           siApi={PORTAL_SI_API}
           canCreate={canGenerateSI}
         />
-      ) : null}
-
-      {/* NARRATIVA DE DECISAO (27/08/2026, feedback do Vinicius). A ordem dos
-          tres blocos abaixo NAO e arbitraria, e e o que a tela responde nesta
-          sequencia:
-
-            1. Recomendacao   -> qual escolher, e por que, com a diferenca real
-                                 contra a segunda colocada
-            2. Confiabilidade -> posso confiar nesse agente (perfil ilustrativo
-                                 + Evidencia real dos embarques passados, MESMO
-                                 card — ver AgentTrustBlock)
-            3. Mercado        -> o preco esta competitivo
-            4. Dados da cotacao (QuotationFooterCard, ja no fim) -> o dado bruto
-                                 para quem quiser conferir
-
-          Decisao primeiro, prova de confianca depois, contexto de preco em
-          seguida, dado bruto por ultimo. Mexer na ordem quebra a leitura, nao
-          so o layout.
-
-          A secao "Detalhes" (Frete/Total/Transit/Validade) foi REMOVIDA nesta
-          data: os quatro numeros ja estao na tabela comparativa, lado a lado
-          com as concorrentes, que e onde a comparacao acontece. Recolhida ela
-          ainda ocupava um clique e uma linha; nao volte com ela. */}
-
-      {/* Decisao: coberta pelo painel "Recomendacao" abaixo (nao duplicada). */}
-      {showIntelligence ? (
-        <RecommendationPanel quotationId={quotation.id} proposals={proposals} />
-      ) : null}
-
-      {/* Confiabilidade (com Evidencia dentro) e Mercado lado a lado, esticados
-          na mesma altura: sem `items-start` o grid alinha os dois pelo mais
-          alto, e o rodape de cada card desce para a base (`mt-auto` nao e
-          preciso porque IntelBlock ja empurra o corpo com `flex-1`). Abaixo de
-          `lg` empilham na mesma ordem da narrativa. */}
-      {showIntelligence ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <AgentTrustBlock quotation={quotation} proposals={proposals} />
-          <MarketBlock
-            quotation={quotation}
-            proposals={proposals}
-            className="h-full"
-          />
+      )}
+      <div className={s.supportGroup}>
+        {closed && (
+          <details className={s.support}>
+            <summary>
+              Conferência de frete e riscos <ChevronDown size={16} />
+            </summary>
+            <AuditPreviewSection quotationId={q.id} />
+            <RiskBlock />
+          </details>
+        )}
+        <details className={s.support}>
+          <summary>
+            Dados da solicitação <ChevronDown size={16} />
+          </summary>
+          <QuotationFooterCard quotation={q} />
+          {q.observations && <p>{q.observations}</p>}
+        </details>
+        {portalOrigin && (
+          <>
+            <details className={s.support}>
+              <summary>
+                Documentos <ChevronDown size={16} />
+              </summary>
+              <DocumentsSection quotationId={q.id} />
+            </details>
+            <details className={s.support}>
+              <summary>
+                Histórico da cotação <ChevronDown size={16} />
+              </summary>
+              <HistoryTimeline quotationId={q.id} />
+            </details>
+          </>
+        )}
+      </div>
+      <footer className={s.pageFooter}>
+        <span>Atualizada em {formatDate(q.updated_at)}</span>
+        <div className="flex flex-wrap gap-4">
+          {deciding && (
+            <button
+              className={s.textButton}
+              onClick={() => setDialog('decline')}
+            >
+              Não vou escolher estas propostas
+            </button>
+          )}
+          {portalOrigin && canCancel(q.state) && (
+            <button
+              className={s.textButton}
+              onClick={() => setDialog('cancel')}
+            >
+              Cancelar solicitação
+            </button>
+          )}
         </div>
-      ) : null}
-
-      <QuotationFooterCard quotation={quotation} />
+      </footer>
+      {deciding && (
+        <div className={s.decisionBar}>
+          <div>
+            {chosen ? (
+              <>
+                <small>Sua escolha</small>
+                <strong>
+                  {chosen.agent?.name}{' '}
+                  <span>· {formatBRL(chosen.total_brl)}</span>
+                </strong>
+                {proposalIssue(chosen) && (
+                  <small>{proposalIssue(chosen)}</small>
+                )}
+              </>
+            ) : (
+              <strong>Selecione uma proposta para continuar</strong>
+            )}
+          </div>
+          <button
+            className={s.primary}
+            disabled={!chosen || !!proposalIssue(chosen)}
+            onClick={() => setDialog('approve')}
+          >
+            Continuar com esta proposta <ArrowRight size={16} />
+          </button>
+        </div>
+      )}
+      {deciding && chosen && !proposalIssue(chosen) && (
+        <ApproveDialog
+          open={dialog === 'approve'}
+          onOpenChange={(open) => setDialog(open ? 'approve' : null)}
+          quotationId={q.id}
+          proposal={chosen}
+        />
+      )}
+      {deciding && (
+        <DeclineDialog
+          open={dialog === 'decline'}
+          onOpenChange={(open) => setDialog(open ? 'decline' : null)}
+          quotationId={q.id}
+        />
+      )}
+      {portalOrigin && canCancel(q.state) && (
+        <CancelDialog
+          open={dialog === 'cancel'}
+          onOpenChange={(open) => setDialog(open ? 'cancel' : null)}
+          quotationId={q.id}
+          onCancelled={refresh}
+        />
+      )}
     </div>
   );
+}
 
+function ProposalDetails({
+  proposal: p,
+  marketReference,
+}: {
+  proposal: PortalProposal;
+  marketReference: number | null;
+}) {
   return (
-    <div className="space-y-9">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.back()}
-          aria-label="Voltar"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex flex-wrap items-center gap-2">
-          <ModalIcon modal={quotation.modal} className="h-5 w-5 text-portal-neutral" />
-          <h1 className="portal-h1">{quotation.reference}</h1>
-          <ClientReferenceTag value={quotation.client_reference} />
-          {quotation.incoterm ? (
-            <span className="portal-small rounded border px-2 py-0.5 font-medium text-portal-neutral">
-              {quotation.incoterm}
-            </span>
-          ) : null}
+    <div className={s.formPanel}>
+      <h3>{p.numero_oferta || 'Condições da oferta'}</h3>
+      <dl className={s.dataGrid}>
+        <div>
+          <dt>Frete internacional (USD)</dt>
+          <dd>{formatCurrency(p.freight_value)}</dd>
         </div>
-        {showActions || showCancel || needsInfo ? (
-          <div className="flex flex-col items-end gap-1 sm:ml-auto">
-            <div className="flex items-center gap-2">
-              {showActions ? (
-                <>
-                  <Button variant="outline" onClick={() => setDeclineOpen(true)}>
-                    Reprovar
-                  </Button>
-                  <Button
-                    onClick={() => setApproveOpen(true)}
-                    disabled={!selected}
-                  >
-                    Aprovar Proposta
-                  </Button>
-                </>
-              ) : null}
-              {showCancel ? (
-                <Button
-                  variant="ghost"
-                  className="text-portal-neutral hover:text-portal-danger"
-                  onClick={() => setCancelOpen(true)}
-                >
-                  <Ban className="mr-1.5 h-5 w-5" />
-                  Cancelar cotação
-                </Button>
-              ) : null}
-            </div>
-            {!showActions && needsInfo ? (
-              <span className="inline-flex items-center gap-1 rounded bg-portal-warning/10 px-2.5 py-1 text-xs font-medium text-portal-warning-ink">
-                Aguardando Informações
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="portal-body text-portal-neutral">
-        {formatRoute(quotation)}{' '}
-        {quotation.product ? ` · ${quotation.product}` : ''}
-      </div>
-
-      {isPortalOrigin ? (
-        <Tabs defaultValue="cotacao" className="w-full">
-          <TabsList>
-            <TabsTrigger className="data-[state=active]:border-brand-indigo-800" value="cotacao">Cotação</TabsTrigger>
-            <TabsTrigger className="data-[state=active]:border-brand-indigo-800" value="documentos">Documentos</TabsTrigger>
-            <TabsTrigger className="data-[state=active]:border-brand-indigo-800" value="historico">Histórico</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="cotacao" className="mt-4">
-            {cotacaoContent}
-          </TabsContent>
-
-          <TabsContent value="documentos" className="mt-4">
-            <DocumentsSection quotationId={quotation.id} />
-          </TabsContent>
-
-          <TabsContent value="historico" className="mt-4">
-            <HistoryTimeline quotationId={quotation.id} />
-          </TabsContent>
-        </Tabs>
-      ) : (
-        cotacaoContent
+        <div>
+          <dt>Total normalizado (BRL)</dt>
+          <dd>{formatBRL(p.total_brl)}</dd>
+        </div>
+        <div>
+          <dt>Saída / chegada</dt>
+          <dd>Confirmar datas com o agente</dd>
+        </div>
+        <div>
+          <dt>Free time</dt>
+          <dd>Confirmar com o agente</dd>
+        </div>
+      </dl>
+      {p.observations && <p>{p.observations}</p>}
+      {p.route_detail && <p>{p.route_detail}</p>}
+      {Object.keys(p.taxes_breakdown ?? {}).length > 0 && (
+        <details className={s.support}>
+          <summary>
+            Taxas informadas <ChevronDown size={16} />
+          </summary>
+          <dl className={s.dataGrid}>
+            {Object.entries(p.taxes_breakdown).map(([label, amount]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{amount.toLocaleString('pt-BR')}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className={s.muted}>
+            Confira a moeda de cada taxa na proposta original.
+          </p>
+        </details>
       )}
-
-      {showActions && selected ? (
-        <ApproveDialog
-          open={approveOpen}
-          onOpenChange={setApproveOpen}
-          quotationId={quotation.id}
-          proposal={selected}
-        />
+      {p.additional_costs?.length ? (
+        <div>
+          <h3>Custos adicionais previstos</h3>
+          {p.additional_costs.map((cost, index) => (
+            <p key={index}>
+              <strong>{cost.label}</strong> ·{' '}
+              {formatCurrency(cost.amount_min, cost.currency)} a{' '}
+              {formatCurrency(cost.amount_max, cost.currency)} {cost.unit}{' '}
+              {cost.note && '· ' + cost.note}
+            </p>
+          ))}
+        </div>
       ) : null}
-      {showActions ? (
-        <DeclineDialog
-          open={declineOpen}
-          onOpenChange={setDeclineOpen}
-          quotationId={quotation.id}
-        />
-      ) : null}
-      {showCancel ? (
-        <CancelDialog
-          open={cancelOpen}
-          onOpenChange={setCancelOpen}
-          quotationId={quotation.id}
-          onCancelled={() => router.refresh()}
-        />
-      ) : null}
+      <p className={s.muted}>
+        {p.insurance_included
+          ? 'Seguro incluído na oferta.'
+          : 'Seguro não incluído na oferta.'}{' '}
+        Confirme o escopo das taxas de destino e da entrega final.
+      </p>
+      {marketReference && (
+        <details className={s.support}>
+          <summary>
+            Contexto de mercado <ChevronDown size={16} />
+          </summary>
+          <p>
+            Referência desta comparação:{' '}
+            <strong>{formatBRL(marketReference)}</strong>. A mesma base é usada
+            para todas as ofertas.
+          </p>
+          <p className={s.muted}>
+            Referência ilustrativa do protótipo, sem índice externo de mercado
+            conectado.
+          </p>
+        </details>
+      )}
     </div>
+  );
+}
+
+function AgentProfile({
+  quotation,
+  proposal,
+  proposals,
+  chosenId,
+  onInspect,
+}: {
+  quotation: PortalQuotation;
+  proposal: PortalProposal;
+  proposals: PortalProposal[];
+  chosenId?: string;
+  onInspect: (id: string) => void;
+}) {
+  const history = illustrativeAgentHistory(proposal.agent_id);
+  const evidence = useEvidence({ ...quotation, proposals: [proposal] });
+  return (
+    <section className={s.agentProfile} aria-labelledby="agent-profile-title">
+      <div className={s.profileHeader}>
+        <div>
+          <h2 id="agent-profile-title">Raio X do agente de cargas</h2>
+          <p className={s.muted}>Histórico para ajudar na sua escolha</p>
+        </div>
+        <label className={s.agentPicker}>
+          <span>Consultar agente</span>
+          <select
+            value={proposal.id}
+            onChange={(event) => onInspect(event.target.value)}
+          >
+            {proposals.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.agent?.name || 'Agente não informado'}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className={s.profileContext} aria-live="polite">
+        <strong>{proposal.agent?.name || 'Agente não informado'}</strong>
+        <span>
+          {proposal.id === chosenId
+            ? 'Agente da sua escolha'
+            : 'Consultando histórico · sua escolha permanece igual'}
+        </span>
+      </p>
+      <dl className={s.profileMetrics}>
+        <div>
+          <dt>Cumprimento de prazo</dt>
+          <dd>
+            <strong>
+              {history.onTime} de {history.completed}
+            </strong>
+            <span>chegadas no prazo</span>
+          </dd>
+          <p>{history.completed - history.onTime} chegadas após o previsto.</p>
+        </div>
+        <div>
+          <dt>Cotado × cobrado</dt>
+          <dd>
+            <strong>
+              {history.discrepancies === 0 ? 'Nenhuma' : history.discrepancies}
+            </strong>
+            <span>divergências confirmadas</span>
+          </dd>
+          <p>{history.audited} fretes conferidos nesta amostra.</p>
+        </div>
+        <div>
+          <dt>Experiência na rota</dt>
+          <dd>
+            <strong>{history.completed}</strong>
+            <span>embarques concluídos</span>
+          </dd>
+          <p>{formatRoute(quotation)}</p>
+        </div>
+      </dl>
+      <p className={s.profileReading}>
+        Use o histórico junto ao prazo e às condições da proposta. A
+        pontualidade observada não garante a próxima chegada.
+      </p>
+      <details key={proposal.id} className={s.support}>
+        <summary>
+          Ver histórico e critérios <ChevronDown size={16} />
+        </summary>
+        <p className={s.muted}>
+          Indicadores demonstrativos: amostra de março a agosto de 2026.
+          Registros individuais de pontualidade e auditoria ainda não estão
+          conectados.
+        </p>
+        <EvidenceBody {...evidence} />
+        <p className={s.muted}>
+          {evidenceFootnote(evidence.scope, evidence.modalLabel)}
+        </p>
+      </details>
+    </section>
   );
 }
