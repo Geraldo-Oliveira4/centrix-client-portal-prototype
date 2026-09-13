@@ -47,3 +47,11 @@ Draft edits and invitations use centrix-preparation-v1:<clientId>:<quotationId>;
 ### Early-stage visual correction
 
 The new workspace lacked the shared .workspace ancestor, leaving --q-* variables undefined and dropping panel backgrounds, borders and heading styles. Restored the existing scope, context grid and restrained agent-row separators. An unconfirmed dispatch now uses Preparar envio aos agentes / Selecionar agentes, without marking preparation complete or claiming responses are awaited. TypeScript passed. No API mutation or deployment.
+
+## Assisted draft entry — local prototype
+
+Preencher com IA is now available through DraftRequestForm in existing incomplete requests, repeated remittances and standalone draft scenarios. ManualForm's optional onAssist captures the current unsaved snapshot; reviewing/applying suggestions remounts it with only explicitly selected fields replaced. Equipment, volumes, flags and unselected values remain intact. Existing values are unchecked by default; applying does not save, create a quotation or send an RFQ.
+
+This is an explicitly labelled demonstration, not integrated AI extraction. The local simulator recognizes five labelled text fields (supplier, product, PO, pickup and valid Incoterm). The example is identified as fictional; arbitrary prose/PDFs are not interpreted. The shared UploadZone only holds selected File objects in the dialog, without upload or persistence. Real extraction into the same draft requires an endpoint/reconciliation contract; the existing uploadAndCreate flow is unsuitable because it creates another quotation.
+
+22 focused tests and TypeScript passed. Browser confirmed the entry, suggested/current values, existing-field protection, application to an empty supplier field, and preservation of PO, Incoterm and an unsaved note. No document upload or model invocation was performed. Local only.
