@@ -78,6 +78,11 @@ frontend/
 
 ## Routing and middleware
 
+### Configurações — 13/09/2026
+
+The /portal/preferencias root embeds the approved browser-only Configurações demonstration from public/prototypes/centrix-configuracoes, following the existing Auditoria pattern. Its CSS, fixtures, imports and storage are isolated; no API calls or AI execution. Profile and notifications previously served at the root remain unchanged in perfil-conectado.tsx and are accessible at /portal/preferencias/conectadas. Existing exporters and agent/blocking routes remain intact and are linked below the demo. The sidebar changes only this section's label. Full analytical profiles are a separate unpublished preview; release links use the same-ID local coverage entry. See app/portal/preferencias/PUBLICACAO.md for scope, QA and integration limits.
+
+
 ### Quotation detail preview — 13/09/2026
 
 The comparison ends with an agent profile (Raio X): punctuality, confirmed billing discrepancies and route experience from existing offer aggregates. Its agent selector only changes the inspected profile; selecting a proposal restores automatic following. Market comparison sits below each complete offer's price; its reference, sample and scope appear in the expanded cost details. Historical evidence is illustrative and aggregate-only, with no individual source records connected.
