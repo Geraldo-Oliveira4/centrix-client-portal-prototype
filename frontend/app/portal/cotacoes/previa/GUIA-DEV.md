@@ -1,6 +1,6 @@
 # Cotação — guia de revisão para desenvolvimento
 
-Direção confirmada por Vinicius em 13/09/2026: **manter o Kanban atual da main**, com Preencher detalhes, Aguardando agentes e Escolha sua proposta. Esta entrega revisa os detalhes abertos a partir dessas etapas. O catálogo de variações é uma ferramenta de revisão do protótipo, não uma proposta de substituição do Kanban.
+Direção atualizada por Vinicius em 13/09/2026: publicar também a revisão de hierarquia dos cards aprovada a partir do feedback de Orsi. Mantém as colunas Preencher detalhes, Aguardando agentes e Escolha sua proposta; fornecedor/carga identificam a demanda e cada etapa determina a informação de decisão. [Nove exemplos de cards](https://centrix-client-portal-prototype.vercel.app/portal/cotacoes/previa-cards) dão acesso aos detalhes/status e solicitações habituais. Os registros de preservação integral do Kanban abaixo descrevem publicações anteriores.
 
 **Entrada:** [abrir todas as variações](https://centrix-client-portal-prototype.vercel.app/portal/cotacoes/previa?variacoes=1). URLs destinadas à publicação do protótipo. Para revisão local, substitua o domínio por http://localhost:3014; configuração no [README](./README.md).
 
