@@ -183,9 +183,11 @@ function ScoreRow({
 function PortalScoreLine({
   score,
   isRecommended,
+  inline = false,
 }: {
   score: ProposalScore;
   isRecommended: boolean;
+  inline?: boolean;
 }) {
   return (
     <li className={cn('py-2', !score.is_eligible && 'opacity-70')}>
@@ -194,7 +196,13 @@ function PortalScoreLine({
           {score.agent_name}
         </span>
         {isRecommended && (
-          <span className="portal-small rounded border border-portal-info/25 bg-portal-info/10 px-2 py-0.5 font-medium text-portal-info">
+          <span
+            className={
+              inline
+                ? 'portal-small text-portal-neutral'
+                : 'portal-small rounded border border-portal-info/25 bg-portal-info/10 px-2 py-0.5 font-medium text-portal-info'
+            }
+          >
             Melhor equilíbrio
           </span>
         )}
@@ -250,7 +258,7 @@ interface RecommendationViewProps {
    * swaps the shell, the header AND the body — see the module comment for why
    * the client does not get the score apparatus.
    */
-  variant?: 'default' | 'portal';
+  variant?: 'default' | 'portal' | 'portal-inline';
   /**
    * Portal only: a diferenca real contra a segunda colocada, quando existe.
    * Ausente (ou null) faz a frase cair na versao qualitativa — nunca inventa
@@ -266,16 +274,19 @@ export function RecommendationView({
   variant = 'default',
   gap,
 }: RecommendationViewProps) {
-  const isPortal = variant === 'portal';
+  const isInline = variant === 'portal-inline';
+  const isPortal = variant === 'portal' || isInline;
 
   if (isLoading) {
     return (
       <div
         className={cn(
           'animate-pulse',
-          isPortal
-            ? 'portal-card portal-body p-6 text-portal-neutral'
-            : 'rounded-lg border bg-card p-4 text-sm text-muted-foreground',
+          isInline
+            ? 'portal-small py-2 text-portal-neutral'
+            : isPortal
+              ? 'portal-card portal-body p-6 text-portal-neutral'
+              : 'rounded-lg border bg-card p-4 text-sm text-muted-foreground',
         )}
       >
         Calculando recomendação...
@@ -299,26 +310,33 @@ export function RecommendationView({
     <div
       className={cn(
         'overflow-hidden',
-        isPortal ? 'portal-card' : 'rounded-lg border bg-card',
+        isInline ? '' : isPortal ? 'portal-card' : 'rounded-lg border bg-card',
       )}
     >
+      {!isInline && (
+        <div
+          className={cn(
+            'flex items-center justify-between border-b',
+            isPortal ? 'px-6 py-4' : 'bg-muted/40 px-4 py-2.5',
+          )}
+        >
+          {isPortal ? (
+            <h2 className="portal-h2 text-foreground">Recomendação</h2>
+          ) : (
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Recomendação por IA
+            </p>
+          )}
+          {headerAction}
+        </div>
+      )}
+
       <div
         className={cn(
-          'flex items-center justify-between border-b',
-          isPortal ? 'px-6 py-4' : 'bg-muted/40 px-4 py-2.5',
+          'flex flex-col',
+          isInline ? 'gap-2 pt-1' : isPortal ? 'gap-4 p-6' : 'gap-3 p-4',
         )}
       >
-        {isPortal ? (
-          <h2 className="portal-h2 text-foreground">Recomendação</h2>
-        ) : (
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Recomendação por IA
-          </p>
-        )}
-        {headerAction}
-      </div>
-
-      <div className={cn('flex flex-col', isPortal ? 'gap-4 p-6' : 'gap-3 p-4')}>
         {recommendation.is_overridden && recommendation.override && (
           <div
             className={cn(
@@ -335,7 +353,9 @@ export function RecommendationView({
                   ? `Ajuste manual da Freitas — ${recommendation.override.agent_name}.`
                   : `Override manual aplicado — ${recommendation.override.agent_name}.`}
               </span>{' '}
-              <span className={isPortal ? 'text-portal-neutral' : 'text-amber-700'}>
+              <span
+                className={isPortal ? 'text-portal-neutral' : 'text-amber-700'}
+              >
                 {recommendation.override.justification}
               </span>
             </div>
@@ -379,21 +399,28 @@ export function RecommendationView({
 
         {isPortal ? (
           <div className="space-y-3">
-            <ul className="divide-y">
+            <ul className={isInline ? '' : 'divide-y'}>
               {sortedScores.map((score) => (
                 <PortalScoreLine
                   key={score.proposal_id}
                   score={score}
+                  inline={isInline}
                   isRecommended={
                     score.proposal_id === recommendation.recommended_proposal_id
                   }
                 />
               ))}
             </ul>
-            <p className="portal-small border-t border-dashed pt-3 text-portal-neutral">
-              Comparação feita sobre as propostas desta cotação — preço, transit
-              time, rota, frequência, free time e validade. Não é uma indicação
-              da Freitas sobre qual contratar.
+            <p
+              className={
+                isInline
+                  ? 'portal-small text-portal-neutral'
+                  : 'portal-small border-t border-dashed pt-3 text-portal-neutral'
+              }
+            >
+              {isInline
+                ? 'Critérios: preço, trânsito, rota, frequência, free time e validade.'
+                : 'Comparação feita sobre as propostas desta cotação — preço, transit time, rota, frequência, free time e validade. Não é uma indicação da Freitas sobre qual contratar.'}
             </p>
           </div>
         ) : (

@@ -569,22 +569,24 @@
 .recommendation {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
-  padding: 20px 22px;
-  border: 1px solid #dadbee;
-  border-left: 3px solid #7473a9;
-  border-radius: 7px;
+  gap: 10px;
+  padding: 16px 0 20px;
+  border: 0;
+  border-bottom: 1px solid var(--q-line);
+  border-radius: 0;
   margin: 0 0 24px;
-  background: #f0f0f8;
+  background: transparent;
 }
 .recommendation > svg {
-  color: #646399;
+  color: var(--q-muted);
+  width: 16px;
+  height: 16px;
   margin-top: 2px;
   flex: none;
 }
 .recommendation h2 {
-  font-size: 16px;
-  margin-bottom: 7px;
+  font-size: 15px;
+  margin-bottom: 4px;
 }
 .recommendation p {
   font-size: 14px;
@@ -606,12 +608,12 @@
 }
 .recommendation details p {
   font-size: 13px;
-  margin-top: 12px;
+  margin-top: 6px;
   color: var(--q-muted);
 }
 :global(.dark) .recommendation {
-  background: #2c2c43;
-  border-color: #464660;
+  background: transparent;
+  border-color: var(--q-line);
 }
 .insights {
   display: grid;

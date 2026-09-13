@@ -575,10 +575,7 @@ function QuotationDetail({
                 Entender a recomendação <ChevronDown size={13} />
               </summary>
               <RecommendationPanel quotationId={q.id} proposals={proposals} />
-              <p>
-                A indicação não confirma atendimento à sua data necessária. A
-                escolha continua sendo sua.
-              </p>
+              <p>A indicação não confirma atendimento à sua data necessária.</p>
             </details>
           </div>
         </section>
