@@ -78,6 +78,10 @@ frontend/
 
 ## Routing and middleware
 
+### Auditoria — 13/09/2026
+
+`/portal/auditoria` embeds the approved price/performance and four-step intake experience in `public/prototypes/centrix-auditoria`. Freight includes versioned rubrics and illustrative PTAX validation; performance has 23 controls. Context assistance uses an explicit demo parser, selective review and source history, not LLM/OCR. Quotes, shipments and history are demo catalogs with independent links; files are metadata only. Session state is isolated; no business API, real upload, email or credit. Host/child hashes synchronize, including deep links. Tests: `scripts/audit-checks/*.cjs`. Release scope: `app/portal/auditoria/PUBLICACAO.md`.
+
 ### Radar Beta — 13/09/2026
 
 `/portal/radar` is an independent menu module embedding `public/prototypes/centrix-radar`, with host/child hash synchronization and isolated CSS. Default `#radar/mercado` shows preferred-route cards, then `#radar/mercado/:id` opens price details. Adding a route lasts for the session only and does not change commercial preferences. Riscos, Parceiros and Abastecimento remain Beta. Contracting opportunities are evaluated within Mercado, not a separate tab. All prices, sources and needs are fictional; no API, alert engine, quotation mutation or Intelligence integration was added. Existing Intelligence screens remain unchanged. Release scope and checks: `app/portal/radar/PUBLICACAO.md`.

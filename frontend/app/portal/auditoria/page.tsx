@@ -9,8 +9,8 @@ export default function AuditoriaPage() {
 
   useEffect(() => {
     const hash = /^#(auditoria|cotacao|embarque)(\/|$)/.test(window.location.hash)
-      ? window.location.hash : '#auditoria';
-    setSource('/prototypes/centrix-auditoria/index.html?embed=1' + hash);
+      ? window.location.hash : '#auditoria/preco';
+    setSource('/prototypes/centrix-auditoria/index.html?embed=1&v=20260913-audit-1' + hash);
   }, []);
 
   useEffect(() => {
@@ -25,9 +25,16 @@ export default function AuditoriaPage() {
       const syncHash = () => {
         window.history.replaceState(window.history.state, '', window.location.pathname + child.location.hash);
       };
+      const restoreHash = () => {
+        if (/^#(auditoria|cotacao|embarque)(\/|$)/.test(window.location.hash) && child.location.hash !== window.location.hash) child.location.hash = window.location.hash;
+      };
       child.addEventListener('hashchange', syncHash);
+      window.addEventListener('hashchange', restoreHash);
       syncHash();
-      disconnect = () => child.removeEventListener('hashchange', syncHash);
+      disconnect = () => {
+        child.removeEventListener('hashchange', syncHash);
+        window.removeEventListener('hashchange', restoreHash);
+      };
     };
     iframe.addEventListener('load', loaded);
     return () => { iframe.removeEventListener('load', loaded); disconnect(); };
@@ -36,7 +43,7 @@ export default function AuditoriaPage() {
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">Prévia de experiência · dados, documentos e créditos ilustrativos. Nenhuma cobrança ou envio real.</p>
-      {source && <iframe ref={frame} src={source} title="Auditoria Centrix — conferência, trilha e casos prontos" className="block w-full border-0" style={{ height: 'calc(100dvh - 170px)', minHeight: 600 }} />}
+      {source && <iframe ref={frame} src={source} title="Auditoria Centrix — preço, performance e entrada assistida" className="block w-full border-0" style={{ height: 'calc(100dvh - 170px)', minHeight: 600 }} />}
     </div>
   );
 }
