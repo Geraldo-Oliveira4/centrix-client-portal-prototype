@@ -2,6 +2,16 @@
   color: hsl(var(--foreground));
   min-width: 0;
 }
+.panoramaSummary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; }
+.panoramaCard { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 5px; padding: 17px 19px; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); cursor: pointer; }
+.panoramaCard .panoramaLabel { color: #36336b; font-size: 13px; font-weight: 600; }
+.panoramaCard strong { color: #36336b; font-size: 30px; line-height: 1.2; font-weight: 600; }
+.panoramaCard > span:not(.panoramaLabel) { font-size: 12px; color: #666b7f; }
+.panoramaCard small { font-size: 10px; color: #666b7f; line-height: 1.4; }
+.panoramaWarning { background: #fff9ed; border-color: #e9d6ae; }
+.panoramaWarning strong { color: #946014; }
+.panoramaSelected { outline: 2px solid #8d85b1; outline-offset: 1px; }
+@media (max-width: 640px) { .panoramaSummary { grid-template-columns: 1fr; gap: 8px; } .panoramaCard { padding: 12px 15px; } .panoramaCard strong { font-size: 26px; } }
 .workspace button,
 .workspace a,
 .workspace input {
