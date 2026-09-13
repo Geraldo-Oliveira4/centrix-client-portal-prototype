@@ -55,3 +55,7 @@ TypeScript and 27 quotation/card checks passed, including future-date validation
 ### Progressive responses and additional invitations — local revision
 
 The preview now allows explicit review of available offers without waiting for all agents; receiving all offers does not automatically release a decision. Per-agent preview and additional-invitation dialogs preserve responses and filter already invited agents. Catalog and actions are illustrative; no portal backend permission or dispatch endpoint was changed. See GUIA-DEV for integration requirements and simulator limits. 29 quotation tests and TypeScript pass.
+
+### Detail release package — 2026-09-13
+
+Based on published settings commit 786d229 with the Kanban preserved. Drafts now reuse the existing ManualForm from Nova Cotação (sections, conditional fields and equipment/volume dialogs) with browser-only save and review. See the latest GUIA-DEV section for updated steps; the previous eight-field draft is replaced. Live detail actions retain existing endpoints. New scheduling/additional invitations remain prototype interactions.
