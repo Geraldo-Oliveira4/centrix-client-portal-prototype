@@ -103,6 +103,7 @@ export type Quote = {
   targetAgents: string[];
   selected: string | null;
   weight: string;
+  manualDraft?: import('../../../cotacao/nova-cotacao/components/manual-form').ManualFormDraft;
   volume: string;
   pickup: string;
   followup: boolean;
@@ -368,7 +369,7 @@ export function scheduleRequest(q: Quote, when: string): Quote {
     throw new Error('Somente um rascunho não enviado pode ser programado.');
   if (!q.targetAgents.length)
     throw new Error('Selecione pelo menos um agente.');
-  if (!validateCargo(q.weight, q.volume))
+  if (!q.manualDraft && !validateCargo(q.weight, q.volume))
     throw new Error('Complete peso e volume antes de programar.');
   const parsed = new Date(when + ':00Z');
   if (

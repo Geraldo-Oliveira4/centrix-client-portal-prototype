@@ -101,7 +101,19 @@ const manualFormSchema = z.object({
 
 export type ManualFormValues = z.infer<typeof manualFormSchema>;
 
+export type ManualFormDraft = {
+  values: Partial<ManualFormValues>;
+  equipments: CreateEquipmentItem[];
+  volumes: CreateVolumeItem[];
+  flags?: Partial<Record<'showRefrigerada' | 'agenteDefineLocalColeta' | 'agenteDefinePortoEmbarque' | 'agenteDefinePortoDestino' | 'agenteDefineAeroportoEmbarque' | 'agenteDefineAeroportoDestino', boolean>>;
+};
+
 interface ManualFormProps {
+  draft?: {
+    initial: ManualFormDraft;
+    onSave: (snapshot: ManualFormDraft) => void;
+    onReview: (snapshot: ManualFormDraft) => void;
+  };
   clientId: string | null;
   onQuotationCreated: (quotation: Quotation) => void;
   disabled?: boolean;
@@ -128,22 +140,22 @@ interface ManualFormProps {
   initialValues?: Partial<ManualFormValues>;
 }
 
-export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues }: ManualFormProps) {
+export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues, draft }: ManualFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraggingAttachments, setIsDraggingAttachments] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
-  const [equipments, setEquipments] = useState<CreateEquipmentItem[]>([]);
-  const [volumes, setVolumes] = useState<CreateVolumeItem[]>([]);
+  const [equipments, setEquipments] = useState<CreateEquipmentItem[]>(draft?.initial.equipments ?? []);
+  const [volumes, setVolumes] = useState<CreateVolumeItem[]>(draft?.initial.volumes ?? []);
   const [equipmentDialogOpen, setEquipmentDialogOpen] = useState(false);
   const [editingEquipmentIndex, setEditingEquipmentIndex] = useState<number | null>(null);
   const [volumeDialogOpen, setVolumeDialogOpen] = useState(false);
   const [editingVolumeIndex, setEditingVolumeIndex] = useState<number | null>(null);
-  const [showRefrigerada, setShowRefrigerada] = useState(false);
-  const [agenteDefineLocalColeta, setAgenteDefineLocalColeta] = useState(false);
-  const [agenteDefinePortoEmbarque, setAgenteDefinePortoEmbarque] = useState(false);
-  const [agenteDefinePortoDestino, setAgenteDefinePortoDestino] = useState(false);
-  const [agenteDefineAeroportoEmbarque, setAgenteDefineAeroportoEmbarque] = useState(false);
-  const [agenteDefineAeroportoDestino, setAgenteDefineAeroportoDestino] = useState(false);
+  const [showRefrigerada, setShowRefrigerada] = useState(draft?.initial.flags?.showRefrigerada ?? false);
+  const [agenteDefineLocalColeta, setAgenteDefineLocalColeta] = useState(draft?.initial.flags?.agenteDefineLocalColeta ?? false);
+  const [agenteDefinePortoEmbarque, setAgenteDefinePortoEmbarque] = useState(draft?.initial.flags?.agenteDefinePortoEmbarque ?? false);
+  const [agenteDefinePortoDestino, setAgenteDefinePortoDestino] = useState(draft?.initial.flags?.agenteDefinePortoDestino ?? false);
+  const [agenteDefineAeroportoEmbarque, setAgenteDefineAeroportoEmbarque] = useState(draft?.initial.flags?.agenteDefineAeroportoEmbarque ?? false);
+  const [agenteDefineAeroportoDestino, setAgenteDefineAeroportoDestino] = useState(draft?.initial.flags?.agenteDefineAeroportoDestino ?? false);
 
   const form = useForm<ManualFormValues>({
     resolver: zodResolver(manualFormSchema),
@@ -183,6 +195,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
       // Merged last so a seeded field wins over its blank default, and only
       // over the ones it names.
       ...initialValues,
+      ...draft?.initial.values,
     },
   });
 
@@ -274,7 +287,17 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
     if (attachmentInputRef.current) attachmentInputRef.current.value = '';
   };
 
+  const draftSnapshot = (values: Partial<ManualFormValues>): ManualFormDraft => ({
+    values, equipments, volumes,
+    flags: { showRefrigerada, agenteDefineLocalColeta, agenteDefinePortoEmbarque, agenteDefinePortoDestino, agenteDefineAeroportoEmbarque, agenteDefineAeroportoDestino },
+  });
+
   const handleSubmit = async (values: ManualFormValues) => {
+    // Draft review must never create a quotation or upload attachments.
+    if (draft) {
+      draft.onReview(draftSnapshot(values));
+      return;
+    }
     setIsSubmitting(true);
 
     const result = await createFn({
@@ -1250,12 +1273,13 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
             </div>
           )}
 
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-3">
+            {draft && <Button type="button" variant="outline" onClick={() => draft.onSave(draftSnapshot(form.getValues()))}>Salvar rascunho</Button>}
             <Button
               type="submit"
               disabled={isSubmitting || disabled}
             >
-              {isSubmitting ? 'Criando cotação...' : 'Criar cotação manual'}
+              {draft ? 'Revisar solicitação' : isSubmitting ? 'Criando cotação...' : 'Criar cotação manual'}
             </Button>
           </div>
         </div>

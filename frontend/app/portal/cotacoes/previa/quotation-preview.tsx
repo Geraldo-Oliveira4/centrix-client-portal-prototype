@@ -48,6 +48,7 @@ import {
 } from './model';
 import s from './quotation-preview.module.css';
 import { reviewGroups } from './review-guide';
+import { DraftRequestForm } from './draft-request-form';
 import {
   ResponseOffers,
   PreparationSteps,
@@ -94,7 +95,6 @@ export default function QuotationPreview({
   const [reason, setReason] = useState('');
   const [failNext, setFailNext] = useState(false);
   const [revision, setRevision] = useState(0);
-  const [formErrors, setFormErrors] = useState(false);
   const [sendMode, setSendMode] = useState<'now' | 'schedule'>('now');
   const [sendAt, setSendAt] = useState('2026-09-14T09:00');
   const [inviteSelection, setInviteSelection] = useState<string[]>([]);
@@ -131,7 +131,6 @@ export default function QuotationPreview({
     setExpanded(null);
     setModal(null);
     setError('');
-    setFormErrors(false);
     setLoaded(true);
   }, [scenario, revision]);
 
@@ -220,23 +219,6 @@ export default function QuotationPreview({
       'Escolha registrada nesta prévia. A Freitas é responsável pela próxima etapa.',
     );
   };
-  const completeForm = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateCargo(q.weight, q.volume)) {
-      setFormErrors(true);
-      return;
-    }
-    setFormErrors(false);
-    if (q.stage === 'needs-info') {
-      update(
-        { stage: 'draft' },
-        'Complemento registrado: peso bruto e volume. Solicitação pronta para revisão.',
-      );
-      setNotice(
-        'Dados complementados. Revise os agentes antes de enviar a solicitação.',
-      );
-    } else openModal('dispatch');
-  };
   const dispatch = () => {
     if (sendMode === 'schedule') {
       try {
@@ -260,7 +242,7 @@ export default function QuotationPreview({
       setError('Selecione pelo menos um agente.');
       return;
     }
-    if (!validateCargo(q.weight, q.volume)) {
+    if (!q.manualDraft && !validateCargo(q.weight, q.volume)) {
       setError('Complete peso e volume antes de enviar.');
       return;
     }
@@ -270,7 +252,7 @@ export default function QuotationPreview({
         stage: 'waiting',
         scheduledFor: null,
         sentAt: '13/09 às 10:30',
-        responseBy: '14/09 às 17:00',
+        responseBy: q.responseBy,
         agentCount: q.targetAgents.length,
         offers: [],
       },
@@ -315,7 +297,6 @@ export default function QuotationPreview({
       : q.stage === 'ready' || q.stage === 'closed'
         ? s.green
         : s.neutral;
-  const formsComplete = validateCargo(q.weight, q.volume);
 
   return (
     <div
@@ -618,127 +599,32 @@ export default function QuotationPreview({
             </section>
           )}
 
-          {isForm && (
-            <section className={s.panel + ' ' + s.formPanel}>
+          {isForm && loaded && (
+            <section>
               <div className={s.sectionHeading}>
                 <div>
-                  <h2>
-                    {q.stage === 'needs-info'
-                      ? 'Complete os dados da carga'
-                      : 'Rascunho da solicitação'}
-                  </h2>
+                  <h2>Rascunho da solicitação</h2>
                   <p>
-                    {q.stage === 'needs-info'
-                      ? 'Complete os campos pendentes. Os dados já informados estão preservados.'
-                      : 'Continue de onde parou. Você pode preparar os dados agora e revisar o envio depois.'}
+                    O mesmo formulário de uma nova cotação, com os dados já
+                    preenchidos. Salve para continuar depois ou revise o envio.
                   </p>
                 </div>
-                <span className={s.subtleTag}>
-                  {formsComplete ? 'Pronto para revisar' : 'Ainda não enviada'}
-                </span>
+                <span className={s.subtleTag}>Ainda não enviada</span>
               </div>
-              <form onSubmit={completeForm} noValidate>
-                <h3>Dados já preenchidos</h3>
-                <div className={s.fields + ' ' + s.draftFields}>
-                  {(
-                    [
-                      ['supplier', 'Fornecedor'],
-                      ['po', 'Pedido / PO'],
-                      ['product', 'Mercadoria'],
-                      ['pickup', 'Local de coleta'],
-                      ['readyDate', 'Carga pronta em'],
-                      ['needDate', 'Necessidade de chegada'],
-                    ] as const
-                  ).map(([field, label]) => (
-                    <label key={field}>
-                      {label}
-                      <input
-                        type={
-                          field === 'readyDate' || field === 'needDate'
-                            ? 'date'
-                            : 'text'
-                        }
-                        value={q[field]}
-                        onChange={(event) =>
-                          update({ [field]: event.target.value })
-                        }
-                        placeholder="Não informado"
-                      />
-                    </label>
-                  ))}
-                </div>
-                <h3 className="mt-6">Dimensões da carga</h3>
-                <div className={s.fields}>
-                  <label>
-                    Peso bruto total <span className={s.required}>*</span>
-                    <div className={s.inputUnit}>
-                      <input
-                        aria-invalid={
-                          formErrors && !validateCargo(q.weight, '1')
-                        }
-                        aria-describedby="weight-hint"
-                        inputMode="decimal"
-                        value={q.weight}
-                        onChange={(e) => update({ weight: e.target.value })}
-                        placeholder="Ex.: 12400"
-                      />
-                      <span>kg</span>
-                    </div>
-                    <small id="weight-hint">
-                      Inclua o peso das embalagens.
-                    </small>
-                  </label>
-                  <label>
-                    Volume total <span className={s.required}>*</span>
-                    <div className={s.inputUnit}>
-                      <input
-                        aria-invalid={
-                          formErrors && !validateCargo('1', q.volume)
-                        }
-                        aria-describedby="volume-hint"
-                        inputMode="decimal"
-                        value={q.volume}
-                        onChange={(e) => update({ volume: e.target.value })}
-                        placeholder="Ex.: 52"
-                      />
-                      <span>m³</span>
-                    </div>
-                    <small id="volume-hint">
-                      Informe o volume da carga embalada.
-                    </small>
-                  </label>
-                </div>
-                {formErrors && (
-                  <p className={s.error} role="alert">
-                    Informe peso e volume maiores que zero. Use vírgula ou ponto
-                    para decimais, sem separador de milhar.
-                  </p>
-                )}
-                <div className={s.formBottom}>
-                  <span>
-                    <Check size={14} /> Rascunho salvo neste navegador
-                  </span>
-                  <div className="flex flex-wrap items-center gap-4">
-                    <button
-                      className={s.textButton}
-                      type="button"
-                      onClick={() =>
-                        setNotice(
-                          'Rascunho mantido neste navegador. A solicitação não foi enviada.',
-                        )
-                      }
-                    >
-                      Continuar depois
-                    </button>
-                    <button className={s.primary} type="submit">
-                      {q.stage === 'needs-info'
-                        ? 'Revisar dados'
-                        : 'Revisar solicitação'}
-                      <ArrowRight size={16} />
-                    </button>
-                  </div>
-                </div>
-              </form>
+              <DraftRequestForm
+                key={q.id}
+                quotation={q}
+                onSave={(patch) => {
+                  update(patch);
+                  setNotice(
+                    'Rascunho salvo neste navegador. A solicitação não foi enviada.',
+                  );
+                }}
+                onReview={(patch) => {
+                  update({ ...patch, stage: 'draft' });
+                  openModal('dispatch');
+                }}
+              />
             </section>
           )}
 
@@ -1681,7 +1567,7 @@ export default function QuotationPreview({
                 </div>
                 <div>
                   <dt>Rota</dt>
-                  <dd>Busan → Santos</dd>
+                  <dd>{q.origin} → {q.destination}</dd>
                 </div>
                 <div>
                   <dt>Necessidade no porto</dt>
