@@ -4,3 +4,4 @@ frontend/.next
 frontend/.env*
 .env*
 .git
+**/*.log

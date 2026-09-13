@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Map as MapIcon, List, Bell, Plus } from 'lucide-react';
@@ -12,27 +12,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMyQuotations } from '@/hooks/use-portal-quotations';
 import { useMyShipments } from '@/hooks/use-portal-shipments';
 
-import { useAlertTypePreferences } from '../_shared/alert-type-preferences';
 import { PagePortalHeader } from '../_shared/page-header';
 import { flattenQuotations } from '../inteligencia/lib/intel-helpers';
-import { computePriceRadar } from '../inteligencia/lib/price-radar';
+
 import { ShipmentMapWorkspace } from './components/shipment-map-workspace';
+import { ShipmentAlertsPreview } from './components/shipment-alerts-preview';
 import { ShipmentListTab } from './components/shipment-list-tab';
-import { ShipmentAlertsTab } from './components/shipment-alerts-tab';
-import { buildPriceAlerts } from './lib/price-alerts';
-import { buildShipmentAlerts } from './lib/shipment-alerts';
+
 import {
   SHIPMENT_FILTERS,
   type ShipmentFilterKey,
 } from './lib/shipment-filters';
 
-const READ_KEY = 'portal:shipment-alerts:read';
-
-// Ordem = prioridade de uso, não de impacto visual. Lista primeiro (é a tela do
-// dia a dia e por isso a aba padrão), Alertas em segundo (é o que exige ação),
-// Mapa por último: ele ilustra bem, mas não responde nenhuma pergunta
-// operacional que a Lista já não responda melhor.
-const TABS = ['lista', 'alertas', 'mapa'] as const;
+// Navegação do panorama da carteira ao detalhe e às ocorrências.
+const TABS = ['mapa', 'lista', 'alertas'] as const;
 type ShipmentTab = (typeof TABS)[number];
 
 const isShipmentTab = (value: string | null): value is ShipmentTab =>
@@ -62,7 +55,7 @@ function PortalEmbarquesContent() {
   const filtroParam = searchParams.get('filtro');
   const initialMapFilter = isShipmentFilterKey(filtroParam) ? filtroParam : null;
   const [tab, setTab] = useState<ShipmentTab>(
-    isShipmentTab(tabParam) ? tabParam : 'lista',
+    isShipmentTab(tabParam) ? tabParam : 'mapa',
   );
   const [searchOpen, setSearchOpen] = useState(buscaParam === '1');
 
@@ -75,77 +68,10 @@ function PortalEmbarquesContent() {
     router.replace('/portal/embarques?tab=lista', { scroll: false });
   }, [tabParam, buscaParam, router]);
 
-  // As cotações não são desta tela: elas entram porque o Radar de Preços resolve
-  // a rota de um embarque pela cotação que o originou (`routePartsOf`), e é a
-  // MESMA resolução que o Mapa e "Rotas com maiores desvios" usam. Sem elas, a
-  // notificação de preço nomearia uma rota diferente da que o Radar mostra.
+  // The existing shipment list uses its originating quotation context.
   const { data: quotationsData } = useMyQuotations();
 
-  // Quando a leitura de preço foi feita. Fixado no mount: recalcular a cada
-  // render mudaria o carimbo do alerta enquanto o cliente lê a lista. Ver a
-  // justificativa da data em `lib/price-alerts.ts`.
-  const observedAt = useMemo(() => new Date().toISOString(), []);
-
-  const alerts = useMemo(() => {
-    const routes = computePriceRadar({
-      shipments,
-      quotations: flattenQuotations(quotationsData),
-    });
-    // Eventos da aba Alertas, incluindo os sinais de preço.
-    // continuarem lendo a mesma coisa. A ordenação é de quem exibe
-    // (`sortAlertsForFeed`), não daqui.
-    return [
-      ...buildShipmentAlerts(shipments),
-      ...buildPriceAlerts({ routes, observedAt }),
-    ];
-  }, [shipments, quotationsData, observedAt]);
-
-  // Quais tipos o cliente quer receber: mesma preferência editável em Minhas
-  // Preferências > Notificações, por isso vem do módulo compartilhado e não de
-  // um estado local (ver `_shared/alert-type-preferences.ts`).
-  const { enabledTypes, toggleType } = useAlertTypePreferences();
-
-  // O que já foi lido é local desta tela — não é configuração de conta.
-  // Semeado do localStorage após o mount para evitar hydration mismatch.
-  const [readList, setReadList] = useState<string[]>([]);
-
-  useEffect(() => {
-    try {
-      const r = localStorage.getItem(READ_KEY);
-      if (r) setReadList(JSON.parse(r));
-    } catch {
-      // ignore corrupt/unavailable storage — defaults stand
-    }
-  }, []);
-
-  const readIds = useMemo(() => new Set(readList), [readList]);
-
-  const persistRead = (next: string[]) => {
-    setReadList(next);
-    try {
-      localStorage.setItem(READ_KEY, JSON.stringify(next));
-    } catch {
-      // ignore
-    }
-  };
-
-  const handleMarkRead = (id: string) => {
-    if (readIds.has(id)) return;
-    persistRead([...readList, id]);
-  };
-
-  const handleMarkAllRead = () => {
-    const visibleIds = alerts
-      .filter((a) => enabledTypes.has(a.type))
-      .map((a) => a.id);
-    persistRead(Array.from(new Set([...readList, ...visibleIds])));
-  };
-
-  const unreadCount = alerts.filter(
-    (a) => enabledTypes.has(a.type) && !readIds.has(a.id),
-  ).length;
-
-  if (isError) return <ErrorComponent />;
+  if (isError && tab !== 'alertas') return <ErrorComponent />;
 
   const subtitle = isLoading
     ? undefined
@@ -161,13 +87,13 @@ function PortalEmbarquesContent() {
     <div className="space-y-9">
       <PagePortalHeader title="Meus Embarques" subtitle={subtitle} />
 
-      {isLoading ? (
+      {isLoading && tab !== 'alertas' ? (
         <div className="space-y-3">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
         </div>
-      ) : shipments.length === 0 ? (
+      ) : shipments.length === 0 && tab !== 'alertas' ? (
         <div className="space-y-4 rounded-xl border border-dashed border-border bg-muted/20 p-10 text-center">
           <div className="space-y-1">
             <p className="portal-h3">
@@ -192,22 +118,17 @@ function PortalEmbarquesContent() {
           className="space-y-6"
         >
           <TabsList>
+            <TabsTrigger value="mapa" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
+              <MapIcon className="h-4 w-4" />
+              Panorama
+            </TabsTrigger>
             <TabsTrigger value="lista" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
               <List className="h-4 w-4" />
-              Lista
+              Embarques
             </TabsTrigger>
             <TabsTrigger value="alertas" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
               <Bell className="h-4 w-4" />
               Alertas
-              {unreadCount > 0 && (
-                <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
-                  {unreadCount}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="mapa" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
-              <MapIcon className="h-4 w-4" />
-              Mapa
             </TabsTrigger>
           </TabsList>
 
@@ -225,17 +146,7 @@ function PortalEmbarquesContent() {
           </TabsContent>
 
           <TabsContent value="alertas" className="space-y-4">
-            <p className="portal-small text-portal-neutral">
-              Veja o que mudou nos seus embarques e o que precisa da sua atenção.
-            </p>
-            <ShipmentAlertsTab
-              alerts={alerts}
-              readIds={readIds}
-              enabledTypes={enabledTypes}
-              onToggleType={toggleType}
-              onMarkRead={handleMarkRead}
-              onMarkAllRead={handleMarkAllRead}
-            />
+            <ShipmentAlertsPreview />
           </TabsContent>
 
           {/* Mapa amplo, resumo contextual e a mesma carteira priorizada. */}
