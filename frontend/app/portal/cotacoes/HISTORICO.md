@@ -27,3 +27,11 @@ These models are not yet merged with the standalone previa-habituais catalogue o
 Browser checks: history search; detail link with retained filters; closed conference and document action; cleared occurrence fields; save draft; new Kanban card/count; resume with supplier, PO and notes intact; desktop and 390px history layout with readable actions. No document upload or real dispatch was performed. The simulated dispatch end-to-end UI and full keyboard/accessibility audit were not exercised.
 
 No deployment in this revision. Other threads have since published Radar, Inteligência and Central de trabalho. Reconcile with the current public base before any future deployment; do not publish this older base wholesale.
+
+## Approved workspace — local revision, 2026-09-13
+
+User requested a separate Aprovadas tab to facilitate shipment opening. /portal/cotacoes?tab=aprovadas includes APROVADA_PELO_CLIENTE and FECHADA; client approvals leave the choice column. Closed quotations remain in history, making this an operational cross-section rather than another terminal state. Default filter is no linked shipment; linked/all filters and search are available.
+
+Shipment links resolve only through quotation_id from the portal shipment list. Review guard, existing sent SI and unknown lookup status prevent a new opening action. Request registration is explicitly simulated, stored under centrix-opening-requests-v1:<clientId>, and does not send an SI, contact the team or create a shipment. Existing SI generation/dispatch in detail remains unchanged. A saved request can be inspected and does not offer duplicate registration. Real opening workflow integration and reconciliation of analyst-created requests remain pending.
+
+Verification: 20 focused tests (approval classification/stage precedence, history and cards) and TypeScript passed. Browser showed two quotations without a shipment and three with links; request dialog/save/state change and mobile tabs/layout checked. Production publication remains pending; preserve current concurrent public modules when integrating.
