@@ -39,5 +39,8 @@ export function IntelligencePreview({ initialSection = 'performance' }: { initia
     return () => { iframe.removeEventListener('load', loaded); disconnect(); };
   }, [source, initialSection]);
 
-  return source ? <iframe ref={frame} src={source} title="Inteligência Centrix — Performance, Parceiros, Rotas e locais, Relatórios e Assistentes" className="block w-full border-0" style={{ height: 'calc(100dvh - 150px)', minHeight: 580 }} /> : <p role="status">Carregando Inteligência…</p>;
+  return source ? <>
+    <style>{`@media(max-width:767px){main:has(iframe[data-intelligence])>header{flex-wrap:wrap;gap:8px}}`}</style>
+    <iframe data-intelligence ref={frame} src={source} title="Inteligência Centrix — Performance, Parceiros, Rotas e locais, Relatórios e Assistentes" className="block w-full border-0" style={{ height: 'calc(100dvh - 150px)', minHeight: 580 }} />
+  </> : <p role="status">Carregando Inteligência…</p>;
 }

@@ -61,6 +61,11 @@ const NAV_ITEMS = [
     icon: Sparkles,
   },
   {
+    href: '/portal/inteligencia/radar',
+    label: 'Radar',
+    icon: Radar,
+  },
+  {
     href: '/portal/auditoria',
     label: 'Auditoria',
     icon: Scale,
