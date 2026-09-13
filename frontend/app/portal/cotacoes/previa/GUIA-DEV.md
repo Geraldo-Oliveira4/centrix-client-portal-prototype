@@ -52,3 +52,11 @@ A rota /portal/cotacao/[id] usa o ID e os valores do backend existente, seleçã
 O contrato atual não fornece ETA, saída, free time nem pendências estruturadas com responsável/data: o detalhe não inventa essas informações e mantém o complemento pelo fluxo existente. As 14 variações mostram a experiência futura completa para o dev. Mercado usa o fator ilustrativo existente (1,08) sobre uma referência única da cotação; métricas do Raio X são amostras demonstrativas estáveis por agente. A lista de embarques é consultada separadamente e informa seu recorte. A validade na rota dos cartões usa o dia atual; as variações preservam o relógio fixo.
 
 Verificação desta conexão: 18 testes de cotação, 275 de regressão e build/TypeScript. Revisão visual automatizada pendente: navegador do Codex falhou ao abrir nesta rodada.
+
+## Revisão local de 13/09 — preparo, espera e programação
+
+Agora são 15 variações. [Rascunho preenchido](http://localhost:3014/portal/cotacoes/previa?cenario=envio), [dados pendentes](http://localhost:3014/portal/cotacoes/previa?cenario=complementar), [espera](http://localhost:3014/portal/cotacoes/previa?cenario=aguardando), [parciais](http://localhost:3014/portal/cotacoes/previa?cenario=parciais) e [envio programado](http://localhost:3014/portal/cotacoes/previa?cenario=programado).
+
+O rascunho preserva e permite editar dados comerciais, coleta, datas, peso e volume. Continuar depois não envia; Revisar abre destinatários e escolha entre enviar agora e programar. Programar exige data futura no relógio demonstrativo (13/09/2026, 10:30 Brasília). Estado programado mantém sentAt vazio; editar/cancelar preserva dados. Nenhum job real é criado e a prévia não envia mensagens. Integração requer persistência do rascunho, agendamento com timezone, revalidação no disparo, resultado de envio e cancelamento idempotente.
+
+No detalhe alimentado pela API, o preparo usa dados disponíveis e a ação de complemento existente; montagem RFQ mantém os endpoints originais. Não interpretar AGUARDANDO_DADOS como garantia de não envio nem ocultação ao cliente. Espera e parciais usam tabela compartilhada; condições recebidas ficam recolhidas. Verificadas edição/reload, programação/cancelamento, espera/parciais e detalhes correspondentes com API. 27 testes e TypeScript passaram. Revisão local ainda não publicada.

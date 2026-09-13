@@ -19,6 +19,7 @@ import {
   useQuotationAgents,
 } from '@/hooks/use-portal-quotations';
 import {
+  buildNeedsInfoMailto,
   canAssembleRfq,
   canCancel,
   canDecide,
@@ -57,7 +58,6 @@ import { QuotationFooterCard } from './components/quotation-footer-card';
 import { AuditPreviewSection } from './components/audit-preview-section';
 import { RiskBlock } from '../../inteligencia/components/risk-block';
 import {
-  NeedsMoreInfoBanner,
   GuardRailBlockBanner,
   PendingAnalystReviewBanner,
   SelectionApprovedBanner,
@@ -70,6 +70,12 @@ import {
   illustrativeMarketReference,
 } from '../lib/detail-model';
 import s from '../../cotacoes/previa/quotation-preview.module.css';
+import {
+  ResponseOffers,
+  PreparationSteps,
+  RequestSummary,
+  WaitingResponses,
+} from '../components/quotation-preparation';
 
 const PORTAL_SI_API: SIApi = {
   api: portal_api,
@@ -130,7 +136,9 @@ function QuotationDetail({
   const assembling =
     portalOrigin && canAssembleRfq(q.state) && !proposals.length;
   const agents = useQuotationAgents(
-    portalOrigin && canAssembleRfq(q.state) ? q.id : null,
+    portalOrigin && (canAssembleRfq(q.state) || q.state === 'PARA_ANALISE')
+      ? q.id
+      : null,
   );
   const pendingReview = isPendingAnalystReview(q.state);
   const underReview = pendingReview && !!q.guard_rail_active;
@@ -254,15 +262,41 @@ function QuotationDetail({
       {q.guard_rail_block_reason && (
         <GuardRailBlockBanner reason={q.guard_rail_block_reason} />
       )}
+      {(needsInfo || waiting) && (
+        <PreparationSteps
+          waiting={!needsInfo && (!assembling || agents.rfqDispatched)}
+        />
+      )}
       {needsInfo && (
-        <section className={s.panel + ' ' + s.formPanel}>
-          <h2>Complete os dados da solicitação</h2>
-          <p className={s.muted}>
-            Confira o pedido da Freitas e os dados já informados antes de
-            prosseguir.
-          </p>
-          <NeedsMoreInfoBanner quotation={q} />
-        </section>
+        <RequestSummary
+          rows={[
+            { label: 'Fornecedor', value: q.exporter_name },
+            { label: 'Pedido / PO', value: q.client_reference },
+            { label: 'Mercadoria', value: q.product },
+            { label: 'Local de coleta', value: q.origin },
+            {
+              label: 'Peso bruto',
+              value: q.totals?.weight_kg ? q.totals.weight_kg + ' kg' : null,
+            },
+            {
+              label: 'Volume',
+              value: q.totals?.volume_m3 ? q.totals.volume_m3 + ' m³' : null,
+            },
+          ]}
+        >
+          <div className={s.waitFooter}>
+            <p>
+              Os dados registrados estão preservados. Campos não informados
+              precisam ser conferidos antes do envio.
+            </p>
+            <a
+              className={s.textButton}
+              href={buildNeedsInfoMailto(q.reference)}
+            >
+              Complementar por e-mail <ArrowRight size={14} />
+            </a>
+          </div>
+        </RequestSummary>
       )}
       {assembling &&
         (agents.isLoading ? (
@@ -286,52 +320,29 @@ function QuotationDetail({
           />
         ))}
       {waiting && (!assembling || agents.rfqDispatched) && (
-        <section className={s.panel + ' ' + s.formPanel}>
-          <h2>
-            {proposals.length
-              ? 'As primeiras propostas chegaram'
-              : 'Estamos aguardando as propostas'}
-          </h2>
-          <p className={s.muted}>
-            A Freitas acompanha as respostas. A escolha fica disponível após a
-            liberação das propostas.
-          </p>
-          <dl className={s.dataGrid}>
-            <div>
-              <dt>Propostas recebidas</dt>
-              <dd>{proposals.length}</dd>
-            </div>
-            <div>
-              <dt>Prazo solicitado para resposta</dt>
-              <dd>
-                {q.desired_deadline
-                  ? formatDate(q.desired_deadline, {
-                      day: '2-digit',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })
-                  : 'A confirmar'}
-              </dd>
-            </div>
-          </dl>
-          {agents.selectedAgentIds.length > 0 && (
-            <div>
-              {agents.selectedAgentIds.map((id) => {
-                const agent = agents.agents.find((a) => a.id === id);
-                const received = proposals.some((p) => p.agent_id === id);
-                return (
-                  <div className={s.documentRow} key={id}>
-                    <strong>{agent?.name || 'Agente convidado'}</strong>
-                    <span>
-                      {received ? 'Proposta recebida' : 'Aguardando resposta'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
+        <WaitingResponses
+          count={proposals.length}
+          deadline={q.desired_deadline ? formatDate(q.desired_deadline) : null}
+          loading={agents.isLoading}
+          unavailable={agents.isError}
+          rows={Array.from(
+            new Set([
+              ...agents.selectedAgentIds,
+              ...proposals.map((p) => p.agent_id),
+            ]),
+          ).map((id) => ({
+            id,
+            name:
+              agents.agents.find((a) => a.id === id)?.name ||
+              proposals.find((p) => p.agent_id === id)?.agent?.name ||
+              'Agente convidado',
+            received: proposals.some((p) => p.agent_id === id),
+          }))}
+          onRefresh={() => {
+            refresh();
+            void agents.mutate();
+          }}
+        />
       )}
       {underReview && <PendingAnalystReviewBanner proposal={winner} />}
       {pendingReview && !underReview && (
@@ -366,188 +377,194 @@ function QuotationDetail({
       )}
 
       {proposals.length > 0 && (
-        <section className={s.panel}>
-          <div className={s.sectionHeading}>
-            <div>
-              <h2>
-                {deciding
-                  ? 'Compare e escolha sua proposta'
-                  : 'Propostas recebidas'}
-              </h2>
-              <p>
-                {deciding
-                  ? 'Veja o valor, o prazo e o que muda entre as ofertas.'
-                  : 'Condições disponíveis para consulta.'}
-              </p>
+        <ResponseOffers waiting={waiting} count={proposals.length}>
+          <section className={s.panel}>
+            <div className={s.sectionHeading}>
+              <div>
+                <h2>
+                  {deciding
+                    ? 'Compare e escolha sua proposta'
+                    : 'Propostas recebidas'}
+                </h2>
+                <p>
+                  {deciding
+                    ? 'Veja o valor, o prazo e o que muda entre as ofertas.'
+                    : 'Condições disponíveis para consulta.'}
+                </p>
+              </div>
+              <span className={s.muted}>{proposals.length} ofertas</span>
             </div>
-            <span className={s.muted}>{proposals.length} ofertas</span>
-          </div>
-          <div className={s.tableWrap}>
-            <table className={s.offersTable}>
-              <thead>
-                <tr>
-                  <th>
-                    <span className={s.srOnly}>Selecionar</span>
-                  </th>
-                  <th>Agente / armador</th>
-                  <th>Valor informado</th>
-                  <th>
-                    Prazo e chegada
-                    {q.data_limite_necessidade && (
-                      <small className={s.needReference}>
-                        Necessária até {formatDate(q.data_limite_necessidade)}
-                      </small>
-                    )}
-                  </th>
-                  <th>Condições</th>
-                  <th>Validade</th>
-                  <th>
-                    <span className={s.srOnly}>Detalhes</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {proposals.map((p) => {
-                  const issue = proposalIssue(p);
-                  const selected = (winner?.id ?? chosen?.id) === p.id;
-                  const difference =
-                    marketReference && p.total_brl > 0
-                      ? Math.round((1 - p.total_brl / marketReference) * 100)
-                      : null;
-                  return (
-                    <React.Fragment key={p.id}>
-                      <tr
-                        className={
-                          (selected ? s.selectedRow : '') +
-                          ' ' +
-                          (deciding && !issue ? s.selectableRow : '')
-                        }
-                        onClick={(event) => {
-                          if (
-                            !(event.target as HTMLElement).closest(
-                              'button, input, a, summary',
+            <div className={s.tableWrap}>
+              <table className={s.offersTable}>
+                <thead>
+                  <tr>
+                    <th>
+                      <span className={s.srOnly}>Selecionar</span>
+                    </th>
+                    <th>Agente / armador</th>
+                    <th>Valor informado</th>
+                    <th>
+                      Prazo e chegada
+                      {q.data_limite_necessidade && (
+                        <small className={s.needReference}>
+                          Necessária até {formatDate(q.data_limite_necessidade)}
+                        </small>
+                      )}
+                    </th>
+                    <th>Condições</th>
+                    <th>Validade</th>
+                    <th>
+                      <span className={s.srOnly}>Detalhes</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {proposals.map((p) => {
+                    const issue = proposalIssue(p);
+                    const selected = (winner?.id ?? chosen?.id) === p.id;
+                    const difference =
+                      marketReference && p.total_brl > 0
+                        ? Math.round((1 - p.total_brl / marketReference) * 100)
+                        : null;
+                    return (
+                      <React.Fragment key={p.id}>
+                        <tr
+                          className={
+                            (selected ? s.selectedRow : '') +
+                            ' ' +
+                            (deciding && !issue ? s.selectableRow : '')
+                          }
+                          onClick={(event) => {
+                            if (
+                              !(event.target as HTMLElement).closest(
+                                'button, input, a, summary',
+                              )
                             )
-                          )
-                            select(p);
-                        }}
-                      >
-                        <td data-label="Selecionar">
-                          <input
-                            type="radio"
-                            name="proposal"
-                            aria-label={
-                              'Selecionar oferta de ' +
-                              (p.agent?.name || 'agente')
-                            }
-                            checked={selected}
-                            disabled={!deciding || !!issue}
-                            onClick={() => setInspected(null)}
-                            onChange={() => select(p)}
-                          />
-                        </td>
-                        <td data-label="Agente / armador">
-                          <strong className={s.agentName}>
-                            {p.agent?.name || 'Agente não informado'}
-                          </strong>
-                          <small>{p.carrier || 'Armador não informado'}</small>
-                          {p.is_winner ? (
-                            <span className={s.recommendedTag}>Escolhida</span>
-                          ) : recommended?.id === p.id ? (
-                            <span className={s.recommendedTag}>
-                              <Sparkles size={11} /> Recomendada
-                            </span>
-                          ) : null}
-                        </td>
-                        <td data-label="Valor informado">
-                          <strong className={s.price}>
-                            {formatBRL(p.total_brl)}
-                          </strong>
-                          {difference !== null && (
-                            <small className={s.marketComparison}>
-                              {difference === 0
-                                ? 'Próximo da referência de mercado'
-                                : `${Math.abs(difference)}% ${difference > 0 ? 'abaixo' : 'acima'} do mercado`}
-                            </small>
-                          )}
-                          <small>Confira a composição e as exclusões</small>
-                        </td>
-                        <td data-label="Prazo e chegada">
-                          <strong>
-                            {p.transit_time == null
-                              ? 'Trânsito não informado'
-                              : p.transit_time + ' dias de trânsito'}
-                          </strong>
-                          <small>Data de chegada a confirmar</small>
-                        </td>
-                        <td data-label="Condições">
-                          <strong>
-                            {p.route_type
-                              ? PROPOSAL_ROUTE_TYPE_LABELS[p.route_type]
-                              : 'Rota a confirmar'}
-                          </strong>
-                          <small>
-                            {p.insurance_included
-                              ? 'Seguro incluído'
-                              : 'Seguro não incluído'}
-                          </small>
-                          <small>
-                            {p.prazo_pagamento_dias == null
-                              ? 'Pagamento a confirmar'
-                              : 'Pagamento em ' +
-                                p.prazo_pagamento_dias +
-                                ' dias'}
-                          </small>
-                        </td>
-                        <td data-label="Validade">
-                          <strong>{formatDate(p.validity)}</strong>
-                          {issue && (
-                            <small className={s.warningText}>{issue}</small>
-                          )}
-                        </td>
-                        <td>
-                          <button
-                            className={s.detailButton}
-                            aria-label={
-                              'Detalhes de ' + (p.agent?.name || 'agente')
-                            }
-                            aria-expanded={expanded === p.id}
-                            onClick={() =>
-                              setExpanded(expanded === p.id ? null : p.id)
-                            }
-                          >
-                            {expanded === p.id ? (
-                              <ChevronDown size={18} />
-                            ) : (
-                              <ChevronRight size={18} />
-                            )}
-                            <span className={s.mobileOnly}>Ver detalhes</span>
-                          </button>
-                        </td>
-                      </tr>
-                      {expanded === p.id && (
-                        <tr className={s.expansionRow}>
-                          <td colSpan={7}>
-                            <ProposalDetails
-                              proposal={p}
-                              marketReference={marketReference}
+                              select(p);
+                          }}
+                        >
+                          <td data-label="Selecionar">
+                            <input
+                              type="radio"
+                              name="proposal"
+                              aria-label={
+                                'Selecionar oferta de ' +
+                                (p.agent?.name || 'agente')
+                              }
+                              checked={selected}
+                              disabled={!deciding || !!issue}
+                              onClick={() => setInspected(null)}
+                              onChange={() => select(p)}
                             />
                           </td>
+                          <td data-label="Agente / armador">
+                            <strong className={s.agentName}>
+                              {p.agent?.name || 'Agente não informado'}
+                            </strong>
+                            <small>
+                              {p.carrier || 'Armador não informado'}
+                            </small>
+                            {p.is_winner ? (
+                              <span className={s.recommendedTag}>
+                                Escolhida
+                              </span>
+                            ) : recommended?.id === p.id ? (
+                              <span className={s.recommendedTag}>
+                                <Sparkles size={11} /> Recomendada
+                              </span>
+                            ) : null}
+                          </td>
+                          <td data-label="Valor informado">
+                            <strong className={s.price}>
+                              {formatBRL(p.total_brl)}
+                            </strong>
+                            {difference !== null && (
+                              <small className={s.marketComparison}>
+                                {difference === 0
+                                  ? 'Próximo da referência de mercado'
+                                  : `${Math.abs(difference)}% ${difference > 0 ? 'abaixo' : 'acima'} do mercado`}
+                              </small>
+                            )}
+                            <small>Confira a composição e as exclusões</small>
+                          </td>
+                          <td data-label="Prazo e chegada">
+                            <strong>
+                              {p.transit_time == null
+                                ? 'Trânsito não informado'
+                                : p.transit_time + ' dias de trânsito'}
+                            </strong>
+                            <small>Data de chegada a confirmar</small>
+                          </td>
+                          <td data-label="Condições">
+                            <strong>
+                              {p.route_type
+                                ? PROPOSAL_ROUTE_TYPE_LABELS[p.route_type]
+                                : 'Rota a confirmar'}
+                            </strong>
+                            <small>
+                              {p.insurance_included
+                                ? 'Seguro incluído'
+                                : 'Seguro não incluído'}
+                            </small>
+                            <small>
+                              {p.prazo_pagamento_dias == null
+                                ? 'Pagamento a confirmar'
+                                : 'Pagamento em ' +
+                                  p.prazo_pagamento_dias +
+                                  ' dias'}
+                            </small>
+                          </td>
+                          <td data-label="Validade">
+                            <strong>{formatDate(p.validity)}</strong>
+                            {issue && (
+                              <small className={s.warningText}>{issue}</small>
+                            )}
+                          </td>
+                          <td>
+                            <button
+                              className={s.detailButton}
+                              aria-label={
+                                'Detalhes de ' + (p.agent?.name || 'agente')
+                              }
+                              aria-expanded={expanded === p.id}
+                              onClick={() =>
+                                setExpanded(expanded === p.id ? null : p.id)
+                              }
+                            >
+                              {expanded === p.id ? (
+                                <ChevronDown size={18} />
+                              ) : (
+                                <ChevronRight size={18} />
+                              )}
+                              <span className={s.mobileOnly}>Ver detalhes</span>
+                            </button>
+                          </td>
                         </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className={s.tableNote}>
-            <Info size={14} />
-            <span>
-              O prazo de trânsito não confirma uma data de chegada. Confira
-              saída, taxas, free time e entrega final antes de escolher.
-            </span>
-          </div>
-        </section>
+                        {expanded === p.id && (
+                          <tr className={s.expansionRow}>
+                            <td colSpan={7}>
+                              <ProposalDetails
+                                proposal={p}
+                                marketReference={marketReference}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className={s.tableNote}>
+              <Info size={14} />
+              <span>
+                O prazo de trânsito não confirma uma data de chegada. Confira
+                saída, taxas, free time e entrega final antes de escolher.
+              </span>
+            </div>
+          </section>
+        </ResponseOffers>
       )}
 
       {deciding && (
@@ -580,7 +597,7 @@ function QuotationDetail({
           </div>
         </section>
       )}
-      {profile && !cancelled && !needsInfo && (
+      {profile && !cancelled && !needsInfo && !waiting && (
         <AgentProfile
           quotation={q}
           proposal={profile}

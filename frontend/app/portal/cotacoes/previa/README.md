@@ -26,7 +26,7 @@ Guia para desenvolvimento: [GUIA-DEV.md](./GUIA-DEV.md), com links das 14 varia�
 
 ## Escopo e dados
 
-14 cenários: comparação, complemento, rascunho, dados completos para revisão do envio, espera, parciais, escolha em análise, liberada, devolvida, fechada, vencidas, falta de dados, recusada e cancelada. Relógio demonstrativo fixo em 13/09/2026. Empresas, ofertas, documentos e métricas são fictícios. Chegadas provêm das datas nas fixtures; não são hoje + trânsito. Valores em BRL por contêiner, cobertura explícita; custos ausentes não viram zero.
+15 cenários (incluindo envio programado aos agentes): comparação, complemento, rascunho, dados completos para revisão do envio, espera, parciais, escolha em análise, liberada, devolvida, fechada, vencidas, falta de dados, recusada e cancelada. Relógio demonstrativo fixo em 13/09/2026. Empresas, ofertas, documentos e métricas são fictícios. Chegadas provêm das datas nas fixtures; não são hoje + trânsito. Valores em BRL por contêiner, cobertura explícita; custos ausentes não viram zero.
 
 Comparação por oferta, seleção explícita, composição expansível, recomendação pelo menor valor completo que atende à necessidade no porto, histórico e referência de mercado. Validade/escopo/estado são rechecados na confirmação. Escolha leva à revisão; liberar, devolver, fechar e receber respostas são controles de simulação. Formulário valida peso/volume, mantém campos preenchidos e permite revisar destinatários antes do envio simulado. Recusa/cancelamento guardam motivo e histórico. Falha simulada conserva escolha.
 
@@ -43,3 +43,11 @@ Regressão de seleção: escolher Beta → consultar Gamma no Raio X → clicar 
 `npm run test:quotation-preview` verifica regras de recomendação, validade/escopo, estados e datas. `npm run build` verifica a rota nativa e tipos. Revisão por navegador: comparação/seleção, erro/repetição, persistência, complemento/envio com destinatário único, chegada de propostas, detalhes e responsividade. Registrar resultados efetivos no esquema vivo do vault.
 
 Plano canônico: `C:\SecondBrain_local\SB_Vini\03_Projetos\Cliente\Ativos\Freitas_Comex\Centrix_SaaS\Plano_Telas_Detalhe_Cotacao.md`. Estado e evidências: `Esquema_Vivo_Portal.md` no mesmo diretório. Deploy do detalhamento autorizado em 13/09/2026, incluindo abertura pelos cartões sem alteração do Kanban. Ver limites da conexão no GUIA-DEV.md.
+
+## Early quotation stages — local revision, 2026-09-13
+
+Preparation and waiting now share the comparison page typography, spacing, context and table treatment. The live detail uses a compact data summary for missing information, an inline RFQ form for an explicitly undispatched request, and agent response rows for waiting/partial responses. Partial offer conditions are collapsed under Consultar propostas; no agent profile or recommendation is presented during waiting. Existing RFQ save/dispatch actions and the email complement fallback are preserved; no business mutations were performed during verification.
+
+The interactive prototype at /portal/cotacoes/previa?cenario=rascunho additionally edits supplier, PO, product, pickup and dates, preserving values through the existing browser storage. Continuar depois does not dispatch. Complementar, envio, aguardando and parciais remain direct review scenarios. These draft edits are demonstrative, not a new API persistence contract. AGUARDANDO_DADOS alone does not prove an unsent request or client invisibility. The user clarified that scheduling means sending to agents. The programado scenario and dispatch review demonstrate a Sao Paulo date/time, editing and cancellation, with browser-only persistence. No automatic sender or backend scheduler was implemented.
+
+TypeScript and 27 quotation/card checks passed, including future-date validation and preventing scheduling of sent or incomplete requests. Browser verified draft edit/reload persistence, waiting and partial variants, and the matching API-backed missing-info/partial details. This revision is local, not deployed.

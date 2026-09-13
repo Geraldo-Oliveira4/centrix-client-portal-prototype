@@ -3,6 +3,7 @@ export const TODAY = '2026-09-13';
 export const STORAGE_KEY = 'centrix-quotation-preview-v1';
 export type Stage =
   | 'draft'
+  | 'scheduled'
   | 'needs-info'
   | 'waiting'
   | 'partial'
@@ -47,6 +48,7 @@ export type Quote = {
   stage: Stage;
   offers: Offer[];
   sentAt: string | null;
+  scheduledFor?: string | null;
   responseBy: string | null;
   agentCount: number;
   targetAgents: string[];
@@ -60,6 +62,7 @@ export type Quote = {
 };
 export const labels: Record<Stage, string> = {
   draft: 'Solicitação em preparo',
+  scheduled: 'Envio programado',
   'needs-info': 'Faltam informações',
   waiting: 'Aguardando agentes',
   partial: 'Respostas parciais',
@@ -146,6 +149,7 @@ export const scenarios = [
   ['complementar', 'Completar dados'],
   ['rascunho', 'Solicitação em preparo'],
   ['envio', 'Dados completos · revisar envio'],
+  ['programado', 'Envio programado aos agentes'],
   ['aguardando', 'Aguardando agentes'],
   ['parciais', 'Respostas parciais'],
   ['analise', 'Escolha em análise'],
@@ -211,6 +215,15 @@ export function createQuote(id: string): Quote {
     q.offers = id === 'parciais' ? [q.offers[0]] : [];
     q.events = ['11/09, 09:20 — Solicitação enviada para 3 agentes.'];
     q.reference = id === 'aguardando' ? 'COT-2026-0016' : 'COT-2026-0015';
+  }
+  if (id === 'programado') {
+    q.stage = 'scheduled';
+    q.offers = [];
+    q.sentAt = null;
+    q.scheduledFor = '2026-09-14T09:00';
+    q.events = [
+      '13/09, 10:30 — Envio programado para 14/09 às 09:00 (simulação).',
+    ];
   }
   if (id === 'analise' || id === 'liberada' || id === 'fechada') {
     q.stage =
@@ -298,6 +311,38 @@ export function validateCargo(weight: string, volume: string): boolean {
   const parse = (n: string) =>
     /^\d+([.,]\d+)?$/.test(n.trim()) && Number(n.replace(',', '.')) > 0;
   return parse(weight) && parse(volume);
+}
+
+// Wall-clock time in Sao Paulo; this prototype uses the fixed demo clock.
+export function scheduleRequest(q: Quote, when: string): Quote {
+  if (q.stage !== 'draft' || q.sentAt)
+    throw new Error('Somente um rascunho não enviado pode ser programado.');
+  if (!q.targetAgents.length)
+    throw new Error('Selecione pelo menos um agente.');
+  if (!validateCargo(q.weight, q.volume))
+    throw new Error('Complete peso e volume antes de programar.');
+  const parsed = new Date(when + ':00Z');
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(when) ||
+    !Number.isFinite(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 16) !== when ||
+    when <= TODAY + 'T10:30'
+  )
+    throw new Error(
+      'Escolha uma data e horário após 13/09/2026 às 10:30, no horário de Brasília.',
+    );
+  return {
+    ...q,
+    stage: 'scheduled',
+    scheduledFor: when,
+    sentAt: null,
+    events: [
+      'Agora — Envio programado para ' +
+        when.replace('T', ' às ') +
+        ' (simulação).',
+      ...q.events,
+    ],
+  };
 }
 export const money = (n: number) =>
   new Intl.NumberFormat('pt-BR', {

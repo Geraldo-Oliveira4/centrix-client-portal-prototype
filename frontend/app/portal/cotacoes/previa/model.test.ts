@@ -5,10 +5,42 @@ import {
   recommend,
   decisionError,
   confirmChoice,
+  scheduleRequest,
   validateCargo,
   dayDelta,
   money,
 } from './model.ts';
+
+test('scheduled dispatch preserves the draft data without marking a request sent', () => {
+  const draft = createQuote('envio');
+  const scheduled = scheduleRequest(draft, '2026-09-14T09:00');
+  assert.equal(scheduled.stage, 'scheduled');
+  assert.equal(scheduled.sentAt, null);
+  assert.equal(scheduled.product, draft.product);
+  assert.deepEqual(scheduled.targetAgents, draft.targetAgents);
+  assert.equal(draft.stage, 'draft');
+});
+
+test('scheduled dispatch rejects past, invalid, incomplete or already sent requests', () => {
+  const draft = createQuote('envio');
+  for (const when of [
+    '',
+    '2026-09-12T09:00',
+    '2026-09-31T09:00',
+    '2026-09-14T25:00',
+  ]) {
+    assert.throws(() => scheduleRequest(draft, when));
+  }
+  assert.throws(() =>
+    scheduleRequest(createQuote('rascunho'), '2026-09-14T09:00'),
+  );
+  assert.throws(() =>
+    scheduleRequest({ ...draft, targetAgents: [] }, '2026-09-14T09:00'),
+  );
+  assert.throws(() =>
+    scheduleRequest(createQuote('aguardando'), '2026-09-14T09:00'),
+  );
+});
 
 test('indicação atende o prazo com escopo completo; preço parcial não é menor total', () => {
   const q = createQuote('comparar');

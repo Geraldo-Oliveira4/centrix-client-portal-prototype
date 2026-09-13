@@ -936,6 +936,112 @@
 .formPanel {
   padding: 5px 24px 22px;
 }
+.preparationSteps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  list-style: none;
+  padding: 0 0 20px;
+  margin: 0 0 20px;
+  border-bottom: 1px solid var(--q-line);
+  color: var(--q-muted);
+  font-size: 13px;
+}
+.preparationSteps li,
+.responseState {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.preparationSteps li > span {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--q-line);
+  border-radius: 50%;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 11px;
+}
+.preparationSteps [aria-current='step'] {
+  color: var(--q-ink);
+  font-weight: 600;
+}
+.preparationSteps [aria-current='step'] > span {
+  border-color: var(--q-accent);
+}
+.requestSummary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0 24px 18px;
+  gap: 0 32px;
+}
+.requestSummary > div {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--q-line);
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) 2fr;
+  gap: 14px;
+  font-size: 14px;
+}
+.requestSummary dt {
+  color: var(--q-muted);
+}
+.requestSummary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.responseSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 50px;
+  padding: 0 24px 22px;
+}
+.responseSummary small,
+.responseSummary strong {
+  display: block;
+}
+.responseSummary small {
+  color: var(--q-muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.responseSummary strong {
+  font-size: 15px;
+  font-weight: 500;
+}
+.dispatchNote {
+  padding: 0 24px 18px;
+  color: var(--q-muted);
+  font-size: 13px;
+}
+.draftFields {
+  padding-top: 6px;
+}
+.draftFields input {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--q-line);
+  border-radius: 5px;
+  background: var(--q-surface);
+  color: var(--q-ink);
+  margin-top: 7px;
+}
+@media (max-width: 700px) {
+  .requestSummary {
+    grid-template-columns: 1fr;
+    padding-inline: 16px;
+  }
+  .responseSummary {
+    padding-inline: 16px;
+    gap: 16px 25px;
+  }
+  .preparationSteps {
+    gap: 10px;
+    font-size: 12px;
+  }
+}
 .formPanel > .sectionHeading {
   padding: 20px 0;
 }
@@ -1711,4 +1817,22 @@
     animation: none !important;
     transition: none !important;
   }
+}
+
+.scheduleField {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+  font-size: 14px;
+}
+.scheduleField input {
+  padding: 10px;
+  border: 1px solid var(--q-line);
+  border-radius: 5px;
+  background: var(--q-surface);
+  color: var(--q-ink);
+}
+.scheduleField small {
+  color: var(--q-muted);
+  font-size: 12px;
 }

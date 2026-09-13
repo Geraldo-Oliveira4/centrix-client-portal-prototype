@@ -5,14 +5,19 @@ export const reviewGroups = [
     title: '1. Preencher detalhes',
     items: [
       {
+        id: 'programado',
+        check:
+          'Confira data, horário de Brasília e agentes destinatários. Edite ou cancele a programação mantendo o rascunho. Simulação sem envio automático.',
+      },
+      {
         id: 'rascunho',
         check:
-          'Preencha peso e volume. Revise a solicitação antes de enviar aos agentes.',
+          'Edite os dados preenchidos, complete peso e volume e use Continuar depois. Revisar não envia a solicitação.',
       },
       {
         id: 'complementar',
         check:
-          'Veja o pedido da Freitas, os campos pendentes e a preservação dos dados já informados.',
+          'Veja os dados preservados e complete as dimensões da carga antes de revisar o envio.',
       },
       {
         id: 'envio',
@@ -27,7 +32,7 @@ export const reviewGroups = [
       {
         id: 'aguardando',
         check:
-          'Nenhuma resposta: confira destinatários, prazo de retorno e pedido de atualização à Freitas.',
+          'Nenhuma resposta: confira agentes convidados, prazo solicitado e a etapa atual. Atualizar consulta a situação.',
       },
       {
         id: 'parciais',

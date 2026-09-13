@@ -2268,3 +2268,7 @@ No other env vars exist. All runtime config flows through this single variable.
 - Explicit error handling in every mutation — no silent failures, no bare `catch {}`.
 - Single-responsibility hooks; hooks fetch and mutate, components render.
 - DRY: reuse existing hooks and helpers before adding new ones. Check `hooks/` before writing a new fetcher.
+### Local preparation/waiting revision — 2026-09-13
+
+Quotation preparation and waiting now use shared components in app/portal/cotacao/components/quotation-preparation.tsx. Keep prototype-only editable drafts separate from API-backed RFQ dispatch; never equate missing information with an unsent or client-hidden request. Scheduled sending to agents is demonstrated in the programado scenario with edit/cancel; the backend scheduler is not implemented. Public release is still 95cc4d9.
+
