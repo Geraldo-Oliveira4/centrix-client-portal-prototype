@@ -429,6 +429,18 @@
   letter-spacing: -0.3px;
   white-space: nowrap;
 }
+.offersTable small.marketComparison {
+  color: var(--q-accent);
+  font-weight: 600;
+}
+.marketBasis {
+  border-top: 1px solid var(--q-line);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+.marketBasis p {
+  font-size: 12px;
+}
 .recommendedTag {
   display: inline-flex;
   align-items: center;
@@ -610,11 +622,6 @@
 .insights > section {
   padding: 0 24px 8px 0;
 }
-.insights > section + section {
-  border-top: 1px solid var(--q-line);
-  margin-top: 22px;
-  padding: 24px 0 0;
-}
 .profileHeader {
   display: flex;
   align-items: center;
@@ -695,27 +702,6 @@
 .agentProfile .evidence td:first-child {
   width: 40%;
   padding-right: 16px;
-}
-.insightHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-.insightHeader h2 {
-  font-size: 16px;
-}
-.insightHeader > span {
-  font-size: 12px;
-  color: var(--q-muted);
-}
-.insightHeadline {
-  font-size: 18px;
-  letter-spacing: -0.2px;
-}
-.insightHeadline strong {
-  font-weight: 600;
 }
 .insights .muted {
   font-size: 12px;
@@ -1334,11 +1320,6 @@
   .agentName {
     font-size: 13px;
   }
-  .insightHeader {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 3px;
-  }
 }
 @media (max-width: 900px) {
   .previewbar {
@@ -1572,15 +1553,6 @@
   .insights > section {
     padding: 0;
   }
-  .insights > section + section {
-    border-left: 0;
-    padding: 19px 0 0;
-    border-top: 1px solid var(--q-line);
-  }
-  .insightHeader {
-    flex-direction: row;
-    align-items: center;
-  }
   .profileHeader {
     align-items: stretch;
     flex-direction: column;
@@ -1593,9 +1565,6 @@
     border-left: 0;
     border-top: 1px solid var(--q-line);
     padding: 16px 0 0;
-  }
-  .insightHeadline {
-    font-size: 18px;
   }
   .decisionBar {
     bottom: 8px;

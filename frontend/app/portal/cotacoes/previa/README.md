@@ -34,6 +34,8 @@ Raio X do agente: seção final da comparação com pontualidade, divergências 
 
 ## Verificação
 
+Mercado fica junto ao preço de cada oferta completa, sem faixa isolada. Os detalhes de custos mostram mediana, amostra/período, rota e cobertura; ofertas incompletas não exibem percentual. Percentuais são arredondados, calculados sobre a mesma mediana demonstrativa de R$ 24.100.
+
 Regressão de seleção: escolher Beta → consultar Gamma no Raio X → clicar novamente no rádio de Beta deve restaurar o perfil de Beta. Clicar no nome/área da linha de Alpha deve selecionar Alpha e atualizar o perfil; abrir Detalhes não deve alterar a escolha. Ofertas inválidas/incompletas continuam bloqueadas. A necessidade de chegada tem destaque próprio no contexto e referência na coluna de chegada, mantendo a distinção entre porto e fábrica.
 
 `npm run test:quotation-preview` verifica regras de recomendação, validade/escopo, estados e datas. `npm run build` verifica a rota nativa e tipos. Revisão por navegador: comparação/seleção, erro/repetição, persistência, complemento/envio com destinatário único, chegada de propostas, detalhes e responsividade. Registrar resultados efetivos no esquema vivo do vault.

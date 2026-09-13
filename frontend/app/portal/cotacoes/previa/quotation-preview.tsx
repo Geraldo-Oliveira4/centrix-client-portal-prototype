@@ -55,6 +55,7 @@ type Modal =
 const terminal = (stage: Stage) =>
   ['closed', 'declined', 'cancelled'].includes(stage);
 const scenarioExists = (id: string) => scenarios.some(([key]) => key === id);
+const marketMedian = 24100;
 
 export default function QuotationPreview({
   initialScenario,
@@ -800,6 +801,9 @@ export default function QuotationPreview({
                     {q.offers.map((o) => {
                       const rec = recommended?.id === o.id;
                       const selected = selection === o.id;
+                      const marketDifference = Math.round(
+                        (1 - o.total / marketMedian) * 100,
+                      );
                       const selectable = canCompare && !decisionError(q, o.id);
                       const late =
                         o.arrival && q.needDate
@@ -855,6 +859,13 @@ export default function QuotationPreview({
                               <strong className={s.price}>
                                 {money(o.total)}
                               </strong>
+                              {canCompare && o.complete && (
+                                <small className={s.marketComparison}>
+                                  {marketDifference === 0
+                                    ? 'Próximo da referência de mercado'
+                                    : `${Math.abs(marketDifference)}% ${marketDifference > 0 ? 'abaixo' : 'acima'} do mercado`}
+                                </small>
+                              )}
                               <small
                                 className={!o.complete ? s.warningText : ''}
                               >
@@ -1054,51 +1065,6 @@ export default function QuotationPreview({
 
           {canCompare && focusOffer && (
             <div className={s.insights}>
-              <section>
-                <div className={s.insightHeader}>
-                  <h2>Mercado desta rota</h2>
-                  <span>
-                    {focusOffer.agent} · {q.origin} → {q.destination}
-                  </span>
-                </div>
-                <p className={s.insightHeadline}>
-                  {focusOffer.complete ? (
-                    <>
-                      <strong>
-                        {Math.round((1 - focusOffer.total / 24100) * 100)}%
-                        abaixo
-                      </strong>{' '}
-                      da referência recente
-                    </>
-                  ) : (
-                    <strong>Faltam custos para comparar</strong>
-                  )}
-                </p>
-                <p className={s.muted}>
-                  Mediana de {money(24100)} · 18 ofertas equivalentes · últimos
-                  30 dias.
-                </p>
-                <details>
-                  <summary>
-                    Ver contexto de mercado <ChevronDown size={13} />
-                  </summary>
-                  <div className={s.evidence}>
-                    <p>
-                      Referência para 1 × 40’ HC, FOB, frete e taxas de
-                      origem/destino em BRL. Entrega final e seguro excluídos em
-                      toda a amostra.
-                    </p>
-                    <p>
-                      Mediana dos 30 dias anteriores: {money(23500)}. Variação
-                      de +2,6%; não é previsão do próximo preço.
-                    </p>
-                    <small>
-                      Base demonstrativa · atualizada em 12/09/2026. Escopos
-                      incompletos não entram no comparativo.
-                    </small>
-                  </div>
-                </details>
-              </section>
               <section
                 className={s.agentProfile}
                 aria-labelledby="agent-profile-title"
@@ -1664,6 +1630,33 @@ function OfferDetails({ offer }: { offer: Offer }) {
           Valores em BRL por contêiner. Conversão informada na oferta; sem
           recálculo cambial nesta prévia.
         </small>
+        <div className={s.marketBasis}>
+          <h3>Referência de mercado</h3>
+          {offer.complete ? (
+            <p>
+              Mediana de <strong>{money(marketMedian)}</strong> · 18 ofertas
+              equivalentes · últimos 30 dias.
+            </p>
+          ) : (
+            <p>
+              As taxas de destino ainda não foram informadas. Complete os custos
+              para comparar esta oferta com o mercado.
+            </p>
+          )}
+          <p>
+            Busan → Santos · marítimo FCL · 1 × 40’ HC · FOB. Frete e taxas de
+            origem/destino em BRL; entrega final e seguro excluídos em toda a
+            amostra.
+          </p>
+          <p>
+            Mediana dos 30 dias anteriores: {money(23500)}. Variação de +2,6%;
+            não é previsão do próximo preço.
+          </p>
+          <small>
+            Base demonstrativa · atualizada em 12/09/2026. Percentuais
+            arredondados; escopos incompletos não recebem comparação percentual.
+          </small>
+        </div>
       </div>
       <div>
         <h3>Condições da oferta</h3>
