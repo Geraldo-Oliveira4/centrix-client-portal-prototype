@@ -20,11 +20,13 @@ $env:NEXT_TELEMETRY_DISABLED = '1'
 npm run dev -- -H 127.0.0.1 -p 3014
 ```
 
-Abrir `http://localhost:3014/portal/cotacoes/previa?cenario=comparar`. A API local atende apenas o shell e as fixtures anteriores de embarques; esta nova experiência de cotação não envia requests de negócio. Selecionar cenários pelo controle discreto no topo. Voltar a Minhas cotações dentro da prévia abre uma lista dos cenários; menu global conserva as rotas anteriores.
+Abrir `http://localhost:3014/portal/cotacoes/previa?cenario=comparar`. A API local atende apenas o shell e as fixtures anteriores de embarques; esta nova experiência de cotação não envia requests de negócio. Selecionar cenários pelo controle discreto no topo. Ver variações abre o guia por etapa em ?variacoes=1. Minhas cotações e o menu global conservam a rota existente do Kanban.
+
+Guia para desenvolvimento: [GUIA-DEV.md](./GUIA-DEV.md), com links das 14 variações, roteiro e limites de integração.
 
 ## Escopo e dados
 
-13 cenários: comparação, complemento, rascunho, espera, parciais, escolha em análise, liberada, devolvida, fechada, vencidas, falta de dados, recusada e cancelada. Relógio demonstrativo fixo em 13/09/2026. Empresas, ofertas, documentos e métricas são fictícios. Chegadas provêm das datas nas fixtures; não são hoje + trânsito. Valores em BRL por contêiner, cobertura explícita; custos ausentes não viram zero.
+14 cenários: comparação, complemento, rascunho, dados completos para revisão do envio, espera, parciais, escolha em análise, liberada, devolvida, fechada, vencidas, falta de dados, recusada e cancelada. Relógio demonstrativo fixo em 13/09/2026. Empresas, ofertas, documentos e métricas são fictícios. Chegadas provêm das datas nas fixtures; não são hoje + trânsito. Valores em BRL por contêiner, cobertura explícita; custos ausentes não viram zero.
 
 Comparação por oferta, seleção explícita, composição expansível, recomendação pelo menor valor completo que atende à necessidade no porto, histórico e referência de mercado. Validade/escopo/estado são rechecados na confirmação. Escolha leva à revisão; liberar, devolver, fechar e receber respostas são controles de simulação. Formulário valida peso/volume, mantém campos preenchidos e permite revisar destinatários antes do envio simulado. Recusa/cancelamento guardam motivo e histórico. Falha simulada conserva escolha.
 

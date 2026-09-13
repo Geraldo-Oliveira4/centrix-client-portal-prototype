@@ -145,6 +145,7 @@ export const scenarios = [
   ['comparar', 'Comparar propostas'],
   ['complementar', 'Completar dados'],
   ['rascunho', 'Solicitação em preparo'],
+  ['envio', 'Dados completos · revisar envio'],
   ['aguardando', 'Aguardando agentes'],
   ['parciais', 'Respostas parciais'],
   ['analise', 'Escolha em análise'],
@@ -188,13 +189,15 @@ export function createQuote(id: string): Quote {
       '11/09, 09:20 — Solicitação enviada para 3 agentes.',
     ],
   };
-  if (id === 'complementar' || id === 'rascunho') {
+  if (id === 'complementar' || id === 'rascunho' || id === 'envio') {
     q.stage = id === 'complementar' ? 'needs-info' : 'draft';
     q.offers = [];
     q.sentAt = null;
-    q.weight = '';
-    q.volume = '';
-    q.pickup = '';
+    if (id !== 'envio') {
+      q.weight = '';
+      q.volume = '';
+      q.pickup = '';
+    }
     q.reference = id === 'complementar' ? 'COT-2026-0013' : 'COT-2026-0020';
     q.events =
       id === 'complementar'

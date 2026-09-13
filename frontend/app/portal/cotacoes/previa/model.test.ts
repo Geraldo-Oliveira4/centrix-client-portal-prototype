@@ -99,6 +99,15 @@ test('revisão, liberação e fechamento permanecem estados distintos', () => {
   assert.equal(createQuote('devolvida').selected, null);
 });
 
+test('dados completos ainda precisam de revisão e envio aos agentes', () => {
+  const q = createQuote('envio');
+  assert.equal(validateCargo(q.weight, q.volume), true);
+  assert.equal(q.stage, 'draft');
+  assert.equal(q.sentAt, null);
+  assert.deepEqual(q.offers, []);
+  assert.equal(recommend(q), undefined);
+});
+
 test('oferta única pode ser revisada, mas não produz ranking ou recomendação', () => {
   const q = createQuote('comparar');
   q.offers = [q.offers[1]];

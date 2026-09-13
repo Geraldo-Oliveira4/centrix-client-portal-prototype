@@ -43,6 +43,7 @@ import {
   dayDelta,
 } from './model';
 import s from './quotation-preview.module.css';
+import { reviewGroups } from './review-guide';
 
 type Modal =
   | 'approve'
@@ -59,8 +60,10 @@ const marketMedian = 24100;
 
 export default function QuotationPreview({
   initialScenario,
+  initialGuide = false,
 }: {
   initialScenario: string;
+  initialGuide?: boolean;
 }) {
   const { collapsed } = useSidebar();
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -76,8 +79,7 @@ export default function QuotationPreview({
   const [modal, setModal] = useState<Modal>(null);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
-  const [list, setList] = useState(false);
-  const [search, setSearch] = useState('');
+  const [list, setList] = useState(initialGuide);
   const [reason, setReason] = useState('');
   const [failNext, setFailNext] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -135,6 +137,7 @@ export default function QuotationPreview({
     setFailNext(false);
     const url = new URL(window.location.href);
     url.searchParams.set('cenario', id);
+    url.searchParams.delete('variacoes');
     window.history.replaceState(null, '', url);
   };
   const reset = () => {
@@ -282,6 +285,11 @@ export default function QuotationPreview({
           <span className={s.muted}>/ dados e ações ilustrativos</span>
         </span>
         <div className={s.previewControls}>
+          {!list && (
+            <a className={s.textButton} href="?variacoes=1">
+              Ver variações
+            </a>
+          )}
           <label htmlFor="preview-scenario" className={s.srOnly}>
             Cenário da prévia
           </label>
@@ -290,10 +298,14 @@ export default function QuotationPreview({
             value={scenario}
             onChange={(e) => chooseScenario(e.target.value)}
           >
-            {scenarios.map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
+            {reviewGroups.map((group) => (
+              <optgroup key={group.title} label={group.title}>
+                {group.items.map(({ id }) => (
+                  <option key={id} value={id}>
+                    {scenarios.find(([key]) => key === id)?.[1]}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
           <button
@@ -371,51 +383,54 @@ export default function QuotationPreview({
 
       {list ? (
         <section className={s.listView}>
-          <h1>Cotações da prévia</h1>
+          <h1>Variações do detalhe de cotação</h1>
           <p className={s.muted}>
-            Abra uma solicitação para percorrer a jornada.
+            Guia de revisão para produto e desenvolvimento · 14 variações
+            navegáveis.
           </p>
-          <input
-            className={s.search}
-            aria-label="Buscar cotação da prévia"
-            placeholder="Buscar fornecedor, PO ou situação"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <div className={s.panel}>
-            {scenarios
-              .filter(([id, name]) =>
-                [name, createQuote(id).supplier, createQuote(id).po]
-                  .join(' ')
-                  .toLowerCase()
-                  .includes(search.toLowerCase()),
-              )
-              .map(([id, name]) => (
-                <button
-                  key={id}
-                  className={s.listRow}
-                  onClick={() => chooseScenario(id)}
-                >
-                  <span>
-                    <strong>
-                      {createQuote(id).supplier || 'Fornecedor não informado'}
-                    </strong>
-                    <small>
-                      {createQuote(id).po} · {createQuote(id).reference}
-                    </small>
-                  </span>
-                  <span>{name}</span>
-                  <ChevronRight size={18} />
-                </button>
-              ))}
+          <div className={s.guideNote}>
+            <strong>O Kanban atual da main permanece como visão geral.</strong>
+            <p>
+              Este guia reúne os detalhes abertos a partir de cada etapa. Dados
+              e ações são demonstrativos; a lista abaixo serve à revisão do
+              protótipo.
+            </p>
+            <p>
+              Comece por Preencher detalhes e avance até a escolha. Use{' '}
+              <strong>Simular</strong> para receber propostas, liberar ou
+              devolver uma escolha e testar falhas. Os cenários guardam
+              alterações neste navegador;{' '}
+              <strong>Reiniciar este cenário</strong> recupera o estado inicial
+              somente da variação aberta.
+            </p>
           </div>
+          {reviewGroups.map((group) => (
+            <section key={group.title} className={s.guideGroup}>
+              <h2>{group.title}</h2>
+              <div className={s.panel}>
+                {group.items.map(({ id, check }) => (
+                  <a key={id} className={s.listRow} href={'?cenario=' + id}>
+                    <span>
+                      <strong>
+                        {scenarios.find(([key]) => key === id)?.[1]}
+                      </strong>
+                      <small>{check}</small>
+                    </span>
+                    <span className={s.guideOpen}>
+                      Abrir variação <ChevronRight size={16} />
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          ))}
         </section>
       ) : (
         <>
           <div className={s.backRow}>
-            <button className={s.textButton} onClick={() => setList(true)}>
+            <a className={s.textButton} href="/portal/cotacoes">
               <ArrowLeft size={16} /> Minhas cotações
-            </button>
+            </a>
             <span>{q.reference}</span>
           </div>
           <header className={s.heading}>
