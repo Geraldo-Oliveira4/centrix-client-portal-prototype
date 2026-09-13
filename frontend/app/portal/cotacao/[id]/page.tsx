@@ -42,6 +42,8 @@ import portal_api from '@/lib/portal-api';
 import type { SIApi } from '@/hooks/use-shipment-instruction';
 import { ShipmentInstructionSection } from '@/components/shipment-instruction-section';
 import { useSidebar } from '../../components/sidebar-context';
+import { EarlyQuotationDetail } from '../components/early-quotation-detail';
+import { usesPreparationDetail } from '../../cotacoes/lib/preparation-model';
 import {
   EvidenceBody,
   evidenceFootnote,
@@ -90,6 +92,7 @@ export default function PortalCotacaoDetailPage() {
   );
   if (isLoading) return <LoaderComponent />;
   if (isError || !quotation) return <ErrorComponent />;
+  if (usesPreparationDetail(quotation.state)) return <EarlyQuotationDetail key={quotation.id} quotation={quotation} refresh={() => void mutate()} />;
   return (
     <QuotationDetail
       key={quotation.id}

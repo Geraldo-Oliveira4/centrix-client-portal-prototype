@@ -12,12 +12,14 @@ import { HistoryTab } from './components/history-tab';
 import { useLocalRequests } from './lib/local-requests';
 import { ApprovedTab } from './components/approved-tab';
 import { isApprovedQuotation } from './lib/approved-model';
+import { usePreparationData } from './lib/use-preparation-data';
 
 function PortalCotacoesContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const { data, isLoading, isError } = useMyQuotations();
+  const { data: apiData, isLoading, isError } = useMyQuotations();
   const { client } = useMyClient();
+  const data = usePreparationData(apiData, client?.id);
   const local = useLocalRequests(client?.id);
   if (isLoading) return <LoaderComponent />;
   if (isError || !data) return <ErrorComponent />;
