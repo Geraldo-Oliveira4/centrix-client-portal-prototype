@@ -125,6 +125,8 @@ export interface PortalQuotationTotals {
 export interface PortalQuotation {
   id: string;
   reference: string;
+  // Optional supplier projection; never infer it from the freight agent.
+  exporter_name?: string | null;
   state: QuotationState;
   service_type: ServiceType | null;
   modal: QuotationModal | null;

@@ -52,3 +52,28 @@ A rota /portal/cotacao/[id] usa o ID e os valores do backend existente, seleçã
 O contrato atual não fornece ETA, saída, free time nem pendências estruturadas com responsável/data: o detalhe não inventa essas informações e mantém o complemento pelo fluxo existente. As 14 variações mostram a experiência futura completa para o dev. Mercado usa o fator ilustrativo existente (1,08) sobre uma referência única da cotação; métricas do Raio X são amostras demonstrativas estáveis por agente. A lista de embarques é consultada separadamente e informa seu recorte. A validade na rota dos cartões usa o dia atual; as variações preservam o relógio fixo.
 
 Verificação desta conexão: 18 testes de cotação, 275 de regressão e build/TypeScript. Revisão visual automatizada pendente: navegador do Codex falhou ao abrir nesta rodada.
+
+## Revisão local de 13/09 — preparo, espera e programação
+
+Agora são 15 variações. [Rascunho preenchido](http://localhost:3014/portal/cotacoes/previa?cenario=envio), [dados pendentes](http://localhost:3014/portal/cotacoes/previa?cenario=complementar), [espera](http://localhost:3014/portal/cotacoes/previa?cenario=aguardando), [parciais](http://localhost:3014/portal/cotacoes/previa?cenario=parciais) e [envio programado](http://localhost:3014/portal/cotacoes/previa?cenario=programado).
+
+O rascunho preserva e permite editar dados comerciais, coleta, datas, peso e volume. Continuar depois não envia; Revisar abre destinatários e escolha entre enviar agora e programar. Programar exige data futura no relógio demonstrativo (13/09/2026, 10:30 Brasília). Estado programado mantém sentAt vazio; editar/cancelar preserva dados. Nenhum job real é criado e a prévia não envia mensagens. Integração requer persistência do rascunho, agendamento com timezone, revalidação no disparo, resultado de envio e cancelamento idempotente.
+
+No detalhe alimentado pela API, o preparo usa dados disponíveis e a ação de complemento existente; montagem RFQ mantém os endpoints originais. Não interpretar AGUARDANDO_DADOS como garantia de não envio nem ocultação ao cliente. Espera e parciais usam tabela compartilhada; condições recebidas ficam recolhidas. Verificadas edição/reload, programação/cancelamento, espera/parciais e detalhes correspondentes com API. 27 testes e TypeScript passaram. Revisão local ainda não publicada.
+
+## Respostas progressivas e convites adicionais — revisão local de 13/09/2026
+
+Direção proposta por solicitação de Vinicius: consultar cada oferta assim que recebida e avançar com as disponíveis sem aguardar todos. Na prévia, Ver proposta abre valor, prazo/chegada, validade, free time e limites de escopo; não seleciona nem contrata. Revisar proposta disponível/Comparar disponíveis abre a decisão por ação explícita, mantendo os agentes pendentes visíveis. Receber todas deixa de liberar automaticamente a etapa. Validade e completude continuam condicionando a escolha.
+
+Convidar mais agentes lista somente os nomes do catálogo demonstrativo ainda não convidados (inclui Delta Freight e Atlas Cargo). Confirmação registra apenas os novos destinatários, sem reenviar convites, apagar propostas ou alterar o prazo anterior. Novos agentes aparecem aguardando. Catálogo e convites são locais; o simulador tem ofertas apenas para Alpha/Beta/Gamma e não presume resposta dos demais.
+
+Limite de integração: rotas atuais do portal oferecem listagem, montagem e disparo inicial de RFQ, mas não uma ação adicional de convite nesta implementação. Fluxo de liberação antecipada é proposta de UX na prévia, não alteração da máquina de estados ou permissão do backend. Integração exige elegibilidade real, snapshot/versionamento da solicitação, envio apenas aos adicionados, resultado por destinatário e proteção contra duplicidade. Nenhum e-mail foi enviado; sem deploy. 29 testes e TypeScript aprovados; browser conferiu oferta, novo convite com preservação e decisão com agente pendente.
+
+
+## Pacote de publicação dos detalhes — 13/09/2026
+
+Base: 786d229 (Configurações já publicadas). Inclui preparo/espera, respostas progressivas, convites adicionais demonstrativos e rascunho com o componente ManualForm de Nova Cotação. Kanban, navegação de Configurações e embarques permanecem como na base. Os estados ilustrativos são 15; o catálogo está em /portal/cotacoes/previa?variacoes=1.
+
+O rascunho usa as mesmas seções Embarque, Carga e Observações, campos condicionais, equipamentos/volumes e validação do formulário de criação. Salvar rascunho aceita dados incompletos; Revisar solicitação valida e abre a revisão de destinatários. A criação normal permanece intacta. Dados do formulário, equipamentos/volumes e opções condicionais ficam no navegador e são restaurados antes de montar o formulário. Exportador é um nome ilustrativo; cadastro e anexos persistentes não estão integrados na prévia.
+
+Roteiro atualizado: em envio, altere Observações, salve, recarregue e confirme a retenção; revise e confira carga, rota e necessidade. Em complementar/rascunho, complete o mesmo formulário, incluindo equipamentos ou volumes conforme modal. Siga aguardando/parciais para consultar uma oferta e convidar um agente adicional. A ação explícita de comparar permite avançar com pendentes; receber a última oferta não avança automaticamente. Nos detalhes abertos pelos cartões, os dados e ações de RFQ continuam vinculados ao backend existente. Programação, persistência do novo rascunho, liberação antecipada e convites adicionais são demonstrações locais, não novas integrações de envio.

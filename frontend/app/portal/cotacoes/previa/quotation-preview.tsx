@@ -37,6 +37,10 @@ import {
   validOffer,
   decisionError,
   confirmChoice,
+  scheduleRequest,
+  availableAgents,
+  inviteMoreAgents,
+  receiveNextOffer,
   validateCargo,
   money,
   shortDate,
@@ -44,6 +48,12 @@ import {
 } from './model';
 import s from './quotation-preview.module.css';
 import { reviewGroups } from './review-guide';
+import { DraftRequestForm } from './draft-request-form';
+import {
+  ResponseOffers,
+  PreparationSteps,
+  WaitingResponses,
+} from '../../cotacao/components/quotation-preparation';
 
 type Modal =
   | 'approve'
@@ -52,6 +62,8 @@ type Modal =
   | 'decline'
   | 'shipment'
   | 'instruction'
+  | 'invite'
+  | 'offer'
   | null;
 const terminal = (stage: Stage) =>
   ['closed', 'declined', 'cancelled'].includes(stage);
@@ -83,7 +95,14 @@ export default function QuotationPreview({
   const [reason, setReason] = useState('');
   const [failNext, setFailNext] = useState(false);
   const [revision, setRevision] = useState(0);
-  const [formErrors, setFormErrors] = useState(false);
+  const [sendMode, setSendMode] = useState<'now' | 'schedule'>('now');
+  const [sendAt, setSendAt] = useState('2026-09-14T09:00');
+  const [inviteSelection, setInviteSelection] = useState<string[]>([]);
+  const [viewedOffer, setViewedOffer] = useState<string | null>(null);
+  const offerPreview = q.offers.find((offer) => offer.id === viewedOffer);
+  const uninvited = availableAgents.filter(
+    (name) => !q.targetAgents.includes(name),
+  );
 
   useEffect(() => {
     let next = createQuote(scenario);
@@ -105,12 +124,13 @@ export default function QuotationPreview({
       );
     }
     setQ(next);
+    setSendMode(next.scheduledFor ? 'schedule' : 'now');
+    setSendAt(next.scheduledFor || '2026-09-14T09:00');
     setSelection(next.selected);
     setInspectedAgent(null);
     setExpanded(null);
     setModal(null);
     setError('');
-    setFormErrors(false);
     setLoaded(true);
   }, [scenario, revision]);
 
@@ -199,29 +219,30 @@ export default function QuotationPreview({
       'Escolha registrada nesta prévia. A Freitas é responsável pela próxima etapa.',
     );
   };
-  const completeForm = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateCargo(q.weight, q.volume)) {
-      setFormErrors(true);
+  const dispatch = () => {
+    if (sendMode === 'schedule') {
+      try {
+        const scheduled = scheduleRequest(q, sendAt);
+        if (simulateFailure()) return;
+        setQ(scheduled);
+        setModal(null);
+        setNotice(
+          'Programação salva nesta prévia. Nenhum envio automático será executado.',
+        );
+      } catch (error) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível programar.',
+        );
+      }
       return;
     }
-    setFormErrors(false);
-    if (q.stage === 'needs-info') {
-      update(
-        { stage: 'draft' },
-        'Complemento registrado: peso bruto e volume. Solicitação pronta para revisão.',
-      );
-      setNotice(
-        'Dados complementados. Revise os agentes antes de enviar a solicitação.',
-      );
-    } else openModal('dispatch');
-  };
-  const dispatch = () => {
     if (!q.targetAgents.length) {
       setError('Selecione pelo menos um agente.');
       return;
     }
-    if (!validateCargo(q.weight, q.volume)) {
+    if (!q.manualDraft && !validateCargo(q.weight, q.volume)) {
       setError('Complete peso e volume antes de enviar.');
       return;
     }
@@ -229,8 +250,9 @@ export default function QuotationPreview({
     update(
       {
         stage: 'waiting',
+        scheduledFor: null,
         sentAt: '13/09 às 10:30',
-        responseBy: '14/09 às 17:00',
+        responseBy: q.responseBy,
         agentCount: q.targetAgents.length,
         offers: [],
       },
@@ -244,25 +266,30 @@ export default function QuotationPreview({
     );
   };
   const nextResponse = () => {
-    const all = createQuote('comparar').offers.filter((o) =>
-      q.targetAgents.includes(o.agent),
-    );
-    const next = all.slice(0, Math.min(q.offers.length + 1, all.length));
-    update(
-      {
-        offers: next,
-        stage: next.length === q.agentCount ? 'ready' : 'partial',
-      },
-      'Nova proposta recebida' +
-        (next.length === q.agentCount
-          ? ' e ofertas liberadas para escolha.'
-          : '; aguardando demais agentes.'),
-    );
+    const next = receiveNextOffer(q);
+    setQ(next);
     setNotice(
-      next.length === q.agentCount
-        ? 'Todas as respostas chegaram. As propostas foram liberadas nesta simulação.'
-        : 'Uma resposta foi adicionada. A cotação ainda aguarda liberação para escolha.',
+      next === q
+        ? 'Não há outra resposta preparada nesta simulação. Os demais agentes continuam pendentes.'
+        : 'Nova proposta disponível para consulta. Você decide se avança ou aguarda outras respostas.',
     );
+  };
+  const invite = () => {
+    try {
+      const next = inviteMoreAgents(q, inviteSelection);
+      if (simulateFailure()) return;
+      setQ(next);
+      setModal(null);
+      setNotice(
+        'Convites adicionais registrados na prévia. Nenhuma mensagem foi enviada; as propostas recebidas foram mantidas.',
+      );
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível adicionar os agentes.',
+      );
+    }
   };
   const mainStatusTone =
     q.stage === 'needs-info'
@@ -270,7 +297,6 @@ export default function QuotationPreview({
       : q.stage === 'ready' || q.stage === 'closed'
         ? s.green
         : s.neutral;
-  const formsComplete = validateCargo(q.weight, q.volume);
 
   return (
     <div
@@ -327,7 +353,7 @@ export default function QuotationPreview({
                 />{' '}
                 Falha na próxima confirmação
               </label>
-              {isWaiting && (
+              {(isWaiting || canCompare) && (
                 <button onClick={nextResponse}>Receber próxima proposta</button>
               )}
               {q.stage === 'review' && (
@@ -511,184 +537,140 @@ export default function QuotationPreview({
             </div>
           )}
 
-          {isForm && (
-            <section className={s.panel + ' ' + s.formPanel}>
-              <div className={s.sectionHeading}>
-                <div>
-                  <h2>
-                    {q.stage === 'needs-info'
-                      ? 'Complete os dados da carga'
-                      : 'Finalize sua solicitação'}
-                  </h2>
-                  <p>
-                    {q.stage === 'needs-info'
-                      ? 'Faltam duas informações para preparar a solicitação aos agentes.'
-                      : 'Os dados já preenchidos foram mantidos. Confira o que falta e revise o envio.'}
-                  </p>
-                </div>
-                <span className={s.subtleTag}>
-                  {formsComplete ? 'Dados preenchidos' : '2 campos necessários'}
-                </span>
-              </div>
-              {q.stage === 'needs-info' && (
-                <div className={s.requestNote}>
-                  <strong>Marina · Freitas</strong>
-                  <span>12/09, 14:10</span>
-                  <p>
-                    “Confirme o peso bruto e o volume total, incluindo as
-                    embalagens. Precisamos desses dados para que os agentes
-                    cotem a mesma carga.”
-                  </p>
-                </div>
-              )}
-              <form onSubmit={completeForm} noValidate>
-                <div className={s.fields}>
-                  <label>
-                    Peso bruto total <span className={s.required}>*</span>
-                    <div className={s.inputUnit}>
-                      <input
-                        aria-invalid={
-                          formErrors && !validateCargo(q.weight, '1')
-                        }
-                        aria-describedby="weight-hint"
-                        inputMode="decimal"
-                        value={q.weight}
-                        onChange={(e) => update({ weight: e.target.value })}
-                        placeholder="Ex.: 12400"
-                      />
-                      <span>kg</span>
-                    </div>
-                    <small id="weight-hint">
-                      Inclua o peso das embalagens.
-                    </small>
-                  </label>
-                  <label>
-                    Volume total <span className={s.required}>*</span>
-                    <div className={s.inputUnit}>
-                      <input
-                        aria-invalid={
-                          formErrors && !validateCargo('1', q.volume)
-                        }
-                        aria-describedby="volume-hint"
-                        inputMode="decimal"
-                        value={q.volume}
-                        onChange={(e) => update({ volume: e.target.value })}
-                        placeholder="Ex.: 52"
-                      />
-                      <span>m³</span>
-                    </div>
-                    <small id="volume-hint">
-                      Informe o volume da carga embalada.
-                    </small>
-                  </label>
-                </div>
-                {formErrors && (
-                  <p className={s.error} role="alert">
-                    Informe peso e volume maiores que zero. Use vírgula ou ponto
-                    para decimais, sem separador de milhar.
-                  </p>
-                )}
-                <div className={s.formBottom}>
-                  <span>
-                    <Check size={14} /> Rascunho salvo neste navegador
-                  </span>
-                  <button className={s.primary} type="submit">
-                    {q.stage === 'needs-info'
-                      ? 'Enviar complemento'
-                      : 'Revisar solicitação'}
-                    <ArrowRight size={16} />
-                  </button>
-                </div>
-              </form>
-            </section>
+          {(isForm || isWaiting || q.stage === 'scheduled') && (
+            <PreparationSteps waiting={isWaiting} />
           )}
-
-          {isWaiting && (
+          {q.stage === 'scheduled' && (
             <section className={s.panel}>
               <div className={s.sectionHeading}>
                 <div>
-                  <h2>
-                    {q.stage === 'partial'
-                      ? 'As respostas estão chegando'
-                      : 'Sua solicitação está com os agentes'}
-                  </h2>
-                  <p>
-                    Enviada em {q.sentAt}. {q.offers.length} de {q.agentCount}{' '}
-                    respostas recebidas.
-                  </p>
+                  <h2>Envio programado aos agentes</h2>
+                  <p>A solicitação está preparada e ainda não foi enviada.</p>
                 </div>
-                <span className={s.subtleTag}>
-                  <Clock3 size={14} /> Retorno até {q.responseBy}
-                </span>
               </div>
-              <div className={s.agentTable}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Agente de carga</th>
-                      <th>Situação</th>
-                      <th>Último movimento</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {q.targetAgents.map((name) => (
-                      <tr key={name}>
-                        <td>
-                          <strong>{name}</strong>
-                        </td>
-                        <td>
-                          <span
-                            className={
-                              s.status +
-                              ' ' +
-                              (q.offers.find((o) => o.agent === name)
-                                ? s.green
-                                : s.neutral)
-                            }
-                          >
-                            {q.offers.find((o) => o.agent === name)
-                              ? 'Proposta recebida'
-                              : 'Aguardando resposta'}
-                          </span>
-                        </td>
-                        <td>
-                          {q.offers.find((o) => o.agent === name)
-                            ? '13/09, 10:30'
-                            : 'Solicitação recebida · ' + q.sentAt}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className={s.responseSummary}>
+                <div>
+                  <small>Data e horário de envio · Brasília</small>
+                  <strong>
+                    {shortDate(q.scheduledFor?.slice(0, 10) || null)} às{' '}
+                    {q.scheduledFor?.slice(11, 16)}
+                  </strong>
+                </div>
+                <div>
+                  <small>Destinatários</small>
+                  <strong>{q.targetAgents.join(', ')}</strong>
+                </div>
               </div>
               <div className={s.waitFooter}>
                 <p>
-                  <strong>A Freitas acompanha os retornos.</strong> Você será
-                  avisado quando as propostas estiverem liberadas para escolha.
+                  Programação demonstrativa, salva neste navegador. O envio
+                  automático ainda não está conectado.
                 </p>
-                <button
-                  className={s.secondary}
-                  disabled={q.followup}
-                  onClick={() => {
-                    update(
-                      { followup: true },
-                      'Solicitação de atualização registrada para a Freitas (simulação).',
-                    );
-                    setNotice(
-                      'Pedido de atualização registrado localmente. Nenhuma mensagem foi enviada.',
-                    );
-                  }}
-                >
-                  {q.followup ? (
-                    <>
-                      <Check size={15} /> Atualização solicitada
-                    </>
-                  ) : (
-                    'Solicitar atualização'
-                  )}
-                </button>
+                <div className="flex flex-wrap gap-4">
+                  <button
+                    className={s.textButton}
+                    onClick={() => {
+                      update({ stage: 'draft' });
+                      setSendMode('schedule');
+                      setNotice(
+                        'Revise os dados e confirme a programação novamente.',
+                      );
+                    }}
+                  >
+                    Editar programação
+                  </button>
+                  <button
+                    className={s.textButton}
+                    onClick={() => {
+                      update(
+                        { stage: 'draft', scheduledFor: null },
+                        'Programação cancelada; rascunho preservado.',
+                      );
+                      setSendMode('now');
+                      setNotice(
+                        'Programação cancelada. Seu rascunho foi mantido.',
+                      );
+                    }}
+                  >
+                    Cancelar programação
+                  </button>
+                </div>
               </div>
             </section>
+          )}
+
+          {isForm && loaded && (
+            <section>
+              <div className={s.sectionHeading}>
+                <div>
+                  <h2>Rascunho da solicitação</h2>
+                  <p>
+                    O mesmo formulário de uma nova cotação, com os dados já
+                    preenchidos. Salve para continuar depois ou revise o envio.
+                  </p>
+                </div>
+                <span className={s.subtleTag}>Ainda não enviada</span>
+              </div>
+              <DraftRequestForm
+                key={q.id}
+                quotation={q}
+                onSave={(patch) => {
+                  update(patch);
+                  setNotice(
+                    'Rascunho salvo neste navegador. A solicitação não foi enviada.',
+                  );
+                }}
+                onReview={(patch) => {
+                  update({ ...patch, stage: 'draft' });
+                  openModal('dispatch');
+                }}
+              />
+            </section>
+          )}
+
+          {(isWaiting ||
+            (canCompare && q.offers.length < q.targetAgents.length)) && (
+            <WaitingResponses
+              comparisonAvailable
+              onInvite={() => {
+                setInviteSelection([]);
+                openModal('invite');
+              }}
+              onView={(name) => {
+                setViewedOffer(
+                  q.offers.find((offer) => offer.agent === name)?.id || null,
+                );
+                openModal('offer');
+              }}
+              onCompare={
+                isWaiting
+                  ? () => {
+                      update(
+                        { stage: 'ready' },
+                        'Revisão das propostas disponíveis iniciada sem esperar todos os agentes.',
+                      );
+                      setNotice(
+                        'Você está revisando ' +
+                          q.offers.length +
+                          ' proposta(s). Os demais agentes continuam pendentes.',
+                      );
+                    }
+                  : undefined
+              }
+              count={q.offers.length}
+              deadline={q.responseBy}
+              sentAt={q.sentAt}
+              rows={q.targetAgents.map((name) => ({
+                id: name,
+                name,
+                received: q.offers.some((offer) => offer.agent === name),
+              }))}
+              onRefresh={() =>
+                setNotice(
+                  'A prévia já mostra as respostas registradas. Use Simular para demonstrar a chegada de novas propostas.',
+                )
+              }
+            />
           )}
 
           {['review', 'released', 'closed'].includes(q.stage) && winner && (
@@ -767,250 +749,258 @@ export default function QuotationPreview({
             </section>
           )}
 
-          {(canCompare || q.stage === 'partial') && (
-            <section className={s.panel}>
-              <div className={s.sectionHeading}>
-                <div>
-                  <h2>
-                    {canCompare
-                      ? q.offers.length === 1
-                        ? 'Revise a proposta recebida'
-                        : 'Compare e escolha sua proposta'
-                      : 'Proposta recebida'}
-                  </h2>
-                  <p>
-                    {canCompare
-                      ? q.offers.length === 1
-                        ? 'Há uma oferta disponível. Confira as condições antes de escolher.'
-                        : 'Veja o valor, a chegada e o que muda entre as ofertas.'
-                      : 'Disponível para consulta. A seleção será liberada após a análise das respostas.'}
-                  </p>
+          {canCompare && (
+            <ResponseOffers waiting={isWaiting} count={q.offers.length}>
+              <section className={s.panel}>
+                <div className={s.sectionHeading}>
+                  <div>
+                    <h2>
+                      {canCompare
+                        ? q.offers.length === 1
+                          ? 'Revise a proposta recebida'
+                          : 'Compare e escolha sua proposta'
+                        : 'Proposta recebida'}
+                    </h2>
+                    <p>
+                      {canCompare
+                        ? q.offers.length === 1
+                          ? 'Há uma oferta disponível. Confira as condições antes de escolher.'
+                          : 'Veja o valor, a chegada e o que muda entre as ofertas.'
+                        : 'Disponível para consulta. A seleção será liberada após a análise das respostas.'}
+                    </p>
+                  </div>
+                  <span className={s.muted}>{q.offers.length} ofertas</span>
                 </div>
-                <span className={s.muted}>{q.offers.length} ofertas</span>
-              </div>
-              <div className={s.tableWrap}>
-                <table className={s.offersTable}>
-                  <thead>
-                    <tr>
-                      <th>
-                        <span className={s.srOnly}>Selecionar</span>
-                      </th>
-                      <th>Agente / armador</th>
-                      <th>Valor informado</th>
-                      <th>
-                        Chegada ao porto
-                        {q.needDate && (
-                          <small className={s.needReference}>
-                            Necessária até {shortDate(q.needDate)}
-                          </small>
-                        )}
-                      </th>
-                      <th>Condições</th>
-                      <th>Validade</th>
-                      <th>
-                        <span className={s.srOnly}>Detalhes</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {q.offers.map((o) => {
-                      const rec = recommended?.id === o.id;
-                      const selected = selection === o.id;
-                      const marketDifference = Math.round(
-                        (1 - o.total / marketMedian) * 100,
-                      );
-                      const selectable = canCompare && !decisionError(q, o.id);
-                      const late =
-                        o.arrival && q.needDate
-                          ? dayDelta(o.arrival, q.needDate)
-                          : 0;
-                      return (
-                        <React.Fragment key={o.id}>
-                          <tr
-                            className={
-                              (selected ? s.selectedRow : '') +
-                              ' ' +
-                              (!validOffer(o) ? s.expiredRow : '') +
-                              ' ' +
-                              (selectable ? s.selectableRow : '')
-                            }
-                            onClick={(event) => {
-                              if (
-                                (event.target as HTMLElement).closest(
-                                  'button, input, a, summary',
+                <div className={s.tableWrap}>
+                  <table className={s.offersTable}>
+                    <thead>
+                      <tr>
+                        <th>
+                          <span className={s.srOnly}>Selecionar</span>
+                        </th>
+                        <th>Agente / armador</th>
+                        <th>Valor informado</th>
+                        <th>
+                          Chegada ao porto
+                          {q.needDate && (
+                            <small className={s.needReference}>
+                              Necessária até {shortDate(q.needDate)}
+                            </small>
+                          )}
+                        </th>
+                        <th>Condições</th>
+                        <th>Validade</th>
+                        <th>
+                          <span className={s.srOnly}>Detalhes</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {q.offers.map((o) => {
+                        const rec = recommended?.id === o.id;
+                        const selected = selection === o.id;
+                        const marketDifference = Math.round(
+                          (1 - o.total / marketMedian) * 100,
+                        );
+                        const selectable =
+                          canCompare && !decisionError(q, o.id);
+                        const late =
+                          o.arrival && q.needDate
+                            ? dayDelta(o.arrival, q.needDate)
+                            : 0;
+                        return (
+                          <React.Fragment key={o.id}>
+                            <tr
+                              className={
+                                (selected ? s.selectedRow : '') +
+                                ' ' +
+                                (!validOffer(o) ? s.expiredRow : '') +
+                                ' ' +
+                                (selectable ? s.selectableRow : '')
+                              }
+                              onClick={(event) => {
+                                if (
+                                  (event.target as HTMLElement).closest(
+                                    'button, input, a, summary',
+                                  )
                                 )
-                              )
-                                return;
-                              selectOffer(o.id);
-                            }}
-                          >
-                            <td data-label="Selecionar">
-                              <input
-                                type="radio"
-                                name="proposal"
-                                aria-label={'Selecionar oferta de ' + o.agent}
-                                checked={selected}
-                                disabled={
-                                  !canCompare || !!decisionError(q, o.id)
-                                }
-                                onClick={() => setInspectedAgent(null)}
-                                onChange={() => selectOffer(o.id)}
-                              />
-                            </td>
-                            <td data-label="Agente / armador">
-                              <strong className={s.agentName}>{o.agent}</strong>
-                              <small>{o.carrier}</small>
-                              {rec ? (
-                                <span className={s.recommendedTag}>
-                                  <Sparkles size={11} /> Recomendada
-                                </span>
-                              ) : cheapestComplete?.id === o.id ? (
-                                <span className={s.quietTag}>
-                                  Menor valor completo
-                                </span>
-                              ) : null}
-                            </td>
-                            <td data-label="Valor informado">
-                              <strong className={s.price}>
-                                {money(o.total)}
-                              </strong>
-                              {canCompare && o.complete && (
-                                <small className={s.marketComparison}>
-                                  {marketDifference === 0
-                                    ? 'Próximo da referência de mercado'
-                                    : `${Math.abs(marketDifference)}% ${marketDifference > 0 ? 'abaixo' : 'acima'} do mercado`}
-                                </small>
-                              )}
-                              <small
-                                className={!o.complete ? s.warningText : ''}
-                              >
-                                {o.complete
-                                  ? 'Taxas de destino incluídas'
-                                  : 'Taxas de destino a confirmar'}
-                              </small>
-                            </td>
-                            <td data-label="Chegada ao porto">
-                              <strong>{shortDate(o.arrival)}</strong>
-                              <small>
-                                {o.transit === null
-                                  ? 'Trânsito não informado'
-                                  : o.transit + ' dias de trânsito'}
-                              </small>
-                              {datesKnown && o.arrival && (
-                                <span
-                                  className={
-                                    late > 0 ? s.warningText : s.goodText
+                                  return;
+                                selectOffer(o.id);
+                              }}
+                            >
+                              <td data-label="Selecionar">
+                                <input
+                                  type="radio"
+                                  name="proposal"
+                                  aria-label={'Selecionar oferta de ' + o.agent}
+                                  checked={selected}
+                                  disabled={
+                                    !canCompare || !!decisionError(q, o.id)
                                   }
-                                >
-                                  {late > 0
-                                    ? late + ' dias após sua necessidade'
-                                    : late === 0
-                                      ? 'Na data necessária'
-                                      : Math.abs(late) +
-                                        ' dias antes da necessidade'}
-                                </span>
-                              )}
-                            </td>
-                            <td data-label="Condições">
-                              <strong>{o.route}</strong>
-                              <small>
-                                {o.freeDays === null
-                                  ? 'Free time não informado'
-                                  : o.freeDays + ' dias de free time'}
-                              </small>
-                              {!o.complete && (
-                                <span className={s.warningText}>
-                                  Escopo incompleto
-                                </span>
-                              )}
-                            </td>
-                            <td data-label="Validade">
-                              <strong>{shortDate(o.validity)}</strong>
-                              <small
-                                className={!validOffer(o) ? s.warningText : ''}
-                              >
-                                {!o.validity
-                                  ? 'Confirmar com agente'
-                                  : validOffer(o)
-                                    ? '2026'
-                                    : 'Vencida'}
-                              </small>
-                            </td>
-                            <td>
-                              <button
-                                className={s.detailButton}
-                                aria-label={'Detalhes de ' + o.agent}
-                                aria-expanded={expanded === o.id}
-                                onClick={() =>
-                                  setExpanded(expanded === o.id ? null : o.id)
-                                }
-                              >
-                                {expanded === o.id ? (
-                                  <ChevronDown size={18} />
-                                ) : (
-                                  <ChevronRight size={18} />
+                                  onClick={() => setInspectedAgent(null)}
+                                  onChange={() => selectOffer(o.id)}
+                                />
+                              </td>
+                              <td data-label="Agente / armador">
+                                <strong className={s.agentName}>
+                                  {o.agent}
+                                </strong>
+                                <small>{o.carrier}</small>
+                                {rec ? (
+                                  <span className={s.recommendedTag}>
+                                    <Sparkles size={11} /> Recomendada
+                                  </span>
+                                ) : cheapestComplete?.id === o.id ? (
+                                  <span className={s.quietTag}>
+                                    Menor valor completo
+                                  </span>
+                                ) : null}
+                              </td>
+                              <td data-label="Valor informado">
+                                <strong className={s.price}>
+                                  {money(o.total)}
+                                </strong>
+                                {canCompare && o.complete && (
+                                  <small className={s.marketComparison}>
+                                    {marketDifference === 0
+                                      ? 'Próximo da referência de mercado'
+                                      : `${Math.abs(marketDifference)}% ${marketDifference > 0 ? 'abaixo' : 'acima'} do mercado`}
+                                  </small>
                                 )}
-                                <span className={s.mobileOnly}>
-                                  Ver detalhes
-                                </span>
-                              </button>
-                            </td>
-                          </tr>
-                          {expanded === o.id && (
-                            <tr className={s.expansionRow}>
-                              <td colSpan={7}>
-                                <OfferDetails offer={o} />
-                                {decisionError(q, o.id) && canCompare && (
-                                  <div className={s.detailIssue}>
-                                    <p>{decisionError(q, o.id)}</p>
-                                    <button
-                                      className={s.secondary}
-                                      disabled={q.events.some((e) =>
-                                        e.includes(
-                                          'Revisão da oferta ' + o.service,
-                                        ),
-                                      )}
-                                      onClick={() => {
-                                        update(
-                                          {},
-                                          'Revisão da oferta ' +
-                                            o.service +
-                                            ' solicitada (simulação).',
-                                        );
-                                        setNotice(
-                                          'Pedido registrado localmente para revisão de ' +
-                                            o.service +
-                                            '.',
-                                        );
-                                      }}
-                                    >
-                                      {q.events.some((e) =>
-                                        e.includes(
-                                          'Revisão da oferta ' + o.service,
-                                        ),
-                                      )
-                                        ? 'Revisão solicitada'
-                                        : 'Solicitar revisão da oferta'}
-                                    </button>
-                                  </div>
+                                <small
+                                  className={!o.complete ? s.warningText : ''}
+                                >
+                                  {o.complete
+                                    ? 'Taxas de destino incluídas'
+                                    : 'Taxas de destino a confirmar'}
+                                </small>
+                              </td>
+                              <td data-label="Chegada ao porto">
+                                <strong>{shortDate(o.arrival)}</strong>
+                                <small>
+                                  {o.transit === null
+                                    ? 'Trânsito não informado'
+                                    : o.transit + ' dias de trânsito'}
+                                </small>
+                                {datesKnown && o.arrival && (
+                                  <span
+                                    className={
+                                      late > 0 ? s.warningText : s.goodText
+                                    }
+                                  >
+                                    {late > 0
+                                      ? late + ' dias após sua necessidade'
+                                      : late === 0
+                                        ? 'Na data necessária'
+                                        : Math.abs(late) +
+                                          ' dias antes da necessidade'}
+                                  </span>
                                 )}
                               </td>
+                              <td data-label="Condições">
+                                <strong>{o.route}</strong>
+                                <small>
+                                  {o.freeDays === null
+                                    ? 'Free time não informado'
+                                    : o.freeDays + ' dias de free time'}
+                                </small>
+                                {!o.complete && (
+                                  <span className={s.warningText}>
+                                    Escopo incompleto
+                                  </span>
+                                )}
+                              </td>
+                              <td data-label="Validade">
+                                <strong>{shortDate(o.validity)}</strong>
+                                <small
+                                  className={
+                                    !validOffer(o) ? s.warningText : ''
+                                  }
+                                >
+                                  {!o.validity
+                                    ? 'Confirmar com agente'
+                                    : validOffer(o)
+                                      ? '2026'
+                                      : 'Vencida'}
+                                </small>
+                              </td>
+                              <td>
+                                <button
+                                  className={s.detailButton}
+                                  aria-label={'Detalhes de ' + o.agent}
+                                  aria-expanded={expanded === o.id}
+                                  onClick={() =>
+                                    setExpanded(expanded === o.id ? null : o.id)
+                                  }
+                                >
+                                  {expanded === o.id ? (
+                                    <ChevronDown size={18} />
+                                  ) : (
+                                    <ChevronRight size={18} />
+                                  )}
+                                  <span className={s.mobileOnly}>
+                                    Ver detalhes
+                                  </span>
+                                </button>
+                              </td>
                             </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <div className={s.tableNote}>
-                <Info size={14} />
-                <span>
-                  Valores em BRL. Entrega na fábrica e seguro da carga não estão
-                  incluídos. <strong>Chegada é uma previsão ao porto.</strong>
-                </span>
-              </div>
-            </section>
+                            {expanded === o.id && (
+                              <tr className={s.expansionRow}>
+                                <td colSpan={7}>
+                                  <OfferDetails offer={o} />
+                                  {decisionError(q, o.id) && canCompare && (
+                                    <div className={s.detailIssue}>
+                                      <p>{decisionError(q, o.id)}</p>
+                                      <button
+                                        className={s.secondary}
+                                        disabled={q.events.some((e) =>
+                                          e.includes(
+                                            'Revisão da oferta ' + o.service,
+                                          ),
+                                        )}
+                                        onClick={() => {
+                                          update(
+                                            {},
+                                            'Revisão da oferta ' +
+                                              o.service +
+                                              ' solicitada (simulação).',
+                                          );
+                                          setNotice(
+                                            'Pedido registrado localmente para revisão de ' +
+                                              o.service +
+                                              '.',
+                                          );
+                                        }}
+                                      >
+                                        {q.events.some((e) =>
+                                          e.includes(
+                                            'Revisão da oferta ' + o.service,
+                                          ),
+                                        )
+                                          ? 'Revisão solicitada'
+                                          : 'Solicitar revisão da oferta'}
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className={s.tableNote}>
+                  <Info size={14} />
+                  <span>
+                    Valores em BRL. Entrega na fábrica e seguro da carga não
+                    estão incluídos.{' '}
+                    <strong>Chegada é uma previsão ao porto.</strong>
+                  </span>
+                </div>
+              </section>
+            </ResponseOffers>
           )}
 
           {canCompare && (
@@ -1407,29 +1397,121 @@ export default function QuotationPreview({
           }}
         >
           <DialogTitle>
-            {modal === 'approve'
-              ? 'Revise sua escolha'
-              : modal === 'dispatch'
-                ? 'Revise a solicitação aos agentes'
-                : modal === 'cancel'
-                  ? 'Cancelar esta solicitação?'
-                  : modal === 'decline'
-                    ? 'Encerrar sem escolher uma proposta'
-                    : modal === 'shipment'
-                      ? 'Embarque vinculado'
-                      : 'Instrução de embarque'}
+            {modal === 'invite'
+              ? 'Convidar mais agentes'
+              : modal === 'offer'
+                ? 'Proposta de ' + (offerPreview?.agent || 'agente')
+                : modal === 'approve'
+                  ? 'Revise sua escolha'
+                  : modal === 'dispatch'
+                    ? 'Revise a solicitação aos agentes'
+                    : modal === 'cancel'
+                      ? 'Cancelar esta solicitação?'
+                      : modal === 'decline'
+                        ? 'Encerrar sem escolher uma proposta'
+                        : modal === 'shipment'
+                          ? 'Embarque vinculado'
+                          : 'Instrução de embarque'}
           </DialogTitle>
           <DialogDescription>
-            {modal === 'approve'
-              ? 'Ao confirmar, a oferta seguirá para análise da Freitas. A contratação ainda não estará concluída.'
-              : modal === 'dispatch'
-                ? 'Confira a carga e os agentes que receberão a solicitação.'
-                : modal === 'shipment'
-                  ? 'Continuidade demonstrativa da cotação até o acompanhamento.'
-                  : modal === 'instruction'
-                    ? 'Dados da condição liberada para preparação do embarque.'
-                    : 'O histórico será preservado. Esta ação é apenas local à prévia.'}
+            {modal === 'invite'
+              ? 'Escolha agentes disponíveis que ainda não receberam esta solicitação. Os convites existentes não serão reenviados.'
+              : modal === 'offer'
+                ? 'Pré-visualização da oferta recebida. Consultar não seleciona nem contrata.'
+                : modal === 'approve'
+                  ? 'Ao confirmar, a oferta seguirá para análise da Freitas. A contratação ainda não estará concluída.'
+                  : modal === 'dispatch'
+                    ? 'Confira a carga e os agentes que receberão a solicitação.'
+                    : modal === 'shipment'
+                      ? 'Continuidade demonstrativa da cotação até o acompanhamento.'
+                      : modal === 'instruction'
+                        ? 'Dados da condição liberada para preparação do embarque.'
+                        : 'O histórico será preservado. Esta ação é apenas local à prévia.'}
           </DialogDescription>
+          {modal === 'invite' && (
+            <>
+              <dl className={s.dataGrid}>
+                <div>
+                  <dt>Solicitação</dt>
+                  <dd>
+                    {q.reference} · {q.product}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Já convidados</dt>
+                  <dd>{q.targetAgents.join(', ')}</dd>
+                </div>
+              </dl>
+              <fieldset className={s.agentChoices}>
+                <legend>Disponíveis para convidar</legend>
+                {uninvited.map((name) => (
+                  <label key={name}>
+                    <input
+                      type="checkbox"
+                      checked={inviteSelection.includes(name)}
+                      onChange={(event) =>
+                        setInviteSelection(
+                          event.target.checked
+                            ? [...inviteSelection, name]
+                            : inviteSelection.filter((item) => item !== name),
+                        )
+                      }
+                    />
+                    {name}
+                  </label>
+                ))}
+                {!uninvited.length && (
+                  <p>Todos os agentes disponíveis já foram convidados.</p>
+                )}
+              </fieldset>
+              <p className={s.modalNote}>
+                Convite simulado com os dados desta solicitação. Nenhum e-mail
+                será enviado.
+              </p>
+            </>
+          )}
+          {modal === 'offer' && offerPreview && (
+            <>
+              <div className={s.modalOffer}>
+                <span>
+                  {offerPreview.service} · {offerPreview.carrier}
+                </span>
+                <strong>{money(offerPreview.total)}</strong>
+              </div>
+              <dl className={s.dataGrid}>
+                <div>
+                  <dt>Chegada ao porto</dt>
+                  <dd>{shortDate(offerPreview.arrival)}</dd>
+                </div>
+                <div>
+                  <dt>Trânsito</dt>
+                  <dd>{offerPreview.transit ?? 'Não informado'} dias</dd>
+                </div>
+                <div>
+                  <dt>Validade</dt>
+                  <dd>{shortDate(offerPreview.validity)}</dd>
+                </div>
+                <div>
+                  <dt>Free time</dt>
+                  <dd>{offerPreview.freeDays ?? 'Não informado'} dias</dd>
+                </div>
+              </dl>
+              <p className={s.modalNote}>
+                {offerPreview.complete
+                  ? 'Frete e taxas de origem e destino informados.'
+                  : 'Oferta incompleta: confirme as taxas pendentes.'}{' '}
+                Entrega final e seguro não incluídos.
+              </p>
+              {offerPreview.arrival &&
+                q.needDate &&
+                offerPreview.arrival > q.needDate && (
+                  <p className={s.warning}>
+                    Chegada prevista após a sua necessidade. Confira esse
+                    impacto antes de escolher.
+                  </p>
+                )}
+            </>
+          )}
           {modal === 'approve' && chosen && (
             <>
               <div className={s.modalOffer}>
@@ -1485,7 +1567,7 @@ export default function QuotationPreview({
                 </div>
                 <div>
                   <dt>Rota</dt>
-                  <dd>Busan → Santos</dd>
+                  <dd>{q.origin} → {q.destination}</dd>
                 </div>
                 <div>
                   <dt>Necessidade no porto</dt>
@@ -1511,6 +1593,42 @@ export default function QuotationPreview({
                   </label>
                 ))}
               </fieldset>
+              <fieldset className={s.agentChoices}>
+                <legend>Quando enviar</legend>
+                <label>
+                  <input
+                    type="radio"
+                    name="send-mode"
+                    checked={sendMode === 'now'}
+                    onChange={() => setSendMode('now')}
+                  />
+                  Enviar agora
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="send-mode"
+                    checked={sendMode === 'schedule'}
+                    onChange={() => setSendMode('schedule')}
+                  />
+                  Programar envio
+                </label>
+              </fieldset>
+              {sendMode === 'schedule' && (
+                <label className={s.scheduleField}>
+                  Data e horário de envio · Brasília
+                  <input
+                    type="datetime-local"
+                    value={sendAt}
+                    min="2026-09-13T10:31"
+                    onChange={(event) => setSendAt(event.target.value)}
+                  />
+                  <small>
+                    Relógio da demonstração: 13/09/2026, 10:30. Programar não
+                    envia agora.
+                  </small>
+                </label>
+              )}
               <p className={s.modalNote}>
                 Envio simulado. Nenhum e-mail será enviado aos agentes.
               </p>
@@ -1581,6 +1699,16 @@ export default function QuotationPreview({
                 ? 'Voltar à cotação'
                 : 'Voltar'}
             </button>
+            {modal === 'invite' && (
+              <button
+                className={s.primary}
+                disabled={!inviteSelection.length}
+                onClick={invite}
+              >
+                Enviar convite para {inviteSelection.length}{' '}
+                {inviteSelection.length === 1 ? 'agente' : 'agentes'}
+              </button>
+            )}
             {modal === 'approve' && (
               <button className={s.primary} onClick={approve}>
                 Confirmar escolha
@@ -1592,7 +1720,9 @@ export default function QuotationPreview({
                 disabled={!q.targetAgents.length}
                 onClick={dispatch}
               >
-                Enviar solicitação
+                {sendMode === 'schedule'
+                  ? 'Confirmar programação'
+                  : 'Enviar solicitação'}
               </button>
             )}
             {(modal === 'cancel' || modal === 'decline') && (

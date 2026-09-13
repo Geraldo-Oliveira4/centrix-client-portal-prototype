@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Send } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import s from '../../../cotacoes/previa/quotation-preview.module.css';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -96,19 +96,25 @@ export function RfqDispatchCard({
   const handleDispatch = async () => {
     setSubmitting(true);
     setHardBlocks([]);
-    const saveResult = await savePortalRfq(quotationId, {
-      agents_targeted: selected,
-      particularities: particularities.trim() || null,
-      desired_deadline: deadline ? new Date(deadline).toISOString() : undefined,
-      // Only send origin fields once revealed, so we never blank an origin the
-      // client already provided at creation on an unrelated quotation.
-      ...(showOriginFields
-        ? {
-            agente_define_local_coleta: agentDefinesOrigin,
-            origin: agentDefinesOrigin ? null : origin.trim(),
-          }
-        : {}),
-    }, { silentValidation: true });
+    const saveResult = await savePortalRfq(
+      quotationId,
+      {
+        agents_targeted: selected,
+        particularities: particularities.trim() || null,
+        desired_deadline: deadline
+          ? new Date(deadline).toISOString()
+          : undefined,
+        // Only send origin fields once revealed, so we never blank an origin the
+        // client already provided at creation on an unrelated quotation.
+        ...(showOriginFields
+          ? {
+              agente_define_local_coleta: agentDefinesOrigin,
+              origin: agentDefinesOrigin ? null : origin.trim(),
+            }
+          : {}),
+      },
+      { silentValidation: true },
+    );
     if (!saveResult) {
       setSubmitting(false);
       return;
@@ -132,25 +138,32 @@ export function RfqDispatchCard({
   if (isLoading || rfqDispatched) return null;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">Solicitar cotação aos agentes</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <section className={s.panel + ' ' + s.formPanel}>
+      <div className={s.sectionHeading}>
+        <div>
+          <h2>Prepare o envio aos agentes</h2>
+          <p>
+            A solicitação ainda não foi enviada. Confira os destinatários e
+            complete o que falta.
+          </p>
+        </div>
+        <span className={s.subtleTag}>Não enviada</span>
+      </div>
+      <div className="space-y-4">
         {agents.length === 0 ? (
           <p className="portal-body text-portal-neutral">
-            Nenhum agente pré-definido está disponível para esta cotação. Entre
-            em contato com a equipe Freitas.
+            Nenhum agente elegível está disponível para esta cotação. O envio
+            fica disponível quando houver destinatários cadastrados.
           </p>
         ) : (
           <>
             <div className="space-y-2">
               <Label>Escolha os agentes</Label>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="divide-y">
                 {agents.map((agent) => (
                   <label
                     key={agent.id}
-                    className="portal-body flex cursor-pointer items-center gap-2 rounded-lg border p-2 hover:bg-muted/40"
+                    className="portal-body flex cursor-pointer items-center gap-3 py-3"
                   >
                     <Checkbox
                       checked={selected.includes(agent.id)}
@@ -164,7 +177,9 @@ export function RfqDispatchCard({
 
             {!desiredDeadline ? (
               <div className="space-y-2">
-                <Label htmlFor="rfq-deadline">Prazo desejado</Label>
+                <Label htmlFor="rfq-deadline">
+                  Prazo para resposta dos agentes
+                </Label>
                 <input
                   id="rfq-deadline"
                   type="datetime-local"
@@ -176,7 +191,7 @@ export function RfqDispatchCard({
             ) : null}
 
             {showOriginFields ? (
-              <div className="space-y-2 rounded border border-portal-warning/30 bg-portal-warning/8 p-4">
+              <div className="space-y-2 border-t pt-4">
                 <Label htmlFor="rfq-origin">Local de coleta (origem)</Label>
                 <input
                   id="rfq-origin"
@@ -231,7 +246,7 @@ export function RfqDispatchCard({
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
