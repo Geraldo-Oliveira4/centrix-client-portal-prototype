@@ -103,6 +103,7 @@ export default function QuotationPreview({
     }
     setQ(next);
     setSelection(next.selected);
+    setInspectedAgent(null);
     setExpanded(null);
     setModal(null);
     setError('');
@@ -159,9 +160,13 @@ export default function QuotationPreview({
   const focusOffer = chosen ?? recommended ?? q.offers[0];
   const agentProfile =
     q.offers.find((o) => o.id === inspectedAgent) ?? focusOffer;
-  useEffect(() => {
+  const selectOffer = (id: string) => {
+    if (!canCompare || decisionError(q, id)) return;
+    setSelection(id);
     setInspectedAgent(null);
-  }, [selection, scenario, revision]);
+    update({ selected: id });
+    setError('');
+  };
   const datesKnown = !!q.needDate;
   const openModal = (value: Modal) => {
     returnFocus.current = document.activeElement as HTMLElement;
@@ -336,6 +341,7 @@ export default function QuotationPreview({
                         'Escolha devolvida para revisão.',
                       );
                       setSelection(null);
+                      setInspectedAgent(null);
                     }}
                   >
                     Devolver escolha
@@ -444,11 +450,17 @@ export default function QuotationPreview({
               <small>Carga pronta em</small>
               <strong>{shortDate(q.readyDate)}</strong>
             </div>
-            <div>
-              <small>Necessidade no porto</small>
+            <div className={s.cargoNeed}>
+              <small>Sua necessidade de chegada</small>
               <strong>
-                {q.needDate ? shortDate(q.needDate) : 'Não informada'}
+                {q.needDate
+                  ? 'Até ' + shortDate(q.needDate)
+                  : 'Data não informada'}
               </strong>
+              <span>
+                No porto · {q.destination}
+                {q.needDate ? ' · ' + q.needDate.slice(0, 4) : ''}
+              </span>
             </div>
             <details className={s.contextNote}>
               <summary aria-label="Sobre a data de chegada">
@@ -769,7 +781,14 @@ export default function QuotationPreview({
                       </th>
                       <th>Agente / armador</th>
                       <th>Valor informado</th>
-                      <th>Chegada ao porto</th>
+                      <th>
+                        Chegada ao porto
+                        {q.needDate && (
+                          <small className={s.needReference}>
+                            Necessária até {shortDate(q.needDate)}
+                          </small>
+                        )}
+                      </th>
                       <th>Condições</th>
                       <th>Validade</th>
                       <th>
@@ -781,6 +800,7 @@ export default function QuotationPreview({
                     {q.offers.map((o) => {
                       const rec = recommended?.id === o.id;
                       const selected = selection === o.id;
+                      const selectable = canCompare && !decisionError(q, o.id);
                       const late =
                         o.arrival && q.needDate
                           ? dayDelta(o.arrival, q.needDate)
@@ -791,8 +811,19 @@ export default function QuotationPreview({
                             className={
                               (selected ? s.selectedRow : '') +
                               ' ' +
-                              (!validOffer(o) ? s.expiredRow : '')
+                              (!validOffer(o) ? s.expiredRow : '') +
+                              ' ' +
+                              (selectable ? s.selectableRow : '')
                             }
+                            onClick={(event) => {
+                              if (
+                                (event.target as HTMLElement).closest(
+                                  'button, input, a, summary',
+                                )
+                              )
+                                return;
+                              selectOffer(o.id);
+                            }}
                           >
                             <td data-label="Selecionar">
                               <input
@@ -803,11 +834,8 @@ export default function QuotationPreview({
                                 disabled={
                                   !canCompare || !!decisionError(q, o.id)
                                 }
-                                onChange={() => {
-                                  setSelection(o.id);
-                                  update({ selected: o.id });
-                                  setError('');
-                                }}
+                                onClick={() => setInspectedAgent(null)}
+                                onChange={() => selectOffer(o.id)}
                               />
                             </td>
                             <td data-label="Agente / armador">
