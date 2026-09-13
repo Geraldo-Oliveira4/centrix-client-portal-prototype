@@ -1,5 +1,21 @@
 # Complete quotation publication — 2026-09-13
 
+## Current release — full quotation journey
+
+Source: 7f27704bd8367b2df025039586cab5a4902a9f39, branch codex/cotacoes-publicacao-final. Deployment dpl_8PbWCpWNQ2L9G2qoUG4LHeQtrCEB is READY and promoted to https://centrix-client-portal-prototype.vercel.app. Candidate: https://centrix-client-portal-prototype-jsrmol50c.vercel.app. This section supersedes earlier publication/local-only checkpoints below.
+
+Merged codex/cotacoes-historico (7d9aa08) onto the exact current public base 177892f657776285c9bebd2e9e0bd15bd19c0b25 without conflicts. Preserves Central de trabalho/Operação, Radar, Inteligência, Panorama/Alertas, Configurações and shipments. Changes relative to that base are confined to quotation journeys, the shared ManualForm and their documentation.
+
+Published: revised Kanban; Em andamento/Aprovadas/Histórico; final contracted conditions; Cotar novamente with separate local drafts; Aprovadas with shipment linkage and simulated opening requests; actual early-stage details using the shared draft form; received proposal preview and additional-agent selection; restored shared visual styles; Preencher com IA demonstration in all draft entries. Nine card examples, fifteen status scenarios and four habitual-request entries remain available.
+
+Verification: 54 focused quotation tests passed. Local production build and Vercel production build passed type checking and generated 48 static pages (repository configuration skips lint). Authenticated candidate GET returned 200; all 28 checked public routes returned 200. Browser confirmed the public three tabs, approved shipment-opening actions, history with final conditions/repeat actions, actual draft with assisted-fill dialog, and partial-response detail with Alpha received and Beta/Gamma available. Public deployment ID checked after promotion. Full draft completion-to-dispatch UI and new accessibility audit were not performed; no real business sends occurred.
+
+Prototype boundaries remain: drafts, scheduling, added invitations, repeated requests and opening requests are browser-local simulations. Assisted fill recognizes five labelled fields in demonstration text; no LLM or document extraction/upload is connected. Existing early-stage workspace replaces the former live complement/RFQ form in this prototype, not its backend integration. Existing API data remains authoritative. See HISTORICO.md and GUIA-DEV.md.
+
+Rollback: dpl_8weV9Zi6Ju9uayMte6wwsDNbDAGF / https://centrix-client-portal-prototype-c9o4fqny4.vercel.app / source 177892f. Exact previous public ID checked immediately before promotion. Build/runtime NEXT_PUBLIC_API remains https://centrix-client-portal-prototype.onrender.com. GitHub synchronization remains pending; no push or PR attempted in this release. Future deployments must include 7f27704 to preserve this quotation work.
+
+## Earlier publication checkpoints
+
 Source: 630142c27a6e27aef6546de71fffbc0d49e8259b.
 Branch: codex/cotacoes-publicacao-completa.
 Deployment: dpl_g3dE1GACQjJ3yNLuk7ciUejxuEsD (READY, promoted, public ID verified).

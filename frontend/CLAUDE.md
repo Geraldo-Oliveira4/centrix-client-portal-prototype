@@ -2237,3 +2237,7 @@ Vinicius now authorizes publishing the approved card hierarchy on the actual /po
 ## Quotation history — local revision, 2026-09-13
 
 Branch codex/cotacoes-historico adds Em andamento/Histórico, terminal-state filters and source-preserving new-remittance drafts through the shared ManualForm. Closed conference remains in detail. Local request/template stores are client-scoped and dispatch is simulated. See app/portal/cotacoes/HISTORICO.md for routes, verification and integration boundaries. Not deployed; future publication must incorporate concurrent Radar, Inteligência and Central de trabalho changes from the current public base.
+
+## Full quotation journey published — 2026-09-13
+
+All local quotation checkpoints above are now included in source 7f27704bd8367b2df025039586cab5a4902a9f39, merged onto current public base 177892f. Deployment dpl_8PbWCpWNQ2L9G2qoUG4LHeQtrCEB is promoted and verified at https://centrix-client-portal-prototype.vercel.app/portal/cotacoes. Includes Kanban, Aprovadas, Histórico, repeat drafts, actual early details and assisted draft entry, preserving concurrent public modules. 54 focused tests, local/Vercel builds and 28 public route checks pass. Browser verified tabs, draft assistance and received/available agents. Prototype-only behaviors and integration limits documented above still apply; publication does not imply real RFQ, opening-request or AI integration. See app/portal/cotacoes/PUBLICACAO-COMPLETA.md for source, verification and rollback. No GitHub push.
