@@ -186,7 +186,7 @@ test('nenhum rotulo de tema colide com um item da sidebar', () => {
   // lugares faz o cliente esperar que escolher o tema o leve aquela aba.
   const sidebar = [
     'Início',
-    'Visão Geral',
+    'Central de trabalho',
     'Minhas Cotações',
     'Meus Embarques',
     'Inteligência',

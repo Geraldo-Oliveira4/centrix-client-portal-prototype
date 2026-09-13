@@ -7,18 +7,24 @@ import {
   type ManualFormDraft,
 } from '@/app/cotacao/nova-cotacao/components/manual-form';
 import type { Quote } from './model';
+import { DraftAiAssist } from './draft-ai-assist';
 
 export function DraftRequestForm({
   quotation: q,
   onSave,
   onReview,
+  onSaveTemplate,
 }: {
   quotation: Quote;
   onSave: (patch: Partial<Quote>) => void;
   onReview: (patch: Partial<Quote>) => void;
+  onSaveTemplate?: (patch: Partial<Quote>) => void;
 }) {
   const [supplier, setSupplier] = useState(q.supplier);
-  const [initial] = useState<ManualFormDraft>(
+  const [assisting, setAssisting] = useState<ManualFormDraft | null>(null);
+  const [revision, setRevision] = useState(0);
+  const [notice, setNotice] = useState('');
+  const [initial, setInitial] = useState<ManualFormDraft>(
     () =>
       q.manualDraft || {
         values: {
@@ -104,21 +110,52 @@ export function DraftRequestForm({
     };
   };
   return (
-    <ManualForm
-      clientId={null}
-      onQuotationCreated={() => {}}
-      exporterSection={
-        <Input
-          aria-label="Exportador do rascunho"
-          value={supplier}
-          onChange={(event) => setSupplier(event.target.value)}
+    <>
+      {notice && (
+        <p role="status" className="mb-4 text-sm text-muted-foreground">
+          {notice}
+        </p>
+      )}
+      <ManualForm
+        key={revision}
+        clientId={null}
+        onQuotationCreated={() => {}}
+        exporterSection={
+          <Input
+            aria-label="Exportador do rascunho"
+            value={supplier}
+            onChange={(event) => setSupplier(event.target.value)}
+          />
+        }
+        draft={{
+          initial,
+          onAssist: (snapshot) => {
+            setAssisting(snapshot);
+            setNotice('');
+          },
+          onSave: (snapshot) => onSave(patch(snapshot)),
+          onReview: (snapshot) => onReview(patch(snapshot)),
+          onSaveTemplate: onSaveTemplate
+            ? (snapshot) => onSaveTemplate(patch(snapshot))
+            : undefined,
+        }}
+      />
+      {assisting && (
+        <DraftAiAssist
+          draft={assisting}
+          supplier={supplier}
+          onClose={() => setAssisting(null)}
+          onApply={(result) => {
+            setInitial(result.draft);
+            setSupplier(result.supplier);
+            setRevision((value) => value + 1);
+            setAssisting(null);
+            setNotice(
+              'Sugestões aplicadas ao formulário. Revise e salve o rascunho quando terminar.',
+            );
+          }}
         />
-      }
-      draft={{
-        initial,
-        onSave: (snapshot) => onSave(patch(snapshot)),
-        onReview: (snapshot) => onReview(patch(snapshot)),
-      }}
-    />
+      )}
+    </>
   );
 }

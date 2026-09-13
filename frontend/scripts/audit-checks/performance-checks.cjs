@@ -1,0 +1,24 @@
+const assert=require('node:assert/strict');
+const M=require('../../public/prototypes/centrix-auditoria/model.js'),F=require('../../public/prototypes/centrix-auditoria/freight.js'),P=require('../../public/prototypes/centrix-auditoria/performance.js');
+let count=0;function test(name,fn){fn();count++;console.log('OK '+name);}
+const ops=P.enrich(F.enrich(M.seed())),op=ops.find(o=>o.id==='0007');
+const raw=id=>op.performanceAudit.controls.find(c=>c.id===id),check=id=>P.inspect(raw(id));
+test('23 controles únicos na matriz; cobertura parcial exclui entrega fora do escopo',()=>{const r=M.operational(op);assert.equal(new Set(r.checks.map(c=>c.id)).size,23);assert.equal(r.applicable.length,22);assert.equal(r.evaluated.length,15);assert.equal(r.missing.length,7);assert.equal(r.complete,false);});
+test('quatro desvios independentes, sem somatório de atraso nem score',()=>{assert.deepEqual(P.evaluate(op).deviations.map(c=>c.id),['booking','transit','eta','communication']);assert.equal(check('transit').delta,8);assert.equal(check('eta').delta,8);assert.ok(P.evaluate(op).checks.every(c=>!c.scoreEligible));assert.match(P.question(op),/não devem ser somados/);});
+test('booking: 72 horas decorridas, SLA 48, excesso 24 e 50%',()=>{const c=check('booking');assert.equal(c.delta,24);assert.equal(c.percent,50);assert.equal((Date.parse(c.events[1].at)-Date.parse(c.events[0].at))/3600000,c.actual);});
+test('comunicação: relógio começa no conhecimento; 72 menos 24 = 48 horas',()=>{const c=check('communication');assert.equal(c.delta,48);assert.equal((Date.parse(c.events[1].at)-Date.parse(c.events[0].at))/3600000,c.actual);});
+test('mudança aprovada preserva original e não altera ETA/ETD',()=>{assert.equal(check('service').state,'authorized');assert.equal(raw('service').agreed,'Serviço A');assert.equal(check('service').expected,'Serviço B');assert.equal(check('eta').expected,'2026-08-18');assert.equal(check('etd').expected,'2026-07-14');});
+test('aceite incompleto não substitui a referência',()=>{for(const field of ['approver','date','reason','evidence']){const c=structuredClone(raw('service'));delete c.change[field];assert.equal(P.inspect(c).state,'deviation');assert.equal(P.inspect(c).expected,'Serviço A');}});
+test('previsão de trânsito não vira realizado ou atraso confirmado',()=>{const r=P.evaluate(ops.find(o=>o.id==='0008'));const c=r.checks.find(c=>c.id==='transit');assert.equal(c.state,'pending');assert.equal(c.delta,null);assert.equal(r.complete,false);});
+test('sem original, evidência ou regra, conclusão fica pendente',()=>{for(const patch of [{original:false},{referenceEvidence:''},{actualEvidence:''},{tolerance:null},{tolerance:-1},{rule:''}])assert.equal(P.inspect({...raw('transit'),...patch}).state,'missing');});
+test('redução de free time de 21 para 14 é desvio de sete dias',()=>{const c=P.inspect({...raw('free'),actual:14});assert.equal(c.state,'deviation');assert.equal(c.delta,-7);});
+test('limite de tolerância e partida antecipada não geram desvio',()=>{assert.equal(P.inspect({...raw('transit'),tolerance:8}).state,'tolerance');assert.equal(P.inspect({...raw('etd'),actual:'2026-07-13'}).state,'clean');});
+test('não aplicável exige evidência do escopo',()=>{assert.equal(check('delivery').state,'na');assert.equal(P.inspect({...raw('delivery'),scopeEvidence:''}).state,'missing');});
+test('prazo de draft não comprova qualidade documental',()=>{assert.equal(check('docs').state,'missing');assert.equal(check('docs').delta,0);});
+test('chegada e descarga não comprovam disponibilidade ou entrega',()=>{assert.equal(check('discharge').state,'missing');assert.notEqual(check('discharge').actual,check('eta').actual);assert.equal(check('delivery').state,'na');});
+test('enriquecimento preserva integralmente valores e resultados financeiros',()=>{const a=F.enrich(M.seed()),before=a.map(M.financial);P.enrich(a);assert.deepEqual(a.map(M.financial),before);});
+test('migração idempotente preserva versões, controles e log',()=>{const before=JSON.stringify(ops);P.enrich(ops);assert.equal(JSON.stringify(ops),before);});
+test('evidência exportável contém causa, confiança, impacto, ação e histórico ETA',()=>{const t=P.evidence(op,'eta');for(const s of ['Causa:','Responsabilidade:','Confiança:','Impacto:','Ação:','prazo:','2026-08-25','2026-08-18'])assert.ok(t.includes(s));});
+test('falta de fatura não impede verificações de performance',()=>{const x=ops.find(o=>o.id==='0012');assert.ok(M.financial(x).missing);assert.ok(M.operational(x).evaluated.length>0);assert.equal(M.operational(x).complete,false);});
+test('escopo financeiro exclusivo não produz verificação de performance',()=>{const x=structuredClone(op);x.requested=['preco'];assert.equal(M.operational(x).status,'outside');assert.equal(M.operational(x).checks.length,0);});
+console.log(count+' verificações de performance aprovadas.');

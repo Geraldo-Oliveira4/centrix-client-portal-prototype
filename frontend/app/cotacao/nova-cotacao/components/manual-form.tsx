@@ -113,6 +113,8 @@ interface ManualFormProps {
     initial: ManualFormDraft;
     onSave: (snapshot: ManualFormDraft) => void;
     onReview: (snapshot: ManualFormDraft) => void;
+    onSaveTemplate?: (snapshot: ManualFormDraft) => void;
+    onAssist?: (snapshot: ManualFormDraft) => void;
   };
   clientId: string | null;
   onQuotationCreated: (quotation: Quotation) => void;
@@ -368,6 +370,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-5">
+        {draft?.onAssist && <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/20 p-4"><div><p className="text-sm font-medium">Já tem os dados em um e-mail ou documento?</p><p className="text-xs text-muted-foreground">Use a IA para ajudar a preencher e confira as sugestões antes de aplicar.</p></div><Button type="button" variant="outline" onClick={() => draft.onAssist?.(draftSnapshot(form.getValues()))}>Preencher com IA</Button></div>}
 
         {/* The three blocks have very different field counts (Embarque is the
             longest, Observações the shortest), and `items-start` let each card
@@ -1274,6 +1277,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
           )}
 
           <div className="flex flex-wrap justify-end gap-3">
+            {draft?.onSaveTemplate && <Button type="button" variant="ghost" onClick={() => draft.onSaveTemplate?.(draftSnapshot(form.getValues()))}>Salvar como habitual</Button>}
             {draft && <Button type="button" variant="outline" onClick={() => draft.onSave(draftSnapshot(form.getValues()))}>Salvar rascunho</Button>}
             <Button
               type="submit"

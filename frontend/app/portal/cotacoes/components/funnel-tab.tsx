@@ -11,6 +11,7 @@ import {
 
 import { PortalSearchInput } from '../../_shared/portal-search-input';
 import { KanbanColumn } from './kanban-column';
+import type { LocalRequest } from '../lib/repeat-model';
 import {
   EMPTY_PORTAL_FILTERS,
   PortalFiltersMenu,
@@ -28,7 +29,7 @@ import {
  * the kanban columns); the columns already carry the per-stage counts, so the
  * duplicates are gone.
  */
-export function FunnelTab({ data }: { data: PortalQuotationsResponse }) {
+export function FunnelTab({ data, localRequests = [] }: { data: PortalQuotationsResponse; localRequests?: LocalRequest[] }) {
   const [filters, setFilters] = useState<PortalFilterValues>(EMPTY_PORTAL_FILTERS);
 
   // "Preencher detalhes" is only shown when Freitas actually asked the client
@@ -37,12 +38,21 @@ export function FunnelTab({ data }: { data: PortalQuotationsResponse }) {
     () =>
       data.bucket_order.filter(
         (bucket) =>
-          bucket !== 'aguardando_dados' || (data.buckets.aguardando_dados?.length ?? 0) > 0,
+          bucket !== 'aguardando_dados' || (data.buckets.aguardando_dados?.length ?? 0) > 0 || localRequests.some((r) => r.stage === 'draft'),
       ),
-    [data],
+    [data, localRequests],
   );
 
-  const countOf = (bucket: PortalBucketKey) => data.buckets[bucket]?.length ?? 0;
+  const countOf = (bucket: PortalBucketKey) => (data.buckets[bucket]?.length ?? 0) + localRequests.filter((r) => bucket === (r.stage === 'draft' ? 'aguardando_dados' : 'buscando_propostas')).length;
+  const localIn = (bucket: PortalBucketKey) => localRequests.filter((r) => {
+    if (bucket !== (r.stage === 'draft' ? 'aguardando_dados' : 'buscando_propostas')) return false;
+    const contains = (value: string, search: string) => value.toLocaleLowerCase('pt-BR').includes(search.trim().toLocaleLowerCase('pt-BR'));
+    return contains([r.sourceReference, r.quote.supplier, r.quote.product, r.quote.po].join(' '), filters.query)
+      && contains(`${r.quote.origin} ${r.quote.destination}`, filters.route)
+      && (!filters.modal || r.quote.manualDraft?.values.modal === filters.modal)
+      && (!filters.agent || r.agents.some((agent) => contains(agent, filters.agent)))
+      && !filters.pais_procedencia && !filters.peso_taxado_min;
+  });
 
   // COMPOSICAO DOS TRES NUMEROS DO CABECALHO (conferida na fonte em 26/08/2026).
   // Eles nao sao tres recortes independentes: sao um subconjunto e uma soma.
@@ -93,7 +103,7 @@ export function FunnelTab({ data }: { data: PortalQuotationsResponse }) {
   );
 
   const filteredTotal = activeBuckets.reduce(
-    (sum, bucket) => sum + (filteredBuckets[bucket]?.length ?? 0),
+    (sum, bucket) => sum + (filteredBuckets[bucket]?.length ?? 0) + localIn(bucket).length,
     0,
   );
 
@@ -120,8 +130,8 @@ export function FunnelTab({ data }: { data: PortalQuotationsResponse }) {
           <PortalSearchInput
             value={filters.query}
             onChange={(query) => setFilters((prev) => ({ ...prev, query }))}
-            placeholder="Referência, PO ou produto…"
-            label="Buscar cotação por referência, PO do cliente ou produto"
+            placeholder="Fornecedor, PO, cotação ou carga…"
+            label="Buscar cotação por fornecedor, PO, referência ou carga"
           />
           <PortalFiltersMenu values={filters} onChange={setFilters} />
         </div>
@@ -138,6 +148,7 @@ export function FunnelTab({ data }: { data: PortalQuotationsResponse }) {
               key={bucket}
               bucket={bucket}
               quotations={filteredBuckets[bucket] ?? []}
+              localRequests={localIn(bucket)}
             />
           ))}
         </div>

@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   PanelLeft,
   PanelLeftClose,
+  Radar,
   Scale,
   Settings,
   Ship,
@@ -41,7 +42,7 @@ const NAV_ITEMS = [
   // de mim agora", cruzando Cotacao e Embarque numa lista de itens acionaveis.
   {
     href: '/portal/visao-geral',
-    label: 'Visão Geral',
+    label: 'Central de trabalho',
     icon: Gauge,
   },
   {
@@ -58,6 +59,11 @@ const NAV_ITEMS = [
     href: '/portal/inteligencia',
     label: 'Inteligência',
     icon: Sparkles,
+  },
+  {
+    href: '/portal/radar',
+    label: 'Radar',
+    icon: Radar,
   },
   {
     href: '/portal/auditoria',
@@ -180,6 +186,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   {!slim && <span>{item.label}</span>}
+                  {!slim && item.href === '/portal/radar' && <span className="ml-auto rounded border border-current/20 px-1.5 py-0.5 text-[10px]">Beta</span>}
                 </Link>
               );
 

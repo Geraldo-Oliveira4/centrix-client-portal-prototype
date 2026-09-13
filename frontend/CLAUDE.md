@@ -78,6 +78,13 @@ frontend/
 
 ## Routing and middleware
 
+### Auditoria — 13/09/2026
+
+`/portal/auditoria` embeds the approved price/performance and four-step intake experience in `public/prototypes/centrix-auditoria`. Freight includes versioned rubrics and illustrative PTAX validation; performance has 23 controls. Context assistance uses an explicit demo parser, selective review and source history, not LLM/OCR. Quotes, shipments and history are demo catalogs with independent links; files are metadata only. Session state is isolated; no business API, real upload, email or credit. Host/child hashes synchronize, including deep links. Tests: `scripts/audit-checks/*.cjs`. Release scope: `app/portal/auditoria/PUBLICACAO.md`.
+
+### Radar Beta — 13/09/2026
+
+`/portal/radar` is an independent menu module embedding `public/prototypes/centrix-radar`, with host/child hash synchronization and isolated CSS. Default `#radar/mercado` shows preferred-route cards, then `#radar/mercado/:id` opens price details. Adding a route lasts for the session only and does not change commercial preferences. Riscos, Parceiros and Abastecimento remain Beta. Contracting opportunities are evaluated within Mercado, not a separate tab. All prices, sources and needs are fictional; no API, alert engine, quotation mutation or Intelligence integration was added. Existing Intelligence screens remain unchanged. Release scope and checks: `app/portal/radar/PUBLICACAO.md`.
 ### Configurações — 13/09/2026
 
 The /portal/preferencias root embeds the approved browser-only Configurações demonstration from public/prototypes/centrix-configuracoes, following the existing Auditoria pattern. Its CSS, fixtures, imports and storage are isolated; no API calls or AI execution. Profile and notifications previously served at the root remain unchanged in perfil-conectado.tsx and are accessible at /portal/preferencias/conectadas. Existing exporters and agent/blocking routes remain intact and are linked below the demo. The sidebar changes only this section's label. Full analytical profiles are a separate unpublished preview; release links use the same-ID local coverage entry. See app/portal/preferencias/PUBLICACAO.md for scope, QA and integration limits.
@@ -1895,74 +1902,13 @@ duas, e a Home pediria um documento que o embarque mostra como entregue.
   Home, porque os textos de `step-insights` são de uma faixa com o embarque em
   volta e estão travados palavra por palavra em `step-insights.test.ts`.
 
-### Visão Geral (`/portal/visao-geral/`) — a Torre de Controle
+### Central de trabalho (`/portal/visao-geral/`) — Meu dia e Operação
 
-Página nova, **ao lado** de Início e sem substituir nada. A Home responde "qual é
-a próxima coisa que eu faço"; esta responde "o que está aberto, por módulo".
+Nome aprovado por Vinicius em 13/09; URL preservada. A página incorpora a demonstração em `public/prototypes/centrix-visao-geral` com o layout/menu original.
+Meu dia reúne ações, retornos com compromisso/último contato explícitos e mudanças relevantes; atualizações informativas/já vistas ficam recolhidas. Operação abre com panorama visual da carteira por frente, intervenções, agenda de compromissos/previsões e distribuição de trabalho. `operation.js` deriva o panorama dos mesmos registros e pendências de `work.js`; a fila fica recolhida e abre filtrada pelos indicadores. Minha carteira recorta pelo responsável do registro e mostra dependências dos retornos; múltiplos responsáveis mostram distribuição por pessoa. Registros/lotes não são pedidos únicos; falta de pendência não confirma normalidade; marcos realizados não entram como previsões futuras. `lib/work-queue.test.cjs` e `lib/operation-panorama.test.cjs` verificam contagem, agenda, recortes e limites de estado.
+Solicitar atualização prepara rascunho local revisável. Salvar não envia, não registra contato e não encerra espera. Campos sem fonte permanecem não informados; ausência de prazo nunca significa atraso. Leitura e revisão de impacto têm efeitos distintos; revisão vale para a previsão específica, e nova data reabre a revisão. Nenhum endpoint/Inova/ShipsGo integrado nesta demo.
+A implementação anterior de `lib/control-tower.ts` e seus testes continuam disponíveis, mas não alimentam esta página demonstrativa. Demais módulos preservados.
 
-**Cabeçalho BRANCO, sem card escuro em volta.** O bloco navy é da Home, onde
-substitui a sidebar; aqui a sidebar está de volta e um segundo bloco de marca
-competiria com ela. Título preto, subtítulo "Tudo que precisa da sua ação hoje ·
-[data]", farol em chips numa linha — tudo sobre o fundo da página.
-
-**TRÊS SINAIS NA TELA, e só três** (regra dos 5 segundos): farol,
-"Aguardando sua ação" e "Precisam de atenção". Nada de KPI, gráfico ou atalho
-extra — quem quiser o quarto número tem uma tela para ele.
-
-**O FAROL E AS COLUNAS NÃO SE POPULAM.** O farol é `countBySemaforo`: quantas
-operações estão em cada nível de RISCO (verde/laranja/vermelho). As colunas são
-quem PRECISA AGIR. São duas perguntas diferentes sobre a mesma carteira — um
-embarque verde no farol pode ter documento pendente (o estado dele no GE está
-normal, mas a bola está com o cliente), e um laranja pode não exigir nada. Somar
-o tamanho das colunas para imprimir no farol daria um número que não responde
-nenhuma das duas. **Nunca usar um para popular o outro.**
-
-**IMUTÁVEL**, de propósito: sem toggle, sem ordenação escolhida pelo cliente, sem
-personalização. A mesma estrutura para todo cliente é o que faz a Freitas poder
-dizer ao telefone "olha a primeira coluna" e acertar.
-
-**SEM ENDPOINT NOVO E SEM CÁLCULO NOVO.** `lib/control-tower.ts` (puro,
-unit-testado em `control-tower.test.ts`, 17 checagens) não classifica nada por
-conta própria — consome as regras que já existiam:
-
-| Coluna | Fonte reusada |
-|---|---|
-| Aguardando sua ação | `collectHomeActions` (`home/lib/home-actions.ts`), que já é a união de `PORTAL_CLIENT_ACTION_BUCKETS` (o `needsAction` do Funil) com os `StepAction` `pendente` da timeline |
-| Precisam de atenção | `delayRiskFromTracking` -> `computeDelayRisk`, com `attention` ou `delayed` |
-
-- **`collectHomeActions` é novo, `buildHomeActions` não mudou.** O primeiro é a
-  fila inteira e ordenada; o segundo é o wrapper que aplica o `HOME_ACTION_LIMIT`.
-  O corte é decisão de layout, não parte da regra.
-- **`HomeAction` ganhou `module` + `recordId`** (aditivo). A Home lista GATILHOS;
-  a Torre lista o REGISTRO, senão um embarque com dois gatilhos ocuparia duas
-  linhas da mesma coluna e o corte de três esconderia outro embarque por causa dele.
-- **Um item nunca aparece nas duas colunas**, e o desempate é sempre para a
-  primeira: se o cliente já tem o que fazer naquele embarque, o risco de prazo é
-  contexto da mesma linha, não uma segunda cobrança.
-- **Corte de `TOWER_COLUMN_LIMIT = 3` por coluna**, com o resto CONTADO no rodapé
-  e link para o módulo. "entre os dois módulos" só é impresso quando os itens
-  escondidos vêm mesmo dos dois (`hiddenSpansBothModules`) — a coluna de prazo é
-  só de embarque e dizê-lo ali prometeria uma cotação que não está no resto.
-- **Ordem = urgência, e é prazo onde existe prazo.** A coluna 1 herda a ordem de
-  `collectHomeActions`, que já é "prazo mais próximo primeiro" (ver a seção da
-  Home). A coluna 2 não tem prazo nenhum — nenhum embarque cobra data do
-  cliente —, então ordena por `deltaDays` decrescente: a carga que escorregou
-  mais aparece primeiro. Sem esse critério a ordem seria a do payload, que não
-  significa nada.
-- **A descrição da linha de prazo é escrita aqui**, e não é `risk.label`
-  ("Atraso, +5 dias"): aquele é o texto do chip colado no ETA, dentro do
-  embarque. Fora daquele contexto a frase precisa dizer QUEM moveu a data e
-  contra o quê. O NÚMERO é o mesmo `deltaDays` que `computeDelayRisk` devolveu.
-- **O link do rodapé da coluna 1 leva ao Funil** (a tela do `needsAction` de
-  cotação) e à Lista de embarques. A Lista **não tem chip de "ação necessária"**
-  hoje (os quatro são Urgentes, Embarcados, Com atraso, Com exceção), então esse
-  link abre a Lista inteira; criar o chip é decisão de produto, não de layout. O
-  da coluna 2 usa `?filtro=atraso`, que é a MESMA `delayRiskFromTracking` que
-  classifica as linhas dela.
-- **Sem Aprovação Documental** (só Cotação e Embarque alimentam as colunas),
-  **sem selo de proveniência** (filosofia vigente desde o Prompt 15) e **sem dado
-  fabricado**: coluna vazia mostra estado vazio em texto, nunca uma linha de
-  exemplo para não parecer quebrada.
 
 ### Minhas Cotações — Funil, Histórico, Aprovadas e Reprovadas (`/portal/cotacoes/`)
 
@@ -2276,3 +2222,26 @@ Quotation preparation and waiting now use shared components in app/portal/cotaca
 ### Detail release package — 2026-09-13
 
 Prepared on 786d229 to retain the published Configurações release. Includes preparation/waiting, progressive-response prototypes, and draft reuse of Nova Cotação's ManualForm. The 15 illustrative states persist form snapshots locally; draft save/review never calls quotation creation. Creation without draft props is unchanged. Kanban changes from codex/cotacao-kanban-cards are deliberately excluded. See GUIA-DEV.md for current review steps and integration boundaries; earlier local-only statuses describe previous checkpoints.
+
+### Reusable quotation requests — local prototype, 2026-09-13
+
+/portal/cotacoes/previa-habituais demonstrates entry from new quotation, history, supplier and preferred route. Reuses DraftRequestForm/ManualForm; an optional onSaveTemplate callback captures current form values without touching the normal create path. Named templates use an allow-list of stable fields, while occurrence data stays in a separate local draft. No API writes, calendar recurrence or changes to live Kanban/Configurações. See its README for local links, verification and integration limits. Branch codex/cotacao-habituais is not deployed.
+
+## Intelligence prototype publication — 2026-09-13
+
+`/portal/inteligencia` hosts the approved static experience in a same-origin iframe from `public/prototypes/centrix-inteligencia`. Hash routes preserve periods and context across Performance, Partners, Routes/Locations, Reports and Assistants. Legacy Performance/Agents/Executive URLs remain entry points. Radar is published separately at `/portal/radar`; its existing release is preserved. All new analytics and assistant examples are demonstrative; MCP connection is planned, with no live integration. Report versions are browser-local. Operational modules and Frame are unchanged.
+## Quotation card hierarchy — local revision, 2026-09-13
+
+The branch codex/cotacao-kanban-cards adjusts only card context and stage-specific emphasis, plus supplier search. Columns and grouping remain unchanged. Review /portal/cotacoes/previa-cards and its README for nine illustrative examples and the missing supplier API projection. Public release remains 95cc4d9; this Kanban revision has not been pushed or deployed. Test with npm run test:quotation-cards.
+
+## Complete quotation publication — 2026-09-13
+
+Vinicius now authorizes publishing the approved card hierarchy on the actual /portal/cotacoes Kanban, superseding its earlier exclusion from detail-only releases. Columns/grouping remain unchanged. Include nine card examples, all 15 detail scenarios and four habitual-request entry points; the card preview links their review pages. Start from cd15780/17acfde to preserve published Panorama/Alertas, Configurações and quotation details. The supplier API projection may be absent; never replace it with a freight agent or fixture value. Normal creation and RFQ permissions remain unchanged. Sending schedules/additional invitations and reusable models still have their documented demonstration boundaries. GitHub push remains blocked pending specific fork authorization; Vercel deployment is explicitly authorized.
+
+## Quotation history — local revision, 2026-09-13
+
+Branch codex/cotacoes-historico adds Em andamento/Histórico, terminal-state filters and source-preserving new-remittance drafts through the shared ManualForm. Closed conference remains in detail. Local request/template stores are client-scoped and dispatch is simulated. See app/portal/cotacoes/HISTORICO.md for routes, verification and integration boundaries. Not deployed; future publication must incorporate concurrent Radar, Inteligência and Central de trabalho changes from the current public base.
+
+## Full quotation journey published — 2026-09-13
+
+All local quotation checkpoints above are now included in source 7f27704bd8367b2df025039586cab5a4902a9f39, merged onto current public base 177892f. Deployment dpl_8PbWCpWNQ2L9G2qoUG4LHeQtrCEB is promoted and verified at https://centrix-client-portal-prototype.vercel.app/portal/cotacoes. Includes Kanban, Aprovadas, Histórico, repeat drafts, actual early details and assisted draft entry, preserving concurrent public modules. 54 focused tests, local/Vercel builds and 28 public route checks pass. Browser verified tabs, draft assistance and received/available agents. Prototype-only behaviors and integration limits documented above still apply; publication does not imply real RFQ, opening-request or AI integration. See app/portal/cotacoes/PUBLICACAO-COMPLETA.md for source, verification and rollback. No GitHub push.
