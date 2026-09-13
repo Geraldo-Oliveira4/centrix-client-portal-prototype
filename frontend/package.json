@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "preview:api": "node scripts/preview-shipments-api.mjs",
+    "test:quotation-preview": "node --test app/portal/cotacoes/previa/model.test.ts app/portal/cotacao/lib/detail-model.test.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",

@@ -78,6 +78,12 @@ frontend/
 
 ## Routing and middleware
 
+### Quotation detail preview — 13/09/2026
+
+The comparison ends with an agent profile (Raio X): punctuality, confirmed billing discrepancies and route experience from existing offer aggregates. Its agent selector only changes the inspected profile; selecting a proposal restores automatic following. Market comparison sits below each complete offer's price; its reference, sample and scope appear in the expanded cost details. Historical evidence is illustrative and aggregate-only, with no individual source records connected.
+
+`/portal/cotacoes/previa` is a native React review route with 14 illustrative quotation states. The ?variacoes=1 guide groups states by journey stage; GUIA-DEV.md provides direct links and a review script. The main Kanban remains unchanged and Minhas cotações links to its existing route. Its model, styling and local browser persistence are isolated in `app/portal/cotacoes/previa/`; the review route calls no business mutations. `/portal/cotacao/[id]` now shares the approved styles and preserves each quotation ID, backend recommendation and existing action components/endpoints. The Kanban is unchanged. The current DTO lacks ETA/departure/free time and structured pending-field requests; those stay explicit rather than inferred. Detail market/profile aggregates remain illustrative (see GUIA-DEV.md). It reuses the portal layout/fonts and demonstrates preparation, responses, comparison, choice review and outcomes. See its README for ports, scenarios, rules and integration limits. `npm run test:quotation-preview` tests the decision rules. The shipment fixture server accepts optional `PREVIEW_API_PORT` / `PREVIEW_ORIGIN` with original defaults preserved.
+
 Route protection is handled at the edge in `middleware.ts`. It reads the session cookie, decodes the Cognito JWT, and checks `cognito:groups` for role membership.
 
 | Route | Required role |

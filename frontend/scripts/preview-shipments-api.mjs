@@ -1,5 +1,7 @@
 // Local visual-review fixture server; never connects to the project database.
 import http from 'node:http';
+const port = Number(process.env.PREVIEW_API_PORT || 8011);
+const previewOrigin = process.env.PREVIEW_ORIGIN || 'http://localhost:3011';
 const date = (offset) => {
   const now = new Date();
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
@@ -44,7 +46,7 @@ const items = scenarios.map((s, i) => ({
 }));
 const buckets = { aguardando_dados: [], aguardando_aprovacao: [], buscando_propostas: [], finalizadas: quotations, cancelada: [] };
 http.createServer((req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3011');
+  res.setHeader('Access-Control-Allow-Origin', previewOrigin);
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -59,5 +61,5 @@ http.createServer((req, res) => {
   else if (pathname === '/portal/clients/me') data = { client: { id: 'demo', name: 'Cliente Demo · Prévia UX', email: 'demo@cliente.local' } };
   else { res.writeHead(404); return res.end(JSON.stringify({ message: 'Endpoint fora desta prévia.' })); }
   res.end(JSON.stringify(data));
-}).listen(8011, '127.0.0.1', () => console.log('Centrix UX fixture: http://localhost:8011'));
+}).listen(port, '127.0.0.1', () => console.log('Centrix UX fixture: http://localhost:' + port));
 

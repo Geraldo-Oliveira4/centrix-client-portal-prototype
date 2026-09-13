@@ -37,13 +37,13 @@ export function RecommendationPanel({
     [recommendation, proposals],
   );
 
-  // variant="portal" swaps the shell, the header and the body for the portal
-  // design system; the analyst and public-proposal surfaces keep the default.
+  // Inline explanation lives inside the detail disclosure, without a second card/title.
+  // Analyst and public-proposal surfaces retain their existing presentation.
   return (
     <RecommendationView
       recommendation={recommendation}
       isLoading={isLoading}
-      variant="portal"
+      variant="portal-inline"
       gap={gap}
     />
   );
