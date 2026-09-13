@@ -214,8 +214,9 @@ export function ApprovedTab({
                 : 'Solicitar abertura de embarque'}
             </DialogTitle>
             <DialogDescription>
-              Confira esta carga antes de registrar o pedido de demonstração.
-              Nenhum embarque será criado automaticamente.
+              {selected && requests[selected.id]
+                ? 'Pedido salvo neste navegador. O envio à equipe ainda não foi realizado.'
+                : 'Confira esta carga antes de registrar o pedido de demonstração. Nenhum embarque será criado automaticamente.'}
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm">
