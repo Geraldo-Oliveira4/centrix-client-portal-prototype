@@ -81,6 +81,19 @@ export default function ShipmentPreview({
   const tabSection = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    function openLinkedDocuments() {
+      if (window.location.hash !== '#documentos') return;
+      setTab('documents');
+      requestAnimationFrame(() =>
+        tabSection.current?.scrollIntoView({ block: 'start' }),
+      );
+    }
+    openLinkedDocuments();
+    window.addEventListener('hashchange', openLinkedDocuments);
+    return () => window.removeEventListener('hashchange', openLinkedDocuments);
+  }, []);
+
+  useEffect(() => {
     try {
       const saved = sessionStorage.getItem(`${STORAGE}:${scenario}`);
       if (saved) {
