@@ -1,6 +1,6 @@
-# Quotation card hierarchy — local review
+# Quotation card hierarchy — published review
 
-Open `/portal/cotacoes/previa-cards` for nine examples in the existing three-column Kanban. `/portal/cotacoes` uses the same presentation with current API data. This revision is local, not deployed.
+Open `/portal/cotacoes/previa-cards` for nine examples in the existing three-column Kanban. `/portal/cotacoes` uses the same presentation with current API data. Published on 2026-09-13 as part of the complete quotation release; see [PUBLICACAO-COMPLETA.md](../PUBLICACAO-COMPLETA.md). The example page links all status details and habitual-request variations for developer review.
 
 - Identify the demand by goods supplier, PO, cargo, route and cargo need date.
 - Missing information: show the pending step and open the quotation detail through “Ver pendência”. The detail retains its existing update action.
