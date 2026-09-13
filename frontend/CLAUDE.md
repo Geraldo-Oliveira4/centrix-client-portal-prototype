@@ -78,6 +78,9 @@ frontend/
 
 ## Routing and middleware
 
+### Radar Beta — 13/09/2026
+
+`/portal/radar` is an independent menu module embedding `public/prototypes/centrix-radar`, with host/child hash synchronization and isolated CSS. Default `#radar/mercado` shows preferred-route cards, then `#radar/mercado/:id` opens price details. Adding a route lasts for the session only and does not change commercial preferences. Riscos, Parceiros and Abastecimento remain Beta. Contracting opportunities are evaluated within Mercado, not a separate tab. All prices, sources and needs are fictional; no API, alert engine, quotation mutation or Intelligence integration was added. Existing Intelligence screens remain unchanged. Release scope and checks: `app/portal/radar/PUBLICACAO.md`.
 ### Configurações — 13/09/2026
 
 The /portal/preferencias root embeds the approved browser-only Configurações demonstration from public/prototypes/centrix-configuracoes, following the existing Auditoria pattern. Its CSS, fixtures, imports and storage are isolated; no API calls or AI execution. Profile and notifications previously served at the root remain unchanged in perfil-conectado.tsx and are accessible at /portal/preferencias/conectadas. Existing exporters and agent/blocking routes remain intact and are linked below the demo. The sidebar changes only this section's label. Full analytical profiles are a separate unpublished preview; release links use the same-ID local coverage entry. See app/portal/preferencias/PUBLICACAO.md for scope, QA and integration limits.
