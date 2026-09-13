@@ -78,6 +78,10 @@ frontend/
 
 ## Routing and middleware
 
+### Quotation detail preview — 13/09/2026
+
+`/portal/cotacoes/previa` is a native React review route with 13 illustrative quotation states. Its model, styling and local browser persistence are isolated in `app/portal/cotacoes/previa/`; it does not replace `/portal/cotacao/[id]` or call business mutation endpoints. It reuses the portal layout/fonts and demonstrates preparation, responses, comparison, choice review and outcomes. See its README for ports, scenarios, rules and integration limits. `npm run test:quotation-preview` tests the decision rules. The shipment fixture server accepts optional `PREVIEW_API_PORT` / `PREVIEW_ORIGIN` with original defaults preserved.
+
 Route protection is handled at the edge in `middleware.ts`. It reads the session cookie, decodes the Cognito JWT, and checks `cognito:groups` for role membership.
 
 | Route | Required role |
