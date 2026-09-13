@@ -2284,3 +2284,7 @@ Prepared on 786d229 to retain the published Configurações release. Includes pr
 ## Quotation card hierarchy — local revision, 2026-09-13
 
 The branch codex/cotacao-kanban-cards adjusts only card context and stage-specific emphasis, plus supplier search. Columns and grouping remain unchanged. Review /portal/cotacoes/previa-cards and its README for nine illustrative examples and the missing supplier API projection. Public release remains 95cc4d9; this Kanban revision has not been pushed or deployed. Test with npm run test:quotation-cards.
+
+## Complete quotation publication — 2026-09-13
+
+Vinicius now authorizes publishing the approved card hierarchy on the actual /portal/cotacoes Kanban, superseding its earlier exclusion from detail-only releases. Columns/grouping remain unchanged. Include nine card examples, all 15 detail scenarios and four habitual-request entry points; the card preview links their review pages. Start from cd15780/17acfde to preserve published Panorama/Alertas, Configurações and quotation details. The supplier API projection may be absent; never replace it with a freight agent or fixture value. Normal creation and RFQ permissions remain unchanged. Sending schedules/additional invitations and reusable models still have their documented demonstration boundaries. GitHub push remains blocked pending specific fork authorization; Vercel deployment is explicitly authorized.

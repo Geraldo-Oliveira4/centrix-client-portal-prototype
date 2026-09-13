@@ -12,9 +12,17 @@ export default function QuotationCardsPreview() {
         <p>
           Prévia dos cards · fornecedores e datas ilustrativos para revisão.
         </p>
-        <a className="underline underline-offset-4" href="/portal/cotacoes">
-          Ver com os dados atuais
-        </a>
+        <nav aria-label="Variações de cotação" className="flex flex-wrap gap-4">
+          <a className="underline underline-offset-4" href="/portal/cotacoes">
+            Ver com os dados atuais
+          </a>
+          <a className="underline underline-offset-4" href="/portal/cotacoes/previa?variacoes=1">
+            Detalhes e status
+          </a>
+          <a className="underline underline-offset-4" href="/portal/cotacoes/previa-habituais">
+            Solicitações habituais
+          </a>
+        </nav>
       </div>
       <FunnelTab data={examples as unknown as PortalQuotationsResponse} />
     </div>
