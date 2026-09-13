@@ -8,11 +8,11 @@ import {
   LayoutDashboard,
   PanelLeft,
   PanelLeftClose,
+  Radar,
   Scale,
   Settings,
   Ship,
   Sparkles,
-  Radar,
   X,
 } from 'lucide-react';
 
@@ -61,7 +61,7 @@ const NAV_ITEMS = [
     icon: Sparkles,
   },
   {
-    href: '/portal/inteligencia/radar',
+    href: '/portal/radar',
     label: 'Radar',
     icon: Radar,
   },
@@ -163,8 +163,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const active =
-                (pathname === item.href || pathname.startsWith(item.href + '/')) &&
-                !(item.href === '/portal/inteligencia' && pathname.startsWith('/portal/inteligencia/radar'));
+                pathname === item.href || pathname.startsWith(item.href + '/');
 
               const link = (
                 <Link
@@ -187,6 +186,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   {!slim && <span>{item.label}</span>}
+                  {!slim && item.href === '/portal/radar' && <span className="ml-auto rounded border border-current/20 px-1.5 py-0.5 text-[10px]">Beta</span>}
                 </Link>
               );
 
