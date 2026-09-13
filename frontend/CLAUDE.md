@@ -2223,6 +2223,9 @@ Prepared on 786d229 to retain the published Configurações release. Includes pr
 
 /portal/cotacoes/previa-habituais demonstrates entry from new quotation, history, supplier and preferred route. Reuses DraftRequestForm/ManualForm; an optional onSaveTemplate callback captures current form values without touching the normal create path. Named templates use an allow-list of stable fields, while occurrence data stays in a separate local draft. No API writes, calendar recurrence or changes to live Kanban/Configurações. See its README for local links, verification and integration limits. Branch codex/cotacao-habituais is not deployed.
 
+## Intelligence prototype publication — 2026-09-13
+
+`/portal/inteligencia` hosts the approved static experience in a same-origin iframe from `public/prototypes/centrix-inteligencia`. Hash routes preserve periods and context across Performance, Partners, Routes/Locations, Reports and Assistants. Legacy Performance/Agents/Executive URLs remain entry points. Radar is published separately at `/portal/radar`; its existing release is preserved. All new analytics and assistant examples are demonstrative; MCP connection is planned, with no live integration. Report versions are browser-local. Operational modules and Frame are unchanged.
 ## Quotation card hierarchy — local revision, 2026-09-13
 
 The branch codex/cotacao-kanban-cards adjusts only card context and stage-specific emphasis, plus supplier search. Columns and grouping remain unchanged. Review /portal/cotacoes/previa-cards and its README for nine illustrative examples and the missing supplier API projection. Public release remains 95cc4d9; this Kanban revision has not been pushed or deployed. Test with npm run test:quotation-cards.
