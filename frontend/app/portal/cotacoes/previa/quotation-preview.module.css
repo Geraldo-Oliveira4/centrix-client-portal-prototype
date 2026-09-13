@@ -564,7 +564,7 @@
 }
 .insights {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   margin: 0 0 23px;
   padding: 0 4px;
 }
@@ -572,9 +572,90 @@
   padding: 0 24px 8px 0;
 }
 .insights > section + section {
+  border-top: 1px solid var(--q-line);
+  margin-top: 22px;
+  padding: 24px 0 0;
+}
+.profileHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.profileHeader h2 {
+  font-size: 18px;
+}
+.agentPicker {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--q-muted);
+}
+.agentPicker select {
+  border: 1px solid var(--q-line);
+  border-radius: 6px;
+  background: var(--q-surface);
+  color: var(--q-ink);
+  padding: 8px 30px 8px 10px;
+  font: inherit;
+  font-size: 14px;
+}
+.workspace .profileContext {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0 18px;
+}
+.profileContext strong {
+  font-size: 17px;
+}
+.profileContext span {
+  font-size: 12px;
+  color: var(--q-muted);
+}
+.profileMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+.profileMetrics > div + div {
   border-left: 1px solid var(--q-line);
   padding-left: 24px;
-  padding-right: 0;
+}
+.profileMetrics dt {
+  font-size: 13px;
+  color: var(--q-muted);
+  margin-bottom: 10px;
+}
+.profileMetrics dd {
+  display: grid;
+  gap: 3px;
+}
+.profileMetrics dd strong {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.profileMetrics dd span {
+  font-size: 14px;
+}
+.profileMetrics p {
+  font-size: 12px;
+  color: var(--q-muted);
+  margin-top: 8px;
+}
+.workspace .profileReading {
+  font-size: 13px;
+  margin: 20px 0 6px;
+}
+.agentProfile .evidence p {
+  margin-top: 12px;
+}
+.agentProfile .evidence th:first-child,
+.agentProfile .evidence td:first-child {
+  width: 40%;
+  padding-right: 16px;
 }
 .insightHeader {
   display: flex;
@@ -1455,6 +1536,19 @@
   .insightHeader {
     flex-direction: row;
     align-items: center;
+  }
+  .profileHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .profileMetrics {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .profileMetrics > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--q-line);
+    padding: 16px 0 0;
   }
   .insightHeadline {
     font-size: 18px;

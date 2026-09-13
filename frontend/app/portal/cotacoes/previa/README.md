@@ -30,6 +30,8 @@ Comparação por oferta, seleção explícita, composição expansível, recomen
 
 Persistência por cenário no localStorage, prefixo `centrix-quotation-preview-v1:`. Reiniciar remove somente o registro do cenário atual, sem apagar sessões ou outras aplicações. Não há banco, LLM, envio de e-mail, upload, cobrança ou sincronização multiusuário. Documentos mostram metadados demonstrativos sem arquivo. Instrução e embarque são resumos locais de continuidade; a integração com os fluxos completos permanece para a próxima etapa.
 
+Raio X do agente: seção final da comparação com pontualidade, divergências confirmadas entre cotado e cobrado e experiência na rota, usando as mesmas amostras de cada oferta. Acompanha a escolha (ou a recomendação inicial); consultar outro agente pelo seletor não altera a escolha nem o contexto de mercado. Uma nova escolha volta a orientar o Raio X. Expansão informa critérios, período e limites das evidências; registros individuais, causas/duração dos atrasos e atendimento ainda não estão conectados.
+
 ## Verificação
 
 `npm run test:quotation-preview` verifica regras de recomendação, validade/escopo, estados e datas. `npm run build` verifica a rota nativa e tipos. Revisão por navegador: comparação/seleção, erro/repetição, persistência, complemento/envio com destinatário único, chegada de propostas, detalhes e responsividade. Registrar resultados efetivos no esquema vivo do vault.

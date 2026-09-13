@@ -70,6 +70,7 @@ export default function QuotationPreview({
   const [q, setQ] = useState<Quote>(() => createQuote(scenario));
   const [loaded, setLoaded] = useState(false);
   const [selection, setSelection] = useState<string | null>(null);
+  const [inspectedAgent, setInspectedAgent] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [notice, setNotice] = useState('');
@@ -156,6 +157,11 @@ export default function QuotationPreview({
     .filter((o) => o.complete && validOffer(o))
     .sort((a, b) => a.total - b.total)[0];
   const focusOffer = chosen ?? recommended ?? q.offers[0];
+  const agentProfile =
+    q.offers.find((o) => o.id === inspectedAgent) ?? focusOffer;
+  useEffect(() => {
+    setInspectedAgent(null);
+  }, [selection, scenario, revision]);
   const datesKnown = !!q.needDate;
   const openModal = (value: Modal) => {
     returnFocus.current = document.activeElement as HTMLElement;
@@ -1022,61 +1028,10 @@ export default function QuotationPreview({
             <div className={s.insights}>
               <section>
                 <div className={s.insightHeader}>
-                  <h2>Confiabilidade</h2>
-                  <span>{focusOffer.agent}</span>
-                </div>
-                <p className={s.insightHeadline}>
-                  <strong>
-                    {focusOffer.onTime} de {focusOffer.completed}
-                  </strong>{' '}
-                  chegadas no prazo
-                </p>
-                <p className={s.muted}>
-                  Embarques concluídos nesta rota nos últimos 6 meses.
-                </p>
-                <details>
-                  <summary>
-                    Ver histórico e evidências <ChevronDown size={13} />
-                  </summary>
-                  <div className={s.evidence}>
-                    <p>
-                      {focusOffer.audited} fretes conferidos;{' '}
-                      {focusOffer.discrepancies === 0
-                        ? 'nenhuma divergência confirmada'
-                        : focusOffer.discrepancies +
-                          ' divergência confirmada'}{' '}
-                      na amostra.
-                    </p>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Fonte</th>
-                          <th>Recorte</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>Eventos de chegada</td>
-                          <td>Previsto × realizado no porto</td>
-                        </tr>
-                        <tr>
-                          <td>Auditorias concluídas</td>
-                          <td>Proposta × cobrança</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                    <small>
-                      Amostra fictícia · março a agosto/2026 · Busan → Santos ·
-                      marítimo FCL. Sem ocorrências abertas não significa
-                      entrega pontual.
-                    </small>
-                  </div>
-                </details>
-              </section>
-              <section>
-                <div className={s.insightHeader}>
                   <h2>Mercado desta rota</h2>
-                  <span>Busan → Santos</span>
+                  <span>
+                    {focusOffer.agent} · {q.origin} → {q.destination}
+                  </span>
                 </div>
                 <p className={s.insightHeadline}>
                   {focusOffer.complete ? (
@@ -1112,6 +1067,176 @@ export default function QuotationPreview({
                     <small>
                       Base demonstrativa · atualizada em 12/09/2026. Escopos
                       incompletos não entram no comparativo.
+                    </small>
+                  </div>
+                </details>
+              </section>
+              <section
+                className={s.agentProfile}
+                aria-labelledby="agent-profile-title"
+              >
+                <div className={s.profileHeader}>
+                  <div>
+                    <h2 id="agent-profile-title">Raio X do agente de cargas</h2>
+                    <p className={s.muted}>
+                      Histórico para ajudar na sua escolha
+                    </p>
+                  </div>
+                  <label className={s.agentPicker}>
+                    <span>Consultar agente</span>
+                    <select
+                      value={agentProfile.id}
+                      onChange={(event) =>
+                        setInspectedAgent(event.target.value)
+                      }
+                    >
+                      {q.offers.map((offer) => (
+                        <option key={offer.id} value={offer.id}>
+                          {offer.agent}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <p className={s.profileContext} aria-live="polite">
+                  <strong>{agentProfile.agent}</strong>
+                  <span>
+                    {agentProfile.id === chosen?.id
+                      ? 'Agente da sua escolha'
+                      : agentProfile.id === recommended?.id
+                        ? 'Agente da proposta recomendada'
+                        : 'Consultando histórico · sua escolha permanece igual'}
+                  </span>
+                </p>
+                <dl className={s.profileMetrics}>
+                  <div>
+                    <dt>Cumprimento de prazo</dt>
+                    <dd>
+                      {agentProfile.completed > 0 ? (
+                        <>
+                          <strong>
+                            {agentProfile.onTime} de {agentProfile.completed}
+                          </strong>
+                          <span>chegadas no prazo</span>
+                        </>
+                      ) : (
+                        <strong>Sem histórico</strong>
+                      )}
+                    </dd>
+                    <p>
+                      {agentProfile.completed > 0
+                        ? `Após o previsto no porto: ${agentProfile.completed - agentProfile.onTime} de ${agentProfile.completed}.`
+                        : 'Ainda não há chegadas para avaliar.'}
+                    </p>
+                  </div>
+                  <div>
+                    <dt>Cotado × cobrado</dt>
+                    <dd>
+                      {agentProfile.audited > 0 ? (
+                        <>
+                          <strong>
+                            {agentProfile.discrepancies === 0
+                              ? 'Nenhuma'
+                              : agentProfile.discrepancies}
+                          </strong>
+                          <span>
+                            {agentProfile.discrepancies > 1
+                              ? 'divergências confirmadas'
+                              : 'divergência confirmada'}
+                          </span>
+                        </>
+                      ) : (
+                        <strong>Sem auditorias</strong>
+                      )}
+                    </dd>
+                    <p>
+                      {agentProfile.audited > 0
+                        ? `${agentProfile.audited} fretes conferidos nesta amostra.`
+                        : 'Ainda não há cobranças conferidas.'}
+                    </p>
+                  </div>
+                  <div>
+                    <dt>Experiência nesta rota</dt>
+                    <dd>
+                      <strong>
+                        {agentProfile.completed > 0
+                          ? agentProfile.completed
+                          : 'Sem histórico'}
+                      </strong>
+                      {agentProfile.completed > 0 && (
+                        <span>embarques concluídos</span>
+                      )}
+                    </dd>
+                    <p>
+                      {q.origin} → {q.destination} · {q.modal} · {q.equipment}
+                    </p>
+                  </div>
+                </dl>
+                <p className={s.profileReading}>
+                  {agentProfile.completed > 0
+                    ? 'Use esse histórico junto ao prazo e às condições da proposta. A pontualidade observada não garante a próxima chegada.'
+                    : 'Ainda não há histórico suficiente para avaliar este agente. Confirme as condições da proposta antes de escolher.'}
+                </p>
+                <p className={s.muted}>
+                  Março a agosto de 2026 · amostra demonstrativa nesta rota
+                </p>
+                <details key={agentProfile.id}>
+                  <summary>
+                    Ver histórico e evidências <ChevronDown size={13} />
+                  </summary>
+                  <div className={s.evidence}>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th scope="col">O que foi observado</th>
+                          <th scope="col">Base de comparação</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>
+                            {agentProfile.onTime} de {agentProfile.completed}{' '}
+                            chegadas no prazo
+                          </td>
+                          <td>
+                            Data prevista × realizada no porto, em embarques
+                            concluídos.
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            {agentProfile.discrepancies}{' '}
+                            {agentProfile.discrepancies === 1
+                              ? 'divergência'
+                              : 'divergências'}{' '}
+                            em {agentProfile.audited} auditorias
+                          </td>
+                          <td>
+                            Condições cotadas × cobrança, considerando apenas
+                            divergências confirmadas.
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            {agentProfile.completed} operações semelhantes
+                          </td>
+                          <td>
+                            Mesmo agente, rota e modal, no período informado.
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <p>
+                      Atrasos podem envolver armador, porto ou outros fatores. A
+                      amostra não atribui responsabilidade ao agente;
+                      contestações em aberto não contam como divergência
+                      confirmada.
+                    </p>
+                    <small>
+                      Dados fictícios para revisão da experiência. Registros
+                      individuais e documentos de origem ainda não estão
+                      conectados. Duração e causas dos atrasos, atendimento e
+                      resolução não estão disponíveis nesta base.
                     </small>
                   </div>
                 </details>
