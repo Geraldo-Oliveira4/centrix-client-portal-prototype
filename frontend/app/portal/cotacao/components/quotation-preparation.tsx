@@ -83,6 +83,10 @@ export function WaitingResponses({
   unavailable,
   loading,
   onRefresh,
+  onView,
+  onInvite,
+  onCompare,
+  comparisonAvailable = false,
 }: {
   rows: ResponseRow[];
   count: number;
@@ -91,6 +95,10 @@ export function WaitingResponses({
   unavailable?: boolean;
   loading?: boolean;
   onRefresh?: () => void;
+  onView?: (id: string) => void;
+  onInvite?: () => void;
+  onCompare?: () => void;
+  comparisonAvailable?: boolean;
 }) {
   return (
     <section className={s.panel}>
@@ -103,7 +111,9 @@ export function WaitingResponses({
           </h2>
           <p>
             {count
-              ? 'Você já pode consultar as respostas recebidas. A comparação ainda não está liberada.'
+              ? comparisonAvailable
+                ? 'Consulte cada proposta assim que chegar. Você pode avançar com as disponíveis ou aguardar mais respostas.'
+                : 'Você já pode consultar as respostas recebidas. A comparação ainda não está liberada.'
               : 'Acompanhe as respostas nesta cotação.'}
           </p>
         </div>
@@ -116,7 +126,12 @@ export function WaitingResponses({
       <div className={s.responseSummary}>
         <div>
           <small>Propostas recebidas</small>
-          <strong>{count}</strong>
+          <strong>
+            {count}
+            {comparisonAvailable && rows.length
+              ? ' de ' + rows.length + ' agentes'
+              : ''}
+          </strong>
         </div>
         <div>
           <small>Prazo solicitado para resposta</small>
@@ -136,6 +151,11 @@ export function WaitingResponses({
             <tr>
               <th>Agente de cargas</th>
               <th>Situação da resposta</th>
+              {onView && (
+                <th>
+                  <span className={s.srOnly}>Consultar proposta</span>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -150,6 +170,18 @@ export function WaitingResponses({
                     {row.received ? 'Proposta recebida' : 'Aguardando resposta'}
                   </span>
                 </td>
+                {onView && (
+                  <td>
+                    {row.received && (
+                      <button
+                        className={s.textButton}
+                        onClick={() => onView(row.id)}
+                      >
+                        Ver proposta
+                      </button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -166,9 +198,24 @@ export function WaitingResponses({
       )}
       <div className={s.waitFooter}>
         <p>
-          Receber uma proposta não confirma a contratação. A escolha acontece na
-          próxima etapa.
+          {comparisonAvailable
+            ? 'Você não precisa esperar todos responderem. Confira validade, prazo e condições antes de escolher.'
+            : 'Receber uma proposta não confirma a contratação. A escolha acontece na próxima etapa.'}
         </p>
+        <div className="flex flex-wrap gap-4">
+          {onInvite && (
+            <button className={s.textButton} onClick={onInvite}>
+              Convidar mais agentes
+            </button>
+          )}
+          {onCompare && count > 0 && (
+            <button className={s.secondary} onClick={onCompare}>
+              {count === 1
+                ? 'Revisar proposta disponível'
+                : 'Comparar disponíveis'}
+            </button>
+          )}
+        </div>
       </div>
     </section>
   );

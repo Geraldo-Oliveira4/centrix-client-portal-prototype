@@ -38,6 +38,9 @@ import {
   decisionError,
   confirmChoice,
   scheduleRequest,
+  availableAgents,
+  inviteMoreAgents,
+  receiveNextOffer,
   validateCargo,
   money,
   shortDate,
@@ -58,6 +61,8 @@ type Modal =
   | 'decline'
   | 'shipment'
   | 'instruction'
+  | 'invite'
+  | 'offer'
   | null;
 const terminal = (stage: Stage) =>
   ['closed', 'declined', 'cancelled'].includes(stage);
@@ -92,6 +97,12 @@ export default function QuotationPreview({
   const [formErrors, setFormErrors] = useState(false);
   const [sendMode, setSendMode] = useState<'now' | 'schedule'>('now');
   const [sendAt, setSendAt] = useState('2026-09-14T09:00');
+  const [inviteSelection, setInviteSelection] = useState<string[]>([]);
+  const [viewedOffer, setViewedOffer] = useState<string | null>(null);
+  const offerPreview = q.offers.find((offer) => offer.id === viewedOffer);
+  const uninvited = availableAgents.filter(
+    (name) => !q.targetAgents.includes(name),
+  );
 
   useEffect(() => {
     let next = createQuote(scenario);
@@ -273,25 +284,30 @@ export default function QuotationPreview({
     );
   };
   const nextResponse = () => {
-    const all = createQuote('comparar').offers.filter((o) =>
-      q.targetAgents.includes(o.agent),
-    );
-    const next = all.slice(0, Math.min(q.offers.length + 1, all.length));
-    update(
-      {
-        offers: next,
-        stage: next.length === q.agentCount ? 'ready' : 'partial',
-      },
-      'Nova proposta recebida' +
-        (next.length === q.agentCount
-          ? ' e ofertas liberadas para escolha.'
-          : '; aguardando demais agentes.'),
-    );
+    const next = receiveNextOffer(q);
+    setQ(next);
     setNotice(
-      next.length === q.agentCount
-        ? 'Todas as respostas chegaram. As propostas foram liberadas nesta simulação.'
-        : 'Uma resposta foi adicionada. A cotação ainda aguarda liberação para escolha.',
+      next === q
+        ? 'Não há outra resposta preparada nesta simulação. Os demais agentes continuam pendentes.'
+        : 'Nova proposta disponível para consulta. Você decide se avança ou aguarda outras respostas.',
     );
+  };
+  const invite = () => {
+    try {
+      const next = inviteMoreAgents(q, inviteSelection);
+      if (simulateFailure()) return;
+      setQ(next);
+      setModal(null);
+      setNotice(
+        'Convites adicionais registrados na prévia. Nenhuma mensagem foi enviada; as propostas recebidas foram mantidas.',
+      );
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível adicionar os agentes.',
+      );
+    }
   };
   const mainStatusTone =
     q.stage === 'needs-info'
@@ -356,7 +372,7 @@ export default function QuotationPreview({
                 />{' '}
                 Falha na próxima confirmação
               </label>
-              {isWaiting && (
+              {(isWaiting || canCompare) && (
                 <button onClick={nextResponse}>Receber próxima proposta</button>
               )}
               {q.stage === 'review' && (
@@ -726,8 +742,35 @@ export default function QuotationPreview({
             </section>
           )}
 
-          {isWaiting && (
+          {(isWaiting ||
+            (canCompare && q.offers.length < q.targetAgents.length)) && (
             <WaitingResponses
+              comparisonAvailable
+              onInvite={() => {
+                setInviteSelection([]);
+                openModal('invite');
+              }}
+              onView={(name) => {
+                setViewedOffer(
+                  q.offers.find((offer) => offer.agent === name)?.id || null,
+                );
+                openModal('offer');
+              }}
+              onCompare={
+                isWaiting
+                  ? () => {
+                      update(
+                        { stage: 'ready' },
+                        'Revisão das propostas disponíveis iniciada sem esperar todos os agentes.',
+                      );
+                      setNotice(
+                        'Você está revisando ' +
+                          q.offers.length +
+                          ' proposta(s). Os demais agentes continuam pendentes.',
+                      );
+                    }
+                  : undefined
+              }
               count={q.offers.length}
               deadline={q.responseBy}
               sentAt={q.sentAt}
@@ -820,7 +863,7 @@ export default function QuotationPreview({
             </section>
           )}
 
-          {(canCompare || q.stage === 'partial') && (
+          {canCompare && (
             <ResponseOffers waiting={isWaiting} count={q.offers.length}>
               <section className={s.panel}>
                 <div className={s.sectionHeading}>
@@ -1468,29 +1511,121 @@ export default function QuotationPreview({
           }}
         >
           <DialogTitle>
-            {modal === 'approve'
-              ? 'Revise sua escolha'
-              : modal === 'dispatch'
-                ? 'Revise a solicitação aos agentes'
-                : modal === 'cancel'
-                  ? 'Cancelar esta solicitação?'
-                  : modal === 'decline'
-                    ? 'Encerrar sem escolher uma proposta'
-                    : modal === 'shipment'
-                      ? 'Embarque vinculado'
-                      : 'Instrução de embarque'}
+            {modal === 'invite'
+              ? 'Convidar mais agentes'
+              : modal === 'offer'
+                ? 'Proposta de ' + (offerPreview?.agent || 'agente')
+                : modal === 'approve'
+                  ? 'Revise sua escolha'
+                  : modal === 'dispatch'
+                    ? 'Revise a solicitação aos agentes'
+                    : modal === 'cancel'
+                      ? 'Cancelar esta solicitação?'
+                      : modal === 'decline'
+                        ? 'Encerrar sem escolher uma proposta'
+                        : modal === 'shipment'
+                          ? 'Embarque vinculado'
+                          : 'Instrução de embarque'}
           </DialogTitle>
           <DialogDescription>
-            {modal === 'approve'
-              ? 'Ao confirmar, a oferta seguirá para análise da Freitas. A contratação ainda não estará concluída.'
-              : modal === 'dispatch'
-                ? 'Confira a carga e os agentes que receberão a solicitação.'
-                : modal === 'shipment'
-                  ? 'Continuidade demonstrativa da cotação até o acompanhamento.'
-                  : modal === 'instruction'
-                    ? 'Dados da condição liberada para preparação do embarque.'
-                    : 'O histórico será preservado. Esta ação é apenas local à prévia.'}
+            {modal === 'invite'
+              ? 'Escolha agentes disponíveis que ainda não receberam esta solicitação. Os convites existentes não serão reenviados.'
+              : modal === 'offer'
+                ? 'Pré-visualização da oferta recebida. Consultar não seleciona nem contrata.'
+                : modal === 'approve'
+                  ? 'Ao confirmar, a oferta seguirá para análise da Freitas. A contratação ainda não estará concluída.'
+                  : modal === 'dispatch'
+                    ? 'Confira a carga e os agentes que receberão a solicitação.'
+                    : modal === 'shipment'
+                      ? 'Continuidade demonstrativa da cotação até o acompanhamento.'
+                      : modal === 'instruction'
+                        ? 'Dados da condição liberada para preparação do embarque.'
+                        : 'O histórico será preservado. Esta ação é apenas local à prévia.'}
           </DialogDescription>
+          {modal === 'invite' && (
+            <>
+              <dl className={s.dataGrid}>
+                <div>
+                  <dt>Solicitação</dt>
+                  <dd>
+                    {q.reference} · {q.product}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Já convidados</dt>
+                  <dd>{q.targetAgents.join(', ')}</dd>
+                </div>
+              </dl>
+              <fieldset className={s.agentChoices}>
+                <legend>Disponíveis para convidar</legend>
+                {uninvited.map((name) => (
+                  <label key={name}>
+                    <input
+                      type="checkbox"
+                      checked={inviteSelection.includes(name)}
+                      onChange={(event) =>
+                        setInviteSelection(
+                          event.target.checked
+                            ? [...inviteSelection, name]
+                            : inviteSelection.filter((item) => item !== name),
+                        )
+                      }
+                    />
+                    {name}
+                  </label>
+                ))}
+                {!uninvited.length && (
+                  <p>Todos os agentes disponíveis já foram convidados.</p>
+                )}
+              </fieldset>
+              <p className={s.modalNote}>
+                Convite simulado com os dados desta solicitação. Nenhum e-mail
+                será enviado.
+              </p>
+            </>
+          )}
+          {modal === 'offer' && offerPreview && (
+            <>
+              <div className={s.modalOffer}>
+                <span>
+                  {offerPreview.service} · {offerPreview.carrier}
+                </span>
+                <strong>{money(offerPreview.total)}</strong>
+              </div>
+              <dl className={s.dataGrid}>
+                <div>
+                  <dt>Chegada ao porto</dt>
+                  <dd>{shortDate(offerPreview.arrival)}</dd>
+                </div>
+                <div>
+                  <dt>Trânsito</dt>
+                  <dd>{offerPreview.transit ?? 'Não informado'} dias</dd>
+                </div>
+                <div>
+                  <dt>Validade</dt>
+                  <dd>{shortDate(offerPreview.validity)}</dd>
+                </div>
+                <div>
+                  <dt>Free time</dt>
+                  <dd>{offerPreview.freeDays ?? 'Não informado'} dias</dd>
+                </div>
+              </dl>
+              <p className={s.modalNote}>
+                {offerPreview.complete
+                  ? 'Frete e taxas de origem e destino informados.'
+                  : 'Oferta incompleta: confirme as taxas pendentes.'}{' '}
+                Entrega final e seguro não incluídos.
+              </p>
+              {offerPreview.arrival &&
+                q.needDate &&
+                offerPreview.arrival > q.needDate && (
+                  <p className={s.warning}>
+                    Chegada prevista após a sua necessidade. Confira esse
+                    impacto antes de escolher.
+                  </p>
+                )}
+            </>
+          )}
           {modal === 'approve' && chosen && (
             <>
               <div className={s.modalOffer}>
@@ -1678,6 +1813,16 @@ export default function QuotationPreview({
                 ? 'Voltar à cotação'
                 : 'Voltar'}
             </button>
+            {modal === 'invite' && (
+              <button
+                className={s.primary}
+                disabled={!inviteSelection.length}
+                onClick={invite}
+              >
+                Enviar convite para {inviteSelection.length}{' '}
+                {inviteSelection.length === 1 ? 'agente' : 'agentes'}
+              </button>
+            )}
             {modal === 'approve' && (
               <button className={s.primary} onClick={approve}>
                 Confirmar escolha

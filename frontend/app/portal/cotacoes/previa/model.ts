@@ -1,6 +1,55 @@
 // Demonstration-only data. No writes to the portal API.
 export const TODAY = '2026-09-13';
 export const STORAGE_KEY = 'centrix-quotation-preview-v1';
+export const availableAgents = [
+  'Alpha Cargo',
+  'Beta Logistics',
+  'Gamma Comex',
+  'Delta Freight',
+  'Atlas Cargo',
+];
+
+export function inviteMoreAgents(q: Quote, names: string[]): Quote {
+  if (!['waiting', 'partial', 'ready'].includes(q.stage))
+    throw new Error(
+      'Convites adicionais estão disponíveis enquanto a cotação está aberta para propostas.',
+    );
+  const added = Array.from(new Set(names)).filter(
+    (name) => !q.targetAgents.includes(name),
+  );
+  if (!added.length) throw new Error('Selecione um novo agente.');
+  if (added.some((name) => !availableAgents.includes(name)))
+    throw new Error('Selecione agentes disponíveis para esta solicitação.');
+  const targetAgents = [...q.targetAgents, ...added];
+  return {
+    ...q,
+    targetAgents,
+    agentCount: targetAgents.length,
+    events: [
+      'Agora — Convite adicional para ' + added.join(', ') + ' (simulação).',
+      ...q.events,
+    ],
+  };
+}
+
+export function receiveNextOffer(q: Quote): Quote {
+  if (!['waiting', 'partial', 'ready'].includes(q.stage)) return q;
+  const next = createQuote('comparar').offers.find(
+    (offer) =>
+      q.targetAgents.includes(offer.agent) &&
+      !q.offers.some((existing) => existing.id === offer.id),
+  );
+  if (!next) return q;
+  return {
+    ...q,
+    offers: [...q.offers, next],
+    stage: q.stage === 'ready' ? 'ready' : 'partial',
+    events: [
+      'Agora — Proposta de ' + next.agent + ' recebida (simulação).',
+      ...q.events,
+    ],
+  };
+}
 export type Stage =
   | 'draft'
   | 'scheduled'

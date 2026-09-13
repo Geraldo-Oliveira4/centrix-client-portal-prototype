@@ -37,7 +37,7 @@ export const reviewGroups = [
       {
         id: 'parciais',
         check:
-          'Uma proposta recebida. Consulte suas condições; a escolha aguarda liberação. Use Simular para receber as demais.',
+          'Abra Ver proposta, convide agentes ainda disponíveis e revise as ofertas recebidas sem esperar todos. Use Simular para novas respostas.',
       },
     ],
   },

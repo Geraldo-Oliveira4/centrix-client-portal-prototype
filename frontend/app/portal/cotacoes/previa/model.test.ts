@@ -6,10 +6,46 @@ import {
   decisionError,
   confirmChoice,
   scheduleRequest,
+  inviteMoreAgents,
+  receiveNextOffer,
   validateCargo,
   dayDelta,
   money,
 } from './model.ts';
+
+test('additional invitations preserve received proposals, deadlines and existing recipients', () => {
+  const q = createQuote('parciais');
+  const result = inviteMoreAgents(q, [
+    'Delta Freight',
+    'Delta Freight',
+    'Alpha Cargo',
+  ]);
+  assert.deepEqual(result.offers, q.offers);
+  assert.equal(result.responseBy, q.responseBy);
+  assert.equal(result.sentAt, q.sentAt);
+  assert.equal(result.stage, 'partial');
+  assert.deepEqual(result.targetAgents, [...q.targetAgents, 'Delta Freight']);
+  assert.equal(result.agentCount, 4);
+  assert.throws(() => inviteMoreAgents(q, ['Unknown']));
+  assert.throws(() => inviteMoreAgents(q, ['Alpha Cargo']));
+  assert.throws(() =>
+    inviteMoreAgents(createQuote('fechada'), ['Delta Freight']),
+  );
+});
+
+test('receiving proposals never waits for everyone to release or automatically selects an offer', () => {
+  let q = createQuote('aguardando');
+  q = receiveNextOffer(q);
+  assert.equal(q.offers.length, 1);
+  assert.equal(q.stage, 'partial');
+  const first = q.offers[0];
+  q = receiveNextOffer(receiveNextOffer(q));
+  assert.equal(q.offers.length, 3);
+  assert.equal(q.stage, 'partial');
+  assert.equal(q.selected, null);
+  assert.deepEqual(q.offers[0], first);
+  assert.equal(receiveNextOffer(q), q);
+});
 
 test('scheduled dispatch preserves the draft data without marking a request sent', () => {
   const draft = createQuote('envio');
