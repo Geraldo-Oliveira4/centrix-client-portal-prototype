@@ -2288,3 +2288,7 @@ The branch codex/cotacao-kanban-cards adjusts only card context and stage-specif
 ## Complete quotation publication — 2026-09-13
 
 Vinicius now authorizes publishing the approved card hierarchy on the actual /portal/cotacoes Kanban, superseding its earlier exclusion from detail-only releases. Columns/grouping remain unchanged. Include nine card examples, all 15 detail scenarios and four habitual-request entry points; the card preview links their review pages. Start from cd15780/17acfde to preserve published Panorama/Alertas, Configurações and quotation details. The supplier API projection may be absent; never replace it with a freight agent or fixture value. Normal creation and RFQ permissions remain unchanged. Sending schedules/additional invitations and reusable models still have their documented demonstration boundaries. GitHub push remains blocked pending specific fork authorization; Vercel deployment is explicitly authorized.
+
+## Quotation history — local revision, 2026-09-13
+
+Branch codex/cotacoes-historico adds Em andamento/Histórico, terminal-state filters and source-preserving new-remittance drafts through the shared ManualForm. Closed conference remains in detail. Local request/template stores are client-scoped and dispatch is simulated. See app/portal/cotacoes/HISTORICO.md for routes, verification and integration boundaries. Not deployed; future publication must incorporate concurrent Radar, Inteligência and Central de trabalho changes from the current public base.

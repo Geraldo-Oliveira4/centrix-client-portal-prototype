@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   ArrowRight,
@@ -55,7 +55,8 @@ import { HistoryTimeline } from './components/history-timeline';
 import { RecommendationPanel } from './components/recommendation-panel';
 import { RfqDispatchCard } from './components/rfq-dispatch-card';
 import { QuotationFooterCard } from './components/quotation-footer-card';
-import { AuditPreviewSection } from './components/audit-preview-section';
+import { QuotationConference } from '../../cotacoes/components/quotation-conference';
+import { historyReturn, isHistory } from '../../cotacoes/lib/history-model';
 import { RiskBlock } from '../../inteligencia/components/risk-block';
 import {
   GuardRailBlockBanner,
@@ -106,6 +107,8 @@ function QuotationDetail({
   refresh: () => void;
 }) {
   const { collapsed } = useSidebar();
+  const search = useSearchParams();
+  const returnHref = search.get('retorno') ? historyReturn(search.get('retorno')) : '/portal/cotacoes';
   const [selection, setSelection] = useState<string | null>(null);
   const [inspected, setInspected] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -190,9 +193,10 @@ function QuotationDetail({
       }
     >
       <div className={s.backRow}>
-        <a className={s.textButton} href="/portal/cotacoes">
+        <a className={s.textButton} href={returnHref}>
           <ArrowLeft size={16} /> Minhas cotações
         </a>
+        {isHistory(q.state) && <a className={s.textButton} href={`/portal/cotacoes/repetir/${q.id}?retorno=${encodeURIComponent(returnHref)}`}>Cotar novamente <ArrowRight size={16} /></a>}
         <a className={s.textButton} href="/portal/cotacoes/previa?variacoes=1">
           Ver variações do protótipo
         </a>
@@ -622,7 +626,7 @@ function QuotationDetail({
             <summary>
               Conferência de frete e riscos <ChevronDown size={16} />
             </summary>
-            <AuditPreviewSection quotationId={q.id} />
+            <QuotationConference quotation={q} />
             <RiskBlock />
           </details>
         )}

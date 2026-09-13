@@ -25,10 +25,11 @@ import { AuditResult } from '../../_shared/audit-result';
 import { ClientReferenceTag } from '../../_shared/client-reference-tag';
 import { ProvenanceBadge } from '../../_shared/provenance-badge';
 import { resolveAuditStatus } from '../lib/audit-journey';
+import { finalProposal } from '../lib/history-model';
 
 const OUTCOME = {
   FECHADA: {
-    label: 'Aprovada',
+    label: 'Fechada',
     icon: CheckCircle2,
     pill: 'border-portal-success/25 bg-portal-success/10 text-portal-success',
     accent: 'border-l-portal-success',
@@ -86,7 +87,7 @@ export function HistoryItem({
 
   const outcome = OUTCOME[quotation.state as keyof typeof OUTCOME] ?? OUTCOME.CANCELADO;
   const approved = isApproved(quotation.state);
-  const best = quotation.best_proposal;
+  const best = finalProposal(quotation);
   const showValue = best != null && !isCancelled(quotation.state);
 
   const conference = preview

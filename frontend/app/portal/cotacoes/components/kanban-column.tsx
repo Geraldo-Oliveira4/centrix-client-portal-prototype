@@ -9,10 +9,13 @@ import {
 } from '@/types/portal';
 
 import { QuotationCard } from './quotation-card';
+import Link from 'next/link';
+import type { LocalRequest } from '../lib/repeat-model';
 
 interface KanbanColumnProps {
   bucket: PortalBucketKey;
   quotations: PortalQuotation[];
+  localRequests?: LocalRequest[];
 }
 
 const DEFAULT_ACCENT: Record<PortalBucketKey, string> = {
@@ -27,7 +30,7 @@ const DEFAULT_ACCENT: Record<PortalBucketKey, string> = {
   cancelada: 'border-t-portal-neutral/40',
 };
 
-export function KanbanColumn({ bucket, quotations }: KanbanColumnProps) {
+export function KanbanColumn({ bucket, quotations, localRequests = [] }: KanbanColumnProps) {
   return (
     <div
       className={cn(
@@ -55,13 +58,21 @@ export function KanbanColumn({ bucket, quotations }: KanbanColumnProps) {
           {PORTAL_BUCKET_LABELS[bucket]}
         </h2>
         <span className="portal-small rounded bg-muted px-2 py-0.5 tabular-nums text-portal-neutral">
-          {quotations.length}
+          {quotations.length + localRequests.length}
         </span>
       </header>
 
       <ScrollArea className="flex-1 max-h-[calc(100vh-220px)]">
         <div className="space-y-2 p-2">
-          {quotations.length === 0 ? (
+          {localRequests.map((r) => <Link key={r.id} href={`/portal/cotacoes/repetir/${r.sourceId}?rascunho=${r.id}`} className="block rounded-md border border-l-4 border-l-portal-info bg-background p-4 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-portal-info">
+            <h3 className="portal-body font-semibold">{r.quote.supplier || r.quote.product || 'Nova solicitação'}</h3>
+            <p className="portal-small mt-1 text-portal-neutral">{r.quote.po || 'PO a informar'} · nova remessa</p>
+            <p className="portal-small mt-2 text-portal-neutral">{r.quote.product}</p>
+            <p className="portal-small text-portal-neutral">{r.quote.origin} → {r.quote.destination}</p>
+            <p className="portal-small mt-3 border-t pt-3">{r.stage === 'draft' ? 'Rascunho · ainda não enviado' : 'Aguardando agentes · simulação'}</p>
+            <p className="portal-small mt-1 text-portal-neutral">{r.stage === 'draft' ? 'Continuar preenchimento' : `${r.agents.length} agentes selecionados`} · salvo neste navegador</p>
+          </Link>)}
+          {quotations.length === 0 && localRequests.length === 0 ? (
             <p className="portal-small py-8 text-center text-portal-neutral">
               Nenhuma cotação.
             </p>
