@@ -120,8 +120,8 @@ export function FunnelTab({ data }: { data: PortalQuotationsResponse }) {
           <PortalSearchInput
             value={filters.query}
             onChange={(query) => setFilters((prev) => ({ ...prev, query }))}
-            placeholder="Referência, PO ou produto…"
-            label="Buscar cotação por referência, PO do cliente ou produto"
+            placeholder="Fornecedor, PO, cotação ou carga…"
+            label="Buscar cotação por fornecedor, PO, referência ou carga"
           />
           <PortalFiltersMenu values={filters} onChange={setFilters} />
         </div>
