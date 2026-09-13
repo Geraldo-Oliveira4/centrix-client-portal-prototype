@@ -71,7 +71,7 @@ const NAV_ITEMS = [
   // abaixo cobre as tres pelo `startsWith` da regra de item ativo.
   {
     href: '/portal/preferencias',
-    label: 'Minhas Preferências',
+    label: 'Configurações',
     icon: Settings,
   },
 ];

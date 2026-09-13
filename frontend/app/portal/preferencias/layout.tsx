@@ -6,32 +6,19 @@ import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 
-// Navegacao secundaria de Minhas Preferencias, mesmo padrao (e mesmo desenho) do
-// `inteligencia/layout.tsx` — a sidebar do portal nao tem sub-itens, entao uma
-// secao com mais de uma tela e alcancada por esta faixa de abas. Nao invente um
-// terceiro padrao de navegacao aqui.
-//
-// Meus Exportadores e Meus Agentes eram itens de primeiro nivel da sidebar ate
-// 26/08/2026. Vieram para ca porque sao telas de CADASTRO/CONFIGURACAO, e no
-// nivel de cima elas se misturavam com as telas operacionais do dia a dia
-// (Cotacoes, Embarques, Inteligencia, Auditoria). As rotas antigas
-// (`/portal/exportadores`, `/portal/agentes`) continuam existindo como redirect
-// — ver os `page.tsx` daquelas pastas.
-//
-// A ORDEM e deliberada: "Perfil e notificacoes" primeiro porque e o indice da
-// secao (a rota `/portal/preferencias` em si, para onde a sidebar aponta), e
-// Exportadores antes de Agentes porque o exportador entra na cotacao pelas maos
-// do cliente enquanto o agente e curadoria da Freitas — o cliente so liga e
-// desliga. Exportador e agente sao papeis distintos e ficam lado a lado de
-// proposito: o exportador fabrica e embarca a carga, o agente move o frete.
+// The approved settings preview owns its tabs at the root. Existing connected
+// preferences, exporters and agent blocks retain their routes and behavior.
 const TABS = [
-  { href: '/portal/preferencias', label: 'Perfil e notificações' },
+  { href: '/portal/preferencias', label: 'Configurações' },
+  { href: '/portal/preferencias/conectadas', label: 'Perfil e notificações conectados' },
   { href: '/portal/preferencias/exportadores', label: 'Meus Exportadores' },
   { href: '/portal/preferencias/agentes', label: 'Meus Agentes' },
 ];
 
 export default function PreferenciasLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+
+  if (pathname === '/portal/preferencias') return <>{children}</>;
 
   return (
     <div className="space-y-6">
