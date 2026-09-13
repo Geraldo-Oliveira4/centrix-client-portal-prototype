@@ -311,6 +311,9 @@ export default function QuotationPreview({
           <span className={s.muted}>/ dados e ações ilustrativos</span>
         </span>
         <div className={s.previewControls}>
+          <a className={s.textButton} href="/portal/cotacoes/previa-habituais">
+            Solicitações habituais
+          </a>
           {!list && (
             <a className={s.textButton} href="?variacoes=1">
               Ver variações

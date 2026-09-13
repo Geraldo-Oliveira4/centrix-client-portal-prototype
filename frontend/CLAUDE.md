@@ -2276,3 +2276,7 @@ Quotation preparation and waiting now use shared components in app/portal/cotaca
 ### Detail release package — 2026-09-13
 
 Prepared on 786d229 to retain the published Configurações release. Includes preparation/waiting, progressive-response prototypes, and draft reuse of Nova Cotação's ManualForm. The 15 illustrative states persist form snapshots locally; draft save/review never calls quotation creation. Creation without draft props is unchanged. Kanban changes from codex/cotacao-kanban-cards are deliberately excluded. See GUIA-DEV.md for current review steps and integration boundaries; earlier local-only statuses describe previous checkpoints.
+
+### Reusable quotation requests — local prototype, 2026-09-13
+
+/portal/cotacoes/previa-habituais demonstrates entry from new quotation, history, supplier and preferred route. Reuses DraftRequestForm/ManualForm; an optional onSaveTemplate callback captures current form values without touching the normal create path. Named templates use an allow-list of stable fields, while occurrence data stays in a separate local draft. No API writes, calendar recurrence or changes to live Kanban/Configurações. See its README for local links, verification and integration limits. Branch codex/cotacao-habituais is not deployed.

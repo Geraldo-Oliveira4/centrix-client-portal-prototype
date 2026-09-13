@@ -12,10 +12,12 @@ export function DraftRequestForm({
   quotation: q,
   onSave,
   onReview,
+  onSaveTemplate,
 }: {
   quotation: Quote;
   onSave: (patch: Partial<Quote>) => void;
   onReview: (patch: Partial<Quote>) => void;
+  onSaveTemplate?: (patch: Partial<Quote>) => void;
 }) {
   const [supplier, setSupplier] = useState(q.supplier);
   const [initial] = useState<ManualFormDraft>(
@@ -118,6 +120,7 @@ export function DraftRequestForm({
         initial,
         onSave: (snapshot) => onSave(patch(snapshot)),
         onReview: (snapshot) => onReview(patch(snapshot)),
+        onSaveTemplate: onSaveTemplate ? (snapshot) => onSaveTemplate(patch(snapshot)) : undefined,
       }}
     />
   );

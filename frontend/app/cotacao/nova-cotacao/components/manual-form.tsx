@@ -113,6 +113,7 @@ interface ManualFormProps {
     initial: ManualFormDraft;
     onSave: (snapshot: ManualFormDraft) => void;
     onReview: (snapshot: ManualFormDraft) => void;
+    onSaveTemplate?: (snapshot: ManualFormDraft) => void;
   };
   clientId: string | null;
   onQuotationCreated: (quotation: Quotation) => void;
@@ -1274,6 +1275,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
           )}
 
           <div className="flex flex-wrap justify-end gap-3">
+            {draft?.onSaveTemplate && <Button type="button" variant="ghost" onClick={() => draft.onSaveTemplate?.(draftSnapshot(form.getValues()))}>Salvar como habitual</Button>}
             {draft && <Button type="button" variant="outline" onClick={() => draft.onSave(draftSnapshot(form.getValues()))}>Salvar rascunho</Button>}
             <Button
               type="submit"
