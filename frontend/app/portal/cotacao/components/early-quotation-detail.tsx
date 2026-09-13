@@ -92,6 +92,7 @@ export function EarlyQuotationDetail({
     ),
   );
   const available = catalog.agents.filter((a) => !invited.includes(a.id));
+  const awaitingResponses = catalog.rfqDispatched || invited.length > 0;
   const names = (id: string) =>
     catalog.agents.find((a) => a.id === id)?.name ||
     proposals.find((p) => p.agent_id === id)?.agent?.name ||
@@ -132,16 +133,20 @@ export function EarlyQuotationDetail({
   if (!loaded)
     return <div className="p-6">{error || 'Carregando solicitação…'}</div>;
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className={s.workspace + ' mx-auto max-w-6xl space-y-5'}>
       <Link
         className="portal-small underline underline-offset-4"
         href="/portal/cotacoes"
       >
         Voltar às cotações
       </Link>
-      <header>
+      <header className={s.heading}>
         <h1 className="text-2xl font-semibold">
-          {editing ? 'Preencher solicitação' : 'Aguardando agentes'}
+          {editing
+            ? 'Preencher solicitação'
+            : awaitingResponses
+              ? 'Aguardando agentes'
+              : 'Preparar envio aos agentes'}
         </h1>
         <p className="portal-body mt-2 text-portal-neutral">
           {source.reference} · {q.product || 'Mercadoria a informar'}
@@ -151,7 +156,7 @@ export function EarlyQuotationDetail({
         Prévia · alterações e convites salvos neste navegador. Nenhum envio real
         é realizado.
       </p>
-      <PreparationSteps waiting={!editing} />
+      <PreparationSteps waiting={!editing && awaitingResponses} />
       {error && (
         <p role="alert" className="text-portal-warning-ink">
           {error}
@@ -195,44 +200,91 @@ export function EarlyQuotationDetail({
         </section>
       ) : (
         <>
-          <section className="border-b pb-4 portal-body">
-            <p>
-              {q.origin} → {q.destination}
-            </p>
-            <p className="mt-2 text-portal-neutral">
-              Necessidade de chegada:{' '}
-              {q.needDate ? formatDate(q.needDate) : 'não informada'} · PO:{' '}
-              {q.po || 'não informado'}
-            </p>
+          <section className={s.context} aria-label="Necessidade da carga">
+            <div className={s.route}>
+              <div>
+                <small>Rota da solicitação</small>
+                <strong>
+                  {q.origin} → {q.destination}
+                </strong>
+                <small>PO: {q.po || 'não informado'}</small>
+              </div>
+            </div>
+            <div>
+              <small>Carga pronta em</small>
+              <strong>
+                {q.readyDate ? formatDate(q.readyDate) : 'Não informada'}
+              </strong>
+            </div>
+            <div className={s.cargoNeed}>
+              <small>Sua necessidade de chegada</small>
+              <strong>
+                {q.needDate ? formatDate(q.needDate) : 'Não informada'}
+              </strong>
+            </div>
           </section>
-          <WaitingResponses
-            rows={invited.map((id) => ({
-              id,
-              name:
-                names(id) +
-                (saved.invited.includes(id) ? ' · convite simulado' : ''),
-              received: proposals.some((p) => p.agent_id === id),
-            }))}
-            count={proposals.length}
-            deadline={
-              q.manualDraft?.values.desired_deadline
-                ? formatDate(q.manualDraft.values.desired_deadline)
-                : null
-            }
-            loading={catalog.isLoading}
-            unavailable={catalog.isError}
-            onRefresh={() => { void catalog.mutate(); refresh(); }}
-            onView={(id) =>
-              setViewed(proposals.find((p) => p.agent_id === id) || null)
-            }
-          />
+          {awaitingResponses ? (
+            <WaitingResponses
+              rows={invited.map((id) => ({
+                id,
+                name:
+                  names(id) +
+                  (saved.invited.includes(id) ? ' · convite simulado' : ''),
+                received: proposals.some((p) => p.agent_id === id),
+              }))}
+              count={proposals.length}
+              deadline={
+                q.manualDraft?.values.desired_deadline
+                  ? formatDate(q.manualDraft.values.desired_deadline)
+                  : null
+              }
+              loading={catalog.isLoading}
+              unavailable={catalog.isError}
+              onRefresh={() => {
+                void catalog.mutate();
+                refresh();
+              }}
+              onView={(id) =>
+                setViewed(proposals.find((p) => p.agent_id === id) || null)
+              }
+            />
+          ) : (
+            <section className={s.panel}>
+              <div className={s.sectionHeading}>
+                <div>
+                  <h2>Envio aos agentes não confirmado</h2>
+                  <p>
+                    {catalog.isLoading
+                      ? 'Consultando o envio desta solicitação…'
+                      : catalog.isError
+                        ? 'Não foi possível consultar o envio. Atualize para tentar novamente.'
+                        : 'Nenhum convite enviado consta nesta solicitação. Selecione os destinatários abaixo para revisar o envio.'}
+                  </p>
+                </div>
+                <button
+                  className={s.textButton}
+                  onClick={() => {
+                    void catalog.mutate();
+                    refresh();
+                  }}
+                >
+                  Atualizar
+                </button>
+              </div>
+            </section>
+          )}
           <section className={s.panel}>
             <div className={s.sectionHeading}>
               <div>
-                <h2>Convidar outros agentes</h2>
+                <h2>
+                  {awaitingResponses
+                    ? 'Convidar outros agentes'
+                    : 'Selecionar agentes'}
+                </h2>
                 <p>
-                  Os agentes já convidados permanecem acima. Selecione outros
-                  para ampliar a cotação.
+                  {awaitingResponses
+                    ? 'Os agentes já convidados permanecem acima. Selecione outros para ampliar a cotação.'
+                    : 'Escolha quem receberá esta solicitação. Você confere os destinatários antes de confirmar.'}
                 </p>
               </div>
             </div>
@@ -250,7 +302,10 @@ export function EarlyQuotationDetail({
                 <p>Nenhum outro agente disponível nesta cotação.</p>
               ) : (
                 available.map((agent) => (
-                  <label className="flex gap-3 portal-body" key={agent.id}>
+                  <label
+                    className="flex items-center gap-3 border-b py-3 last:border-0 portal-body"
+                    key={agent.id}
+                  >
                     <input
                       type="checkbox"
                       checked={selected.includes(agent.id)}

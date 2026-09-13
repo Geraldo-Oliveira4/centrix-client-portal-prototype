@@ -43,3 +43,7 @@ User reported that actual cards still opened the old complement summary and inco
 Draft edits and invitations use centrix-preparation-v1:<clientId>:<quotationId>; sends remain explicit local simulations. Saved draft dispatch changes the local detail to waiting and projects that move into the Kanban without mutating the source API. Existing backend records and proposals remain authoritative; unknown recipient/catalog data stays explicit. The new early-stage workspace supersedes the old live complement-mail/RFQ form in this prototype; it must not be described as production RFQ integration. Comparison, approval and terminal detail routes remain unchanged. Existing standalone scenario previews remain accessible by their direct URLs.
 
 34 focused rule tests and TypeScript pass. Browser verified incomplete form with original PO/value, saving notes, partial response preview, selection/review/invitation of a second agent while preserving the first response. Full draft completion-to-dispatch UI was not exercised; no real business send occurred. Not deployed.
+
+### Early-stage visual correction
+
+The new workspace lacked the shared .workspace ancestor, leaving --q-* variables undefined and dropping panel backgrounds, borders and heading styles. Restored the existing scope, context grid and restrained agent-row separators. An unconfirmed dispatch now uses Preparar envio aos agentes / Selecionar agentes, without marking preparation complete or claiming responses are awaited. TypeScript passed. No API mutation or deployment.
