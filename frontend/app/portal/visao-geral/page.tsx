@@ -10,7 +10,7 @@ export default function VisaoGeralPage() {
   useEffect(() => {
     const hash = /^#(dia|operacao)$/.test(window.location.hash)
       ? window.location.hash : '#dia';
-    setSource('/prototypes/centrix-visao-geral/index.html?v=20260913-central-1' + hash);
+    setSource('/prototypes/centrix-visao-geral/index.html?v=20260913-operation-2' + hash);
   }, []);
 
   useEffect(() => {
