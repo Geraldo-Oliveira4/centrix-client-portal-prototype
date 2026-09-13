@@ -2280,3 +2280,7 @@ Prepared on 786d229 to retain the published Configurações release. Includes pr
 ### Reusable quotation requests — local prototype, 2026-09-13
 
 /portal/cotacoes/previa-habituais demonstrates entry from new quotation, history, supplier and preferred route. Reuses DraftRequestForm/ManualForm; an optional onSaveTemplate callback captures current form values without touching the normal create path. Named templates use an allow-list of stable fields, while occurrence data stays in a separate local draft. No API writes, calendar recurrence or changes to live Kanban/Configurações. See its README for local links, verification and integration limits. Branch codex/cotacao-habituais is not deployed.
+
+## Quotation card hierarchy — local revision, 2026-09-13
+
+The branch codex/cotacao-kanban-cards adjusts only card context and stage-specific emphasis, plus supplier search. Columns and grouping remain unchanged. Review /portal/cotacoes/previa-cards and its README for nine illustrative examples and the missing supplier API projection. Public release remains 95cc4d9; this Kanban revision has not been pushed or deployed. Test with npm run test:quotation-cards.
