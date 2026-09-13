@@ -2,6 +2,7 @@
   max-width: 1440px;
   margin: auto;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   color: var(--foreground);
 }
