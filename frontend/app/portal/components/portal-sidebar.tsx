@@ -12,6 +12,7 @@ import {
   Settings,
   Ship,
   Sparkles,
+  Radar,
   X,
 } from 'lucide-react';
 
@@ -157,7 +158,8 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const active =
-                pathname === item.href || pathname.startsWith(item.href + '/');
+                (pathname === item.href || pathname.startsWith(item.href + '/')) &&
+                !(item.href === '/portal/inteligencia' && pathname.startsWith('/portal/inteligencia/radar'));
 
               const link = (
                 <Link
