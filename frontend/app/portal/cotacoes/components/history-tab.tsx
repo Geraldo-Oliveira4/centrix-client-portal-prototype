@@ -1,289 +1,207 @@
 'use client';
-
-import { useEffect, useMemo, useState } from 'react';
-import { SlidersHorizontal } from 'lucide-react';
-
-import {
-  Button,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Label,
-} from '@/components/ui';
-import { useAuditPreviews } from '@/hooks/use-portal-audit-preview';
-import { isApproved, resolveClosedAt } from '@/lib/portal-state';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Input, Button } from '@/components/ui';
+import { formatBRL, formatDate, formatRoute } from '@/lib/portal-formatters';
 import type { PortalQuotation } from '@/types/portal';
-
-import { PortalSearchInput } from '../../_shared/portal-search-input';
-import { AuditDocumentModal } from './audit-document-modal';
-import { HistoryItem } from './history-item';
-import { applyPortalFilters, EMPTY_PORTAL_FILTERS } from './portal-filters';
-
-// Same key the standalone Auditoria panel used, so a demo that already sent
-// documents keeps its "em conferência" rows after the move.
-const SUBMITTED_KEY = 'portal:audit:submitted';
-
-type StatusFilter = 'all' | 'FECHADA' | 'DECLINADA' | 'CANCELADO';
-type PeriodFilter = 'all' | '30' | '90' | '365';
-
-const STATUS_LABEL: Record<StatusFilter, string> = {
-  all: 'Todas',
-  FECHADA: 'Aprovadas',
-  DECLINADA: 'Reprovadas',
-  CANCELADO: 'Canceladas',
-};
-
-/**
- * Outcomes a tab is locked to. Histórico passes nothing and keeps the "Situação"
- * select; Aprovadas and Reprovadas pass a fixed set and lose it — the tab IS the
- * filter there, and leaving a second control able to contradict it would let the
- * "Aprovadas" tab show a cancelled quotation.
- */
-export type HistoryOutcome = 'FECHADA' | 'DECLINADA' | 'CANCELADO';
-
-const PERIOD_LABEL: Record<PeriodFilter, string> = {
-  all: 'Qualquer data',
-  '30': 'Últimos 30 dias',
-  '90': 'Últimos 90 dias',
-  '365': 'Últimos 12 meses',
-};
-
-interface SelectedForUpload {
-  id: string;
-  reference: string;
-}
-
-interface HistoryTabProps {
-  quotations: PortalQuotation[];
-  /**
-   * Fixed outcome scope of this tab. Absent = Histórico (everything, with the
-   * "Situação" select available). Present = a focused cut (Aprovadas, Reprovadas):
-   * the list is pre-filtered and the select is gone.
-   */
-  outcomes?: HistoryOutcome[];
-  /** Copy for the empty state, which differs per cut. */
-  emptyHint?: string;
-  /** Noun used in the "N cotações fechadas" counter. */
-  countLabel?: { singular: string; plural: string };
-}
-
-/**
- * Histórico — closed quotations as a list, never a kanban: nothing here moves
- * between columns and nothing can be approved or declined, so the screen is
- * read-only. Filtering is by outcome and by closing period.
- *
- * The same component backs the Aprovadas and Reprovadas tabs: they are shortcuts
- * into this list, not separate screens, so a change to the row layout or to the
- * conference expansion lands on all three at once.
- */
-export function HistoryTab({
-  quotations: allQuotations,
+import { useMyQuotation } from '@/hooks/use-portal-quotations';
+import {
+  closingDate,
+  filterHistory,
+  finalProposal,
+  historyFilter,
   outcomes,
-  emptyHint,
-  countLabel,
-}: HistoryTabProps) {
-  const [query, setQuery] = useState('');
-  const [status, setStatus] = useState<StatusFilter>('all');
-  const [period, setPeriod] = useState<PeriodFilter>('all');
+} from '../lib/history-model';
+import s from './history.module.css';
 
-  const quotations = useMemo(
-    () =>
-      outcomes
-        ? allQuotations.filter((q) =>
-            outcomes.includes(q.state as HistoryOutcome),
-          )
-        : allQuotations,
-    [allQuotations, outcomes],
+function FinalCondition({ quotation: q }: { quotation: PortalQuotation }) {
+  const known = finalProposal(q);
+  // The list's best_proposal is cheapest, not necessarily the winner.
+  const { quotation, isLoading, isError } = useMyQuotation(
+    q.state === 'FECHADA' && !known ? q.id : null,
   );
-
-  // The conference only exists for approved quotations, and the SWR key is the
-  // full set of approved ids (not the filtered ones) so filtering never
-  // re-fetches.
-  const approvedIds = useMemo(
-    () => quotations.filter((q) => isApproved(q.state)).map((q) => q.id),
-    [quotations],
-  );
-  const { previews, isLoading: loadingPreviews } = useAuditPreviews(approvedIds);
-
-  // Which quotations the client sent documents for. Client-side only (there is
-  // no audit engine); seeded from localStorage after mount to avoid a hydration
-  // mismatch.
-  const [submittedList, setSubmittedList] = useState<string[]>([]);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SUBMITTED_KEY);
-      if (raw) setSubmittedList(JSON.parse(raw));
-    } catch {
-      // ignore corrupt/unavailable storage — nothing is marked as submitted
-    }
-  }, []);
-  const submittedIds = useMemo(() => new Set(submittedList), [submittedList]);
-
-  const [selected, setSelected] = useState<SelectedForUpload | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-
-  const handleSubmitted = (quotationId: string) => {
-    if (submittedIds.has(quotationId)) return;
-    const next = [...submittedList, quotationId];
-    setSubmittedList(next);
-    try {
-      localStorage.setItem(SUBMITTED_KEY, JSON.stringify(next));
-    } catch {
-      // ignore
-    }
-  };
-
-  const filtered = useMemo(() => {
-    const cutoff =
-      period === 'all' ? null : Date.now() - Number(period) * 24 * 60 * 60 * 1000;
-    const searched = applyPortalFilters(quotations, {
-      ...EMPTY_PORTAL_FILTERS,
-      query,
-    });
-    return searched
-      .filter((q) => {
-        if (status !== 'all' && q.state !== status) return false;
-        if (cutoff != null && new Date(resolveClosedAt(q)).getTime() < cutoff) {
-          return false;
-        }
-        return true;
-      })
-      .sort(
-        (a, b) =>
-          new Date(resolveClosedAt(b)).getTime() -
-          new Date(resolveClosedAt(a)).getTime(),
-      );
-  }, [quotations, query, status, period]);
-
-  const showStatusFilter = outcomes == null;
-  const activeFilters =
-    (showStatusFilter && status !== 'all' ? 1 : 0) + (period !== 'all' ? 1 : 0);
-
-  const noun = countLabel ?? { singular: 'cotação fechada', plural: 'cotações fechadas' };
-
+  const final = known || (quotation ? finalProposal(quotation) : null);
+  if (q.state !== 'FECHADA')
+    return <span className="text-portal-neutral">Não houve contratação</span>;
+  if (isLoading)
+    return <span className="text-portal-neutral">Consultando fechamento…</span>;
+  if (isError)
+    return (
+      <span className="text-portal-neutral">
+        Não foi possível consultar a condição
+      </span>
+    );
+  if (!final)
+    return <span className="text-portal-neutral">Condição não registrada</span>;
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="portal-small text-portal-neutral">
-          {filtered.length} {filtered.length === 1 ? noun.singular : noun.plural}
-          {filtered.length !== quotations.length ? ` de ${quotations.length}` : ''}
-        </p>
+    <>
+      <span className="font-medium">
+        {Number.isFinite(final.total_brl) && final.total_brl > 0
+          ? formatBRL(final.total_brl)
+          : 'Valor não registrado'}
+      </span>
+      <small>
+        {final.agent?.name || 'Agente não informado'} · condição de fechamento
+      </small>
+    </>
+  );
+}
 
-        <div className="flex items-center gap-2">
-          <PortalSearchInput
-            value={query}
-            onChange={setQuery}
-            placeholder="Referência, PO ou produto…"
-            label="Buscar cotação por referência, PO do cliente ou produto"
-          />
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <SlidersHorizontal className="h-5 w-5" />
-                Filtros
-                {activeFilters > 0 && (
-                  <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
-                    {activeFilters}
-                  </span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 space-y-4">
-              {showStatusFilter && (
-                <div className="space-y-2">
-                  <Label className="portal-small text-portal-neutral">Situação</Label>
-                  <Select
-                    value={status}
-                    onValueChange={(v) => setStatus(v as StatusFilter)}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(STATUS_LABEL) as StatusFilter[]).map((key) => (
-                        <SelectItem key={key} value={key}>
-                          {STATUS_LABEL[key]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label className="portal-small text-portal-neutral">
-                  Período (fechamento)
-                </Label>
-                <Select
-                  value={period}
-                  onValueChange={(v) => setPeriod(v as PeriodFilter)}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(PERIOD_LABEL) as PeriodFilter[]).map((key) => (
-                      <SelectItem key={key} value={key}>
-                        {PERIOD_LABEL[key]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
+export function HistoryTab({ quotations }: { quotations: PortalQuotation[] }) {
+  const params = useSearchParams();
+  const router = useRouter();
+  const query = params.get('busca') || '';
+  const result = historyFilter(new URLSearchParams(params.toString()));
+  const period = params.get('periodo') || 'all';
+  const rows = filterHistory(quotations, query, result, period);
+  const returnHref = `/portal/cotacoes?${params}`;
+  const change = (key: string, value: string) => {
+    const next = new URLSearchParams(params.toString());
+    next.set('tab', 'historico');
+    next.set('resultado', result);
+    next.set(key, value);
+    router.replace(`/portal/cotacoes?${next}`, { scroll: false });
+  };
+  const clear = () =>
+    router.replace('/portal/cotacoes?tab=historico', { scroll: false });
+  return (
+    <section className="space-y-5" aria-label="Histórico de cotações">
+      <p className="portal-body text-portal-neutral">
+        Consulte como terminou cada negociação ou reaproveite os dados para uma
+        nova remessa.
+      </p>
+      <div className={s.filters}>
+        <Input
+          aria-label="Buscar no histórico"
+          placeholder="Fornecedor, PO, cotação, carga ou rota…"
+          value={query}
+          onChange={(e) => change('busca', e.target.value)}
+          className="max-w-lg bg-background"
+        />
+        <label className={s.filter}>
+          Resultado
+          <select
+            value={result}
+            onChange={(e) => change('resultado', e.target.value)}
+          >
+            {Object.entries(outcomes)
+              .filter(([value]) => value !== 'negadas' || result === 'negadas')
+              .map(([value, label]) => (
+                <option value={value} key={value}>
+                  {label}
+                </option>
+              ))}
+          </select>
+        </label>
+        <label className={s.filter}>
+          Período
+          <select
+            value={period}
+            onChange={(e) => change('periodo', e.target.value)}
+          >
+            <option value="all">Qualquer data</option>
+            <option value="30">Últimos 30 dias</option>
+            <option value="90">Últimos 90 dias</option>
+            <option value="365">Últimos 12 meses</option>
+          </select>
+        </label>
       </div>
-
-      {filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-muted/20 p-6 text-center">
-          <p className="portal-body font-medium text-foreground">
-            Nenhuma {noun.singular} encontrada
-          </p>
-          <p className="portal-small text-portal-neutral">
-            {quotations.length === 0
-              ? (emptyHint ??
-                'Cotações aprovadas, reprovadas e canceladas aparecem aqui.')
-              : 'Ajuste a busca ou os filtros.'}
-          </p>
+      <div className="flex items-center justify-between gap-3 portal-small text-portal-neutral">
+        <span>
+          {rows.length}{' '}
+          {rows.length === 1 ? 'cotação encerrada' : 'cotações encerradas'}
+          {rows.length !== quotations.length && ` de ${quotations.length}`}
+        </span>
+        {(query || result !== 'all' || period !== 'all') && (
+          <Button variant="ghost" size="sm" onClick={clear}>
+            Limpar filtros
+          </Button>
+        )}
+      </div>
+      {!rows.length ? (
+        <div className="rounded-lg border border-dashed p-8 text-center text-portal-neutral">
+          {quotations.length
+            ? 'Nenhuma cotação corresponde à busca ou aos filtros.'
+            : 'Suas cotações encerradas aparecerão aqui.'}
         </div>
       ) : (
-        <div className="space-y-4">
-          {filtered.map((q) => (
-            <HistoryItem
-              key={q.id}
-              quotation={q}
-              preview={
-                isApproved(q.state)
-                  ? loadingPreviews
-                    ? undefined
-                    : (previews[q.id] ?? null)
-                  : null
-              }
-              submitted={submittedIds.has(q.id)}
-              onSendDocuments={() => {
-                setSelected({ id: q.id, reference: q.reference });
-                setModalOpen(true);
-              }}
-            />
-          ))}
+        <div className={s.tableWrap}>
+          <table className={s.table}>
+            <thead>
+              <tr>
+                <th>Solicitação</th>
+                <th>Rota</th>
+                <th>Resultado</th>
+                <th>Condição final</th>
+                <th>
+                  <span className="sr-only">Ações</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((q) => {
+                const date = closingDate(q);
+                const detailHref = `/portal/cotacao/${q.id}?retorno=${encodeURIComponent(returnHref)}`;
+                const repeatHref = `/portal/cotacoes/repetir/${q.id}?retorno=${encodeURIComponent(returnHref)}`;
+                return (
+                  <tr key={q.id}>
+                    <td data-label="Solicitação">
+                      <Link
+                        className="font-medium hover:underline"
+                        href={detailHref}
+                      >
+                        {q.exporter_name || q.product || q.reference}
+                      </Link>
+                      {q.exporter_name && q.product && (
+                        <small>{q.product}</small>
+                      )}
+                      <small>
+                        {[q.client_reference, q.reference]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </small>
+                      {!q.exporter_name && (
+                        <small>Fornecedor não informado</small>
+                      )}
+                    </td>
+                    <td data-label="Rota">
+                      {formatRoute(q)}
+                      <small>
+                        {[q.modal, q.incoterm].filter(Boolean).join(' · ')}
+                      </small>
+                    </td>
+                    <td data-label="Resultado">
+                      <span
+                        className={
+                          q.state === 'FECHADA'
+                            ? 'text-portal-success'
+                            : 'text-portal-neutral'
+                        }
+                      >
+                        {q.state === 'FECHADA'
+                          ? 'Fechada'
+                          : q.state === 'DECLINADA'
+                            ? 'Propostas recusadas'
+                            : 'Cancelada'}
+                      </span>
+                      <small>
+                        {date.label} {formatDate(date.value)}
+                      </small>
+                    </td>
+                    <td data-label="Condição final">
+                      <FinalCondition quotation={q} />
+                    </td>
+                    <td className={s.actions}>
+                      <Link href={detailHref}>Ver cotação</Link>
+                      <Link href={repeatHref}>Cotar novamente</Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
-
-      <AuditDocumentModal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        quotationId={selected?.id ?? null}
-        reference={selected?.reference ?? ''}
-        preview={selected ? (previews[selected.id] ?? null) : null}
-        onSubmitted={handleSubmitted}
-      />
-    </div>
+    </section>
   );
 }

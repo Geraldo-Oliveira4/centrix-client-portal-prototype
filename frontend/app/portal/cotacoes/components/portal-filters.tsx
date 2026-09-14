@@ -197,7 +197,7 @@ export function applyPortalFilters(
 
   return quotations.filter((q) => {
     if (query) {
-      const haystack = `${q.reference} ${q.product ?? ''}`.toLowerCase();
+      const haystack = `${q.reference} ${q.product ?? ''} ${q.exporter_name ?? ''}`.toLowerCase();
       if (
         !haystack.includes(query) &&
         !matchesClientReference(q.client_reference, query)

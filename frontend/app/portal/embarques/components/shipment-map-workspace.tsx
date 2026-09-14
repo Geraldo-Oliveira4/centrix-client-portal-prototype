@@ -37,6 +37,7 @@ import {
 import { originPortOf, portFromQuotationOrigin } from '../lib/port-coordinates';
 import { REAL_STEPS } from '../lib/real-steps';
 import { ShipmentMapCanvas } from './shipment-map-canvas';
+import { buildPanoramaSummary, type PanoramaScope } from '../lib/panorama-summary';
 import styles from './shipment-map-workspace.module.css';
 
 const METRICS: ShipmentOverviewKey[] = ['action', 'delayed', 'upcoming'];
@@ -62,6 +63,7 @@ export function ShipmentMapWorkspace({
   );
   const [now] = useState(() => new Date());
   const [metric, setMetric] = useState<ShipmentOverviewKey | null>(null);
+  const [summaryScope, setSummaryScope] = useState<PanoramaScope | null>(null);
   const [legacyFilter, setLegacyFilter] = useState(initialFilter ?? null);
   const [query, setQuery] = useState('');
   const [selection, setSelection] = useState<string[]>([]);
@@ -101,7 +103,7 @@ export function ShipmentMapWorkspace({
       }),
     [shipments, quotations],
   );
-  const visible = useMemo(() => {
+  const summaryBase = useMemo(() => {
     const legacyIds = new Set(
       filterShipments(shipments, legacyFilter).map((s) => s.id),
     );
@@ -109,15 +111,18 @@ export function ShipmentMapWorkspace({
       .filter(
         (row) =>
           legacyIds.has(row.shipment.id) &&
-          (!metric || groups[metric].has(row.shipment.id)) &&
           normalize(
             `${row.title} ${row.shipment.referencia} ${row.shipment.client_reference ?? ''} ${row.route.origin} ${row.route.destination}`,
           ).includes(normalize(query.trim())),
-      )
+      );
+  }, [shipments, rows, legacyFilter, query]);
+  const summary = useMemo(() => buildPanoramaSummary(summaryBase.map(row => row.shipment), now), [summaryBase, now]);
+  const visible = useMemo(() => summaryBase
+      .filter(row => (!metric || groups[metric].has(row.shipment.id)) && (!summaryScope || summary[summaryScope].has(row.shipment.id)))
       .sort((a, b) =>
         compareShipmentOverview(a.shipment, b.shipment, groups, now, metric),
-      );
-  }, [shipments, rows, legacyFilter, metric, groups, now, query]);
+      )
+  , [summaryBase, metric, groups, now, summaryScope, summary]);
   const selected = visible.find((row) => row.shipment.id === selectedId);
   const selectedRows = visible.filter((row) =>
     selection.includes(row.shipment.id),
@@ -189,6 +194,7 @@ export function ShipmentMapWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selection.join('|'), selectedId]);
   function changeFilter(next: ShipmentOverviewKey | null) {
+    setSummaryScope(null);
     setMetric(next);
     setLegacyFilter(null);
     clearSelection();
@@ -224,10 +230,27 @@ export function ShipmentMapWorkspace({
 
   return (
     <div className={styles.workspace}>
+      <div className={styles.panoramaSummary} role="group" aria-label="Indicadores do Panorama">
+        {([
+          ['active', 'Embarques em andamento', 'Inclui pré-embarque e transporte', 'Carteira em acompanhamento'],
+          ['arrivals', 'Chegadas nos próximos 7 dias', 'Ao porto ou aeroporto de destino', `${summary.missingEta.size} sem previsão disponível · hoje + 6 dias`],
+          ['attention', 'Precisam de atenção', 'Embarques com exceção registrada', 'Cobertura parcial: documentos e decisões ainda não disponíveis'],
+        ] as const).map(([key, label, description, coverage]) => (
+          <button key={key} type="button"
+            className={`${styles.panoramaCard} ${key === 'attention' && summary.attention.size ? styles.panoramaWarning : ''} ${summaryScope === key ? styles.panoramaSelected : ''}`}
+            aria-pressed={summaryScope === key}
+            onClick={() => { setMetric(null); setSummaryScope(summaryScope === key ? null : key); clearSelection(); }}>
+            <span className={styles.panoramaLabel}>{label}</span>
+            <strong>{summary[key].size}</strong>
+            <span>{description}</span>
+            <small>{coverage}{summary.isDemo ? ' · Demonstrativo' : ''}</small>
+          </button>
+        ))}
+      </div>
       <div className={styles.filters} aria-label="Recortes da carteira">
         <button
-          className={`${styles.chip} ${!metric && !legacyFilter ? styles.active : ''}`}
-          aria-pressed={!metric && !legacyFilter}
+          className={`${styles.chip} ${!metric && !legacyFilter && !summaryScope ? styles.active : ''}`}
+          aria-pressed={!metric && !legacyFilter && !summaryScope}
           onClick={() => changeFilter(null)}
         >
           Todos <b>{shipments.length}</b>
