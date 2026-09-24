@@ -42,6 +42,8 @@ import {
   type Shipment,
 } from './model';
 import s from './shipment-preview.module.css';
+import { LinkQuotationCard } from '../../_shared/demo/link-quotation-card';
+import { NoQuotationChip } from '../../_shared/demo/shipment-po-labels';
 
 type Panel =
   | { kind: 'item' | 'document' | 'alert' | 'milestone'; id: string }
@@ -59,6 +61,9 @@ export default function ShipmentPreview({
     ? initialScenario
     : 'transito';
   const [scenario, setScenario] = useState(validScenario);
+  // Tela 9 (RQ-4). Estado local: a vinculacao e uma acao desta tela de revisao,
+  // como as demais daqui, e nao chama rota de escrita nenhuma.
+  const [linkedQuotation, setLinkedQuotation] = useState<string | null>(null);
   const [q, setQ] = useState<Shipment>(() => createShipment(validScenario));
   const [ready, setReady] = useState(false);
   const [showSources, setShowSources] = useState(false);
@@ -308,6 +313,10 @@ export default function ShipmentPreview({
               </button>
             )}
             <span className={s.stage}>{steps[q.stage]}</span>
+            {/* Tela 9: o chip "Sem cotacao vinculada" ao lado do estado. */}
+            {scenario === 'sem-cotacao' && !linkedQuotation && (
+              <NoQuotationChip long />
+            )}
           </div>
           <p className={s.supplier}>
             {suppliers.join(' / ') || 'Fornecedor não informado'}
@@ -335,6 +344,15 @@ export default function ShipmentPreview({
           </button>
         </div>
       </header>
+
+      {scenario === 'sem-cotacao' && (
+        <div className="mb-5">
+          <LinkQuotationCard
+            linkedQuotationId={linkedQuotation}
+            onLink={setLinkedQuotation}
+          />
+        </div>
+      )}
 
       <section className={s.journey} aria-label="Chegada e acompanhamento">
         <div className={s.journeyToolbar}>

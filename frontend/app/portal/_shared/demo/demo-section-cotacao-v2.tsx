@@ -56,6 +56,7 @@ import {
 } from './use-quotation-review';
 import { usePortalModuleReleased } from './use-feature-flags';
 import { buildDemoScenarios } from './quotation-v2-scenarios';
+import { effectiveProposals } from './quotation-demo-proposals';
 
 /**
  * Motivos prontos de devolução.
@@ -386,8 +387,13 @@ export function CotacaoV2Section() {
     );
   }
 
-  const proposalsOf = (quotationId: string) =>
-    (byId.get(quotationId)?.proposals ?? []).map((proposal, index) => ({
+  // `effectiveProposals` devolve as propostas de demonstração quando a cotação
+  // não tem nenhuma no payload — sem isso, uma cotação recém-aberta pelo portal
+  // chega aqui com a lista vazia e a revisão de saída não tem o que liberar.
+  const proposalsOf = (quotationId: string) => {
+    const quotation = byId.get(quotationId);
+    if (!quotation) return [];
+    return effectiveProposals(quotation).map((proposal, index) => ({
       id: proposal.id,
       label:
         proposal.agent?.name ??
@@ -396,6 +402,7 @@ export function CotacaoV2Section() {
       // comparar, e é o caso mais legível de bloqueio rígido para a demo.
       blocked: !(Number.isFinite(proposal.total_brl) && proposal.total_brl > 0),
     }));
+  };
 
   return (
     <div className="space-y-4">

@@ -38,11 +38,17 @@ import {
   useNoticeReadStore,
   useQuotationReviewStore,
 } from './use-quotation-review';
+import { collectShipmentNotices } from './shipment-po-notices';
+import { useShipmentPoStore } from './use-shipment-po-review';
 import { usePortalModuleReleased } from './use-feature-flags';
 
 export function PortalNotificationsBell() {
   const released = usePortalModuleReleased('cotacaoV2');
+  const poReleased = usePortalModuleReleased('embarqueViaPo');
   const store = useQuotationReviewStore();
+  // O overlay de PO ja vem vazio quando `embarqueViaPo` esta desligada — ver
+  // `useShipmentPoStore`. O sino nao precisa filtrar de novo.
+  const poStore = useShipmentPoStore();
   const read = useNoticeReadStore();
   const markRead = useMarkNoticesRead();
   const [open, setOpen] = useState(false);
@@ -60,16 +66,22 @@ export function PortalNotificationsBell() {
     return map;
   }, [data]);
 
-  const notices = useMemo(
-    () => (released ? collectNotices(store, references, read) : []),
-    [released, store, references, read],
-  );
+  // DUAS FONTES, UMA LISTA. Cada dominio deriva as proprias linhas do proprio
+  // historico; o sino so junta e ordena pela data. `href` e quem separa os dois
+  // destinos — o resto do formato e identico de proposito.
+  const notices = useMemo(() => {
+    const rows = [
+      ...(released ? collectNotices(store, references, read) : []),
+      ...collectShipmentNotices(poStore, read),
+    ];
+    return rows.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+  }, [released, store, references, read, poStore]);
 
   // UMA leitura de relógio por abertura: a lista inteira data do mesmo
   // instante, então duas linhas não podem discordar na virada do minuto.
   const now = useMemo(() => Date.now(), [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!released) return null;
+  if (!released && !poReleased) return null;
 
   const unread = unreadCount(notices);
 
@@ -120,7 +132,7 @@ export function PortalNotificationsBell() {
             {notices.map((notice) => (
               <li key={notice.id} className="border-b last:border-0">
                 <Link
-                  href={`/portal/cotacao/${notice.quotationId}`}
+                  href={notice.href ?? `/portal/cotacao/${notice.quotationId}`}
                   onClick={() => setOpen(false)}
                   className={cn(
                     'flex gap-2.5 px-4 py-3 transition-colors hover:bg-muted/40',

@@ -63,6 +63,29 @@ painel de demonstração — que é a única Freitas que existe neste protótipo
 | `what-happens-next.tsx` | o painel "O que acontece depois de enviar" |
 | `portal-notifications-bell.tsx` | o sino do cabeçalho |
 | `demo-section-cotacao-v2.tsx` | a seção do painel |
+| `quotation-demo-proposals.ts` | **puro** — as propostas ilustrativas de uma cotação que não tem nenhuma |
+
+### Novo embarque via PO
+
+A jornada em que o cliente abre o embarque a partir do PO tem README próprio:
+**[`README-embarque-po.md`](./README-embarque-po.md)**. Em uma linha: a flag
+`embarqueViaPo` liga um overlay local (`shipment-po-review.ts`) com quatro
+estados, o botão na Central e em Meus Embarques, a tela de upload e conferência
+do PO, o dedup, a vinculação posterior de cotação e a seção "Embarque via PO" do
+painel.
+
+| Arquivo | O que é |
+|---|---|
+| `shipment-po-review.ts` | **puro** — estados, transições, dedup, referências, autorresposta |
+| `shipment-po-read.ts` | **puro** — a leitura simulada do PO |
+| `shipment-po-merge.ts` | **puro** — o overlay dobrado na carteira |
+| `shipment-po-scenarios.ts` · `shipment-po-notices.ts` | **puros** — cenários e avisos do sino |
+| `use-shipment-po-review.ts` | hooks e escritores |
+| `shipment-po-labels.tsx` | selos, chips e `PO_REVIEW_SLA_LABEL` |
+| `shipment-po-review-tab.tsx` | a aba "Em análise" (opção B) |
+| `new-shipment-dialog.tsx` · `link-quotation-card.tsx` | o modal de escolha e a vinculação |
+| `po-review-view.ts` | os toggles A/B e de falha de leitura |
+| `demo-section-embarque-po.tsx` | a seção do painel |
 
 Os arquivos marcados **Puro** rodam sob `node --test` (`npm run test:unit`) e por
 isso não usam o alias `@/`, que o runner nativo não resolve — imports relativos

@@ -38,6 +38,13 @@ export interface QuotationNotice {
   /** ISO, from the overlay event. */
   at: string;
   read: boolean;
+  /**
+   * Para onde a linha leva. Opcional: sem ele o sino cai no detalhe da COTAÇÃO,
+   * que é o destino de toda notificação deste módulo. O campo existe porque o
+   * embarque via PO reusa este mesmo formato e precisa levar a outro lugar —
+   * ver `shipment-po-notices.ts`.
+   */
+  href?: string;
 }
 
 /** Read notice ids. A set on disk, an array in JSON. */

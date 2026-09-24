@@ -52,6 +52,10 @@ export const scenarios = [
   ['vencida', 'Previsão vencida · sem confirmação'],
   ['sem-dados', 'Embarque · informações incompletas'],
   ['chegada', 'Chegada confirmada · retirada'],
+  // Aberto por PO, ainda sem cotacao vinculada. E o cenario que exercita a
+  // Tela 9 da spec do novo embarque via PO (RQ-4): o chip "Sem cotacao
+  // vinculada" e o card que oferece a vinculacao posterior.
+  ['sem-cotacao', 'Aberto por PO · sem cotação vinculada'],
 ] as const;
 
 export type CargoItem = {
@@ -418,6 +422,19 @@ export function createShipment(scenario: string): Shipment {
     q.documents = [];
     q.events = [];
     q.priority = false;
+  }
+  if (scenario === 'sem-cotacao') {
+    // Embarque ativo e no comeco da jornada: ele nasceu do PO, nao de uma
+    // cotacao aprovada, entao nao ha proposta, agente nem historico de
+    // contratacao por tras dele.
+    q.stage = 1;
+    q.eta = null;
+    q.firstEta = null;
+    q.actual = false;
+    q.priority = false;
+    q.alerts = [];
+    q.events = q.events.filter((event) => event.type !== 'Contratação');
+    q.documents = q.documents.filter((doc) => doc.id !== 'origin');
   }
   if (scenario === 'chegada') {
     q.eta = '2026-09-12';

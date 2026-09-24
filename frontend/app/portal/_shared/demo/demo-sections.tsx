@@ -54,6 +54,7 @@ import {
   useFreitasSimulation,
 } from './use-freitas-simulation';
 import { CotacaoV2Section } from './demo-section-cotacao-v2';
+import { EmbarquePoSection } from './demo-section-embarque-po';
 
 export interface DemoSection {
   /** Stable key. Also the anchor a later prompt can point at. */
@@ -255,6 +256,12 @@ export const DEMO_SECTIONS: DemoSection[] = [
     title: 'Cotação V2',
     description: 'A revisão da Freitas, de entrada e de saída.',
     Content: CotacaoV2Section,
+  },
+  {
+    id: 'embarque-po',
+    title: 'Embarque via PO',
+    description: 'A revisão da Freitas na abertura do embarque.',
+    Content: EmbarquePoSection,
   },
   {
     id: 'reset',

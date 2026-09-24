@@ -31,6 +31,16 @@ import {
   updateQuotationReview,
   useQuotationReviewStore,
 } from './use-quotation-review';
+import {
+  PO_AUTO_ADVANCE_STAGES,
+  applyPoAutoAdvance,
+  msUntilPoAutoAdvance,
+} from './shipment-po-review';
+import {
+  readShipmentPoStore,
+  updateShipmentPoReview,
+  useShipmentPoStore,
+} from './use-shipment-po-review';
 
 /** Proposal ids per quotation, so the exit review has something to release. */
 export type ProposalIdsByQuotation = Record<string, string[]>;
@@ -46,8 +56,16 @@ export function useV2AutoAdvance(proposalIds: ProposalIdsByQuotation): void {
   const flags = usePortalModuleFlags();
   const simulation = useFreitasSimulation();
   const store = useQuotationReviewStore();
+  // O overlay de PO entra no MESMO temporizador, em vez de ganhar um segundo
+  // hook: os dois contam o mesmo atraso a partir do proprio `stageEnteredAt`, e
+  // dois temporizadores acordariam com milissegundos de diferenca para escrever
+  // no mesmo prefixo.
+  const poStore = useShipmentPoStore();
 
-  const enabled = flags.cotacaoV2 && simulation.autoRespond;
+  const enabled =
+    (flags.cotacaoV2 || flags.embarqueViaPo) && simulation.autoRespond;
+  const quotationsEnabled = flags.cotacaoV2 && simulation.autoRespond;
+  const shipmentsEnabled = flags.embarqueViaPo && simulation.autoRespond;
   const delaySeconds = simulation.delaySeconds;
 
   useEffect(() => {
@@ -58,9 +76,25 @@ export function useV2AutoAdvance(proposalIds: ProposalIdsByQuotation): void {
     const tick = () => {
       // Re-read from storage: this callback can fire long after the render that
       // scheduled it, and the panel may have moved a card in the meantime.
-      const current = readQuotationReviewStore();
+      const current = quotationsEnabled ? readQuotationReviewStore() : {};
+      const currentPo = shipmentsEnabled ? readShipmentPoStore() : {};
       const now = Date.now();
       let nextDelay: number | null = null;
+
+      for (const [shipmentId, review] of Object.entries(currentPo)) {
+        if (!PO_AUTO_ADVANCE_STAGES.includes(review.stage)) continue;
+        const remaining = msUntilPoAutoAdvance(review, delaySeconds, now);
+        if (remaining == null) continue;
+        if (remaining <= 0) {
+          updateShipmentPoReview(shipmentId, (entry) =>
+            applyPoAutoAdvance(entry, new Date().toISOString()),
+          );
+          nextDelay = 50;
+          continue;
+        }
+        nextDelay =
+          nextDelay == null ? remaining : Math.min(nextDelay, remaining);
+      }
 
       for (const [quotationId, review] of Object.entries(current)) {
         if (!V2_AUTO_ADVANCE_STAGES.includes(review.stage)) continue;
@@ -93,7 +127,16 @@ export function useV2AutoAdvance(proposalIds: ProposalIdsByQuotation): void {
     return () => {
       if (timer) clearTimeout(timer);
     };
-    // `store` is a dependency so that a card moved by hand in the panel
-    // re-arms the timer immediately instead of waiting for the previous one.
-  }, [enabled, delaySeconds, proposalIds, store]);
+    // `store`/`poStore` are dependencies so that a card moved by hand in the
+    // panel re-arms the timer immediately instead of waiting for the previous
+    // one.
+  }, [
+    enabled,
+    quotationsEnabled,
+    shipmentsEnabled,
+    delaySeconds,
+    proposalIds,
+    store,
+    poStore,
+  ]);
 }

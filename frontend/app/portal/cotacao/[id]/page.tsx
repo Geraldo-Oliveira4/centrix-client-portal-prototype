@@ -49,6 +49,10 @@ import { mergeQuotationV2 } from '../../_shared/demo/quotation-review';
 import { useQuotationReview } from '../../_shared/demo/use-quotation-review';
 import { usePortalModuleReleased } from '../../_shared/demo/use-feature-flags';
 import { ReviewedByFreitasBadge } from '../../_shared/demo/quotation-v2-labels';
+import {
+  effectiveProposals,
+  isDemoProposal,
+} from '../../_shared/demo/quotation-demo-proposals';
 import { V2_STAGE_DESCRIPTIONS } from '../../_shared/demo/quotation-review';
 import {
   EvidenceBody,
@@ -151,10 +155,17 @@ function QuotationDetail({
   // e uma decisao de desenho e nunca uma garantia de visibilidade: na versao
   // integrada, "o cliente so le proposta liberada" precisa estar na camada de
   // dados e na API, senao um erro num componente expoe proposta bloqueada.
-  const allProposals = q.proposals ?? [];
   const v2Released = usePortalModuleReleased('cotacaoV2');
   const overlay = useQuotationReview(q.id);
-  const v2 = v2Released ? mergeQuotationV2(q, overlay) : null;
+  // Uma cotacao aberta pelo portal nasce SEM proposta e nunca ganha uma neste
+  // protótipo (o e-mail do RFQ e um log). Com overlay V2 e payload vazio, as
+  // propostas de DEMONSTRACAO entram no lugar — nunca por cima de propostas
+  // reais. Ver `quotation-demo-proposals.ts`.
+  const allProposals =
+    v2Released && overlay ? effectiveProposals(q) : (q.proposals ?? []);
+  const v2 = v2Released
+    ? mergeQuotationV2({ ...q, proposals: allProposals }, overlay)
+    : null;
   const proposals = v2 ? v2.visibleProposals : allProposals;
   const winner = proposals.find((p) => p.is_winner);
   const chosen = proposals.find((p) => p.id === selection);
@@ -173,7 +184,12 @@ function QuotationDetail({
     chosen ??
     recommended ??
     proposals[0];
-  const deciding = canDecide(q.state);
+  // O OVERLAY DESTRAVA A ESCOLHA. `canDecide` exige ENVIADA_CLIENTE, e uma
+  // cotacao aberta pelo portal fica em TRIAGEM_IA — sem esta linha o cliente
+  // via a comparacao liberada com todos os radios desabilitados e a jornada
+  // parava um passo depois. Mesma regra do roteamento do detalhe: quando existe
+  // overlay, e ele quem diz em que etapa a cotacao esta.
+  const deciding = canDecide(q.state) || v2?.stage === 'released';
   const portalOrigin = q.created_via_portal !== false;
   const needsInfo = isAwaitingInfo(q.state);
   const assembling =
@@ -767,13 +783,26 @@ function QuotationDetail({
               <strong>Selecione uma proposta para continuar</strong>
             )}
           </div>
-          <button
-            className={s.primary}
-            disabled={!chosen || !!proposalIssue(chosen)}
-            onClick={() => setDialog('approve')}
-          >
-            Continuar com esta proposta <ArrowRight size={16} />
-          </button>
+          {/* APROVAR UMA PROPOSTA ILUSTRATIVA NAO E POSSIVEL, e a tela diz isso
+              em vez de tentar. `approveProposal` posta o id ao backend, e o id
+              de uma proposta de demonstracao nao existe la — o clique daria
+              erro de rede e leria como bug. Com proposta REAL nada muda: o
+              fluxo de aprovacao (que fecha a cotacao e provisiona o embarque)
+              continua exatamente como sempre foi. */}
+          {chosen && isDemoProposal(chosen) ? (
+            <p className="portal-small max-w-sm text-portal-neutral">
+              Comparação ilustrativa: esta cotação ainda não recebeu propostas
+              dos agentes, então a aprovação não está disponível.
+            </p>
+          ) : (
+            <button
+              className={s.primary}
+              disabled={!chosen || !!proposalIssue(chosen)}
+              onClick={() => setDialog('approve')}
+            >
+              Continuar com esta proposta <ArrowRight size={16} />
+            </button>
+          )}
         </div>
       )}
       {deciding && chosen && !proposalIssue(chosen) && (

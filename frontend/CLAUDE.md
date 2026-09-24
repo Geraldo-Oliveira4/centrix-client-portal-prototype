@@ -1418,6 +1418,82 @@ que tem de continuar funcionando com a flag desligada.
 Testes puros em `npm run test:unit`: `quotation-review.test.ts`,
 `quotation-review-notices.test.ts`, `quotation-v2-scenarios.test.ts`.
 
+## Novo embarque a partir do PO — 24/09/2026
+
+O **lado do cliente** da jornada em que o embarque nasce de um PO já fechado com
+o exportador, sem passar por cotação, com revisão da Freitas antes de ficar
+ativo. Detalhe em `app/portal/_shared/demo/README-embarque-po.md`.
+
+**A Freitas não tem tela.** A fila e a tela de validação (Telas 10 e 11 da spec)
+são do Centrix interno. Ela é a seção "Embarque via PO" do painel.
+
+**A flag `embarqueViaPo` decide tudo.** Desligada, nada muda em lugar nenhum.
+
+**Nada disto existe no backend**, e tudo é migration nova na versão real: o PO
+como registro selecionável, os estados de revisão, os SKUs e o dedup sobre o PO.
+O overlay vive no `localStorage` sob `centrix-proto-v2:`.
+
+Três decisões que não podem afrouxar:
+
+- **`EmbarqueEstado` NÃO ganhou valor novo.** Um embarque em revisão é
+  `solicitado` mais um campo **opcional `review_status`** que só as telas da V2
+  leem. Acrescentar um valor ao union respingaria em todo mapa indexado por ele
+  (`ESTADO_BADGE_CLASS`, `ESTADO_SEMAFORO`, `SHIPMENT_STEPS`, timeline, mapa) e
+  poria um estado de protótipo dentro de um tipo que espelha o enum do backend.
+- **A origem não é fabricada.** `routePartsOf` cai no `illustrativeHub`, que
+  inventa um porto a partir da referência. Para um embarque aberto por PO isso
+  seria inventar o dado que a revisão existe para estabelecer, então
+  `poRouteLabel` devolve **"A definir"** para todo embarque com overlay e sem
+  cotação — inclusive depois de ativo, porque validar não lhe dá uma cotação.
+- **O guard rail dos "5 primeiros" (RQ-3) NÃO foi modelado.** A Open Question 2
+  não diz se a contagem é por cliente ou no total, nem quem a libera. Todo
+  embarque via PO passa pela revisão.
+
+Onde a jornada toca o portal:
+
+| Tela | Onde |
+|---|---|
+| 1 · botão na Central | `public/prototypes/centrix-visao-geral/index.html` (escondido, `data-host-href`) + `visao-geral/page.tsx`, que o revela pela flag e trata o clique |
+| 1 · botão em Meus Embarques | `embarques/page.tsx`, no `PagePortalHeader` |
+| 2 · escolha cotação/PO | `_shared/demo/new-shipment-dialog.tsx` |
+| 3 · enviar o PO | `embarques/novo/page.tsx` (UploadZone + leitura simulada de ~2,5 s) |
+| 4, 5, 6 · conferir, dedup, manual | `embarques/novo/po-form.tsx` — é o MESMO formulário nos três casos |
+| 7 · selo na carteira | `embarques/components/shipment-list-tab.tsx` (selo, chip "Sem cotação", próximo passo, KPI e filtro) |
+| 8 · aba "Em análise" | `_shared/demo/shipment-po-review-tab.tsx` |
+| 9 · vincular cotação | `_shared/demo/link-quotation-card.tsx`, no cenário `sem-cotacao` da prévia |
+
+- **A escolha entre selo (A) e aba (B) é um seletor no painel**, padrão selo. A
+  Open Question 10 é do Orsi, e responder por ele no código seria pior que
+  mostrar as duas.
+- **`PO_REVIEW_SLA_LABEL` é PLACEHOLDER** (Open Question 13), numa constante só.
+- **As referências começam em `EMB-2026-0101`**, fora da faixa do seed
+  (0001..0013), e `nextPoReference` também lê as que a API devolveu.
+- **O PO da fixture é `PO-2026-1183`**, um dos que o seed grava — é o que faz o
+  diálogo de PO duplicado disparar sozinho numa demonstração. O wireframe mostra
+  PO-2026-1830, que não existe aqui.
+- **A autorresposta roda no mesmo hook da Cotação V2** (`use-v2-auto-advance.ts`,
+  montado no layout), para funcionar com o painel fechado sem dois
+  temporizadores escrevendo no mesmo prefixo. Devolver nunca é automático.
+
+### Correção da Cotação V2 na mesma data
+
+Uma cotação aberta pelo portal nasce em `TRIAGEM_IA` **sem proposta nenhuma** e
+nunca ganha uma (o e-mail do RFQ é um log), então a jornada V2 travava na revisão
+de saída: `releaseProposals([])` recusa liberar nada. Duas correções:
+
+- **`quotation-demo-proposals.ts`** dá três agentes ilustrativos (moedas, prazos
+  e preços distintos, um sem preço para exercitar o "não liberado") **só quando o
+  payload não tem proposta E existe overlay V2**. Proposta real ganha sempre.
+- **O overlay destrava a escolha**: `canDecide` exige `ENVIADA_CLIENTE`, e sem
+  isso o cliente via a comparação liberada com todos os radios desabilitados.
+  **Aprovar uma proposta ilustrativa não é possível** e a tela diz isso — o id
+  não existe no backend. Com proposta real, o fluxo de aprovação (que fecha a
+  cotação e provisiona o embarque) continua exatamente como era.
+
+Testes puros em `npm run test:unit`: `shipment-po-review.test.ts`,
+`shipment-po-read.test.ts`, `shipment-po-merge.test.ts`,
+`shipment-po-scenarios.test.ts`, `quotation-demo-proposals.test.ts`.
+
 ## MUDANÇA DE PROPÓSITO — 12/08/2026
 
 O protótipo virou **referência visual** para quem vai construir a versão
