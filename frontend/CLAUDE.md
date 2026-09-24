@@ -1348,6 +1348,76 @@ chaves que envelhece no primeiro prompt que acrescentar uma.
 Testes puros em `npm run test:unit`: `demo-store.test.ts`,
 `feature-flags.test.ts`, `freitas-simulation.test.ts`.
 
+## Cotação V2 — revisão humana da Freitas (HITL) — 24/09/2026
+
+O **lado do cliente** da Cotação V2: o cliente abre a cotação sozinho e deixa de
+escolher agentes; a Freitas revisa duas vezes (na entrada, antes de o RFQ sair;
+na saída, antes de o cliente ver as propostas). Detalhe em
+`app/portal/_shared/demo/README-cotacao-v2.md` — aqui fica só o que outra tela
+precisa saber.
+
+**A Freitas não tem tela.** Ela é a seção "Cotação V2" do painel de
+demonstração. Nada do Centrix interno foi construído.
+
+**A flag `cotacaoV2` decide tudo.** Desligada (Onda 0), o fluxo atual fica
+intacto: "Revisar convite", escolha de agentes, estados de hoje. E, mesmo ligada,
+uma cotação **sem overlay** continua se comportando exatamente como antes — o
+overlay é opt-in por cotação.
+
+**O backend não conhece nada disto.** As seis etapas, o motivo da devolução e a
+marca "liberada ao cliente" por proposta vivem no `localStorage`
+(`centrix-proto-v2:quotation-review`). Duas consequências que não podem
+afrouxar:
+
+- **O filtro de "só as propostas liberadas" é DESENHO, não garantia.** Na versão
+  integrada a regra tem de estar na camada de dados e na API; aqui um erro de
+  componente exporia proposta bloqueada. Está escrito no topo de
+  `quotation-review.ts` e em `cotacao/[id]/page.tsx`.
+- **O overlay manda no ROTEAMENTO do detalhe.** `usesPreparationDetail` decide
+  pelo `state` do payload, que na V2 não acompanha a jornada (uma cotação
+  `released` continua AGUARDANDO_DADOS ou COTANDO no banco). Sem isso o cliente
+  recebia a notificação de "propostas liberadas" e caía no formulário de
+  preparo.
+
+Como aparece no portal:
+
+| Etapa | Coluna | Selo |
+|---|---|---|
+| `draft` | Preencher detalhes | Rascunho |
+| `entry_review` | Aguardando agentes | Em revisão |
+| `returned` | Preencher detalhes | Devolvida + motivo + "Corrigir e reenviar" |
+| `awaiting_quotes` | Aguardando agentes | Aguardando propostas |
+| `exit_review` | Aguardando agentes | Em revisão · "A comparação ainda não está liberada" |
+| `released` | Escolha sua proposta | Nova + "Comparar e escolher" |
+
+- **Revisão é ESTADO NO CARTÃO, nunca coluna** (RQ-4). As seis etapas cabem nas
+  três colunas que já existem (`PORTAL_BUCKET_LABELS`, inalterado). Uma quarta
+  coluna colocaria a fila interna da Freitas dentro do quadro do cliente.
+- **As duas revisões dividem o selo "Em revisão"** e se distinguem pela FRASE —
+  qual das duas está rodando é o que o cliente precisa, e é o que uma segunda cor
+  não diria.
+- **O contador "aguardando sua ação" conta só `draft`, `returned` e `released`**
+  (RQ-6, `countV2ClientActions`). As três etapas que a Freitas segura ficam fora:
+  cobrar do cliente uma ação que a tela não oferece é pior que não contar.
+- **O passo "Receber propostas" do stepper cobre as três esperas**, com subtexto
+  dizendo em qual delas a cotação está. `PreparationSteps` ganhou `done` e
+  `subtext`, ambos opcionais e sem efeito quando ausentes.
+- **`ManualForm` (compartilhado com a tela do analista) ganhou `submitLabel`**,
+  opcional e com o texto de sempre como padrão — o portal o troca por "Enviar
+  para a Freitas". `DraftRequestForm` repassa via `reviewLabel`. A tela do
+  analista não mudou.
+- **O sino do cabeçalho é novo** (`portal-notifications-bell.tsx`). O portal não
+  tinha nenhum; ele serve os dois tipos do RQ-16 (propostas liberadas, cotação
+  devolvida), sem link e sem e-mail, e some com a flag desligada.
+- **`REVIEW_SLA_LABEL` é PLACEHOLDER.** A spec diz "[SLA a definir]"; a constante
+  existe para que trocar o prazo seja uma edição só.
+
+**O overlay não toca `centrix-preparation-v1:`.** Aquele store é do fluxo atual,
+que tem de continuar funcionando com a flag desligada.
+
+Testes puros em `npm run test:unit`: `quotation-review.test.ts`,
+`quotation-review-notices.test.ts`, `quotation-v2-scenarios.test.ts`.
+
 ## MUDANÇA DE PROPÓSITO — 12/08/2026
 
 O protótipo virou **referência visual** para quem vai construir a versão

@@ -44,6 +44,26 @@ pessoa.
 | `demo-sections.tsx` | **o registro de seções do painel** |
 | `demo-panel.tsx` | a aba e o Sheet. Renderiza `DEMO_SECTIONS` e nada mais |
 
+### Cotação V2 (HITL)
+
+A jornada com as duas revisões da Freitas tem README próprio:
+**[`README-cotacao-v2.md`](./README-cotacao-v2.md)**. Em uma linha: a flag
+`cotacaoV2` liga um overlay local (`quotation-review.ts`) com as seis etapas, o
+sino do cabeçalho, o painel lateral da Nova cotação e a seção "Cotação V2" do
+painel de demonstração — que é a única Freitas que existe neste protótipo.
+
+| Arquivo | O que é |
+|---|---|
+| `quotation-review.ts` | **puro** — etapas, transições, merge, contador, autorresposta |
+| `quotation-review-notices.ts` | **puro** — as notificações, derivadas do histórico |
+| `quotation-v2-scenarios.ts` | **puro** — "Carregar cenários de demonstração" |
+| `use-quotation-review.ts` | hooks e escritores |
+| `use-v2-auto-advance.ts` · `portal-v2-auto-advance.tsx` | a autorresposta, montada no layout |
+| `quotation-v2-labels.tsx` | selos e `REVIEW_SLA_LABEL` |
+| `what-happens-next.tsx` | o painel "O que acontece depois de enviar" |
+| `portal-notifications-bell.tsx` | o sino do cabeçalho |
+| `demo-section-cotacao-v2.tsx` | a seção do painel |
+
 Os arquivos marcados **Puro** rodam sob `node --test` (`npm run test:unit`) e por
 isso não usam o alias `@/`, que o runner nativo não resolve — imports relativos
 com extensão `.ts`, mesma regra de `embarques/lib/delay-risk.ts`.

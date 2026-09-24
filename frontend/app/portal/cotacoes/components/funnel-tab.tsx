@@ -1,15 +1,23 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { EmptyState } from '@arboria-tech/arboria-ui';
 
 import {
   PORTAL_CLIENT_ACTION_BUCKETS,
   type PortalBucketKey,
+  type PortalQuotation,
   type PortalQuotationsResponse,
 } from '@/types/portal';
 
 import { PortalSearchInput } from '../../_shared/portal-search-input';
+import {
+  V2_STAGE_COLUMN,
+  countV2ClientActions,
+} from '../../_shared/demo/quotation-review';
+import { useQuotationReviewStore } from '../../_shared/demo/use-quotation-review';
+import { usePortalModuleReleased } from '../../_shared/demo/use-feature-flags';
 import { KanbanColumn } from './kanban-column';
 import type { LocalRequest } from '../lib/repeat-model';
 import {
@@ -31,19 +39,65 @@ import {
  */
 export function FunnelTab({ data, localRequests = [] }: { data: PortalQuotationsResponse; localRequests?: LocalRequest[] }) {
   const [filters, setFilters] = useState<PortalFilterValues>(EMPTY_PORTAL_FILTERS);
+  // `?destaque=<id>` — o cartao que o cliente acabou de enviar. A pagina ja
+  // roda dentro de um <Suspense> (ver `cotacoes/page.tsx`), entao ler os
+  // parametros aqui nao exige um novo limite.
+  const highlightId = useSearchParams().get('destaque');
+
+  // COTACAO V2. `reviews` e `{}` sempre que a flag esta desligada ou a jornada
+  // nao comecou, e nesse caso tudo abaixo cai nos mesmos valores de antes:
+  // `v2Column` devolve null, o `reduce` nao move cartao nenhum e o contador
+  // soma zero. E o que mantem a Onda 0 identica.
+  const v2Released = usePortalModuleReleased('cotacaoV2');
+  const rawReviews = useQuotationReviewStore();
+  const reviews = useMemo(
+    () => (v2Released ? rawReviews : {}),
+    [v2Released, rawReviews],
+  );
+  const v2Column = useCallback(
+    (id: string) => {
+      const stage = reviews[id]?.stage;
+      return stage ? V2_STAGE_COLUMN[stage] : null;
+    },
+    [reviews],
+  );
+
+  // O overlay REALOCA o cartao: uma cotacao AGUARDANDO_DADOS no backend pode
+  // estar em `entry_review` e pertencer a "Aguardando agentes". A realocacao
+  // acontece uma vez, sobre os baldes crus, e todo o resto da tela (contagens,
+  // filtros, colunas) le o resultado — duas passagens discordariam no primeiro
+  // filtro aplicado.
+  const bucketsV2 = useMemo(() => {
+    if (Object.keys(reviews).length === 0) return data.buckets;
+    const next = Object.fromEntries(
+      Object.keys(data.buckets).map((key) => [key, [] as PortalQuotation[]]),
+    ) as PortalQuotationsResponse['buckets'];
+    for (const [bucket, rows] of Object.entries(data.buckets)) {
+      for (const q of rows) {
+        const target = v2Column(q.id) ?? (bucket as PortalBucketKey);
+        (next[target] ??= []).push(q);
+      }
+    }
+    return next;
+  }, [data.buckets, reviews, v2Column]);
+
+  const dataV2 = useMemo(
+    () => ({ ...data, buckets: bucketsV2 }),
+    [data, bucketsV2],
+  );
 
   // "Preencher detalhes" is only shown when Freitas actually asked the client
   // for something — an empty column would read as a permanent pending task.
   const activeBuckets = useMemo(
     () =>
-      data.bucket_order.filter(
+      dataV2.bucket_order.filter(
         (bucket) =>
-          bucket !== 'aguardando_dados' || (data.buckets.aguardando_dados?.length ?? 0) > 0 || localRequests.some((r) => r.stage === 'draft'),
+          bucket !== 'aguardando_dados' || (dataV2.buckets.aguardando_dados?.length ?? 0) > 0 || localRequests.some((r) => r.stage === 'draft'),
       ),
-    [data, localRequests],
+    [dataV2, localRequests],
   );
 
-  const countOf = (bucket: PortalBucketKey) => (data.buckets[bucket]?.length ?? 0) + localRequests.filter((r) => bucket === (r.stage === 'draft' ? 'aguardando_dados' : 'buscando_propostas')).length;
+  const countOf = (bucket: PortalBucketKey) => (dataV2.buckets[bucket]?.length ?? 0) + localRequests.filter((r) => bucket === (r.stage === 'draft' ? 'aguardando_dados' : 'buscando_propostas')).length;
   const localIn = (bucket: PortalBucketKey) => localRequests.filter((r) => {
     if (bucket !== (r.stage === 'draft' ? 'aguardando_dados' : 'buscando_propostas')) return false;
     const contains = (value: string, search: string) => value.toLocaleLowerCase('pt-BR').includes(search.trim().toLocaleLowerCase('pt-BR'));
@@ -82,11 +136,22 @@ export function FunnelTab({ data, localRequests = [] }: { data: PortalQuotations
   // Por isso o texto abaixo mostra `historyCount` no lugar do total: com "de N
   // ativas" e "M no Historico" as duas relacoes ficam legiveis na propria frase,
   // e o total vira aritmetica do leitor em vez de um quarto numero opaco.
-  const needsAction = PORTAL_CLIENT_ACTION_BUCKETS.reduce(
-    (sum, bucket) => sum + countOf(bucket),
-    0,
-  );
-  const activeCount = data.bucket_order.reduce((sum, bucket) => sum + countOf(bucket), 0);
+  // Com overlay, "aguardando sua acao" deixa de ser uma soma de BALDES e passa a
+  // ser uma contagem de ETAPAS (RQ-6, `countV2ClientActions`): rascunho,
+  // devolvida e liberada. As cotacoes sem overlay continuam contadas pelos
+  // baldes de sempre, e as duas parcelas nao se sobrepoem porque a segunda
+  // desconta exatamente os ids que a primeira ja contou.
+  const v2Ids = new Set(Object.keys(reviews));
+  const needsAction =
+    countV2ClientActions(reviews) +
+    PORTAL_CLIENT_ACTION_BUCKETS.reduce(
+      (sum, bucket) =>
+        sum +
+        (dataV2.buckets[bucket] ?? []).filter((q) => !v2Ids.has(q.id)).length,
+      0,
+    ) +
+    localRequests.filter((r) => r.stage === 'draft').length;
+  const activeCount = dataV2.bucket_order.reduce((sum, bucket) => sum + countOf(bucket), 0);
   // Mesma derivacao que `cotacoes/page.tsx` usa para o badge da aba Historico
   // (`finalizadas` + `cancelada`), para os dois numeros nunca discordarem.
   const historyCount = countOf('finalizadas') + countOf('cancelada');
@@ -96,10 +161,10 @@ export function FunnelTab({ data, localRequests = [] }: { data: PortalQuotations
       Object.fromEntries(
         activeBuckets.map((bucket) => [
           bucket,
-          applyPortalFilters(data.buckets[bucket] ?? [], filters),
+          applyPortalFilters(dataV2.buckets[bucket] ?? [], filters),
         ]),
       ) as Record<PortalBucketKey, ReturnType<typeof applyPortalFilters>>,
-    [activeBuckets, data, filters],
+    [activeBuckets, dataV2, filters],
   );
 
   const filteredTotal = activeBuckets.reduce(
@@ -149,6 +214,8 @@ export function FunnelTab({ data, localRequests = [] }: { data: PortalQuotations
               bucket={bucket}
               quotations={filteredBuckets[bucket] ?? []}
               localRequests={localIn(bucket)}
+              reviews={reviews}
+              highlightId={highlightId}
             />
           ))}
         </div>

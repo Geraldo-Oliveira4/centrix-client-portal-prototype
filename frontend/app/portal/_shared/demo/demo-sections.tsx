@@ -53,6 +53,7 @@ import {
   setFreitasSimulation,
   useFreitasSimulation,
 } from './use-freitas-simulation';
+import { CotacaoV2Section } from './demo-section-cotacao-v2';
 
 export interface DemoSection {
   /** Stable key. Also the anchor a later prompt can point at. */
@@ -248,6 +249,12 @@ export const DEMO_SECTIONS: DemoSection[] = [
     title: 'Freitas simulada',
     description: 'O analista que responde do outro lado.',
     Content: FreitasSection,
+  },
+  {
+    id: 'cotacao-v2',
+    title: 'Cotação V2',
+    description: 'A revisão da Freitas, de entrada e de saída.',
+    Content: CotacaoV2Section,
   },
   {
     id: 'reset',

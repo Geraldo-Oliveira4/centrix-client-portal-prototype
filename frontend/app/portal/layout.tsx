@@ -10,6 +10,7 @@ import { DemoPanel } from './_shared/demo/demo-panel';
 import { ModuleNotReleased } from './_shared/demo/module-not-released';
 import { isRouteReleased } from './_shared/demo/feature-flags';
 import { usePortalModuleFlags } from './_shared/demo/use-feature-flags';
+import { PortalV2AutoAdvance } from './_shared/demo/portal-v2-auto-advance';
 import { portalFont } from './portal-font';
 
 const PUBLIC_PATHS = [
@@ -84,6 +85,10 @@ export default function PortalLayout({
             {isRouteReleased(pathname, flags) ? children : <ModuleNotReleased />}
           </div>
         </main>
+        {/* A autorresposta da Freitas simulada mora AQUI, e nao dentro do
+            painel: o avanco automatico tem de continuar acontecendo com o
+            painel fechado, que e como uma demonstracao de verdade acontece. */}
+        <PortalV2AutoAdvance />
         <DemoPanel />
       </div>
     </SidebarProvider>

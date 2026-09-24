@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   ArrowRight,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Clock3,
@@ -44,6 +45,11 @@ import { ShipmentInstructionSection } from '@/components/shipment-instruction-se
 import { useSidebar } from '../../components/sidebar-context';
 import { EarlyQuotationDetail } from '../components/early-quotation-detail';
 import { usesPreparationDetail } from '../../cotacoes/lib/preparation-model';
+import { mergeQuotationV2 } from '../../_shared/demo/quotation-review';
+import { useQuotationReview } from '../../_shared/demo/use-quotation-review';
+import { usePortalModuleReleased } from '../../_shared/demo/use-feature-flags';
+import { ReviewedByFreitasBadge } from '../../_shared/demo/quotation-v2-labels';
+import { V2_STAGE_DESCRIPTIONS } from '../../_shared/demo/quotation-review';
 import {
   EvidenceBody,
   evidenceFootnote,
@@ -90,9 +96,28 @@ export default function PortalCotacaoDetailPage() {
   const { quotation, isLoading, isError, mutate } = useMyQuotation(
     params?.id ?? null,
   );
+  // COTACAO V2. Quando existe overlay, e ELE quem decide qual das duas telas o
+  // cliente ve — nao o `state` do payload.
+  //
+  // Sem isso a jornada quebra no fim: o overlay pode dizer `released` enquanto
+  // a cotacao continua AGUARDANDO_DADOS ou COTANDO no backend (que e o normal,
+  // porque a V2 nao tem estado no servidor), e `usesPreparationDetail` mandaria
+  // o cliente para a tela de preparo — ou seja, ele receberia a notificacao de
+  // "propostas liberadas" e cairia num formulario. Na versao integrada os dois
+  // sao um estado so e esta funcao desaparece.
+  const v2Released = usePortalModuleReleased('cotacaoV2');
+  const overlay = useQuotationReview(quotation?.id ?? null);
+  const v2Stage = v2Released ? (overlay?.stage ?? null) : null;
+
   if (isLoading) return <LoaderComponent />;
   if (isError || !quotation) return <ErrorComponent />;
-  if (usesPreparationDetail(quotation.state)) return <EarlyQuotationDetail key={quotation.id} quotation={quotation} refresh={() => void mutate()} />;
+
+  const early =
+    v2Stage != null
+      ? v2Stage !== 'released'
+      : usesPreparationDetail(quotation.state);
+
+  if (early) return <EarlyQuotationDetail key={quotation.id} quotation={quotation} refresh={() => void mutate()} />;
   return (
     <QuotationDetail
       key={quotation.id}
@@ -118,7 +143,19 @@ function QuotationDetail({
   const [dialog, setDialog] = useState<'approve' | 'decline' | 'cancel' | null>(
     null,
   );
-  const proposals = q.proposals ?? [];
+  // COTACAO V2 (RQ-17). `allProposals` e o que o payload traz; `proposals` e o
+  // que o CLIENTE pode ver. Sem overlay as duas sao a mesma lista, e a tela
+  // inteira se comporta como sempre.
+  //
+  // A REGRA VERDADEIRA E DO BACKEND. Aqui ela e um filtro de renderizacao, que
+  // e uma decisao de desenho e nunca uma garantia de visibilidade: na versao
+  // integrada, "o cliente so le proposta liberada" precisa estar na camada de
+  // dados e na API, senao um erro num componente expoe proposta bloqueada.
+  const allProposals = q.proposals ?? [];
+  const v2Released = usePortalModuleReleased('cotacaoV2');
+  const overlay = useQuotationReview(q.id);
+  const v2 = v2Released ? mergeQuotationV2(q, overlay) : null;
+  const proposals = v2 ? v2.visibleProposals : allProposals;
   const winner = proposals.find((p) => p.is_winner);
   const chosen = proposals.find((p) => p.id === selection);
   const { recommendation } = useMyRecommendation(
@@ -269,7 +306,35 @@ function QuotationDetail({
       {q.guard_rail_block_reason && (
         <GuardRailBlockBanner reason={q.guard_rail_block_reason} />
       )}
-      {(needsInfo || waiting) && (
+      {/* RQ-16/RQ-17: a faixa que diz quantas propostas a Freitas liberou. Ela
+          e o par do sino — quem chegou pela notificacao precisa reencontrar o
+          mesmo numero na tela. */}
+      {v2?.stage === 'released' && (
+        <div
+          role="status"
+          className="flex items-center gap-2.5 rounded-lg border border-portal-success/40 bg-portal-success/10 px-4 py-3"
+        >
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-portal-success" />
+          <p className="portal-body font-medium text-portal-success">
+            A Freitas revisou e liberou{' '}
+            {v2.review?.releasedProposalIds?.length ?? proposals.length}{' '}
+            {(v2.review?.releasedProposalIds?.length ?? proposals.length) === 1
+              ? 'proposta para você comparar.'
+              : 'propostas para você comparar.'}
+          </p>
+        </div>
+      )}
+      {/* O passo "Receber propostas" cobre as TRES etapas em que o cliente
+          espera (revisao de entrada, agentes cotando, revisao de saida). Quem
+          diz em qual delas a cotacao esta e o subtexto, nao um quarto passo:
+          a fila interna da Freitas nao e uma etapa da jornada do cliente. */}
+      {v2?.stage && v2.stage !== 'draft' && v2.stage !== 'returned' ? (
+        <PreparationSteps
+          waiting={v2.stage !== 'released'}
+          done={v2.stage === 'released'}
+          subtext={V2_STAGE_DESCRIPTIONS[v2.stage]}
+        />
+      ) : (needsInfo || waiting) && (
         <PreparationSteps
           waiting={!needsInfo && (!assembling || agents.rfqDispatched)}
         />
@@ -328,22 +393,22 @@ function QuotationDetail({
         ))}
       {waiting && (!assembling || agents.rfqDispatched) && (
         <WaitingResponses
-          count={proposals.length}
+          count={allProposals.length}
           deadline={q.desired_deadline ? formatDate(q.desired_deadline) : null}
           loading={agents.isLoading}
           unavailable={agents.isError}
           rows={Array.from(
             new Set([
               ...agents.selectedAgentIds,
-              ...proposals.map((p) => p.agent_id),
+              ...allProposals.map((p) => p.agent_id),
             ]),
           ).map((id) => ({
             id,
             name:
               agents.agents.find((a) => a.id === id)?.name ||
-              proposals.find((p) => p.agent_id === id)?.agent?.name ||
+              allProposals.find((p) => p.agent_id === id)?.agent?.name ||
               'Agente convidado',
-            received: proposals.some((p) => p.agent_id === id),
+            received: allProposals.some((p) => p.agent_id === id),
           }))}
           onRefresh={() => {
             refresh();
@@ -480,6 +545,12 @@ function QuotationDetail({
                                 <Sparkles size={11} /> Recomendada
                               </span>
                             ) : null}
+                            {/* RQ-17: toda proposta que chegou ao cliente
+                                passou pela revisao de saida. Desfecho, nao
+                                sugestao — dai o verde e nao o azul. */}
+                            {v2?.stage === 'released' && (
+                              <ReviewedByFreitasBadge className="mt-1" />
+                            )}
                           </td>
                           <td data-label="Valor informado">
                             <strong className={s.price}>

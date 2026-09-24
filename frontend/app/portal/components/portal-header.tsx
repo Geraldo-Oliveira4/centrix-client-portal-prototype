@@ -9,6 +9,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { portalSession } from '@/lib/portal-session';
 import { useMyClient } from '@/hooks/use-portal-quotations';
 
+import { PortalNotificationsBell } from '../_shared/demo/portal-notifications-bell';
 import { usePortalModuleReleased } from '../_shared/demo/use-feature-flags';
 
 import { useSidebar } from './sidebar-context';
@@ -82,6 +83,9 @@ export function PortalHeader() {
             </Link>
           </Button>
         ) : null}
+        {/* O sino das notificacoes da Cotacao V2 (RQ-16). Ele se esconde
+            sozinho quando `cotacaoV2` esta desligada — ver o componente. */}
+        <PortalNotificationsBell />
         {/* Sol/lua entre o atalho e o avatar. O componente ja existia
             (`components/theme-toggle.tsx`, com o guard de `mounted` que evita o
             flash de icone errado na hidratacao) e ate agora so era montado na

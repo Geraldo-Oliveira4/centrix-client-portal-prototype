@@ -140,9 +140,17 @@ interface ManualFormProps {
    * field. The analyst screen passes nothing and behaves exactly as before.
    */
   initialValues?: Partial<ManualFormValues>;
+  /**
+   * Label of the submit button. Optional, and the default is exactly the text
+   * this form has always shown — the analyst screen passes nothing and is
+   * unchanged. The portal's Cotação V2 overrides it with "Enviar para a
+   * Freitas": there the click no longer ends in a quotation the client then
+   * dispatches themselves, it ends in the Freitas' review queue.
+   */
+  submitLabel?: string;
 }
 
-export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues, draft }: ManualFormProps) {
+export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues, draft, submitLabel }: ManualFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraggingAttachments, setIsDraggingAttachments] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -1283,7 +1291,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
               type="submit"
               disabled={isSubmitting || disabled}
             >
-              {draft ? 'Revisar solicitação' : isSubmitting ? 'Criando cotação...' : 'Criar cotação manual'}
+              {draft ? (submitLabel ?? 'Revisar solicitação') : isSubmitting ? 'Criando cotação...' : (submitLabel ?? 'Criar cotação manual')}
             </Button>
           </div>
         </div>
