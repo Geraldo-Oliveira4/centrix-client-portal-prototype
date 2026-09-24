@@ -37,7 +37,8 @@ export type V2Stage =
   | 'returned'
   | 'awaiting_quotes'
   | 'exit_review'
-  | 'released';
+  | 'released'
+  | 'approved';
 
 /** Where the quotation came from. Today only the portal produces an overlay. */
 export type V2Origin = 'portal';
@@ -49,6 +50,7 @@ export type V2EventKind =
   | 'entry_approved'
   | 'quotes_arrived'
   | 'proposals_released'
+  | 'approved'
   | 'reset';
 
 export interface V2Event {
@@ -59,6 +61,8 @@ export interface V2Event {
   reason?: string;
   /** Only `proposals_released` carries one. */
   releasedCount?: number;
+  /** Only `approved` carries one. */
+  proposalId?: string;
 }
 
 export interface QuotationReview {
@@ -74,6 +78,8 @@ export interface QuotationReview {
   releasedProposalIds?: string[];
   /** ISO. The clock the automatic reply counts from. */
   stageEnteredAt: string;
+  /** The proposal the client chose, once they have. */
+  approvedProposalId?: string;
   /** Oldest first. Survives a return and a resubmission (RQ-5). */
   history: V2Event[];
 }
@@ -110,6 +116,7 @@ export const V2_STAGE_LABELS: Record<V2Stage, string> = {
   awaiting_quotes: 'Aguardando propostas',
   exit_review: 'Em revisão',
   released: 'Nova',
+  approved: 'Aprovada',
 };
 
 /**
@@ -125,6 +132,7 @@ export const V2_STAGE_DESCRIPTIONS: Record<V2Stage, string> = {
   awaiting_quotes: 'Aguardando propostas dos agentes',
   exit_review: 'A comparação ainda não está liberada',
   released: 'A Freitas liberou as propostas para você comparar',
+  approved: 'Proposta aprovada. O embarque já está em Meus Embarques.',
 };
 
 /** Which Kanban column a stage belongs to. */
@@ -134,20 +142,25 @@ export type V2Column =
   | 'aguardando_aprovacao';
 
 /**
- * Stage -> column.
+ * Stage -> column, or `null` for a stage that does NOT belong on the funnel.
  *
  * THREE COLUMNS, and review is never one of them (RQ-4). `entry_review` and
  * `exit_review` both land in "Aguardando agentes" because that is what the
  * client is doing in both: waiting. A fourth column called "Em revisão" would
  * turn the Freitas' internal queue into part of the client's board.
+ *
+ * `approved` is `null` because the funnel is work IN FLIGHT: an approved
+ * quotation has left it and lives in the "Aprovadas" tab, exactly like a
+ * quotation the backend closed.
  */
-export const V2_STAGE_COLUMN: Record<V2Stage, V2Column> = {
+export const V2_STAGE_COLUMN: Record<V2Stage, V2Column | null> = {
   draft: 'aguardando_dados',
   returned: 'aguardando_dados',
   entry_review: 'buscando_propostas',
   awaiting_quotes: 'buscando_propostas',
   exit_review: 'buscando_propostas',
   released: 'aguardando_aprovacao',
+  approved: null,
 };
 
 /** A fresh overlay for a quotation the client just started. */
@@ -261,6 +274,30 @@ export function releaseProposals(
 }
 
 /**
+ * Client approves one of the released proposals (RQ-18), SIMULATED.
+ *
+ * Only ever reached by an ILLUSTRATIVE proposal. A real proposal goes through
+ * `approveProposal` and the backend, which closes the quotation and provisions
+ * the Processo/Embarque for real — that path is untouched. This one exists
+ * because a quotation opened in the portal during a demonstration has no real
+ * proposal to approve (it is created with none and never gets one), so without
+ * it the journey "nova cotação -> embarque" had no ending.
+ */
+export function approveQuotation(
+  review: QuotationReview,
+  proposalId: string,
+  at: string,
+): QuotationReview {
+  if (review.stage !== 'released' || !proposalId) return review;
+  return advance(
+    review,
+    'approved',
+    { kind: 'approved', at, proposalId },
+    { approvedProposalId: proposalId },
+  );
+}
+
+/**
  * Back to square one, for the demonstration panel.
  *
  * Keeps the history and drops the released list: the point of the reset is to
@@ -272,7 +309,12 @@ export function resetToDraft(
   at: string,
 ): QuotationReview {
   const next = advance(review, 'draft', { kind: 'reset', at });
-  const { returnReason: _r, releasedProposalIds: _p, ...rest } = next;
+  const {
+    returnReason: _r,
+    releasedProposalIds: _p,
+    approvedProposalId: _a,
+    ...rest
+  } = next;
   return rest;
 }
 
@@ -328,7 +370,7 @@ export function mergeQuotationV2<T extends MergeableQuotation>(
 
   const released = overlay.releasedProposalIds;
   const visible =
-    overlay.stage === 'released' && released
+    (overlay.stage === 'released' || overlay.stage === 'approved') && released
       ? (proposals.filter((p) => released.includes(p.id)) as NonNullable<
           T['proposals']
         >)
@@ -457,6 +499,9 @@ function normalizeReview(raw: unknown): QuotationReview | null {
       ? { returnReason: source.returnReason }
       : {}),
     ...(released ? { releasedProposalIds: released } : {}),
+    ...(typeof source.approvedProposalId === 'string' && source.approvedProposalId
+      ? { approvedProposalId: source.approvedProposalId }
+      : {}),
   };
 }
 

@@ -74,6 +74,10 @@ export function FunnelTab({ data, localRequests = [] }: { data: PortalQuotations
     ) as PortalQuotationsResponse['buckets'];
     for (const [bucket, rows] of Object.entries(data.buckets)) {
       for (const q of rows) {
+        const stage = reviews[q.id]?.stage;
+        // Etapa SEM coluna (hoje so `approved`) sai do funil: ele e trabalho em
+        // curso, e uma cotacao aprovada ja foi para a aba "Aprovadas".
+        if (stage && V2_STAGE_COLUMN[stage] == null) continue;
         const target = v2Column(q.id) ?? (bucket as PortalBucketKey);
         (next[target] ??= []).push(q);
       }

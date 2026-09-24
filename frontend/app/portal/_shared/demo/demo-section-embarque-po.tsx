@@ -46,9 +46,13 @@ import {
   validate,
   type ShipmentPoReview,
 } from './shipment-po-review';
-import { buildPoScenarioStore } from './shipment-po-scenarios';
+import {
+  buildPoScenarioStore,
+  buildSplitPoScenario,
+} from './shipment-po-scenarios';
 import {
   clearShipmentPoStore,
+  readShipmentPoStore as readCurrentStore,
   updateShipmentPoReview,
   useShipmentPoStore,
   writeShipmentPoStore,
@@ -344,7 +348,7 @@ export function EmbarquePoSection() {
             </Button>
           </div>
           <p className="portal-small text-portal-neutral">
-            Telas 7 e 8 da spec. A escolha é do Orsi (Open Question 10); a spec
+            Telas 7 e 8 da spec. A escolha está em aberto (Open Question 10); a spec
             propõe o selo.
           </p>
         </div>
@@ -362,6 +366,18 @@ export function EmbarquePoSection() {
         >
           Carregar cenários de demonstração
         </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            writeShipmentPoStore({
+              ...readCurrentStore(),
+              ...buildSplitPoScenario(shipments.map((s) => s.referencia)),
+            })
+          }
+        >
+          PO dividido em 3 embarques
+        </Button>
         {entries.length > 0 && (
           <Button
             size="sm"
@@ -375,7 +391,8 @@ export function EmbarquePoSection() {
       </div>
       <p className="portal-small text-portal-neutral">
         Os cenários criam um embarque em cada estado, com referências a partir de
-        EMB-2026-0101. Nada é criado nem apagado no servidor.
+        EMB-2026-0101. “PO dividido” acrescenta três parciais do mesmo pedido
+        para a aba “Visão por PO”. Nada é criado nem apagado no servidor.
       </p>
 
       {returning && (

@@ -39,6 +39,7 @@ import {
 } from '@/lib/portal-formatters';
 import type { PortalProposal, PortalQuotation } from '@/types/portal';
 import { MODAL_LABELS, PROPOSAL_ROUTE_TYPE_LABELS } from '@/types/quotation';
+import { toast } from 'react-toastify';
 import portal_api from '@/lib/portal-api';
 import type { SIApi } from '@/hooks/use-shipment-instruction';
 import { ShipmentInstructionSection } from '@/components/shipment-instruction-section';
@@ -53,6 +54,17 @@ import {
   effectiveProposals,
   isDemoProposal,
 } from '../../_shared/demo/quotation-demo-proposals';
+import { approveQuotation } from '../../_shared/demo/quotation-review';
+import { updateQuotationReview } from '../../_shared/demo/use-quotation-review';
+import {
+  approvalShipmentId,
+  shipmentFromApproval,
+} from '../../_shared/demo/quotation-approval';
+import { nextPoReference } from '../../_shared/demo/shipment-po-review';
+import {
+  putShipmentPoReview,
+  readShipmentPoStore,
+} from '../../_shared/demo/use-shipment-po-review';
 import { V2_STAGE_DESCRIPTIONS } from '../../_shared/demo/quotation-review';
 import {
   EvidenceBody,
@@ -235,6 +247,29 @@ function QuotationDetail({
                     ? 'Respostas parciais'
                     : 'Aguardando agentes';
   const marketReference = illustrativeMarketReference(proposals);
+  /**
+   * A aprovacao SIMULADA de uma proposta ilustrativa.
+   *
+   * Move a cotacao para `approved` no overlay (ela sai do Funil e entra na aba
+   * "Aprovadas") e cria o embarque ATIVO ja vinculado a ela. Rota, agente e
+   * mercadoria saem da COTACAO e da PROPOSTA — nada e fabricado aqui, e o
+   * vinculo e o que faz a tela resolver a rota pela cotacao em vez de cair no
+   * hub ilustrativo.
+   */
+  const approveIllustrative = (proposal: PortalProposal) => {
+    const at = new Date().toISOString();
+    updateQuotationReview(q.id, (review) =>
+      approveQuotation(review, proposal.id, at),
+    );
+    const id = approvalShipmentId(q.id);
+    // Referencia fora da faixa do seed, como todo embarque desta camada.
+    const reference = nextPoReference(readShipmentPoStore(), []);
+    putShipmentPoReview(id, shipmentFromApproval(reference, q, proposal, at));
+    toast.success(
+      `Proposta aprovada. O embarque ${reference} já está em Meus Embarques.`,
+    );
+  };
+
   const select = (p: PortalProposal) => {
     if (!deciding || proposalIssue(p)) return;
     setSelection(p.id);
@@ -783,26 +818,20 @@ function QuotationDetail({
               <strong>Selecione uma proposta para continuar</strong>
             )}
           </div>
-          {/* APROVAR UMA PROPOSTA ILUSTRATIVA NAO E POSSIVEL, e a tela diz isso
-              em vez de tentar. `approveProposal` posta o id ao backend, e o id
-              de uma proposta de demonstracao nao existe la — o clique daria
-              erro de rede e leria como bug. Com proposta REAL nada muda: o
-              fluxo de aprovacao (que fecha a cotacao e provisiona o embarque)
-              continua exatamente como sempre foi. */}
-          {chosen && isDemoProposal(chosen) ? (
-            <p className="portal-small max-w-sm text-portal-neutral">
-              Comparação ilustrativa: esta cotação ainda não recebeu propostas
-              dos agentes, então a aprovação não está disponível.
-            </p>
-          ) : (
-            <button
-              className={s.primary}
-              disabled={!chosen || !!proposalIssue(chosen)}
-              onClick={() => setDialog('approve')}
-            >
-              Continuar com esta proposta <ArrowRight size={16} />
-            </button>
-          )}
+          {/* DOIS CAMINHOS DE APROVACAO, e o real nao muda.
+              - Proposta REAL: `ApproveDialog` -> `approveProposal` na API, que
+                fecha a cotacao e provisiona o Processo/Embarque de verdade.
+              - Proposta ILUSTRATIVA: o id nao existe no backend e o POST daria
+                404, entao a aprovacao e SIMULADA no overlay (RQ-18). Sem isso a
+                jornada "nova cotacao -> embarque" nao tinha fim, porque uma
+                cotacao aberta no portal nunca recebe proposta real aqui. */}
+          <button
+            className={s.primary}
+            disabled={!chosen || !!proposalIssue(chosen)}
+            onClick={() => setDialog('approve')}
+          >
+            Continuar com esta proposta <ArrowRight size={16} />
+          </button>
         </div>
       )}
       {deciding && chosen && !proposalIssue(chosen) && (
@@ -811,6 +840,9 @@ function QuotationDetail({
           onOpenChange={(open) => setDialog(open ? 'approve' : null)}
           quotationId={q.id}
           proposal={chosen}
+          onSimulatedApprove={
+            isDemoProposal(chosen) ? () => approveIllustrative(chosen) : undefined
+          }
         />
       )}
       {deciding && (

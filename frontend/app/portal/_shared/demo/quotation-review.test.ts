@@ -29,6 +29,7 @@ import {
   V2_STAGE_LABELS,
   applyAutoAdvance,
   approveEntry,
+  approveQuotation,
   autoAdvanceTarget,
   countV2ClientActions,
   createReview,
@@ -62,7 +63,7 @@ const quotation = (proposalIds: string[]) => ({
 
 test('toda etapa tem rotulo, descricao e coluna', () => {
   const stages = Object.keys(V2_STAGE_COLUMN) as V2Stage[];
-  assert.equal(stages.length, 6);
+  assert.equal(stages.length, 7);
   for (const stage of stages) {
     assert.ok(V2_STAGE_LABELS[stage]?.length, `${stage} sem rotulo`);
     assert.ok(V2_STAGE_DESCRIPTIONS[stage]?.length, `${stage} sem descricao`);
@@ -82,11 +83,17 @@ test('as duas revisoes dividem o selo e se distinguem pela frase', () => {
   );
 });
 
-test('revisao nunca vira coluna: as seis etapas cabem nas tres de hoje', () => {
+test('revisao nunca vira coluna: as etapas do funil cabem nas tres de hoje', () => {
   assert.deepEqual(
-    Array.from(new Set(Object.values(V2_STAGE_COLUMN))).sort(),
+    Array.from(new Set(Object.values(V2_STAGE_COLUMN)))
+      .filter((column) => column != null)
+      .sort(),
     ['aguardando_aprovacao', 'aguardando_dados', 'buscando_propostas'],
   );
+  // `approved` NAO tem coluna: o funil e trabalho em curso, e uma cotacao
+  // aprovada saiu dele — ela vive na aba "Aprovadas", como qualquer cotacao
+  // que o backend fechou.
+  assert.equal(V2_STAGE_COLUMN.approved, null);
   assert.equal(V2_STAGE_COLUMN.entry_review, 'buscando_propostas');
   assert.equal(V2_STAGE_COLUMN.exit_review, 'buscando_propostas');
   assert.equal(V2_STAGE_COLUMN.returned, 'aguardando_dados');
@@ -412,4 +419,78 @@ test('o que foi gravado sobrevive ao ciclo completo', () => {
     ),
   };
   assert.deepEqual(parseQuotationReviewStore(JSON.stringify(store)), store);
+});
+
+// ---------------------------------------------------------------------------
+// aprovacao simulada (RQ-18)
+// ---------------------------------------------------------------------------
+
+const releasedReview = () =>
+  releaseProposals(
+    quotesArrived(approveEntry(submitToFreitas(createReview(T0), T1), T2), T3),
+    ['p1', 'p2'],
+    T4,
+  );
+
+test('aprovar leva de "liberada" a "aprovada" e guarda a proposta escolhida', () => {
+  const r = approveQuotation(releasedReview(), 'p1', '2026-09-24T15:00:00.000Z');
+  assert.equal(r.stage, 'approved');
+  assert.equal(r.approvedProposalId, 'p1');
+  assert.equal(r.history.at(-1)?.kind, 'approved');
+  assert.equal(r.history.at(-1)?.proposalId, 'p1');
+});
+
+test('so uma cotacao LIBERADA pode ser aprovada', () => {
+  for (const before of [
+    createReview(T0),
+    submitToFreitas(createReview(T0), T1),
+    quotesArrived(approveEntry(submitToFreitas(createReview(T0), T1), T2), T3),
+  ]) {
+    assert.deepEqual(approveQuotation(before, 'p1', T4), before, before.stage);
+  }
+});
+
+test('aprovar sem proposta nao faz nada', () => {
+  const before = releasedReview();
+  assert.deepEqual(approveQuotation(before, '', T4), before);
+});
+
+test('aprovar duas vezes nao empilha', () => {
+  const once = approveQuotation(releasedReview(), 'p1', T4);
+  assert.deepEqual(approveQuotation(once, 'p2', T4), once);
+});
+
+test('a cotacao aprovada CONTINUA mostrando as propostas liberadas', () => {
+  // O cliente precisa reabrir a comparacao e rever o que escolheu.
+  const merged = mergeQuotationV2(
+    quotation(['p1', 'p2', 'p3']),
+    approveQuotation(releasedReview(), 'p1', T4),
+  );
+  assert.deepEqual(
+    merged.visibleProposals.map((p) => p.id),
+    ['p1', 'p2'],
+  );
+  assert.equal(merged.column, null, 'aprovada sai do funil');
+});
+
+test('o reset larga a proposta aprovada junto com a liberacao', () => {
+  const r = resetToDraft(approveQuotation(releasedReview(), 'p1', T4), T4);
+  assert.equal(r.stage, 'draft');
+  assert.equal(r.approvedProposalId, undefined);
+  assert.equal(r.releasedProposalIds, undefined);
+});
+
+test('a aprovacao sobrevive ao ciclo de disco', () => {
+  const store: QuotationReviewStore = {
+    q1: approveQuotation(releasedReview(), 'p1', T4),
+  };
+  assert.deepEqual(parseQuotationReviewStore(JSON.stringify(store)), store);
+});
+
+test('aprovada NAO conta como "aguardando sua acao"', () => {
+  // A bola nao esta mais com o cliente: ele ja decidiu.
+  assert.equal(
+    countV2ClientActions({ q1: approveQuotation(releasedReview(), 'p1', T4) }),
+    0,
+  );
 });

@@ -435,6 +435,12 @@ export function createShipment(scenario: string): Shipment {
     q.alerts = [];
     q.events = q.events.filter((event) => event.type !== 'Contratação');
     q.documents = q.documents.filter((doc) => doc.id !== 'origin');
+    // A ORIGEM NAO E FABRICADA. Este embarque nasceu de um PO, nao de uma
+    // cotacao: ninguem estabeleceu a rota ainda, e o porto da fixture base
+    // ("Ningbo, China") seria justamente o dado que a revisao existe para
+    // preencher. Mesma regra de `_shared/demo/shipment-po-merge.ts`.
+    q.origin = 'A definir';
+    q.destination = 'A definir';
   }
   if (scenario === 'chegada') {
     q.eta = '2026-09-12';

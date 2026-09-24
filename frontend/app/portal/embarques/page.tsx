@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Map as MapIcon, List, Bell, Hourglass, Plus } from 'lucide-react';
+import { Map as MapIcon, List, Bell, Hourglass, Package, Plus } from 'lucide-react';
 import { ErrorComponent, LoaderComponent } from '@arboria-tech/arboria-ui';
 
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { PagePortalHeader } from '../_shared/page-header';
 import { usePortalModuleReleased } from '../_shared/demo/use-feature-flags';
 import { NewShipmentDialog } from '../_shared/demo/new-shipment-dialog';
 import { ShipmentPoReviewTab } from '../_shared/demo/shipment-po-review-tab';
+import { PoOverviewTab } from '../_shared/demo/po-overview-tab';
 import { usePoReviewView } from '../_shared/demo/po-review-view';
 import { useShipmentsWithPo } from '../_shared/demo/use-shipment-po-review';
 import { countShipmentsInPoReview } from '../_shared/demo/shipment-po-merge';
@@ -31,7 +32,7 @@ import {
 } from './lib/shipment-filters';
 
 // Navegação do panorama da carteira ao detalhe e às ocorrências.
-const TABS = ['mapa', 'lista', 'analise', 'alertas'] as const;
+const TABS = ['mapa', 'lista', 'analise', 'pos', 'alertas'] as const;
 type ShipmentTab = (typeof TABS)[number];
 
 const isShipmentTab = (value: string | null): value is ShipmentTab =>
@@ -156,7 +157,11 @@ function PortalEmbarquesContent() {
           onValueChange={(v) => { setTab(v as ShipmentTab); router.replace(`/portal/embarques?tab=${v}`, { scroll: false }); }}
           className="space-y-6"
         >
-          <TabsList>
+          {/* A tira ROLA no estreito. A tela nasceu com tres abas e cabia em
+              390px; os prompts do protótipo V2 acrescentaram "Em análise"
+              (opção B) e "Visão por PO", e sem isto a última aba ficava fora do
+              viewport e inalcançável no celular. */}
+          <TabsList className="max-w-full justify-start overflow-x-auto">
             <TabsTrigger value="mapa" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
               <MapIcon className="h-4 w-4" />
               Panorama
@@ -175,6 +180,15 @@ function PortalEmbarquesContent() {
                 <span className="portal-small rounded bg-muted px-1.5 text-portal-neutral">
                   {inReview}
                 </span>
+              </TabsTrigger>
+            )}
+            {/* RQ-12, so protótipo. Ela vive ao lado das abas existentes e
+                respeita a escolha A/B: a aba "Em analise" continua sendo
+                decidida pelo seletor do painel, independente desta. */}
+            {poReleased && (
+              <TabsTrigger value="pos" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
+                <Package className="h-4 w-4" />
+                Visão por PO
               </TabsTrigger>
             )}
             <TabsTrigger value="alertas" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
@@ -199,6 +213,12 @@ function PortalEmbarquesContent() {
           {showReviewTab && (
             <TabsContent value="analise" className="space-y-4">
               <ShipmentPoReviewTab />
+            </TabsContent>
+          )}
+
+          {poReleased && (
+            <TabsContent value="pos" className="space-y-4">
+              <PoOverviewTab shipments={shipments} />
             </TabsContent>
           )}
 

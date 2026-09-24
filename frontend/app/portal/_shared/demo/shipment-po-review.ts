@@ -31,7 +31,7 @@ export const SHIPMENT_PO_STORE_NAME = 'shipment-po-review';
  * Where the shipment came from. `manual` is the same journey without the file
  * (Tela 6) — the review is identical, only the reading step is skipped.
  */
-export type PoOrigin = 'po' | 'manual';
+export type PoOrigin = 'po' | 'manual' | 'cotacao';
 
 export type PoStage = 'draft' | 'awaiting_review' | 'returned' | 'active';
 
@@ -69,6 +69,13 @@ export interface PoItem {
 
 /** The form's fields. Everything optional: a draft is allowed to be empty. */
 export interface PoShipmentData {
+  /**
+   * O agente de carga, quando o embarque nasceu de uma proposta aprovada.
+   *
+   * Vazio na jornada por PO: ali ninguém escolheu agente ainda — é justamente
+   * o que a cotação faz e o PO não faz.
+   */
+  agentName: string;
   /** A shipment may carry more than one PO (RQ-10); the v1 UI collects one. */
   poNumbers: string[];
   clientRef: string;
@@ -101,6 +108,15 @@ export interface ShipmentPoReview {
   returnReason?: string;
   /** Which fields the Freitas asked the client to fix. */
   fieldsToFix: string[];
+  /**
+   * Chegada prevista, ISO, quando ELA EXISTE.
+   *
+   * Um embarque aberto por PO não tem rastreamento (não há companhia marítima
+   * reportando nada ainda), então esta é a única data que a "Visão por PO"
+   * (RQ-12) pode desenhar. Ela é informada, nunca derivada: ausente é ausente,
+   * e a régua simplesmente não põe a carga nela.
+   */
+  plannedEta?: string;
   /** ISO. The clock the automatic reply counts from. */
   stageEnteredAt: string;
   history: PoEvent[];
@@ -179,6 +195,7 @@ export const PO_FIELD_LABELS: Record<string, string> = {
 };
 
 export const EMPTY_PO_DATA: PoShipmentData = {
+  agentName: '',
   poNumbers: [],
   clientRef: '',
   items: [],
@@ -477,6 +494,7 @@ function normalizeData(raw: unknown): PoShipmentData {
   const str = (value: unknown, fallback = '') =>
     typeof value === 'string' ? value : fallback;
   return {
+    agentName: str(source.agentName),
     poNumbers: Array.isArray(source.poNumbers)
       ? source.poNumbers.filter((p): p is string => typeof p === 'string')
       : [],
@@ -530,7 +548,10 @@ function normalizeReview(raw: unknown): ShipmentPoReview | null {
 
   return {
     reference: source.reference,
-    origin: source.origin === 'manual' ? 'manual' : 'po',
+    origin:
+      source.origin === 'manual' || source.origin === 'cotacao'
+        ? source.origin
+        : 'po',
     stage: stage as PoStage,
     data: normalizeData(source.data),
     attachmentName:
@@ -539,6 +560,9 @@ function normalizeReview(raw: unknown): ShipmentPoReview | null {
     fieldsToFix: Array.isArray(source.fieldsToFix)
       ? source.fieldsToFix.filter((f): f is string => typeof f === 'string')
       : [],
+    ...(typeof source.plannedEta === 'string' && source.plannedEta
+      ? { plannedEta: source.plannedEta }
+      : {}),
     stageEnteredAt:
       typeof source.stageEnteredAt === 'string'
         ? source.stageEnteredAt

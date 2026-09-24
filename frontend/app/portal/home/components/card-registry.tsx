@@ -34,11 +34,16 @@ import { UrgentActionCard } from './urgent-action-card';
  * cards nao pode custar quatro vezes o mesmo fetch, e dois cards nao podem
  * discordar por terem lido payloads diferentes.
  *
- * NENHUM COMPONENTE REAPROVEITADO FOI EDITADO. `UrgentActionCard` e
- * `SavingsCard` ja eram componentes burros e entram como estao; `ShipmentMap` e
- * burro nas props mas toca `window` no import (Leaflet), e por isso ganha o
- * wrapper com `dynamic({ ssr: false })` abaixo; `PriceAlertBadge` e
- * `PriceTrendLine` entram inteiros dentro de `PriceTrendCard`.
+ * NENHUM COMPONENTE COMPARTILHADO FOI EDITADO. `ShipmentMap` e burro nas props
+ * mas toca `window` no import (Leaflet), e por isso ganha o wrapper com
+ * `dynamic({ ssr: false })` abaixo; `PriceAlertBadge` e `PriceTrendLine` entram
+ * inteiros dentro de `PriceTrendCard`.
+ *
+ * Em 24/09/2026 `SavingsCard` e `PriceTrendCard` — que sao exclusivos da Home —
+ * passaram a esconder o LINK de rodape quando a Inteligencia nao esta liberada.
+ * O numero fica: ele sai das cotacoes e dos embarques do proprio cliente. Quem
+ * decide se um card INTEIRO some e `_shared/demo/home-card-modules.ts`, lido
+ * pela pagina.
  */
 
 export interface HomeCardProps {

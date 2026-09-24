@@ -145,6 +145,16 @@ rascunhos de cotação (`centrix-preparation-v1:`, `centrix-repeat-requests-v1:`
 o tema (`portal:theme`) não são tocados, e o painel continua aberto — quem
 acabou de reiniciar ainda está apresentando.
 
+## Documentos desta pasta
+
+| Documento | Para quê |
+|---|---|
+| [`README-cotacao-v2.md`](./README-cotacao-v2.md) | as seis etapas da revisão da cotação |
+| [`README-embarque-po.md`](./README-embarque-po.md) | a jornada do embarque a partir do PO |
+| [`ROTEIRO-DEMO.md`](./ROTEIRO-DEMO.md) | **como apresentar** — ondas, jornadas, reset e limites |
+| [`HANDOFF-BACKEND.md`](./HANDOFF-BACKEND.md) | o que a versão integrada precisa ter de verdade |
+| [`PUBLICACAO.md`](./PUBLICACAO.md) | o que sobe, como conferir e como reverter |
+
 ## Selos
 
 Nenhuma tela do portal ganha marca de "real x ilustrativo" por causa desta

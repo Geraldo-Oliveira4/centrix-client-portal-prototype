@@ -96,11 +96,26 @@ export function poShipmentFrom(
       null) as PortalShipment['tipo_embarque'],
     tipo_despacho: (entry.data.despacho || null) as PortalShipment['tipo_despacho'],
     carga_urgente: entry.data.urgent,
-    agente_nome: null,
+    agente_nome: entry.data.agentName || null,
     quotation_id: entry.linkedQuotationId ?? null,
     created_at: created,
     updated_at: entry.stageEnteredAt,
-    tracking: null,
+    // `tracking` só existe quando há uma chegada informada. `COMPLETE` com o
+    // MESMO valor nas duas ETAs significa "no prazo" para a `delayRiskFromTracking`
+    // do portal — que é a verdade: não há desvio a relatar, porque não há
+    // companhia marítima reportando nada. `is_mock` não entra: esta data foi
+    // informada por quem abriu o embarque, não inventada por um top-up.
+    tracking: entry.plannedEta
+      ? {
+          first_eta: entry.plannedEta,
+          current_eta: entry.plannedEta,
+          eta_is_actual: false,
+          data_status: 'COMPLETE',
+          last_milestone: null,
+          last_milestone_at: null,
+          is_mock: false,
+        }
+      : null,
     review_status: statusOf(entry),
   };
 }

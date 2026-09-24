@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+
+import { usePortalModuleReleased } from '../../_shared/demo/use-feature-flags';
 import { ArrowRight, TrendingDown, TrendingUp } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -128,6 +130,11 @@ export function SavingsCard({
 }
 
 function DetailLink() {
+  // O NUMERO fica: ele sai das cotacoes do cliente, nao da Inteligencia. Some so
+  // o LINK, que apontaria para um modulo que esta empresa nao tem — e que o menu
+  // acabou de esconder.
+  const released = usePortalModuleReleased('inteligencia');
+  if (!released) return null;
   return (
     <Link
       href="/portal/inteligencia/performance"

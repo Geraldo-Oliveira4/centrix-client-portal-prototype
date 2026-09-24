@@ -20,6 +20,7 @@ import {
   submitToFreitas,
   validate,
   type PoStage,
+  type ShipmentPoReview,
   type ShipmentPoStore,
 } from './shipment-po-review.ts';
 
@@ -109,6 +110,81 @@ export function buildPoScenarioStore(
     }
 
     store[id] = entry;
+  });
+
+  return store;
+}
+
+/**
+ * UM PO com TRÊS embarques — o cenário que a aba "Visão por PO" (RQ-12) existe
+ * para mostrar, e que o seed não produz.
+ *
+ * O seed dá um PO por cotação e uma cotação por embarque, então um PO dividido
+ * em parciais nunca aparece sozinho. Este botão cria as três parciais do mesmo
+ * pedido, cada uma num estágio diferente e com uma chegada diferente, que é
+ * exatamente a pergunta da spec: "quando cada carga chega?".
+ *
+ * ILUSTRATIVO e documentado: as referências continuam fora da faixa do seed e
+ * nada vai ao servidor. As três compartilham o PO de propósito — é o único jeito
+ * de a tela ter o que agrupar.
+ */
+export const SPLIT_PO_NUMBER = 'PO-2026-1955';
+
+export function buildSplitPoScenario(
+  existingReferences: string[] = [],
+  now: number = Date.now(),
+): ShipmentPoStore {
+  const store: ShipmentPoStore = {};
+  const parts = [
+    { label: 'Parcial 1 de 3 · bombas centrífugas', days: 12 },
+    { label: 'Parcial 2 de 3 · rotores e selos', days: 26 },
+    { label: 'Parcial 3 de 3 · sobressalentes', days: 41 },
+  ];
+
+  parts.forEach((part, index) => {
+    const reference = nextPoReference(store, existingReferences);
+    const t = (minutesAgo: number) =>
+      new Date(now - minutesAgo * MINUTE).toISOString();
+
+    let entry = createDraft(reference, 'po', t(200 - index * 20));
+    entry = saveDraft(
+      entry,
+      {
+        poNumbers: [SPLIT_PO_NUMBER],
+        clientRef: 'AURORA-0455',
+        exporter: 'Precision Components Ltd.',
+        incoterm: 'FOB',
+        despacho: 'CONSOLIDADO',
+        modal: 'MARITIMO',
+        tipoEmbarque: index === 2 ? 'LCL' : 'FCL',
+        items: [
+          {
+            id: `split-item-${index + 1}`,
+            partNumber: `BC-99${index + 1}`,
+            description: part.label,
+            currency: 'USD',
+            quantity: 40 - index * 10,
+            unitValue: 320,
+            netWeightKg: 900 - index * 150,
+            totalValue: (40 - index * 10) * 320,
+            grossWeightKg: 980 - index * 150,
+          },
+        ],
+      },
+      t(190 - index * 20),
+      `${SPLIT_PO_NUMBER}-${index + 1}.pdf`,
+    );
+    entry = submitToFreitas(entry, t(180 - index * 20));
+    // A terceira parcial fica EM ANÁLISE: um PO dividido quase nunca tem todas
+    // as parciais no mesmo estágio, e a aba precisa mostrar isso.
+    if (index < 2) entry = validate(entry, t(170 - index * 20));
+
+    store[`po-split-${index + 1}`] = {
+      ...entry,
+      // A chegada prevista de cada carga. É o dado que a régua desenha, e ele
+      // existe porque o cliente informou — não é derivado de nada.
+      plannedEta: new Date(now + part.days * 24 * 60 * MINUTE).toISOString(),
+    } as ShipmentPoReview;
   });
 
   return store;

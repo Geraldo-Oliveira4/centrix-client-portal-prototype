@@ -61,6 +61,10 @@ const STAGE_BADGE: Record<
     icon: CheckCircle2,
     className: 'bg-portal-success/15 text-portal-success',
   },
+  approved: {
+    icon: CheckCircle2,
+    className: 'bg-portal-success/15 text-portal-success',
+  },
 };
 
 /** The seal on the card and on the detail header. */
