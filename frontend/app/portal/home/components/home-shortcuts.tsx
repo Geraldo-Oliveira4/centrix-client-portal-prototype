@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { FileCheck2, FilePlus2, Ship } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
+import { useReleasedHref } from '../../_shared/demo/use-feature-flags';
+
 /**
  * "Atalhos" — a fileira de pills do rodapé da Home.
  *
@@ -32,9 +34,14 @@ const SHORTCUTS: { label: string; icon: LucideIcon; href: string }[] = [
 ];
 
 export function HomeShortcuts() {
+  const released = useReleasedHref();
+  const shortcuts = SHORTCUTS.filter(({ href }) => released(href));
+
+  if (shortcuts.length === 0) return null;
+
   return (
     <ul className="flex flex-wrap gap-2">
-      {SHORTCUTS.map(({ label, icon: Icon, href }) => (
+      {shortcuts.map(({ label, icon: Icon, href }) => (
         <li key={label}>
           <Link
             href={href}

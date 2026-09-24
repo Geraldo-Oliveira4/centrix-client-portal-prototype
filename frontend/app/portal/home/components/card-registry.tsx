@@ -9,6 +9,8 @@ import type { PortalQuotationsResponse } from '@/types/portal';
 import type { PortalShipment } from '@/types/portal-shipment';
 
 import { SectionHeading } from '../../_shared/page-header';
+import type { PortalModule } from '../../_shared/demo/feature-flags';
+import { usePortalModuleFlags } from '../../_shared/demo/use-feature-flags';
 import { REAL_STEPS } from '../../embarques/lib/real-steps';
 import { flattenQuotations } from '../../inteligencia/lib/intel-helpers';
 import { computePriceRadar } from '../../inteligencia/lib/price-radar';
@@ -16,6 +18,7 @@ import {
   computeIllustrativeSavings,
   computeSavingsTrend,
 } from '../../inteligencia/lib/illustrative-kpis';
+import type { HomeActionModule } from '../lib/home-actions';
 import { collectHomeActions } from '../lib/home-actions';
 import type { PortalHomeCard } from '../lib/home-layout';
 import { PriceTrendCard } from './price-trend-card';
@@ -53,7 +56,18 @@ const ShipmentMap = dynamic(
   { ssr: false, loading: () => <Skeleton className="h-full w-full rounded-lg" /> },
 );
 
+/**
+ * De qual modulo do portal nasce cada acao da Home. `HomeActionModule` fala do
+ * DOMINIO ("embarque", no singular); a chave de flag fala do MODULO do menu
+ * ("embarques"). A tabela existe para essa traducao e para nada mais.
+ */
+const ACTION_MODULE_FLAG: Record<HomeActionModule, PortalModule> = {
+  cotacao: 'cotacao',
+  embarque: 'embarques',
+};
+
 function AcaoUrgenteCard({ shipments, quotations, now }: HomeCardProps) {
+  const flags = usePortalModuleFlags();
   const actions = useMemo(
     () =>
       collectHomeActions({
@@ -65,10 +79,19 @@ function AcaoUrgenteCard({ shipments, quotations, now }: HomeCardProps) {
     [shipments, quotations, now],
   );
 
+  // O FILTRO VIVE AQUI, nao em `collectHomeActions`. Aquele modulo e puro,
+  // unit-testado e nao conhece flag nenhuma — passar as flags por dentro dele
+  // trocaria a assinatura de uma regra de negocio por causa de um adereco de
+  // demonstracao. Ele ja devolve `module` em cada acao, e e so isso que falta.
+  const released = useMemo(
+    () => actions.filter((action) => flags[ACTION_MODULE_FLAG[action.module]]),
+    [actions, flags],
+  );
+
   return (
     <section className="space-y-3">
       <SectionHeading title="Sua ação mais urgente" />
-      <UrgentActionCard action={actions[0]} />
+      <UrgentActionCard action={released[0]} />
     </section>
   );
 }

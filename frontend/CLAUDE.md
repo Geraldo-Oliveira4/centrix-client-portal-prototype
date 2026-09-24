@@ -1283,6 +1283,71 @@ um detalhe de uma linha?".**
 > Class names composed in `types/` are only picked up because
 > `./types/**/*.{ts,tsx}` is in the Tailwind `content` globs. Keep it there.
 
+## Camada de demonstração e feature flags — 24/09/2026
+
+`app/portal/_shared/demo/` dá ao protótipo dois controles que o portal integrado
+vai ter no servidor: **quais módulos a empresa enxerga** e **como a Freitas
+responde**. Leia o `README.md` da pasta antes de mexer; aqui fica só o que
+outra tela precisa saber.
+
+**Não é controle de acesso.** As flags moram no `localStorage` deste navegador,
+não há nada por cliente e nenhum endpoint recusa chamada de módulo desligado.
+São adereços de palco, para que uma onda de liberação possa ser *mostrada*.
+
+**O padrão é TUDO ligado**, e ausência de chave também: `normalizeModuleFlags`
+preenche módulo que falta com o padrão. É isso que faz o protótipo publicado
+continuar se comportando como hoje, e que impede um módulo novo de nascer
+escondido no navegador de quem já abriu o portal.
+
+- **Módulos:** `cotacao`, `cotacaoV2`, `embarques`, `embarqueViaPo`,
+  `inteligencia`, `radar`, `auditoria`. `cotacaoV2` e `embarqueViaPo` hoje são só
+  a chave — o comportamento chega nos próximos prompts.
+- **Sempre ligados, sem chave:** Início, Central de trabalho e Configurações.
+  Início é para onde o `ModuleNotReleased` devolve o cliente; uma onda capaz de
+  escondê-los produziria um portal sem saída.
+- **Duas pontas para esconder um módulo**, e as duas são necessárias: o filtro de
+  `NAV_ITEMS` em `components/portal-sidebar.tsx` (o drawer mobile renderiza o
+  MESMO `SidebarContent`, então não há segunda lista) e o guard de
+  `app/portal/layout.tsx`, que troca só o MIOLO da tela — sidebar e header
+  continuam, porque módulo fechado é porta fechada dentro do portal, não sessão
+  perdida.
+- **Link para módulo fechado some, não fica apagado** — mesma regra do pill
+  "Documentos" da Home em 03/09/2026. Já aplicado em "Verificar embarque"
+  (`portal-header.tsx`), nos atalhos da Home (`home-shortcuts.tsx`, filtrados
+  pelo próprio `href` via `useReleasedHref`), no CTA do vazio de Meus Embarques
+  e na fila do card "Sua ação mais urgente" (`card-registry.tsx`, pelo campo
+  `module` que `collectHomeActions` já devolve — a regra pura não conhece flag).
+- **Prefixo mais específico ganha** no mapa rota -> módulo: é o que faz
+  `/portal/embarques/novo` cair em `embarqueViaPo` e não na lista que divide o
+  prefixo com ele. Rota que nenhum prefixo reclama fica LIBERADA, nunca
+  bloqueada.
+- **Os iframes não são filtrados por dentro.** Central de trabalho,
+  Configurações, Auditoria, Radar e Inteligência embutem demonstrações em
+  `public/prototypes/`; a flag decide se a rota hospedeira abre, e nada do
+  conteúdo interno deles.
+
+**Painel de demonstração** (`demo-panel.tsx`): oculto por padrão, aparece com
+`?demo=1` ou `Ctrl+Shift+D` (`?demo=0` esconde), guardado em `sessionStorage`
+para não sobreviver ao fechar da aba. Quem acrescenta controle escreve uma seção
+e **acrescenta** uma entrada a `DEMO_SECTIONS` (`demo-sections.tsx`) — o painel
+não muda.
+
+**Nenhuma tela ganhou selo de real x ilustrativo por causa disto.** A decisão de
+12/08/2026 (seção abaixo) continua valendo: dado ilustrativo rico, sem
+`ProvenanceBadge` nas telas novas. A honestidade fica no painel, que se declara
+simulação no título e na aba.
+
+**Store local, versionado por prefixo.** `demo-store.ts` é o núcleo puro (storage
+e event target injetáveis), com prefixo único `centrix-proto-v2:` e
+`resetPrefix()`, que apaga SÓ esse prefixo — login, rascunhos de cotação e tema
+ficam. É o mesmo arranjo de evento de `cotacoes/lib/local-requests.ts`
+(`storage` para as outras abas, evento custom para esta), e o que ele acrescenta
+é o prefixo único: "reiniciar a demonstração" é uma varredura, não uma lista de
+chaves que envelhece no primeiro prompt que acrescentar uma.
+
+Testes puros em `npm run test:unit`: `demo-store.test.ts`,
+`feature-flags.test.ts`, `freitas-simulation.test.ts`.
+
 ## MUDANÇA DE PROPÓSITO — 12/08/2026
 
 O protótipo virou **referência visual** para quem vai construir a versão

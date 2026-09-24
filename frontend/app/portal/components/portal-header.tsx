@@ -9,12 +9,15 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { portalSession } from '@/lib/portal-session';
 import { useMyClient } from '@/hooks/use-portal-quotations';
 
+import { usePortalModuleReleased } from '../_shared/demo/use-feature-flags';
+
 import { useSidebar } from './sidebar-context';
 
 export function PortalHeader() {
   const { client, isLoading } = useMyClient();
   const { toggleMobile } = useSidebar();
   const router = useRouter();
+  const shipmentsReleased = usePortalModuleReleased('embarques');
 
   const handleLogout = () => {
     portalSession.clear();
@@ -66,13 +69,19 @@ export function PortalHeader() {
         {/* Global shortcut to the shipment lookup. Points at the Lista tab with
             the search field expanded (?busca=1) — the old `#verificar` anchor
             was left dangling when Meus Embarques was rebuilt as three tabs, so
-            this button navigated and then did nothing. */}
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/portal/embarques?tab=lista&busca=1">
-            <PackageSearch className="h-5 w-5 sm:mr-2" />
-            <span className="hidden sm:inline">Verificar embarque</span>
-          </Link>
-        </Button>
+            this button navigated and then did nothing.
+
+            Sai do header inteiro quando Meus Embarques nao esta liberado: o
+            atalho existe no cabecalho de TODA tela do portal, e deixa-lo apontar
+            para uma porta fechada seria oferecer o modulo em todas elas. */}
+        {shipmentsReleased ? (
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/portal/embarques?tab=lista&busca=1">
+              <PackageSearch className="h-5 w-5 sm:mr-2" />
+              <span className="hidden sm:inline">Verificar embarque</span>
+            </Link>
+          </Button>
+        ) : null}
         {/* Sol/lua entre o atalho e o avatar. O componente ja existia
             (`components/theme-toggle.tsx`, com o guard de `mounted` que evita o
             flash de icone errado na hidratacao) e ate agora so era montado na

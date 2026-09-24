@@ -13,6 +13,7 @@ import { useMyQuotations } from '@/hooks/use-portal-quotations';
 import { useMyShipments } from '@/hooks/use-portal-shipments';
 
 import { PagePortalHeader } from '../_shared/page-header';
+import { usePortalModuleReleased } from '../_shared/demo/use-feature-flags';
 import { flattenQuotations } from '../inteligencia/lib/intel-helpers';
 
 import { ShipmentMapWorkspace } from './components/shipment-map-workspace';
@@ -41,6 +42,7 @@ function PortalEmbarquesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { shipments, isLoading, isError } = useMyShipments();
+  const quotationReleased = usePortalModuleReleased('cotacao');
 
   // Deep link from the header's "Verificar embarque" shortcut. It used to point
   // at `#verificar`, an anchor that disappeared when this screen was rebuilt as
@@ -104,12 +106,17 @@ function PortalEmbarquesContent() {
               Freitas.
             </p>
           </div>
-          <Button asChild>
-            <Link href="/portal/nova-cotacao">
-              <Plus className="mr-2 h-5 w-5" />
-              Criar cotação
-            </Link>
-          </Button>
+          {/* O embarque nasce de uma cotacao fechada, entao o vazio desta tela
+              so tem CTA quando a Cotacao esta liberada. Sem ela o texto acima
+              continua explicando de onde o embarque vem. */}
+          {quotationReleased ? (
+            <Button asChild>
+              <Link href="/portal/nova-cotacao">
+                <Plus className="mr-2 h-5 w-5" />
+                Criar cotação
+              </Link>
+            </Button>
+          ) : null}
         </div>
       ) : (
         <Tabs
