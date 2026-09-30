@@ -199,6 +199,8 @@ interface ManualFormProps {
    * a tela do analista nao passa nada e nao ganha icone nenhum.
    */
   helpTips?: Partial<Record<ManualFormHelpField, string>>;
+  /** Called on every change (portal: "você já embarcou esta carga"). */
+  onValuesChange?: (values: Partial<ManualFormValues>) => void;
 }
 
 export type ManualFormHelpField =
@@ -210,7 +212,7 @@ export type ManualFormHelpField =
   | 'carga_tombavel'
   | 'declared_value';
 
-export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues, draft, submitLabel, hardblocks, clientFacing, helpTips }: ManualFormProps) {
+export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues, draft, submitLabel, hardblocks, clientFacing, helpTips, onValuesChange }: ManualFormProps) {
   // O rotulo com o "?" ao lado. Botao FORA do <label>: dentro dele, o clique
   // no "?" tambem focaria o campo.
   const withTip = (field: ManualFormHelpField, label: string, node: React.ReactNode) =>
@@ -282,6 +284,13 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
       ...draft?.initial.values,
     },
   });
+
+  useEffect(() => {
+    if (!onValuesChange) return;
+    onValuesChange(form.getValues());
+    const subscription = form.watch((values) => onValuesChange(values as Partial<ManualFormValues>));
+    return () => subscription.unsubscribe();
+  }, [form, onValuesChange]);
 
   const watchModal = form.watch('modal');
   const watchTipoEmbarque = form.watch('tipo_embarque');
