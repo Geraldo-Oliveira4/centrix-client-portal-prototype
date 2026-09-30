@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 /** Approved demo, isolated from operational APIs. */
-export function IntelligencePreview({ initialSection = 'performance' }: { initialSection?: string }) {
+export function IntelligencePreview({ initialSection = 'executivo' }: { initialSection?: string }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [source, setSource] = useState<string>();
 
@@ -41,6 +41,6 @@ export function IntelligencePreview({ initialSection = 'performance' }: { initia
 
   return source ? <>
     <style>{`@media(max-width:767px){main:has(iframe[data-intelligence])>header{flex-wrap:wrap;gap:8px}}`}</style>
-    <iframe data-intelligence ref={frame} src={source} title="Inteligência Centrix — Performance, Parceiros, Rotas e locais, Relatórios e Assistentes" className="block w-full border-0" style={{ height: 'calc(100dvh - 150px)', minHeight: 580 }} />
+    <iframe data-intelligence ref={frame} src={source} title="Inteligência Centrix — Executivo, Performance, Preços e rotas, Assistentes" className="block w-full border-0" style={{ height: 'calc(100dvh - 150px)', minHeight: 580 }} />
   </> : <p role="status">Carregando Inteligência…</p>;
 }

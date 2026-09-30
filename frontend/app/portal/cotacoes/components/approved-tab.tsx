@@ -296,7 +296,7 @@ function ApprovedRow({
         <small>
           {q.state === 'FECHADA'
             ? 'Cotação fechada'
-            : 'Proposta aprovada pelo cliente'}
+            : 'Proposta aprovada por você'}
         </small>
       </td>
       <td data-label="Rota e necessidade">

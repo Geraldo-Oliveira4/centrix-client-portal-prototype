@@ -284,10 +284,9 @@ function BrandLogo({ showText = true, small = false }: { showText?: boolean, sma
   return (
     <div className={cn("flex items-center", showText ? "gap-2" : "")}>
       {/* Sidebar de fundo claro -> lockup principal. Substitui o
-          freitascomex-logo.jpeg, que era um raster recortado em circulo. A
-          marca ja diz "freitas centrix", entao a palavra "Centrix" ao lado
-          saiu junto: mostrar as duas era escrever o nome do produto duas
-          vezes, uma delas fora da tipografia da marca. */}
+          freitascomex-logo.jpeg, que era um raster recortado em circulo. O
+          logotipo ja diz "centrix", entao nao ha palavra "Centrix" ao lado:
+          seria o nome do produto duas vezes. */}
       {showText ? (
         <BrandMark variant="principal" width={small ? 96 : 120} />
       ) : (

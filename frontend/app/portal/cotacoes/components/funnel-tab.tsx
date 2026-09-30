@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { EmptyState } from '@arboria-tech/arboria-ui';
 
@@ -13,12 +13,15 @@ import {
 
 import { PortalSearchInput } from '../../_shared/portal-search-input';
 import {
-  V2_STAGE_COLUMN,
   countV2ClientActions,
+  relocateBucketsV2,
 } from '../../_shared/demo/quotation-review';
 import { useQuotationReviewStore } from '../../_shared/demo/use-quotation-review';
 import { usePortalModuleReleased } from '../../_shared/demo/use-feature-flags';
 import { KanbanColumn } from './kanban-column';
+import { collectHomeActions } from '../../home/lib/home-actions';
+import { REAL_STEPS } from '../../embarques/lib/real-steps';
+import { urgencyByRecord } from '../../_shared/urgency';
 import type { LocalRequest } from '../lib/repeat-model';
 import {
   EMPTY_PORTAL_FILTERS,
@@ -46,7 +49,7 @@ export function FunnelTab({ data, localRequests = [] }: { data: PortalQuotations
 
   // COTACAO V2. `reviews` e `{}` sempre que a flag esta desligada ou a jornada
   // nao comecou, e nesse caso tudo abaixo cai nos mesmos valores de antes:
-  // `v2Column` devolve null, o `reduce` nao move cartao nenhum e o contador
+  // `relocateBucketsV2` devolve os baldes intactos e o contador
   // soma zero. E o que mantem a Onda 0 identica.
   const v2Released = usePortalModuleReleased('cotacaoV2');
   const rawReviews = useQuotationReviewStore();
@@ -54,36 +57,18 @@ export function FunnelTab({ data, localRequests = [] }: { data: PortalQuotations
     () => (v2Released ? rawReviews : {}),
     [v2Released, rawReviews],
   );
-  const v2Column = useCallback(
-    (id: string) => {
-      const stage = reviews[id]?.stage;
-      return stage ? V2_STAGE_COLUMN[stage] : null;
-    },
-    [reviews],
-  );
-
   // O overlay REALOCA o cartao: uma cotacao AGUARDANDO_DADOS no backend pode
   // estar em `entry_review` e pertencer a "Aguardando agentes". A realocacao
   // acontece uma vez, sobre os baldes crus, e todo o resto da tela (contagens,
   // filtros, colunas) le o resultado — duas passagens discordariam no primeiro
   // filtro aplicado.
-  const bucketsV2 = useMemo(() => {
-    if (Object.keys(reviews).length === 0) return data.buckets;
-    const next = Object.fromEntries(
-      Object.keys(data.buckets).map((key) => [key, [] as PortalQuotation[]]),
-    ) as PortalQuotationsResponse['buckets'];
-    for (const [bucket, rows] of Object.entries(data.buckets)) {
-      for (const q of rows) {
-        const stage = reviews[q.id]?.stage;
-        // Etapa SEM coluna (hoje so `approved`) sai do funil: ele e trabalho em
-        // curso, e uma cotacao aprovada ja foi para a aba "Aprovadas".
-        if (stage && V2_STAGE_COLUMN[stage] == null) continue;
-        const target = v2Column(q.id) ?? (bucket as PortalBucketKey);
-        (next[target] ??= []).push(q);
-      }
-    }
-    return next;
-  }, [data.buckets, reviews, v2Column]);
+  // A realocacao e a MESMA da Home (`relocateBucketsV2`): "de quem e a vez"
+  // tem de dar a mesma resposta no Funil e na frase "N itens exigem...".
+  const bucketsV2 = useMemo(
+    () =>
+      relocateBucketsV2(data.buckets, reviews) as PortalQuotationsResponse['buckets'],
+    [data.buckets, reviews],
+  );
 
   const dataV2 = useMemo(
     () => ({ ...data, buckets: bucketsV2 }),
@@ -92,6 +77,24 @@ export function FunnelTab({ data, localRequests = [] }: { data: PortalQuotations
 
   // "Preencher detalhes" is only shown when Freitas actually asked the client
   // for something — an empty column would read as a permanent pending task.
+  // URGENCIA POR CARTAO: a mesma fila de acoes do cliente da Home e da Central
+  // (`collectHomeActions`), sobre os baldes JA realocados pela V2. Uma leitura
+  // de relogio por montagem, como no resto do portal.
+  const [now] = useState(() => new Date());
+  const urgencies = useMemo(
+    () =>
+      urgencyByRecord(
+        collectHomeActions({
+          shipments: [],
+          buckets: dataV2.buckets,
+          realSteps: REAL_STEPS,
+          now,
+        }),
+        now,
+      ),
+    [dataV2, now],
+  );
+
   const activeBuckets = useMemo(
     () =>
       dataV2.bucket_order.filter(
@@ -220,6 +223,7 @@ export function FunnelTab({ data, localRequests = [] }: { data: PortalQuotations
               localRequests={localIn(bucket)}
               reviews={reviews}
               highlightId={highlightId}
+              urgencies={urgencies}
             />
           ))}
         </div>

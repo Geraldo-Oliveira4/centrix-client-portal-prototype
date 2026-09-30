@@ -638,3 +638,21 @@ test('snapshot e diff gravados por outra versão são saneados na leitura', () =
   assert.deepEqual(store.q1.submittedForm, { incoterm: 'FOB' });
   assert.deepEqual(store.q1.history[0].changes, []);
 });
+
+test('realocação V2: revisão de entrada (e "Reenviada") sai da fila do cliente', async () => {
+  const { relocateBucketsV2, resubmitEdited: edit } = await import('./quotation-review.ts');
+  const buckets = {
+    aguardando_dados: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }],
+    buscando_propostas: [],
+    aguardando_aprovacao: [],
+  };
+  const reviewing = edit(submitToFreitas(createReview(T0), T1, { product: 'A' }), { product: 'B' }, T2);
+  const out = relocateBucketsV2(buckets, {
+    q1: reviewing,
+    q2: approveQuotation(releaseProposals(quotesArrived(approveEntry(submitToFreitas(createReview(T0), T1), T2), T3), ['p1'], T4), 'p1', T4),
+  });
+  assert.deepEqual(out.aguardando_dados.map((q) => q.id), ['q3']);
+  assert.deepEqual(out.buscando_propostas.map((q) => q.id), ['q1']);
+  assert.equal(Object.values(out).flat().some((q) => q.id === 'q2'), false);
+  assert.equal(relocateBucketsV2(buckets, {}), buckets);
+});

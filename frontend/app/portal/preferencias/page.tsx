@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { Compass } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { restartTour } from '../_shared/use-onboarding';
 
 /** Approved settings UX; browser-only demonstration, isolated from operational preferences. */
 export default function ConfiguracoesPage() {
@@ -42,6 +46,15 @@ export default function ConfiguracoesPage() {
 
   return (
     <div className="space-y-4">
+      {/* "Ver tour de novo" (30/09/2026): o tour de boas-vindas volta a abrir
+          nesta mesma tela. Fica FORA do iframe porque o tour e do portal, nao
+          desta demonstracao de Configuracoes. */}
+      <div className="flex justify-end">
+        <Button variant="outline" className="gap-1.5" onClick={restartTour}>
+          <Compass className="h-5 w-5" />
+          Ver tour de novo
+        </Button>
+      </div>
       {source && <iframe ref={frame} src={source} title="Configurações Centrix — perfil, empresas, rotas, locais e agentes" className="block w-full border-0" style={{ height: 'calc(100dvh - 160px)', minHeight: 580 }} />}
       <details className="text-sm text-muted-foreground">
         <summary className="cursor-pointer">Acessar cadastros e preferências conectados</summary>

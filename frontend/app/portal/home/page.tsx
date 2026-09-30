@@ -18,9 +18,15 @@ import { countBySemaforo } from '@/types/portal-shipment';
 import { SectionHeading } from '../_shared/page-header';
 import { HOME_LAYOUT_CARD_COMPONENTS } from './components/card-registry';
 import { HomeBanner } from './components/home-banner';
+import { collectHomeActions } from './lib/home-actions';
+import { REAL_STEPS } from '../embarques/lib/real-steps';
+import { rankByUrgency, summarizeAttention } from '../_shared/urgency';
 import { HomeShortcuts } from './components/home-shortcuts';
 import { HomeCustomizeDialog } from './components/customize-dialog';
 import { HomeOnboardingDialog } from './components/onboarding-dialog';
+import { useOnboarding } from '../_shared/use-onboarding';
+import { relocateBucketsV2 } from '../_shared/demo/quotation-review';
+import { useQuotationReviewStore } from '../_shared/demo/use-quotation-review';
 import {
   homeCardsHiddenByModule,
   releasedHomeCards,
@@ -99,6 +105,9 @@ export default function PortalHomePage() {
   // `_shared/demo/home-card-modules.ts` — os cards que só LINKAM para um módulo
   // desligado ficam, e quem some é o link.
   const flags = usePortalModuleFlags();
+  const onboarding = useOnboarding();
+  const rawReviews = useQuotationReviewStore();
+  const v2Reviews = flags.cotacaoV2 ? rawReviews : {};
   const cards = useMemo(
     () => releasedHomeCards(chosenCards, flags),
     [chosenCards, flags],
@@ -112,7 +121,30 @@ export default function PortalHomePage() {
   // "Situacao dos embarques": `countBySemaforo` sobre os embarques do cliente.
   // Nao ha aritmetica nova nesta tela.
   const counts = useMemo(() => countBySemaforo(shipments), [shipments]);
-  const needsAttention = counts.warning + counts.danger;
+
+  // "O QUE EXIGE SUA ATENCAO HOJE" (30/09/2026). A frase do banner contava
+  // EXCECOES de embarque (o farol), enquanto Embarques dizia "precisa de voce"
+  // para outra coisa e a Central para uma terceira: tres numeros para a mesma
+  // pergunta. Agora ela sai da escala de urgencia (`_shared/urgency.ts`) sobre a
+  // MESMA fila de acoes do card "Sua acao mais urgente", filtrada pelos modulos
+  // liberados. O farol continua ao lado, dizendo o que ele sempre disse: o
+  // estado dos embarques.
+  const attention = useMemo(() => {
+    const actions = collectHomeActions({
+      shipments,
+      // Baldes realocados pelo overlay V2: cotacao em revisao da Freitas (ou
+      // "Reenviada") nao e pendencia do cliente, mesmo AGUARDANDO_DADOS no
+      // backend. Mesma leitura do Funil.
+      buckets: relocateBucketsV2(quotations?.buckets ?? {}, v2Reviews),
+      realSteps: REAL_STEPS,
+      now,
+    }).filter((action) =>
+      flags[action.module === 'cotacao' ? 'cotacao' : 'embarques'],
+    );
+    return summarizeAttention(
+      rankByUrgency(actions, now).map((ranked) => ranked.urgency),
+    );
+  }, [shipments, quotations, now, flags, v2Reviews]);
 
   const persist = async (
     nextThemes: PortalHomeTheme[],
@@ -168,11 +200,23 @@ export default function PortalHomePage() {
       <HomeBanner
         now={now}
         counts={counts}
+        detail={
+          attention.total > 0
+            ? [
+                attention.critico > 0 &&
+                  `${attention.critico} com prazo vencido`,
+                attention.atencao > 0 &&
+                  `${attention.atencao} ${attention.atencao === 1 ? 'vence' : 'vencem'} em até 3 dias ou ${attention.atencao === 1 ? 'trava' : 'travam'} a próxima etapa`,
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            : 'Pendências sem prazo continuam em Minhas Cotações e Meus Embarques.'
+        }
         headline={
           // O numero e a frase mudam juntos: sem nada em aberto a tela da a boa
           // noticia em vez de imprimir um "0" grande, que le como painel quebrado.
-          needsAttention === 0 ? (
-            'Nenhum embarque precisa da sua atenção hoje.'
+          attention.total === 0 ? (
+            'Nada exige sua atenção hoje.'
           ) : (
             <>
               {/* portal-warning (#C98A00), nao o warning-ink: o ink existe para
@@ -180,10 +224,10 @@ export default function PortalHomePage() {
                   banner, onde ele daria 1.9:1. O tom de preenchimento da 5.7:1
                   sobre navy. Regra: o ink e para fundo claro, a fill e para
                   fundo escuro — nao o contrario. */}
-              <span className="text-portal-warning">{needsAttention}</span>{' '}
-              {needsAttention === 1
-                ? 'embarque precisa da sua atenção hoje'
-                : 'embarques precisam da sua atenção hoje'}
+              <span className="text-portal-warning">{attention.total}</span>{' '}
+              {attention.total === 1
+                ? 'item exige sua atenção hoje'
+                : 'itens exigem sua atenção hoje'}
             </>
           )
         }
@@ -285,8 +329,11 @@ export default function PortalHomePage() {
         <HomeShortcuts />
       </section>
 
+      {/* A escolha de temas e o ULTIMO passo das boas-vindas: espera o tour e a
+          configuracao inicial (`_shared/onboarding-flow.tsx`), em vez de abrir
+          por cima deles na primeira visita. */}
       <HomeOnboardingDialog
-        open={needsOnboarding}
+        open={needsOnboarding && onboarding.tourDone && onboarding.setupDone}
         saving={saving}
         onConfirm={handleOnboarding}
       />

@@ -19,14 +19,8 @@ import {
 } from '../../_shared/demo/quotation-review';
 import type { QuotationReview } from '../../_shared/demo/quotation-review';
 import { cardPresentation } from '../lib/card-presentation';
-
-const bucketAccentClass: Record<PortalBucketKey, string> = {
-  aguardando_dados: 'border-l-portal-warning',
-  aguardando_aprovacao: 'border-l-portal-success',
-  buscando_propostas: 'border-l-portal-info',
-  finalizadas: 'border-l-portal-neutral/40',
-  cancelada: 'border-l-portal-neutral/40',
-};
+import { isEmphasized, type Urgency } from '../../_shared/urgency';
+import { URGENCY_BORDER_CLASS, UrgencyBadge } from '../../_shared/urgency-badge';
 
 /**
  * Supplier/PO identify the demand first; the next step determines the emphasis.
@@ -38,15 +32,20 @@ const bucketAccentClass: Record<PortalBucketKey, string> = {
  */
 export function QuotationCard({
   quotation: q,
-  bucket,
   review = null,
   highlighted = false,
+  urgency = null,
 }: {
   quotation: PortalQuotation;
   bucket: PortalBucketKey;
   review?: QuotationReview | null;
   /** Recem-enviada: o cartao que o cliente veio ver depois do envio (RQ-6). */
   highlighted?: boolean;
+  /**
+   * Escala de urgencia (`_shared/urgency.ts`). A borda esquerda segue ELA, nao
+   * a coluna: so o que precisa do cliente com prazo curto ganha cor.
+   */
+  urgency?: Urgency | null;
 }) {
   const view = cardPresentation(q);
   const best = view.best;
@@ -63,7 +62,7 @@ export function QuotationCard({
       href={`/portal/cotacao/${q.id}`}
       className={cn(
         'block rounded-md border border-l-4 bg-background p-4 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-portal-info',
-        bucketAccentClass[bucket],
+        URGENCY_BORDER_CLASS[urgency?.level ?? 'normal'],
         // O destaque e uma BORDA, nao um fundo: o cartao acabou de mudar de
         // coluna, e mudar tambem a cor do corpo tornaria dificil compara-lo com
         // os vizinhos, que e exatamente o que o cliente veio fazer.
@@ -121,6 +120,9 @@ export function QuotationCard({
       )}
 
       <div className="mt-3 border-t border-border/60 pt-3">
+        {urgency && isEmphasized(urgency.level) && (
+          <UrgencyBadge urgency={urgency} className="mb-2" />
+        )}
         {review ? (
           <>
             {/* O preco continua aparecendo quando a cotacao ja tem proposta

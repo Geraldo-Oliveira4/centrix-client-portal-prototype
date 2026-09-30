@@ -37,70 +37,54 @@ import { useSidebar } from './sidebar-context';
 // devolve o cliente, e as outras duas sao como ele encontra o proprio dia e as
 // proprias preferencias. Uma onda capaz de escondê-las produziria um portal sem
 // saida.
-const NAV_ITEMS: {
+interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
   module?: PortalModule;
-}[] = [
-  // A Home abre o menu porque e a landing do portal: `/portal` redireciona para
-  // ca e o login cai aqui. Ela tem segmento proprio (`/portal/home`) em vez de
-  // morar na raiz porque a regra de item ativo e `startsWith(href + '/')` — com
-  // href `/portal`, TODA tela do portal deixaria a Home acesa.
+  beta?: boolean;
+}
+
+// DOIS GRUPOS POR FREQUENCIA DE USO (30/09/2026, feedback de marketing: "todos
+// os modulos parecem iguais"). OPERACAO e o dia a dia — onde o cliente age;
+// PERFORMANCE e leitura semanal ou sob demanda, e por isso tem peso visual
+// menor (tinta neutra em vez de foreground). Configuracoes nao e nenhum dos
+// dois: fica fixa no rodape.
+const NAV_GROUPS: { id: string; label: string; quiet: boolean; items: NavItem[] }[] = [
   {
-    href: '/portal/home',
-    label: 'Início',
-    icon: LayoutDashboard,
-  },
-  // Visao Geral (Torre de Controle) fica AO LADO da Home, nao no lugar dela: a
-  // Home responde "como minha operacao esta indo"; esta responde "o que precisa
-  // de mim agora", cruzando Cotacao e Embarque numa lista de itens acionaveis.
-  {
-    href: '/portal/visao-geral',
-    label: 'Central de trabalho',
-    icon: Gauge,
-  },
-  {
-    href: '/portal/cotacoes',
-    label: 'Minhas Cotações',
-    icon: FileText,
-    module: 'cotacao',
-  },
-  {
-    href: '/portal/embarques',
-    label: 'Meus Embarques',
-    icon: Ship,
-    module: 'embarques',
+    id: 'operacao',
+    label: 'Operação',
+    quiet: false,
+    items: [
+      // A Home abre o menu porque e a landing do portal. Segmento proprio
+      // (`/portal/home`) porque a regra de item ativo e `startsWith(href+'/')`.
+      { href: '/portal/home', label: 'Início', icon: LayoutDashboard },
+      // A Central e a tela de TRABALHO: o que precisa de mim agora, cruzando
+      // Cotacao e Embarque em itens acionaveis.
+      { href: '/portal/visao-geral', label: 'Central de trabalho', icon: Gauge },
+      { href: '/portal/cotacoes', label: 'Minhas Cotações', icon: FileText, module: 'cotacao' },
+      { href: '/portal/embarques', label: 'Meus Embarques', icon: Ship, module: 'embarques' },
+    ],
   },
   {
-    href: '/portal/inteligencia',
-    label: 'Inteligência',
-    icon: Sparkles,
-    module: 'inteligencia',
-  },
-  {
-    href: '/portal/radar',
-    label: 'Radar',
-    icon: Radar,
-    module: 'radar',
-  },
-  {
-    href: '/portal/auditoria',
-    label: 'Auditoria',
-    icon: Scale,
-    module: 'auditoria',
-  },
-  // Meus Exportadores e Meus Agentes NAO sao itens deste menu desde 26/08/2026:
-  // sao telas de cadastro/configuracao e viraram abas de Minhas Preferencias
-  // (`preferencias/layout.tsx`), enquanto este nivel fica so com as telas
-  // operacionais do dia a dia. As rotas antigas continuam como redirect. O item
-  // abaixo cobre as tres pelo `startsWith` da regra de item ativo.
-  {
-    href: '/portal/preferencias',
-    label: 'Configurações',
-    icon: Settings,
+    id: 'performance',
+    label: 'Performance',
+    quiet: true,
+    items: [
+      { href: '/portal/inteligencia', label: 'Inteligência', icon: Sparkles, module: 'inteligencia' },
+      { href: '/portal/radar', label: 'Radar', icon: Radar, module: 'radar', beta: true },
+      { href: '/portal/auditoria', label: 'Auditoria', icon: Scale, module: 'auditoria' },
+    ],
   },
 ];
+
+// Meus Exportadores e Meus Agentes sao abas de Configuracoes desde 26/08/2026;
+// o `startsWith` da regra de item ativo cobre as tres rotas.
+const SETTINGS_ITEM: NavItem = {
+  href: '/portal/preferencias',
+  label: 'Configurações',
+  icon: Settings,
+};
 
 function SidebarContent({ mobile = false }: { mobile?: boolean }) {
   const pathname = usePathname();
@@ -109,9 +93,61 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
   // A gaveta do mobile renderiza ESTE mesmo componente (ver `PortalSidebar`
   // abaixo), entao o filtro vale nas duas sem nenhuma segunda lista.
   const flags = usePortalModuleFlags();
-  const items = NAV_ITEMS.filter(
-    (item) => item.module == null || flags[item.module],
-  );
+  // Grupo sem nenhum modulo liberado some inteiro, rotulo incluido: um rotulo
+  // "Performance" sem nada embaixo leria como menu quebrado.
+  const groups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter(
+      (item) => item.module == null || flags[item.module],
+    ),
+  })).filter((group) => group.items.length > 0);
+
+  const renderItem = (item: NavItem, quiet: boolean) => {
+    const Icon = item.icon;
+    const active =
+      pathname === item.href || pathname.startsWith(item.href + '/');
+    const link = (
+      <Link
+        href={item.href}
+        onClick={mobile ? toggleMobile : undefined}
+        aria-current={active ? 'page' : undefined}
+        className={cn(
+          // 44px de alvo (py-3 + linha de 20px), nos dois grupos: peso menor e
+          // TINTA, nunca alvo menor.
+          'flex min-h-11 items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          slim && 'justify-center px-0',
+          active
+            // `brand-indigo` e theme-aware (e a TINTA do portal), entao no
+            // escuro ele sobe para indigo-300 — certo para texto, errado aqui,
+            // onde e SUPERFICIE com branco em cima (1.70:1). No escuro a
+            // superficie selecionada e indigo-700 (branco em cima 8.36:1).
+            ? 'bg-brand-indigo text-white dark:bg-brand-indigo-700'
+            : quiet
+              ? 'text-portal-neutral hover:bg-muted hover:text-foreground'
+              : 'font-medium text-foreground hover:bg-muted',
+        )}
+      >
+        <Icon className="h-4 w-4 shrink-0" />
+        {!slim && <span>{item.label}</span>}
+        {!slim && item.beta && (
+          <span className="ml-auto rounded border border-current/20 px-1.5 py-0.5 text-[10px]">
+            Beta
+          </span>
+        )}
+      </Link>
+    );
+    if (slim) {
+      return (
+        <li key={item.href}>
+          <Tooltip>
+            <TooltipTrigger asChild>{link}</TooltipTrigger>
+            <TooltipContent side="right">{item.label}</TooltipContent>
+          </Tooltip>
+        </li>
+      );
+    }
+    return <li key={item.href}>{link}</li>;
+  };
 
   return (
     <aside
@@ -150,11 +186,9 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
               className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-md transition-opacity hover:opacity-80"
             >
               {/* `auto`, nao `principal`: a sidebar e branca na luz e Navy
-                  Profundo no escuro, e a escolha do lockup e pelo FUNDO. Com o
-                  principal fixo, a palavra "freitas" (navy) ficava navy sobre
-                  navy no tema escuro. A marca ja diz "freitas centrix", entao a
-                  segunda linha de texto que dizia "Freitas Comex" saiu: sobrou
-                  so o nome do PRODUTO, que o logotipo nao carrega. */}
+                  Profundo no escuro, e a tinta da palavra acompanha o FUNDO. A
+                  marca e "Centrix" (nunca "Freitas Centrix"); embaixo fica so o
+                  nome do PRODUTO, que o logotipo nao carrega. */}
               <BrandMark variant="auto" width={104} />
               <p className="truncate text-xs text-muted-foreground">Portal do Cliente</p>
             </Link>
@@ -182,56 +216,39 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
         )}
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-5">
-        <TooltipProvider delayDuration={0}>
-          <ul className="space-y-2">
-            {items.map((item) => {
-              const Icon = item.icon;
-              const active =
-                pathname === item.href || pathname.startsWith(item.href + '/');
-
-              const link = (
-                <Link
-                  href={item.href}
-                  onClick={mobile ? toggleMobile : undefined}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors',
-                    slim && 'justify-center px-0 py-2',
-                    active
-                      // `brand-indigo` e theme-aware (e a TINTA do portal), entao
-                      // no escuro ele sobe para indigo-300 — certo para texto,
-                      // errado aqui, onde e SUPERFICIE com branco em cima: a
-                      // pilula ficava lavanda clara com texto branco, 1.70:1. No
-                      // escuro a superficie selecionada e indigo-700, um degrau
-                      // fixo da rampa (branco em cima 8.36:1, e 2.00:1 contra a
-                      // sidebar navy, entao a selecao continua se destacando).
-                      ? 'bg-brand-indigo text-white dark:bg-brand-indigo-700'
-                      : 'text-foreground hover:bg-muted',
-                  )}
+      {/* Nav: grupos por frequencia de uso + Configuracoes no rodape. */}
+      <TooltipProvider delayDuration={0}>
+        <nav
+          aria-label="Menu principal"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-5"
+        >
+          <div className="space-y-5">
+            {groups.map((group, index) => (
+              <div key={group.id}>
+                {slim ? (
+                  // Recolhida nao cabe rotulo: um fio separa os grupos.
+                  index > 0 && <div aria-hidden="true" className="mx-2 mb-3 border-t" />
+                ) : (
+                  <p
+                    id={`menu-grupo-${group.id}`}
+                    className="portal-small mb-1 px-3 font-semibold uppercase tracking-[0.08em] text-portal-neutral"
+                  >
+                    {group.label}
+                  </p>
+                )}
+                <ul
+                  className="space-y-1"
+                  aria-labelledby={slim ? undefined : `menu-grupo-${group.id}`}
+                  aria-label={slim ? group.label : undefined}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {!slim && <span>{item.label}</span>}
-                  {!slim && item.href === '/portal/radar' && <span className="ml-auto rounded border border-current/20 px-1.5 py-0.5 text-[10px]">Beta</span>}
-                </Link>
-              );
-
-              if (slim) {
-                return (
-                  <li key={item.href}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>{link}</TooltipTrigger>
-                      <TooltipContent side="right">{item.label}</TooltipContent>
-                    </Tooltip>
-                  </li>
-                );
-              }
-
-              return <li key={item.href}>{link}</li>;
-            })}
-          </ul>
-        </TooltipProvider>
-      </nav>
+                  {group.items.map((item) => renderItem(item, group.quiet))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <ul className="mt-auto border-t pt-3">{renderItem(SETTINGS_ITEM, false)}</ul>
+        </nav>
+      </TooltipProvider>
 
     </aside>
   );
@@ -243,7 +260,9 @@ export function PortalSidebar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <div className="hidden md:block shrink-0">
+      {/* Fixa na altura da janela: sem isto a sidebar tinha a altura da
+          PAGINA e Configuracoes, no rodape, ficava abaixo da dobra. */}
+      <div className="sticky top-0 hidden h-screen shrink-0 md:block">
         <SidebarContent />
       </div>
 

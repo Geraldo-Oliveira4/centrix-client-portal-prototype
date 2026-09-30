@@ -7,6 +7,8 @@ import { PortalHeader } from './components/portal-header';
 import { PortalSidebar } from './components/portal-sidebar';
 import { SidebarProvider } from './components/sidebar-context';
 import { DemoPanel } from './_shared/demo/demo-panel';
+import { SupportLauncher } from './_shared/support-launcher';
+import { OnboardingFlow } from './_shared/onboarding-flow';
 import { ModuleNotReleased } from './_shared/demo/module-not-released';
 import { isRouteReleased } from './_shared/demo/feature-flags';
 import { usePortalModuleFlags } from './_shared/demo/use-feature-flags';
@@ -81,7 +83,9 @@ export default function PortalLayout({
           {/* O guard troca so o MIOLO. Sidebar e header continuam: modulo
               fechado e uma porta fechada dentro do portal, nao uma sessao
               perdida, e o cliente precisa continuar enxergando por onde sair. */}
-          <div className="mx-auto w-full max-w-[1540px] px-4 py-6 md:px-8 md:py-9">
+          {/* pb-24: o botao flutuante "Ajuda" (44px + 16px da borda) nunca
+              cobre o ultimo bloco da tela quando o cliente rola ate o fim. */}
+          <div className="mx-auto w-full max-w-[1540px] px-4 pb-24 pt-6 md:px-8 md:pt-9">
             {isRouteReleased(pathname, flags) ? children : <ModuleNotReleased />}
           </div>
         </main>
@@ -89,6 +93,8 @@ export default function PortalLayout({
             painel: o avanco automatico tem de continuar acontecendo com o
             painel fechado, que e como uma demonstracao de verdade acontece. */}
         <PortalV2AutoAdvance />
+        <SupportLauncher />
+        <OnboardingFlow />
         <DemoPanel />
       </div>
     </SidebarProvider>

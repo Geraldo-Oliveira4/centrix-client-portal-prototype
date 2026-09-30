@@ -1,0 +1,11 @@
+/* Modo escuro dos iframes (ver theme-sync.js). A inversao a 0.9 leva o fundo
+   #F4F5FA para perto do Navy Profundo e mantem o texto claro com contraste
+   alto; a rotacao de 180deg devolve o matiz original (vermelho continua
+   vermelho, verde continua verde). Imagens, logotipo e mapas sao reinvertidos
+   para nao virarem negativo. */
+html.theme-dark { filter: invert(0.9) hue-rotate(180deg); background: #fff; }
+html.theme-dark img,
+html.theme-dark picture,
+html.theme-dark video,
+html.theme-dark canvas,
+html.theme-dark .leaflet-container { filter: invert(1) hue-rotate(180deg); }

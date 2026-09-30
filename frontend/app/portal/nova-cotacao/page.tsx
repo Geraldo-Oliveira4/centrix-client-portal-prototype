@@ -1,13 +1,15 @@
 'use client';
 
+import Link from 'next/link';
+import { QUOTATION_HELP } from '@/app/portal/_shared/quotation-help';
 import { Suspense, useCallback, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import {
   ArrowRight,
   CheckCircle2,
   Handshake,
+  History,
   Loader2,
   Radar,
 } from 'lucide-react';
@@ -19,7 +21,13 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui';
-import { createMyQuotation, triggerMyQuotationExtraction } from '@/hooks/use-portal-quotations';
+import {
+  createMyQuotation,
+  triggerMyQuotationExtraction,
+  useMyQuotations,
+} from '@/hooks/use-portal-quotations';
+import { matchHistory } from '@/app/portal/_shared/history-match';
+import { flattenQuotations } from '@/app/portal/inteligencia/lib/intel-helpers';
 import { useQuotationUploadFlow } from '@/hooks/use-quotation-upload-flow';
 import {
   ManualForm,
@@ -125,6 +133,20 @@ function PortalNovaCotacaoContent() {
   // quotation from the extracted documents, where the exporter comes from the
   // extraction (not exercised in this prototype).
   const [exporter, setExporter] = useState<Exporter | null>(null);
+  const [formValues, setFormValues] = useState<Partial<ManualFormValues>>({});
+  const { data: myQuotations } = useMyQuotations();
+  const historyMatch = useMemo(
+    () =>
+      matchHistory(
+        {
+          product: formValues.product,
+          origins: [formValues.origin, formValues.porto_embarque, formValues.aeroporto_embarque],
+          destinations: [...(formValues.porto_destino ?? []), ...(formValues.aeroporto_destino ?? [])],
+        },
+        flattenQuotations(myQuotations),
+      ),
+    [formValues, myQuotations],
+  );
 
   // A origem entra no payload aqui, e não dentro do formulário: `ManualForm` é
   // copiado do Centrix (é a mesma tela do analista) e não conhece Radar. Mesma
@@ -324,7 +346,30 @@ function PortalNovaCotacaoContent() {
           <TabsTrigger className="data-[state=active]:border-brand-indigo-800" value="upload">Enviar arquivos</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="manual" className="mt-4">
+        <TabsContent value="manual" className="mt-4 space-y-4">
+          {/* "VOCE JA EMBARCOU ESTA CARGA" (30/09/2026): discreto, informativo,
+              e a acao reaproveita o "Cotar novamente" que ja existe. */}
+          {historyMatch && (
+            <div
+              role="status"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3"
+            >
+              <p className="portal-body flex items-center gap-2 text-foreground/80">
+                <History className="h-5 w-5 shrink-0 text-brand-indigo" />
+                {historyMatch.shipped ? 'Você já embarcou esta carga' : 'Você já cotou esta carga'} em{' '}
+                {monthLabel(historyMatch.month)} ({historyMatch.reference})
+                {historyMatch.destinationUnknown
+                  ? ', com o mesmo produto e a mesma origem. O destino não estava registrado nela: confira antes de copiar.'
+                  : '.'}
+              </p>
+              <Link
+                href={`/portal/cotacoes/repetir/${historyMatch.quotationId}?retorno=${encodeURIComponent('/portal/nova-cotacao')}`}
+                className="portal-small inline-flex min-h-11 items-center gap-1 font-medium text-brand-indigo underline underline-offset-4"
+              >
+                Copiar dados da cotação anterior <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          )}
           <ManualForm
             clientId={null}
             onQuotationCreated={handleManualCreated}
@@ -336,6 +381,9 @@ function PortalNovaCotacaoContent() {
             exporterId={exporter?.id ?? null}
             submitLabel={v2 ? 'Enviar para a Freitas' : undefined}
             hardblocks={v2 ? hardblocks : undefined}
+            clientFacing
+            onValuesChange={setFormValues}
+            helpTips={QUOTATION_HELP}
             exporterSection={
               <PortalExporterSelect
                 value={exporter?.id ?? null}
@@ -387,6 +435,13 @@ function PortalNovaCotacaoContent() {
       </div>
     </div>
   );
+}
+
+const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+/** "2026-08" -> "agosto de 2026". */
+function monthLabel(month: string): string {
+  const [year, m] = month.split('-').map(Number);
+  return MONTHS[m - 1] ? `${MONTHS[m - 1]} de ${year}` : month;
 }
 
 export default function PortalNovaCotacaoPage() {

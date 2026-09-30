@@ -34,7 +34,8 @@ test('Marking read preserves color and operational priority', () => {
   assert.equal(rules.tier(seen), rules.tier(task));
 });
 test('Missing free time and responsibility must not imply urgency', () => {
-  assert.equal(rules.tone({ type: 'demurrage', group: 'action', owner: 'unknown', deadline: null }), 'blue');
+  // Escala de urgencia (30/09/2026): "sem urgencia" e NEUTRO, nao mais azul.
+  assert.equal(rules.tone({ type: 'demurrage', group: 'action', owner: 'unknown', deadline: null }), 'neutral');
 });
 test('Green document event means upload received, without a presumed content review', () => {
   const received = data.find(x => x.id === 'done');
@@ -67,6 +68,23 @@ test('Completed occurrences remain after open tasks even if their shipment is pr
   assert.ok(rules.compare({ ...task, group: 'history' }, { ...task, shipment: 'B' }, new Set(['A'])) > 0);
 });
 test('Radar is distinct from operational completion and client approval without deadline is amber', () => {
-  assert.equal(rules.tone({ group: 'change', type: 'preco' }), 'purple');
+  // Radar continua distinto de conclusao: neutro (nao verde). Aprovacao do
+  // cliente sem prazo segue ambar porque trava a proxima etapa.
+  assert.equal(rules.tone({ group: 'change', type: 'preco' }), 'neutral');
   assert.equal(rules.tone({ ...task, type: 'aprovacao', deadline: null }), 'amber');
+});
+
+test('Urgency scale: colour only for client actions with a deadline (30/09/2026)', () => {
+  const now = '2026-09-11T09:20:00-03:00';
+  const action = { group: 'action', owner: 'client' };
+  assert.equal(rules.tone({ ...action, deadlineAt: '2026-09-10T14:00:00-03:00' }, now), 'red');
+  assert.equal(rules.tone({ ...action, deadlineAt: '2026-09-12T14:00:00-03:00' }, now), 'amber');
+  assert.equal(rules.tone({ ...action, deadlineAt: '2026-09-20T14:00:00-03:00' }, now), 'neutral');
+  assert.equal(rules.tone({ ...action, action: 'booking' }, now), 'amber');
+  assert.equal(rules.tone({ ...action, action: 'quote' }, now), 'neutral');
+  assert.equal(rules.tone({ group: 'watch', type: 'eta', owner: 'unknown' }, now), 'neutral');
+  assert.equal(rules.tone({ group: 'watch', type: 'preco' }, now), 'neutral');
+  assert.equal(rules.tone({ group: 'history' }, now), 'green');
+  const tones = new Set(data.map((x) => rules.tone(x, now)));
+  assert.ok(!tones.has('purple') && !tones.has('blue'));
 });

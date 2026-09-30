@@ -10,6 +10,9 @@
 .legend-blue, .tone-blue { --signal: #326a9e; --wash: #edf5fc; --edge: #d1e1ef; }
 .legend-green, .tone-green { --signal: #28775b; --wash: #eef8f2; --edge: #cce3d5; }
 .legend-purple, .tone-purple { --signal: #7153a3; --wash: #f4f0fb; --edge: #dfd5ed; }
+/* Tom neutro da escala de urgencia: o que nao exige acao do cliente. Mesmos
+   valores dos tokens do portal (--portal-neutral, --portal-canvas, --border). */
+.legend-neutral, .tone-neutral { --signal: #686a9a; --wash: #f4f5fa; --edge: #dde0ee; }
 .workbench { display: block; }
 .quick-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
 .quick-filter { display: inline-flex; align-items: center; gap: 9px; padding: 8px 13px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: #626779; font-size: 13px; }

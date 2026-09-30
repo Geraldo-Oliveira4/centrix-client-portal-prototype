@@ -93,7 +93,7 @@ export const HARDBLOCK_LABELS: Record<HardblockItem, string> = {
   carga_perigosa: 'Carga perigosa',
   stackability: 'Empilhável',
   carga_tombavel: 'Tombável',
-  client_reference: 'Referência do cliente',
+  client_reference: 'Sua referência (PO)',
   local_coleta: 'Local de coleta',
   local_embarque: 'Local de embarque',
   local_desembarque: 'Local de desembarque',

@@ -323,7 +323,7 @@ export default function ShipmentPreview({
           </p>
           <p className={s.description}>
             {q.description}
-            {pos.length === 0 && ' · Referência do cliente não informada'}
+            {pos.length === 0 && ' · Sua referência não informada'}
           </p>
         </div>
         <div className={s.identityActions}>

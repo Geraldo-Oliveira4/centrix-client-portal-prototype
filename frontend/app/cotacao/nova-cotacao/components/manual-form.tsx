@@ -63,6 +63,7 @@ import {
   fieldAnchor,
 } from './field-blocks';
 import type { HardblockReport } from '@/app/portal/_shared/demo/quotation-hardblocks';
+import { HelpTip } from '@/components/help-tip';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -187,9 +188,44 @@ interface ManualFormProps {
    * it renders.
    */
   hardblocks?: (snapshot: ManualFormDraft) => HardblockReport;
+  /**
+   * The CLIENT is filling the form (portal). Labels speak to them in the second
+   * person: "Referência do cliente" written to the client reads as if a third
+   * party were meant. The analyst screen passes nothing and keeps its wording.
+   */
+  clientFacing?: boolean;
+  /**
+   * Texto do "?" de ajuda por campo (portal). Só os campos que geram duvida;
+   * a tela do analista nao passa nada e nao ganha icone nenhum.
+   */
+  helpTips?: Partial<Record<ManualFormHelpField, string>>;
+  /** Called on every change (portal: "você já embarcou esta carga"). */
+  onValuesChange?: (values: Partial<ManualFormValues>) => void;
 }
 
-export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues, draft, submitLabel, hardblocks }: ManualFormProps) {
+export type ManualFormHelpField =
+  | 'incoterm'
+  | 'price_or_performance'
+  | 'carga_perigosa'
+  | 'un_number'
+  | 'stackability'
+  | 'carga_tombavel'
+  | 'declared_value'
+  | 'ncm'
+  | 'temperatura_min';
+
+export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues, draft, submitLabel, hardblocks, clientFacing, helpTips, onValuesChange }: ManualFormProps) {
+  // O rotulo com o "?" ao lado. Botao FORA do <label>: dentro dele, o clique
+  // no "?" tambem focaria o campo.
+  const withTip = (field: ManualFormHelpField, label: string, node: React.ReactNode) =>
+    helpTips?.[field] ? (
+      <div className="flex items-center gap-0.5">
+        {node}
+        <HelpTip label={label} text={helpTips[field]!} />
+      </div>
+    ) : (
+      node
+    );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraggingAttachments, setIsDraggingAttachments] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -250,6 +286,13 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
       ...draft?.initial.values,
     },
   });
+
+  useEffect(() => {
+    if (!onValuesChange) return;
+    onValuesChange(form.getValues());
+    const subscription = form.watch((values) => onValuesChange(values as Partial<ManualFormValues>));
+    return () => subscription.unsubscribe();
+  }, [form, onValuesChange]);
 
   const watchModal = form.watch('modal');
   const watchTipoEmbarque = form.watch('tipo_embarque');
@@ -592,7 +635,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 name="incoterm"
                 render={({ field }) => (
                   <FormItem id={fieldAnchor('incoterm')}>
-                    <FormLabel>Incoterm</FormLabel>
+                    {withTip('incoterm', 'Incoterm', <FormLabel>Incoterm</FormLabel>)}
                     <FormControl>
                       <Combobox
                         value={field.value ?? ''}
@@ -638,7 +681,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 name="price_or_performance"
                 render={({ field }) => (
                   <FormItem id={fieldAnchor('price_or_performance')}>
-                    <FormLabel>Fator de Escolha</FormLabel>
+                    {withTip('price_or_performance', 'Fator de escolha', <FormLabel>Fator de Escolha</FormLabel>)}
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -941,7 +984,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                     name="ncm"
                     render={({ field }) => (
                       <FormItem id={fieldAnchor('ncm')}>
-                        <FormLabel>NCM</FormLabel>
+                        {withTip('ncm', 'NCM', <FormLabel>NCM</FormLabel>)}
                         <FormControl>
                           <Input inputMode="numeric" placeholder="Ex: 8517.62.77" {...field} />
                         </FormControl>
@@ -960,7 +1003,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                   // switch that starts off reads as "Não" to someone who never
                   // looked at it — exactly the answer that must not slip by.
                   <div id={fieldAnchor('carga_perigosa')} className="flex flex-col gap-2">
-                    <Label htmlFor="carga-perigosa-resposta">Carga perigosa</Label>
+                    {withTip('carga_perigosa', 'Carga perigosa', <Label htmlFor="carga-perigosa-resposta">Carga perigosa</Label>)}
                     <Select
                       value={dangerousAnswer}
                       onValueChange={(answer) => {
@@ -999,7 +1042,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       }
                     }}
                   />
-                  <Label>Carga Perigosa</Label>
+                  {withTip('carga_perigosa', 'Carga perigosa', <Label>Carga Perigosa</Label>)}
                 </div>
                 )}
 
@@ -1033,7 +1076,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                         name="un_number"
                         render={({ field }) => (
                           <FormItem id={fieldAnchor('un_number')}>
-                            <FormLabel>UN</FormLabel>
+                            {withTip('un_number', 'UN', <FormLabel>UN</FormLabel>)}
                             <FormControl>
                               <Input placeholder="Ex: UN1263" {...field} />
                             </FormControl>
@@ -1070,7 +1113,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                   name="stackability"
                   render={({ field }) => (
                     <FormItem id={fieldAnchor('stackability')}>
-                      <FormLabel>Empilhável</FormLabel>
+                      {withTip('stackability', 'Empilhável', <FormLabel>Empilhável</FormLabel>)}
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -1093,7 +1136,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                   name="carga_tombavel"
                   render={({ field }) => (
                     <FormItem id={fieldAnchor('carga_tombavel')}>
-                      <FormLabel>Carga Tombável</FormLabel>
+                      {withTip('carga_tombavel', 'Carga tombável', <FormLabel>Carga Tombável</FormLabel>)}
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -1135,7 +1178,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       name="temperatura_min"
                       render={({ field }) => (
                         <FormItem id={fieldAnchor('temperatura_min')}>
-                          <FormLabel>Temp. Mín (°C)</FormLabel>
+                          {withTip('temperatura_min', 'Temperatura mínima', <FormLabel>Temp. Mín (°C)</FormLabel>)}
                           <FormControl>
                             <Input type="number" placeholder="Mín" {...field} />
                           </FormControl>
@@ -1202,7 +1245,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                     remaining ~180px. Also fixes the same field on the analyst
                     screen, which renders this shared form. */}
                 <FormItem className="col-span-2" id={fieldAnchor('declared_value')}>
-                  <FormLabel>Valor da Carga</FormLabel>
+                  {withTip('declared_value', 'Valor da carga', <FormLabel>Valor da Carga</FormLabel>)}
                   <div className="flex gap-2">
                     <FormField
                       control={form.control}
@@ -1278,7 +1321,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 name="desired_deadline"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Deadline envio cotacao</FormLabel>
+                    <FormLabel>{clientFacing ? 'Receber propostas até' : 'Deadline envio cotacao'}</FormLabel>
                     <FormControl>
                       <Input type="datetime-local" {...field} />
                     </FormControl>
@@ -1306,7 +1349,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 name="data_limite_necessidade"
                 render={({ field }) => (
                   <FormItem className="col-span-2">
-                    <FormLabel>Data de chegada solicitada pelo cliente</FormLabel>
+                    <FormLabel>{clientFacing ? 'Quando você precisa da carga no destino' : 'Data de chegada solicitada pelo cliente'}</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -1336,7 +1379,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 name="client_reference"
                 render={({ field }) => (
                   <FormItem id={fieldAnchor('client_reference')}>
-                    <FormLabel>Referência do Cliente</FormLabel>
+                    <FormLabel>{clientFacing ? 'Sua referência (PO ou pedido)' : 'Referência do Cliente'}</FormLabel>
                     <FormControl>
                       <Input placeholder="Ex: PO-12345" {...field} />
                     </FormControl>

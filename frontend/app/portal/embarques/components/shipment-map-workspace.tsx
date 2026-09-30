@@ -36,6 +36,12 @@ import {
 } from '../lib/shipment-filters';
 import { originPortOf, portFromQuotationOrigin } from '../lib/port-coordinates';
 import { REAL_STEPS } from '../lib/real-steps';
+import {
+  isEmphasized,
+  urgencyByRecord,
+  type Urgency,
+} from '../../_shared/urgency';
+import { UrgencyBadge } from '../../_shared/urgency-badge';
 import { ShipmentMapCanvas } from './shipment-map-canvas';
 import { buildPanoramaSummary, type PanoramaScope } from '../lib/panorama-summary';
 import styles from './shipment-map-workspace.module.css';
@@ -72,19 +78,26 @@ export function ShipmentMapWorkspace({
   const mapSection = useRef<HTMLElement>(null);
   const lastTrigger = useRef<HTMLElement | null>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
-  const { groups, actionsByShipment } = useMemo(
+  const actionList = useMemo(
     () =>
-      buildShipmentOverview(
+      collectHomeActions({
         shipments,
-        collectHomeActions({
-          shipments,
-          buckets: {},
-          realSteps: REAL_STEPS,
-          now,
-        }),
+        buckets: {},
+        realSteps: REAL_STEPS,
         now,
-      ),
+      }),
     [shipments, now],
+  );
+  const { groups, actionsByShipment } = useMemo(
+    () => buildShipmentOverview(shipments, actionList, now),
+    [shipments, actionList, now],
+  );
+  // A escala de urgencia do portal (`_shared/urgency.ts`) sobre a MESMA fila de
+  // acoes: so booking pendente e prazo curto ganham cor. Documento sem prazo e
+  // "Pendente com voce", em texto neutro — antes 7 de 8 linhas ficavam ambar.
+  const urgencies = useMemo(
+    () => urgencyByRecord(actionList, now),
+    [actionList, now],
   );
   const rows = useMemo(
     () =>
@@ -199,22 +212,15 @@ export function ShipmentMapWorkspace({
     setLegacyFilter(null);
     clearSelection();
   }
-  const badge = (s: PortalShipment) =>
-    s.carga_urgente
-      ? 'Urgente'
-      : groups.action.has(s.id)
-        ? 'Precisa de você'
+  const urgencyOfShipment = (s: PortalShipment): Urgency =>
+    urgencies.get(s.id) ?? {
+      level: 'normal',
+      reason: hasArrived(s, now)
+        ? 'Chegada confirmada'
         : groups.delayed.has(s.id)
           ? 'Chegada alterada'
-          : hasArrived(s, now)
-            ? 'Chegada confirmada'
-            : ESTADO_LABELS[s.estado];
-  const tone = (s: PortalShipment) =>
-    s.carga_urgente
-      ? styles.urgent
-      : groups.action.has(s.id) || groups.delayed.has(s.id)
-        ? styles.attention
-        : styles.normal;
+          : ESTADO_LABELS[s.estado],
+    };
   const etaOf = (s: PortalShipment) =>
     s.tracking?.data_status === 'INCOMPLETE' ||
     arrivalDay(s.tracking?.current_eta) == null
@@ -234,7 +240,11 @@ export function ShipmentMapWorkspace({
         {([
           ['active', 'Embarques em andamento', 'Inclui pré-embarque e transporte', 'Carteira em acompanhamento'],
           ['arrivals', 'Chegadas nos próximos 7 dias', 'Ao porto ou aeroporto de destino', `${summary.missingEta.size} sem previsão disponível · hoje + 6 dias`],
-          ['attention', 'Precisam de atenção', 'Embarques com exceção registrada', 'Cobertura parcial: documentos e decisões ainda não disponíveis'],
+          // "Com excecao", nao "Precisam de atencao": este card conta EXCECOES
+          // (postergado, booking divergente), e a frase "precisa da sua
+          // atencao" e da escala de urgencia, que conta outra coisa. A mesma
+          // frase com dois numeros foi o problema 2 do inventario de UX.
+          ['attention', 'Com exceção registrada', 'Postergados ou com booking divergente', 'Cobertura parcial: documentos e decisões ainda não disponíveis'],
         ] as const).map(([key, label, description, coverage]) => (
           <button key={key} type="button"
             className={`${styles.panoramaCard} ${key === 'attention' && summary.attention.size ? styles.panoramaWarning : ''} ${summaryScope === key ? styles.panoramaSelected : ''}`}
@@ -340,9 +350,7 @@ export function ShipmentMapWorkspace({
               </div>
               {selected && current ? (
                 <>
-                  <span className={`${styles.badge} ${tone(current)}`}>
-                    {badge(current)}
-                  </span>
+                  <UrgencyBadge urgency={urgencyOfShipment(current)} />
                   <h3>{selected.title}</h3>
                   <p className={styles.sub}>
                     {current.client_reference
@@ -398,7 +406,7 @@ export function ShipmentMapWorkspace({
                     </p>
                     <small>
                       {actions.length
-                        ? 'Ação do cliente · prazo não informado'
+                        ? 'Depende de você · prazo não informado'
                         : 'Acompanhamento da operação · sem ação sua registrada'}
                     </small>
                     {actions.length > 1 && (
@@ -444,9 +452,7 @@ export function ShipmentMapWorkspace({
                       className={styles.groupCard}
                       onClick={() => chooseShipment(row.shipment.id)}
                     >
-                      <span className={`${styles.badge} ${tone(row.shipment)}`}>
-                        {badge(row.shipment)}
-                      </span>
+                      <UrgencyBadge urgency={urgencyOfShipment(row.shipment)} />
                       <strong>{row.title}</strong>
                       <p>
                         {row.shipment.client_reference
@@ -556,11 +562,9 @@ export function ShipmentMapWorkspace({
                     }}
                   >
                     <td>
-                      <span className={`${styles.badge} ${tone(s)}`}>
-                        {badge(s)}
-                      </span>
+                      <UrgencyBadge urgency={urgencyOfShipment(s)} />
                       {s.carga_urgente && (
-                        <small>Criticidade indicada na carga</small>
+                        <small>Carga marcada como urgente</small>
                       )}
                     </td>
                     <td>
@@ -600,7 +604,9 @@ export function ShipmentMapWorkspace({
                       {action?.title ?? 'Acompanhar próximo marco'}
                       <small>
                         {action
-                          ? 'Ação do cliente · sem prazo informado'
+                          ? isEmphasized(urgencyOfShipment(s).level)
+                            ? `Depende de você · ${urgencyOfShipment(s).reason.toLowerCase()}`
+                            : 'Depende de você · sem prazo informado'
                           : 'Sem ação sua registrada'}
                       </small>
                     </td>

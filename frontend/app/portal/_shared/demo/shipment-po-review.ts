@@ -176,7 +176,7 @@ export type PoFixableField = (typeof PO_FIXABLE_FIELDS)[number];
 
 export const PO_FIELD_LABELS: Record<string, string> = {
   poNumbers: 'Nº do PO',
-  clientRef: 'REF do cliente',
+  clientRef: 'Sua referência (REF)',
   items: 'Itens do PO',
   exporter: 'Exportador',
   incoterm: 'Incoterm',

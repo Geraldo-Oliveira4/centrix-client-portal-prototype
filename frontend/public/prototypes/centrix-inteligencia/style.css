@@ -22,3 +22,31 @@ body:has(dialog[open]){overflow:hidden}
 
 /* Portal supplies the primary navigation and identity. */
 .embedded .sidebar,.embedded .topbar{display:none}.embedded .shell{margin-left:0}.embedded main{padding:0 2px 25px}.embedded .demo{padding:8px 12px}.embedded .mobile-radar{display:none}
+/* PAGINA CONTINUA EM BLOCOS (30/09/2026). Executivo, Performance, Precos e
+   rotas, Assistentes. A barra de ancoras fica presa no topo do iframe; cada
+   bloco tem uma camada de abas no maximo (.block-tabs). */
+.module-nav{position:sticky;top:0;z-index:5;background:var(--bg)}
+.module-nav a{min-height:44px;display:inline-flex;align-items:flex-end}
+.block{scroll-margin-top:72px;padding:8px 0 36px;border-bottom:1px solid var(--line)}
+.block:last-of-type{border-bottom:0}
+.block-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:18px 0 18px}
+.block-head h2{font-size:24px}.block-head p{color:var(--muted);margin-top:6px;max-width:75ch}
+.block-head small{margin-left:auto}
+.block-tabs{margin-bottom:8px}
+.block-tabs a{min-height:44px;display:inline-flex;align-items:center}
+.heading.in-block{margin:14px 0}
+.heading.in-block h3{font-size:18px}
+details.more{background:white;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+details.more>summary{cursor:pointer;padding:14px 20px;color:var(--indigo);font-weight:600;font-size:14px;min-height:44px}
+/* Card com insight: numero + selo de variacao (seta, cor e texto) + frase.
+   Cores = tokens do portal: success-ink #136B42, danger-ink #B42F2F, neutral
+   #686A9A, todos AA sobre branco. */
+.metric.insight{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.metric.insight b{margin:4px 0 0}
+.variation{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:2px 7px;border-radius:4px}
+.variation.good{color:#136b42;background:#e8f5ee}
+.variation.bad{color:#b42f2f;background:#fbeeee}
+.variation.neutral{color:#686a9a;background:#f1f1f7}
+.insight-text{font-size:14px;line-height:1.5;color:var(--ink)}
+@media(max-width:900px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric:nth-child(2n){border-right:0}.metric{border-bottom:1px solid var(--line)}}
+@media(max-width:560px){.metrics{grid-template-columns:1fr}.metric{border-right:0}.block-head small{margin-left:0}}
