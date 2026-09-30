@@ -6,8 +6,8 @@
 // uma tela que só remove um passo, sem dizer quem passou a fazê-lo, lê como
 // funcionalidade perdida. Os quatro passos respondem exatamente isso.
 //
-// O prazo da revisão vem de `REVIEW_SLA_LABEL`, que é PLACEHOLDER — ver o
-// comentário na constante.
+// O prazo da revisão vem de `REVIEW_SLA_LABEL`, que sai da regra única de
+// `review-sla.ts` (1 hora, decisão do Orsi em 29/09/2026).
 
 import { Check, Info } from 'lucide-react';
 

@@ -184,8 +184,9 @@ começar.
 - **O guard rail dos "5 primeiros embarques" não foi modelado.** Não está
   definido se a contagem é por cliente ou no total, nem quem a libera. Aqui
   **todo** embarque aberto por PO passa pela revisão.
-- **Os prazos de revisão são placeholder** ("até 4 horas úteis"). O SLA real está
-  em aberto.
+- **O prazo de revisão é 1 hora** na entrada e na saída (decisão do Orsi,
+  29/09/2026). Se a hora conta em horário corrido ou comercial ainda está em
+  aberto: o protótipo assume corrido (`review-sla.ts`).
 - **A Visão por PO é só protótipo**, para validar aderência. A gestão por PO
   (PO dividido, linkagem linha a linha) é V2.
 - **As flags não são controle de acesso.** Elas moram neste navegador, não há

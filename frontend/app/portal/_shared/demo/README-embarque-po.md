@@ -105,7 +105,7 @@ seguro para cair.
 | Open Question | O que a spec diz | O que o protótipo faz |
 |---|---|---|
 | **10** — selo ou aba | Propõe o selo (opção A) | **As duas**, com um seletor no painel. Padrão: selo. A pergunta é do Orsi, e responder por ele no código seria pior que mostrar as duas |
-| **13** — SLA da revisão | "[SLA a definir]" | `PO_REVIEW_SLA_LABEL = 'até 4 horas úteis'`, **placeholder**, numa constante só |
+| **13** — SLA da revisão | "[SLA a definir]" | 1 hora (decisão do Orsi, 29/09/2026), da regra única `review-sla.ts`; `PO_REVIEW_SLA_LABEL` só a formata. Horário corrido é premissa, não decisão |
 | **12** — editar/cancelar em análise | Em aberto | Pode as duas. Cancelar devolve ao rascunho, não apaga |
 | **3** — o que aparece em análise | Proposta sem resposta | Origem, destino e peso ocultos; rota "A definir" |
 | **7** — critério da busca da vinculação | Em aberto | Os três (nº, REF do PO, cliente), porque escolher um seria responder |

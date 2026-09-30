@@ -15,16 +15,17 @@ import type { LucideIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
+import { reviewSlaLabel } from './review-sla';
 import { PO_STAGE_LABELS, type PoStage } from './shipment-po-review';
 
 /**
  * Prazo da revisão do embarque.
  *
- * PLACEHOLDER. A spec diz "[SLA a definir]" nas Telas 7, 8 e 10 e a Open
- * Question 13 segue aberta com o Orsi. É uma constante só para que trocar o
- * prazo seja uma edição, não uma busca pelas telas.
+ * Herda a regra única de `review-sla.ts` (1 hora, decisão do Orsi em
+ * 29/09/2026). Se o Embarque via PO ganhar um prazo próprio, ele vira um
+ * segundo `ReviewSla` passado a `reviewSlaLabel`, não um texto solto aqui.
  */
-export const PO_REVIEW_SLA_LABEL = 'até 4 horas úteis';
+export const PO_REVIEW_SLA_LABEL = reviewSlaLabel();
 
 const STAGE_BADGE: Record<PoStage, { icon: LucideIcon; className: string }> = {
   draft: { icon: FileEdit, className: 'bg-muted text-portal-neutral' },
@@ -89,7 +90,7 @@ export function NoQuotationChip({
   );
 }
 
-/** "Aguardando revisão da Freitas desde 10:32. Prazo: até 4 horas úteis." */
+/** "Aguardando revisão da Freitas desde 10:32. Prazo: até 1 hora." */
 export function poNextStepLabel(since: string): string {
   const at = new Date(since);
   const time = Number.isNaN(at.getTime())

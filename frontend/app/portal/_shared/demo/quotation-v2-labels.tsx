@@ -22,16 +22,15 @@ import {
   V2_STAGE_LABELS,
   type V2Stage,
 } from './quotation-review';
+import { reviewSlaLabel } from './review-sla';
 
 /**
- * Prazo estimado da revisão de entrada.
- *
- * PLACEHOLDER. The spec says "[SLA a definir]" for RQ-3 and RQ-7: nobody has
- * agreed a number. The value below is illustrative so the panel has something
- * to say, and it is a single constant precisely so that replacing it is one
- * edit rather than a search across screens.
+ * Prazo de cada revisão da Freitas (entrada e saída): 1 hora, decisão do Orsi
+ * em 29/09/2026. The rule itself lives in `review-sla.ts` — including the open
+ * question of whether the hour is wall-clock or business time — so that both V2
+ * journeys change together.
  */
-export const REVIEW_SLA_LABEL = 'até 4 horas úteis';
+export const REVIEW_SLA_LABEL = reviewSlaLabel();
 
 const STAGE_BADGE: Record<
   V2Stage,
