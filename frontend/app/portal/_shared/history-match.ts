@@ -66,12 +66,18 @@ function placeTokens(value: string | null | undefined): string[] {
     .filter((part) => part.length >= 3);
 }
 
-function samePlace(a: (string | null | undefined)[], b: (string | null | undefined)[]): boolean {
+function samePlace(
+  a: (string | null | undefined)[],
+  b: (string | null | undefined)[],
+): boolean {
   const left = new Set(a.flatMap(placeTokens));
   return b.flatMap(placeTokens).some((token) => left.has(token));
 }
 
-function sameProduct(a: string | null | undefined, b: string | null | undefined): boolean {
+function sameProduct(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): boolean {
   const x = normalize(a);
   const y = normalize(b);
   if (x.length < 4 || y.length < 4) return false;
@@ -83,17 +89,22 @@ export function matchHistory(
   quotations: HistoryQuotation[],
 ): HistoryMatch | null {
   if (!normalize(input.product)) return null;
-  const destinationsOf = (q: HistoryQuotation) => [
-    ...(q.porto_destino ?? []),
-    ...(q.aeroporto_destino ?? []),
-  ].filter(Boolean);
+  const destinationsOf = (q: HistoryQuotation) =>
+    [...(q.porto_destino ?? []), ...(q.aeroporto_destino ?? [])].filter(
+      Boolean,
+    );
   // Destino registrado na anterior TEM de bater. Sem destino registrado nela
   // ("Destino a confirmar"), produto + origem bastam — e o match diz isso.
   const candidates = quotations.filter(
     (q) =>
       sameProduct(input.product, q.product) &&
-      samePlace(input.origins, [q.origin, q.porto_embarque, q.aeroporto_embarque]) &&
-      (destinationsOf(q).length === 0 || samePlace(input.destinations, destinationsOf(q))),
+      samePlace(input.origins, [
+        q.origin,
+        q.porto_embarque,
+        q.aeroporto_embarque,
+      ]) &&
+      (destinationsOf(q).length === 0 ||
+        samePlace(input.destinations, destinationsOf(q))),
   );
   if (candidates.length === 0) return null;
   const when = (q: HistoryQuotation) => q.closed_at ?? q.created_at;
@@ -104,7 +115,9 @@ export function matchHistory(
     const knownB = destinationsOf(b).length ? 0 : 1;
     const shippedA = a.state === 'FECHADA' ? 0 : 1;
     const shippedB = b.state === 'FECHADA' ? 0 : 1;
-    return knownA - knownB || shippedA - shippedB || when(b).localeCompare(when(a));
+    return (
+      knownA - knownB || shippedA - shippedB || when(b).localeCompare(when(a))
+    );
   })[0];
   return {
     quotationId: best.id,

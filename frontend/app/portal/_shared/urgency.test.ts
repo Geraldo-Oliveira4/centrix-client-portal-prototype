@@ -16,32 +16,51 @@ const level = (signal: Parameters<typeof urgencyOf>[0]) =>
   urgencyOf(signal, NOW).level;
 
 test('só ação do cliente sobe: o que está com a Freitas é normal', () => {
-  assert.equal(level({ clientAction: false, deadline: '2026-09-01' }), 'normal');
+  assert.equal(
+    level({ clientAction: false, deadline: '2026-09-01' }),
+    'normal',
+  );
 });
 
 test('crítico é o que já custa: prazo vencido ou demurrage', () => {
-  assert.deepEqual(urgencyOf({ clientAction: true, deadline: '2026-09-29' }, NOW), {
-    level: 'critico',
-    reason: 'Prazo vencido',
-  });
-  assert.equal(level({ clientAction: true, deadline: '2026-09-30T09:00:00' }), 'critico');
+  assert.deepEqual(
+    urgencyOf({ clientAction: true, deadline: '2026-09-29' }, NOW),
+    {
+      level: 'critico',
+      reason: 'Prazo vencido',
+    },
+  );
+  assert.equal(
+    level({ clientAction: true, deadline: '2026-09-30T09:00:00' }),
+    'critico',
+  );
   assert.equal(level({ clientAction: false, costRunning: true }), 'critico');
 });
 
 test('vence hoje é atenção, não crítico', () => {
-  assert.deepEqual(urgencyOf({ clientAction: true, deadline: '2026-09-30' }, NOW), {
-    level: 'atencao',
-    reason: 'Vence hoje',
-  });
+  assert.deepEqual(
+    urgencyOf({ clientAction: true, deadline: '2026-09-30' }, NOW),
+    {
+      level: 'atencao',
+      reason: 'Vence hoje',
+    },
+  );
   assert.equal(
-    urgencyOf({ clientAction: true, deadline: '2026-09-30T18:00:00' }, NOW).reason,
+    urgencyOf({ clientAction: true, deadline: '2026-09-30T18:00:00' }, NOW)
+      .reason,
     'Vence hoje',
   );
 });
 
 test('até 3 dias é atenção; depois disso, normal', () => {
-  assert.equal(urgencyOf({ clientAction: true, deadline: '2026-10-01' }, NOW).reason, 'Vence amanhã');
-  assert.equal(urgencyOf({ clientAction: true, deadline: '2026-10-03' }, NOW).reason, 'Vence em 3 dias');
+  assert.equal(
+    urgencyOf({ clientAction: true, deadline: '2026-10-01' }, NOW).reason,
+    'Vence amanhã',
+  );
+  assert.equal(
+    urgencyOf({ clientAction: true, deadline: '2026-10-03' }, NOW).reason,
+    'Vence em 3 dias',
+  );
   assert.equal(level({ clientAction: true, deadline: '2026-10-04' }), 'normal');
 });
 
@@ -64,7 +83,10 @@ test('booking e dados travam; documento sem prazo não', () => {
 });
 
 test('concluído é ok e nunca ganha ênfase', () => {
-  assert.equal(level({ clientAction: true, done: true, deadline: '2026-09-01' }), 'ok');
+  assert.equal(
+    level({ clientAction: true, done: true, deadline: '2026-09-01' }),
+    'ok',
+  );
   assert.equal(isEmphasized('ok'), false);
   assert.equal(isEmphasized('normal'), false);
   assert.equal(isEmphasized('atencao'), true);
@@ -77,7 +99,11 @@ test('o resumo conta só as duas ênfases', () => {
     urgencyOf({ clientAction: true }, NOW),
     urgencyOf({ clientAction: false }, NOW),
   ];
-  assert.deepEqual(summarizeAttention(list), { critico: 1, atencao: 1, total: 2 });
+  assert.deepEqual(summarizeAttention(list), {
+    critico: 1,
+    atencao: 1,
+    total: 2,
+  });
   assert.equal(mostUrgent(list)?.level, 'critico');
   assert.equal(mostUrgent([]), null);
 });

@@ -82,7 +82,8 @@ export function routeKey(route: PreferredRoute): string {
 
 export function placeName(code: string): string {
   return (
-    [...ROUTE_ORIGINS, ...ROUTE_DESTINATIONS].find((p) => p.code === code)?.name ?? code
+    [...ROUTE_ORIGINS, ...ROUTE_DESTINATIONS].find((p) => p.code === code)
+      ?.name ?? code
   );
 }
 
@@ -102,14 +103,20 @@ export function routeIssue(
   existing: PreferredRoute[],
 ): string | null {
   const origin = ROUTE_ORIGINS.find((p) => p.code === route.origin);
-  const destination = ROUTE_DESTINATIONS.find((p) => p.code === route.destination);
+  const destination = ROUTE_DESTINATIONS.find(
+    (p) => p.code === route.destination,
+  );
   if (!origin || !destination) return 'Escolha a origem e o destino.';
   if (origin.modal !== destination.modal) {
     return origin.modal === 'AEREO'
       ? 'Frankfurt é aeroporto: escolha Guarulhos como destino.'
       : `${origin.name} é porto: escolha um porto de destino.`;
   }
-  if (existing.some((r) => r.origin === origin.code && r.destination === destination.code)) {
+  if (
+    existing.some(
+      (r) => r.origin === origin.code && r.destination === destination.code,
+    )
+  ) {
     return 'Esta rota já está na lista.';
   }
   return null;
@@ -134,38 +141,50 @@ export function parseOnboarding(raw: string | null): OnboardingState {
   } catch {
     return EMPTY_ONBOARDING;
   }
-  if (data == null || typeof data !== 'object' || Array.isArray(data)) return EMPTY_ONBOARDING;
+  if (data == null || typeof data !== 'object' || Array.isArray(data))
+    return EMPTY_ONBOARDING;
   const d = data as Record<string, unknown>;
   const company = (d.company ?? {}) as Record<string, unknown>;
   const text = (v: unknown) => (typeof v === 'string' ? v : '');
   const routes = Array.isArray(d.routes)
-    ? (d.routes as Record<string, unknown>[]).filter(
-        (r): r is Record<string, unknown> =>
-          r != null &&
-          typeof r === 'object' &&
-          ROUTE_ORIGINS.some((p) => p.code === r.origin) &&
-          ROUTE_DESTINATIONS.some((p) => p.code === r.destination) &&
-          (r.modal === 'MARITIMO' || r.modal === 'AEREO'),
-      ).map((r) => ({
-        origin: r.origin as string,
-        destination: r.destination as string,
-        modal: r.modal as RouteModal,
-      }))
+    ? (d.routes as Record<string, unknown>[])
+        .filter(
+          (r): r is Record<string, unknown> =>
+            r != null &&
+            typeof r === 'object' &&
+            ROUTE_ORIGINS.some((p) => p.code === r.origin) &&
+            ROUTE_DESTINATIONS.some((p) => p.code === r.destination) &&
+            (r.modal === 'MARITIMO' || r.modal === 'AEREO'),
+        )
+        .map((r) => ({
+          origin: r.origin as string,
+          destination: r.destination as string,
+          modal: r.modal as RouteModal,
+        }))
     : [];
   const contacts = Array.isArray(d.contacts)
     ? (d.contacts as Record<string, unknown>[])
-        .filter((c) => c != null && typeof c.name === 'string' && typeof c.email === 'string')
+        .filter(
+          (c) =>
+            c != null &&
+            typeof c.name === 'string' &&
+            typeof c.email === 'string',
+        )
         .map((c) => ({ name: c.name as string, email: c.email as string }))
     : [];
   const events = Array.isArray(d.events)
-    ? (d.events as unknown[]).filter((e): e is NotifyEvent =>
-        typeof e === 'string' && e in NOTIFY_EVENTS,
+    ? (d.events as unknown[]).filter(
+        (e): e is NotifyEvent => typeof e === 'string' && e in NOTIFY_EVENTS,
       )
     : EMPTY_ONBOARDING.events;
   return {
     tourDone: d.tourDone === true,
     setupDone: d.setupDone === true,
-    company: { name: text(company.name), segment: text(company.segment), role: text(company.role) },
+    company: {
+      name: text(company.name),
+      segment: text(company.segment),
+      role: text(company.role),
+    },
     routes,
     contacts,
     events,
@@ -226,5 +245,7 @@ export const TOUR_STEPS: TourStep[] = [
 export function visibleTourSteps(
   flags: Partial<Record<string, boolean>>,
 ): TourStep[] {
-  return TOUR_STEPS.filter((step) => !step.module || flags[step.module] !== false);
+  return TOUR_STEPS.filter(
+    (step) => !step.module || flags[step.module] !== false,
+  );
 }

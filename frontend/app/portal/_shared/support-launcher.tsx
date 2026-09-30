@@ -123,7 +123,11 @@ function Chat() {
             autoComplete="off"
           />
         </div>
-        <Button type="submit" disabled={!draft.trim()} className="h-11 shrink-0 gap-1.5">
+        <Button
+          type="submit"
+          disabled={!draft.trim()}
+          className="h-11 shrink-0 gap-1.5"
+        >
           <Send className="h-5 w-5" /> Enviar
         </Button>
       </form>
@@ -144,7 +148,10 @@ function Report({ onDone }: { onDone: () => void }) {
 
   if (protocol) {
     return (
-      <div role="status" className="space-y-4 rounded-lg border border-portal-success/40 bg-portal-success/10 p-4">
+      <div
+        role="status"
+        className="space-y-4 rounded-lg border border-portal-success/40 bg-portal-success/10 p-4"
+      >
         <div className="flex items-start gap-2.5">
           <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-portal-success-ink" />
           <div className="space-y-1">
@@ -208,7 +215,8 @@ function Report({ onDone }: { onDone: () => void }) {
             touched && issue ? 'text-portal-danger-ink' : 'text-portal-neutral',
           )}
         >
-          {issue ?? 'O que você fez e o que apareceu ajudam a achar o problema mais rápido.'}
+          {issue ??
+            'O que você fez e o que apareceu ajudam a achar o problema mais rápido.'}
         </p>
       </div>
       <div className="space-y-2">
@@ -223,7 +231,9 @@ function Report({ onDone }: { onDone: () => void }) {
         </p>
       </div>
       <div className="space-y-2">
-        <span className="portal-body block font-medium">Print da tela (opcional)</span>
+        <span className="portal-body block font-medium">
+          Print da tela (opcional)
+        </span>
         <input
           ref={fileInput}
           id="relato-print"
@@ -235,7 +245,9 @@ function Report({ onDone }: { onDone: () => void }) {
         {file ? (
           <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2">
             <Paperclip className="h-4 w-4 shrink-0 text-portal-neutral" />
-            <span className="portal-small min-w-0 flex-1 truncate">{file.name}</span>
+            <span className="portal-small min-w-0 flex-1 truncate">
+              {file.name}
+            </span>
             <Button
               type="button"
               variant="ghost"
@@ -308,7 +320,10 @@ export function SupportLauncher() {
               Reportar um problema
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="chat" className="mt-4 min-h-0 flex-1 data-[state=inactive]:hidden">
+          <TabsContent
+            value="chat"
+            className="mt-4 min-h-0 flex-1 data-[state=inactive]:hidden"
+          >
             <Chat />
           </TabsContent>
           <TabsContent value="relato" className="mt-4 overflow-y-auto">

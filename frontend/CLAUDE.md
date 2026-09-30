@@ -1538,7 +1538,14 @@ existing `GET` routes. Their sidebar entries live in
 **não** é read-only: é a área de conta, e as telas dentro dela são as únicas do
 portal que escrevem no backend (ver a seção delas adiante).
 
-**A sidebar tem SETE itens** (03/09/2026): Início, Visão Geral, Minhas Cotações,
+**Desde 30/09/2026 a sidebar tem DOIS GRUPOS** (feedback de marketing: "todos
+os módulos parecem iguais"): **Operação** (Início, Central de trabalho, Minhas
+Cotações, Meus Embarques — tinta `foreground`) e **Performance** (Inteligência,
+Radar, Auditoria — tinta `portal-neutral`, peso menor), com Configurações fixa no
+rodapé (a sidebar desktop é `sticky h-screen` por isso). Grupo sem módulo liberado
+some com o rótulo. O parágrafo abaixo é o histórico da versão plana.
+
+**A sidebar tinha SETE itens** (03/09/2026): Início, Visão Geral, Minhas Cotações,
 Meus Embarques, Inteligência, Auditoria, Minhas Preferências. Fora a Home e a
 Visão Geral, é uma
 lista de telas OPERACIONAIS: Meus Exportadores e Meus Agentes eram itens de
@@ -2438,3 +2445,22 @@ Branch codex/cotacoes-historico adds Em andamento/Histórico, terminal-state fil
 ## Full quotation journey published — 2026-09-13
 
 All local quotation checkpoints above are now included in source 7f27704bd8367b2df025039586cab5a4902a9f39, merged onto current public base 177892f. Deployment dpl_8PbWCpWNQ2L9G2qoUG4LHeQtrCEB is promoted and verified at https://centrix-client-portal-prototype.vercel.app/portal/cotacoes. Includes Kanban, Aprovadas, Histórico, repeat drafts, actual early details and assisted draft entry, preserving concurrent public modules. 54 focused tests, local/Vercel builds and 28 public route checks pass. Browser verified tabs, draft assistance and received/available agents. Prototype-only behaviors and integration limits documented above still apply; publication does not imply real RFQ, opening-request or AI integration. See app/portal/cotacoes/PUBLICACAO-COMPLETA.md for source, verification and rollback. No GitHub push.
+
+
+## "Cara de produto" — 30/09/2026 (feedback de marketing/comercial, Semanal 25/09)
+
+Inventário e decisões em `docs/specs-prototipo/INVENTARIO-UX.md` (fora do git);
+escala de urgência e padrão de insight documentados no `DESIGN.md` da raiz.
+
+| O quê | Onde | Regra que não pode afrouxar |
+|---|---|---|
+| Escala de urgência | `app/portal/_shared/urgency.ts` + `UrgencyBadge` | Pergunta "preciso agir, e até quando?", nunca etapa. Só Crítico (prazo vencido / custo correndo) e Atenção (≤3 dias ou trava a próxima etapa) têm cor. Documento sem prazo é Normal. Kanban, Embarques, alertas (iframe `alert-rules.js`), Home e Central usam a mesma fila (`collectHomeActions`) |
+| Tokens `portal-danger-ink` / `portal-success-ink` | `styles/globals.css`, `tailwind.config.ts` | Texto de estado usa o INK (AA); no escuro colapsa no tom base e as placas /10 viram /8 |
+| Insight escrito | `_shared/insight.ts` + `InsightLine`; `centrix-inteligencia/insights.js` | Variação sai do dado que a tela já desenha (nunca de uma base inventada); taxa em pontos, valor em %; mês com <3 elegíveis não compara; KPI comercial não fica vermelho |
+| Inteligência em blocos | `public/prototypes/centrix-inteligencia/app.js` (`overview`) | Executivo, Performance, Preços e rotas, Assistentes; uma camada de abas por bloco. Hashes antigos = "aba de um bloco"; rotas de detalhe intocadas |
+| Ajuda e suporte | `_shared/support-launcher.tsx`, `support-model.ts` | Só visual. Botão no inferior esquerdo, colado à sidebar; a aba Demonstração foi para o inferior direito |
+| "?" de ajuda | `components/help-tip.tsx`, `_shared/quotation-help.ts` | Popover (toque + teclado), alvo de 44px; `ManualForm` só mostra com `helpTips` |
+| Boas-vindas | `_shared/onboarding.ts`, `onboarding-flow.tsx`, `use-onboarding.ts` | UM fluxo: tour → configuração inicial → temas da Home. Rotas preferidas têm UMA fonte (`centrix-proto-v2:onboarding`), lida por Configurações e Radar |
+| "Você já embarcou esta carga" | `_shared/history-match.ts` | Produto + origem + destino; a ação reaproveita "Cotar novamente" |
+| Tema nos iframes | `public/prototypes/_shared/theme-sync.{js,css}` | Ponte de protótipo: inversão de luminância com rotação de matiz. A versão integrada usa os tokens |
+| Rótulos em 2ª pessoa | `ManualForm clientFacing` | "Sua referência", "Quando você precisa da carga"; a tela do analista mantém a redação dela |

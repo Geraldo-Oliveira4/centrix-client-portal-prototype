@@ -26,18 +26,38 @@ test('módulo desligado tira o passo do tour', () => {
 
 test('rota exige origem e destino do mesmo modal, sem repetição', () => {
   assert.match(routeIssue({}, []) ?? '', /origem e o destino/);
-  assert.match(routeIssue({ origin: 'FRA', destination: 'BRSSZ' }, []) ?? '', /Guarulhos/);
-  assert.match(routeIssue({ origin: 'CNSHA', destination: 'GRU' }, []) ?? '', /porto/);
-  const existing = [{ origin: 'CNSHA', destination: 'BRSSZ', modal: 'MARITIMO' as const }];
-  assert.match(routeIssue({ origin: 'CNSHA', destination: 'BRSSZ' }, existing) ?? '', /já está/);
-  assert.equal(routeIssue({ origin: 'CNNGB', destination: 'BRITJ' }, existing), null);
+  assert.match(
+    routeIssue({ origin: 'FRA', destination: 'BRSSZ' }, []) ?? '',
+    /Guarulhos/,
+  );
+  assert.match(
+    routeIssue({ origin: 'CNSHA', destination: 'GRU' }, []) ?? '',
+    /porto/,
+  );
+  const existing = [
+    { origin: 'CNSHA', destination: 'BRSSZ', modal: 'MARITIMO' as const },
+  ];
+  assert.match(
+    routeIssue({ origin: 'CNSHA', destination: 'BRSSZ' }, existing) ?? '',
+    /já está/,
+  );
+  assert.equal(
+    routeIssue({ origin: 'CNNGB', destination: 'BRITJ' }, existing),
+    null,
+  );
   assert.equal(routeLabel(existing[0]), 'Shanghai → Santos · Marítimo');
 });
 
 test('contato precisa de nome e e-mail válido', () => {
   assert.match(contactIssue({ email: 'a@b.co' }) ?? '', /nome/);
-  assert.match(contactIssue({ name: 'Ana', email: 'ana' }) ?? '', /e-mail válido/);
-  assert.equal(contactIssue({ name: 'Ana', email: 'ana@exemplo.com.br' }), null);
+  assert.match(
+    contactIssue({ name: 'Ana', email: 'ana' }) ?? '',
+    /e-mail válido/,
+  );
+  assert.equal(
+    contactIssue({ name: 'Ana', email: 'ana@exemplo.com.br' }),
+    null,
+  );
 });
 
 test('estado gravado inválido é descartado, não consertado', () => {

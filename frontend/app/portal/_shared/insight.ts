@@ -56,11 +56,23 @@ export function variationOf(
   else raw = Math.round(((current - previous) / previous) * 100);
 
   const direction = raw > 0 ? 'up' : raw < 0 ? 'down' : 'flat';
-  const better = direction === 'up' ? higherIsBetter : direction === 'down' ? higherIsBetter === false : null;
+  const better =
+    direction === 'up'
+      ? higherIsBetter
+      : direction === 'down'
+        ? higherIsBetter === false
+        : null;
   const tone: InsightTone =
-    direction === 'flat' || higherIsBetter == null ? 'neutral' : better ? 'good' : badTone;
+    direction === 'flat' || higherIsBetter == null
+      ? 'neutral'
+      : better
+        ? 'good'
+        : badTone;
   const delta = Math.abs(raw);
-  const amount = kind === 'pp' ? `${delta} ${delta === 1 ? 'ponto' : 'pontos'}` : `${delta}%`;
+  const amount =
+    kind === 'pp'
+      ? `${delta} ${delta === 1 ? 'ponto' : 'pontos'}`
+      : `${delta}%`;
   const text =
     direction === 'flat'
       ? `igual ${contract('a', previousLabel)}`

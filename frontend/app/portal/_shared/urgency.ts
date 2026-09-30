@@ -85,7 +85,8 @@ export function urgencyOf(signal: UrgencySignal, now: Date): Urgency {
 
   const limit = signal.deadline ? limitOf(signal.deadline) : Number.NaN;
   if (Number.isFinite(limit)) {
-    if (limit < now.getTime()) return { level: 'critico', reason: 'Prazo vencido' };
+    if (limit < now.getTime())
+      return { level: 'critico', reason: 'Prazo vencido' };
     const days = calendarDays(now, limit);
     if (days <= 0) return { level: 'atencao', reason: 'Vence hoje' };
     if (days === 1) return { level: 'atencao', reason: 'Vence amanhã' };
@@ -101,7 +102,10 @@ export function urgencyOf(signal: UrgencySignal, now: Date): Urgency {
 
 /** A ação da fila do cliente (`home/lib/home-actions.ts`) na escala. */
 export function urgencyOfAction(
-  action: { kind: 'proposta' | 'booking' | 'documento' | 'dados'; deadline?: string },
+  action: {
+    kind: 'proposta' | 'booking' | 'documento' | 'dados';
+    deadline?: string;
+  },
   now: Date,
 ): Urgency {
   return urgencyOf(
@@ -121,7 +125,8 @@ export function compareUrgency(a: Urgency, b: Urgency): number {
 /** A mais urgente de uma lista, ou `null` para lista vazia. */
 export function mostUrgent(list: Urgency[]): Urgency | null {
   return list.reduce<Urgency | null>(
-    (best, item) => (best == null || compareUrgency(item, best) < 0 ? item : best),
+    (best, item) =>
+      best == null || compareUrgency(item, best) < 0 ? item : best,
     null,
   );
 }
@@ -178,10 +183,17 @@ export function urgencyByRecord(
  * urgente" ser a de prazo vencido, e não a primeira categoria da lista.
  */
 export function rankByUrgency<
-  T extends { kind: 'proposta' | 'booking' | 'documento' | 'dados'; deadline?: string },
+  T extends {
+    kind: 'proposta' | 'booking' | 'documento' | 'dados';
+    deadline?: string;
+  },
 >(actions: T[], now: Date): { action: T; urgency: Urgency }[] {
   return actions
-    .map((action, index) => ({ action, urgency: urgencyOfAction(action, now), index }))
+    .map((action, index) => ({
+      action,
+      urgency: urgencyOfAction(action, now),
+      index,
+    }))
     .sort((a, b) => compareUrgency(a.urgency, b.urgency) || a.index - b.index)
     .map(({ action, urgency }) => ({ action, urgency }));
 }

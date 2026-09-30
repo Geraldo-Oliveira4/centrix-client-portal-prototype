@@ -37,7 +37,10 @@ const SCREENS: [string, string][] = [
 export function screenName(pathname: string): string {
   let best: [string, string] | null = null;
   for (const entry of SCREENS) {
-    if (pathname.startsWith(entry[0]) && (!best || entry[0].length > best[0].length)) {
+    if (
+      pathname.startsWith(entry[0]) &&
+      (!best || entry[0].length > best[0].length)
+    ) {
       best = entry;
     }
   }

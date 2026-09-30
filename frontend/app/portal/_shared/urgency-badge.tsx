@@ -14,7 +14,10 @@ import { cn } from '@/lib/utils';
 
 import type { Urgency, UrgencyLevel } from './urgency';
 
-const BADGE: Record<UrgencyLevel, { icon: LucideIcon | null; className: string }> = {
+const BADGE: Record<
+  UrgencyLevel,
+  { icon: LucideIcon | null; className: string }
+> = {
   critico: {
     icon: AlertOctagon,
     className: 'bg-portal-danger/10 text-portal-danger-ink',

@@ -12,7 +12,11 @@
 
 import { HelpCircle } from 'lucide-react';
 
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 export function HelpTip({ label, text }: { label: string; text: string }) {
   return (
@@ -26,7 +30,11 @@ export function HelpTip({ label, text }: { label: string; text: string }) {
           <HelpCircle aria-hidden="true" className="h-4 w-4" />
         </button>
       </PopoverTrigger>
-      <PopoverContent side="top" align="start" className="portal-small w-72 leading-relaxed">
+      <PopoverContent
+        side="top"
+        align="start"
+        className="portal-small w-72 leading-relaxed"
+      >
         <p className="mb-1 font-medium text-foreground">{label}</p>
         <p className="text-portal-neutral">{text}</p>
       </PopoverContent>

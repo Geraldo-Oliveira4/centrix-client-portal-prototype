@@ -85,8 +85,17 @@ function Tour({ onFinish }: { onFinish: () => void }) {
   const CARD_W = 352;
   const style: React.CSSProperties | undefined = rect
     ? rect.right + 16 + CARD_W < window.innerWidth
-      ? { left: rect.right + 16, top: Math.max(16, Math.min(rect.top - 16, window.innerHeight - 280)) }
-      : { left: Math.max(16, Math.min(rect.left, window.innerWidth - CARD_W - 16)), top: Math.max(16, rect.top - 250) }
+      ? {
+          left: rect.right + 16,
+          top: Math.max(16, Math.min(rect.top - 16, window.innerHeight - 280)),
+        }
+      : {
+          left: Math.max(
+            16,
+            Math.min(rect.left, window.innerWidth - CARD_W - 16),
+          ),
+          top: Math.max(16, rect.top - 250),
+        }
     : undefined;
 
   return (
@@ -97,11 +106,7 @@ function Tour({ onFinish }: { onFinish: () => void }) {
         <div
           aria-hidden="true"
           className="pointer-events-none fixed inset-0 z-50"
-          style={
-            rect
-              ? undefined
-              : { background: 'rgba(26, 28, 49, 0.55)' }
-          }
+          style={rect ? undefined : { background: 'rgba(26, 28, 49, 0.55)' }}
         >
           {rect && (
             <div
@@ -126,12 +131,18 @@ function Tour({ onFinish }: { onFinish: () => void }) {
           <p className="portal-small font-medium text-portal-neutral">
             {index + 1} de {steps.length}
           </p>
-          <DialogPrimitive.Title className="portal-h3">{step.title}</DialogPrimitive.Title>
+          <DialogPrimitive.Title className="portal-h3">
+            {step.title}
+          </DialogPrimitive.Title>
           <DialogPrimitive.Description className="portal-body text-foreground/80">
             {step.body}
           </DialogPrimitive.Description>
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-            <Button variant="ghost" className="text-portal-neutral" onClick={onFinish}>
+            <Button
+              variant="ghost"
+              className="text-portal-neutral"
+              onClick={onFinish}
+            >
               Pular tour
             </Button>
             <div className="flex gap-2">
@@ -155,11 +166,18 @@ function Tour({ onFinish }: { onFinish: () => void }) {
 
 const SEGMENTS = ['Indústria', 'Comércio e varejo', 'Distribuição', 'Outro'];
 const ROLES = ['Importadora', 'Exportadora', 'Importadora e exportadora'];
-const STEP_TITLES = ['Sua empresa', 'Suas rotas preferidas', 'Quem recebe notificações'];
+const STEP_TITLES = [
+  'Sua empresa',
+  'Suas rotas preferidas',
+  'Quem recebe notificações',
+];
 
 function Stepper({ step }: { step: number }) {
   return (
-    <ol className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Passos da configuração">
+    <ol
+      className="flex flex-wrap gap-x-4 gap-y-1"
+      aria-label="Passos da configuração"
+    >
       {STEP_TITLES.map((title, i) => (
         <li
           key={title}
@@ -172,7 +190,9 @@ function Stepper({ step }: { step: number }) {
           <span
             className={cn(
               'grid h-5 w-5 place-items-center rounded-full text-[11px]',
-              i <= step ? 'bg-brand-indigo text-white dark:bg-brand-indigo-700' : 'bg-muted',
+              i <= step
+                ? 'bg-brand-indigo text-white dark:bg-brand-indigo-700'
+                : 'bg-muted',
             )}
           >
             {i + 1}
@@ -197,7 +217,8 @@ function SetupWizard({ initial }: { initial: OnboardingState }) {
   const [events, setEvents] = useState<NotifyEvent[]>(initial.events);
 
   useEffect(() => {
-    if (!company.name && client?.name) setCompany((c) => ({ ...c, name: client.name }));
+    if (!company.name && client?.name)
+      setCompany((c) => ({ ...c, name: client.name }));
   }, [client, company.name]);
 
   const save = (setupDone: boolean) =>
@@ -213,7 +234,14 @@ function SetupWizard({ initial }: { initial: OnboardingState }) {
     const issue = routeIssue(draftRoute, routes);
     setRouteError(issue);
     if (issue || !origin) return;
-    setRoutes([...routes, { origin: origin.code, destination: draftRoute.destination!, modal: origin.modal }]);
+    setRoutes([
+      ...routes,
+      {
+        origin: origin.code,
+        destination: draftRoute.destination!,
+        modal: origin.modal,
+      },
+    ]);
     setDraftRoute({});
   };
 
@@ -221,7 +249,10 @@ function SetupWizard({ initial }: { initial: OnboardingState }) {
     const issue = contactIssue(draftContact);
     setContactError(issue);
     if (issue) return;
-    setContacts([...contacts, { name: draftContact.name!.trim(), email: draftContact.email!.trim() }]);
+    setContacts([
+      ...contacts,
+      { name: draftContact.name!.trim(), email: draftContact.email!.trim() },
+    ]);
     setDraftContact({});
   };
 
@@ -249,33 +280,47 @@ function SetupWizard({ initial }: { initial: OnboardingState }) {
               <Input
                 id="onb-empresa"
                 value={company.name}
-                onChange={(e) => setCompany({ ...company, name: e.target.value })}
+                onChange={(e) =>
+                  setCompany({ ...company, name: e.target.value })
+                }
                 placeholder="Ex.: Aurora Indústria"
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="onb-segmento">Segmento</Label>
-                <Select value={company.segment} onValueChange={(segment) => setCompany({ ...company, segment })}>
+                <Select
+                  value={company.segment}
+                  onValueChange={(segment) =>
+                    setCompany({ ...company, segment })
+                  }
+                >
                   <SelectTrigger id="onb-segmento">
                     <SelectValue placeholder="Selecionar..." />
                   </SelectTrigger>
                   <SelectContent>
                     {SEGMENTS.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="onb-papel">Sua empresa é</Label>
-                <Select value={company.role} onValueChange={(role) => setCompany({ ...company, role })}>
+                <Select
+                  value={company.role}
+                  onValueChange={(role) => setCompany({ ...company, role })}
+                >
                   <SelectTrigger id="onb-papel">
                     <SelectValue placeholder="Selecionar..." />
                   </SelectTrigger>
                   <SelectContent>
                     {ROLES.map((r) => (
-                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -289,7 +334,12 @@ function SetupWizard({ initial }: { initial: OnboardingState }) {
             <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <div className="space-y-2">
                 <Label htmlFor="onb-origem">Origem</Label>
-                <Select value={draftRoute.origin ?? ''} onValueChange={(origin) => setDraftRoute({ ...draftRoute, origin })}>
+                <Select
+                  value={draftRoute.origin ?? ''}
+                  onValueChange={(origin) =>
+                    setDraftRoute({ ...draftRoute, origin })
+                  }
+                >
                   <SelectTrigger id="onb-origem">
                     <SelectValue placeholder="Selecionar..." />
                   </SelectTrigger>
@@ -304,7 +354,12 @@ function SetupWizard({ initial }: { initial: OnboardingState }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="onb-destino">Destino</Label>
-                <Select value={draftRoute.destination ?? ''} onValueChange={(destination) => setDraftRoute({ ...draftRoute, destination })}>
+                <Select
+                  value={draftRoute.destination ?? ''}
+                  onValueChange={(destination) =>
+                    setDraftRoute({ ...draftRoute, destination })
+                  }
+                >
                   <SelectTrigger id="onb-destino">
                     <SelectValue placeholder="Selecionar..." />
                   </SelectTrigger>
@@ -317,27 +372,42 @@ function SetupWizard({ initial }: { initial: OnboardingState }) {
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="button" variant="outline" className="h-11 gap-1.5" onClick={addRoute}>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 gap-1.5"
+                onClick={addRoute}
+              >
                 <Plus className="h-5 w-5" /> Adicionar
               </Button>
             </div>
             {routeError && (
-              <p role="alert" className="portal-small text-portal-danger-ink">{routeError}</p>
+              <p role="alert" className="portal-small text-portal-danger-ink">
+                {routeError}
+              </p>
             )}
             {routes.length === 0 ? (
               <p className="portal-small text-portal-neutral">
-                Nenhuma rota ainda. Você também pode acrescentar depois, em Configurações.
+                Nenhuma rota ainda. Você também pode acrescentar depois, em
+                Configurações.
               </p>
             ) : (
               <ul className="flex flex-wrap gap-2">
                 {routes.map((route) => (
-                  <li key={routeKey(route)} className="portal-small inline-flex items-center gap-1 rounded-full border bg-muted/40 py-0.5 pl-3 pr-1">
+                  <li
+                    key={routeKey(route)}
+                    className="portal-small inline-flex items-center gap-1 rounded-full border bg-muted/40 py-0.5 pl-3 pr-1"
+                  >
                     {routeLabel(route)}
                     <button
                       type="button"
                       aria-label={`Remover ${routeLabel(route)}`}
                       className="grid h-8 w-8 place-items-center rounded-full hover:bg-muted"
-                      onClick={() => setRoutes(routes.filter((r) => routeKey(r) !== routeKey(route)))}
+                      onClick={() =>
+                        setRoutes(
+                          routes.filter((r) => routeKey(r) !== routeKey(route)),
+                        )
+                      }
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -353,29 +423,58 @@ function SetupWizard({ initial }: { initial: OnboardingState }) {
             <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <div className="space-y-2">
                 <Label htmlFor="onb-nome">Nome</Label>
-                <Input id="onb-nome" value={draftContact.name ?? ''} onChange={(e) => setDraftContact({ ...draftContact, name: e.target.value })} placeholder="Ex.: Equipe de compras" />
+                <Input
+                  id="onb-nome"
+                  value={draftContact.name ?? ''}
+                  onChange={(e) =>
+                    setDraftContact({ ...draftContact, name: e.target.value })
+                  }
+                  placeholder="Ex.: Equipe de compras"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="onb-email">E-mail</Label>
-                <Input id="onb-email" type="email" value={draftContact.email ?? ''} onChange={(e) => setDraftContact({ ...draftContact, email: e.target.value })} placeholder="compras@suaempresa.com.br" />
+                <Input
+                  id="onb-email"
+                  type="email"
+                  value={draftContact.email ?? ''}
+                  onChange={(e) =>
+                    setDraftContact({ ...draftContact, email: e.target.value })
+                  }
+                  placeholder="compras@suaempresa.com.br"
+                />
               </div>
-              <Button type="button" variant="outline" className="h-11 gap-1.5" onClick={addContact}>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 gap-1.5"
+                onClick={addContact}
+              >
                 <Plus className="h-5 w-5" /> Adicionar
               </Button>
             </div>
             {contactError && (
-              <p role="alert" className="portal-small text-portal-danger-ink">{contactError}</p>
+              <p role="alert" className="portal-small text-portal-danger-ink">
+                {contactError}
+              </p>
             )}
             {contacts.length > 0 && (
               <ul className="space-y-1">
                 {contacts.map((c) => (
-                  <li key={c.email} className="portal-small flex items-center justify-between gap-2 rounded-md border px-3 py-1">
-                    <span className="min-w-0 truncate">{c.name} · {c.email}</span>
+                  <li
+                    key={c.email}
+                    className="portal-small flex items-center justify-between gap-2 rounded-md border px-3 py-1"
+                  >
+                    <span className="min-w-0 truncate">
+                      {c.name} · {c.email}
+                    </span>
                     <button
                       type="button"
                       aria-label={`Remover ${c.name}`}
                       className="grid h-8 w-8 shrink-0 place-items-center rounded-full hover:bg-muted"
-                      onClick={() => setContacts(contacts.filter((x) => x.email !== c.email))}
+                      onClick={() =>
+                        setContacts(contacts.filter((x) => x.email !== c.email))
+                      }
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -384,15 +483,24 @@ function SetupWizard({ initial }: { initial: OnboardingState }) {
               </ul>
             )}
             <fieldset className="space-y-2">
-              <legend className="portal-body mb-1 font-medium">Avisar sobre</legend>
+              <legend className="portal-body mb-1 font-medium">
+                Avisar sobre
+              </legend>
               {(Object.keys(NOTIFY_EVENTS) as NotifyEvent[]).map((key) => (
-                <label key={key} className="portal-body flex min-h-11 items-center gap-2.5">
+                <label
+                  key={key}
+                  className="portal-body flex min-h-11 items-center gap-2.5"
+                >
                   <input
                     type="checkbox"
                     className="h-4 w-4 accent-[hsl(var(--primary))]"
                     checked={events.includes(key)}
                     onChange={(e) =>
-                      setEvents(e.target.checked ? [...events, key] : events.filter((x) => x !== key))
+                      setEvents(
+                        e.target.checked
+                          ? [...events, key]
+                          : events.filter((x) => x !== key),
+                      )
                     }
                   />
                   {NOTIFY_EVENTS[key]}
@@ -403,7 +511,11 @@ function SetupWizard({ initial }: { initial: OnboardingState }) {
         )}
 
         <DialogFooter className="flex-wrap gap-2 sm:justify-between">
-          <Button variant="ghost" className="text-portal-neutral" onClick={later}>
+          <Button
+            variant="ghost"
+            className="text-portal-neutral"
+            onClick={later}
+          >
             Configurar depois
           </Button>
           <div className="flex gap-2">
@@ -420,7 +532,9 @@ function SetupWizard({ initial }: { initial: OnboardingState }) {
                   return;
                 }
                 save(true);
-                toast.success('Tudo pronto. Agora escolha o que aparece na sua Home.');
+                toast.success(
+                  'Tudo pronto. Agora escolha o que aparece na sua Home.',
+                );
               }}
             >
               {step < 2 ? 'Continuar' : 'Concluir'}

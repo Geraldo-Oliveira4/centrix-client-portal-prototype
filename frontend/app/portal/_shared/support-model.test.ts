@@ -21,9 +21,18 @@ test('sequência gravada inválida recomeça do zero', () => {
 });
 
 test('a tela atual vem preenchida pelo prefixo mais específico', () => {
-  assert.equal(screenName('/portal/cotacoes'), 'Minhas Cotações (/portal/cotacoes)');
-  assert.equal(screenName('/portal/cotacao/abc'), 'Detalhe da cotação (/portal/cotacao/abc)');
-  assert.equal(screenName('/portal/embarques/novo'), 'Novo embarque (/portal/embarques/novo)');
+  assert.equal(
+    screenName('/portal/cotacoes'),
+    'Minhas Cotações (/portal/cotacoes)',
+  );
+  assert.equal(
+    screenName('/portal/cotacao/abc'),
+    'Detalhe da cotação (/portal/cotacao/abc)',
+  );
+  assert.equal(
+    screenName('/portal/embarques/novo'),
+    'Novo embarque (/portal/embarques/novo)',
+  );
   assert.equal(screenName('/portal/desconhecida'), '/portal/desconhecida');
 });
 

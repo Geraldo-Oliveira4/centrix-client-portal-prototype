@@ -16,7 +16,9 @@ export function useOnboarding(): OnboardingState {
 function readOnboarding(): OnboardingState {
   if (typeof window === 'undefined') return EMPTY_ONBOARDING;
   try {
-    return parseOnboarding(readDemoRaw(window.localStorage, ONBOARDING_STORE_NAME));
+    return parseOnboarding(
+      readDemoRaw(window.localStorage, ONBOARDING_STORE_NAME),
+    );
   } catch {
     return EMPTY_ONBOARDING;
   }
