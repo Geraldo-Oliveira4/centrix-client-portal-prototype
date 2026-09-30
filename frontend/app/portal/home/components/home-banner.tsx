@@ -63,11 +63,14 @@ function greetingFor(now: Date): string {
 
 export function HomeBanner({
   headline,
+  detail,
   counts,
   now,
 }: {
   /** A frase dominante da tela, em branco sobre o navy. */
   headline: ReactNode;
+  /** Uma linha de interpretacao sob a frase (como o numero se compoe). */
+  detail?: ReactNode;
   counts: SemaforoCounts;
   /** O mesmo `now` do resto da tela — uma leitura de relogio por render. */
   now: Date;
@@ -84,6 +87,10 @@ export function HomeBanner({
             {client?.name ? `, ${client.name}` : ''}
           </p>
           <div className="portal-h1 text-white">{headline}</div>
+          {detail ? (
+            // white/80: 12.2:1 sobre o navy e 9:1 sobre o card escuro.
+            <p className="portal-body text-white/80">{detail}</p>
+          ) : null}
         </div>
         <SemaforoChips counts={counts} variant="navy" className="shrink-0" />
       </div>
