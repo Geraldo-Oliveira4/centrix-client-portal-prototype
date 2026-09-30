@@ -22,8 +22,8 @@ document.addEventListener('click',event=>{
   if(b.dataset.action==='assist-refresh')entryRender();
 });
 document.addEventListener('input',event=>{
-  const t=event.target,d=entryDraft();if(t.id==='assist-text'){assistState(d).text=t.value;assistState(d).inputOrigin='Texto informado';persist();}
-  if(t.dataset.assistCandidate!==undefined){assistState(d).candidates[Number(t.dataset.assistCandidate)].selected=t.checked;persist();}
-  if(t.dataset.entryField&&t.dataset.entryField!=='contextConfirmed'&&d.step===2){d.contextTrace=d.contextTrace||{};d.contextTrace[t.dataset.entryField]={source:'Informado manualmente',status:'A revisar'};d.fields.contextConfirmed=false;for(const checkbox of document.querySelectorAll('[data-entry-field="contextConfirmed"]'))checkbox.checked=false;persist();}
+  const t=event.target,d=entryDraft();if(t.id==='assist-text'){assistState(d).text=t.value;assistState(d).inputOrigin='Texto informado';entryPersist();}
+  if(t.dataset.assistCandidate!==undefined){assistState(d).candidates[Number(t.dataset.assistCandidate)].selected=t.checked;entryPersist();}
+  if(t.dataset.entryField&&t.dataset.entryField!=='contextConfirmed'&&d.step===2){d.contextTrace=d.contextTrace||{};d.contextTrace[t.dataset.entryField]={source:'Informado manualmente',status:'A revisar'};d.fields.contextConfirmed=false;for(const checkbox of document.querySelectorAll('[data-entry-field="contextConfirmed"]'))checkbox.checked=false;entryPersist();}
 });
 document.addEventListener('change',event=>{const t=event.target;if(t.id==='assist-files'){const d=entryDraft(),a=assistState(d);a.files=[...new Set([...a.files,...[...t.files].map(f=>f.name)])];let s=d.sources.find(s=>s.id==='context');if(!s){s={id:'context',name:'Fontes para identificar o contexto',help:'Classificação e leitura dos documentos ainda pendentes.',status:'Pendente',files:[],reason:'',owner:'',deadline:'',linked:false};d.sources.push(s);}s.files=[...a.files];s.status=s.files.length?'Arquivo selecionado':'Pendente';entryRender();}});

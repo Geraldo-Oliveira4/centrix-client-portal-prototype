@@ -26,7 +26,7 @@ function parseRoute() {
   const p = location.hash.slice(1).split('/');
   if (['cotacao','embarque'].includes(p[0])) return {page:'journey', journey:p[0], id:decodeURIComponent(p[1] || ''), tab:p[2] || 'frete', dim:p[3] === 'performance' ? 'performance' : 'preco'};
   if (p[0] === 'main') return { page:'list', dim:'preco' };
-  if (p[1] === 'entrada') return { page:'intake', dim:['preco','performance'].includes(p[2])?p[2]:intake.dimension||route?.dim||'preco' };
+  if (p[1] === 'entrada') return { page:'intake', dim:['preco','performance'].includes(p[2])?p[2]:intake.dimension||route?.dim||'preco', step:/^etapa-[1-4]$/.test(p[3] || '') ? Number(p[3].slice(6)) : null };
   if (['preco','performance'].includes(p[1]) || !p[1]) return { page:'list', dim:p[1] || 'preco' };
   return { page:'detail', id:decodeURIComponent(p[1]), tab:['documentos','historico'].includes(p[2]) ? p[2] : p[2] === 'performance' ? 'performance' : 'frete', dim:p[2] === 'performance' || p[3] === 'performance' ? 'performance' : 'preco', panel:p[2] === 'resultado' ? 'resultado' : null };
 }
@@ -257,7 +257,7 @@ document.addEventListener('click', async event => {
     case 'demo': demoPanel(); break;
     case 'demo-error': closeDrawer(); demoError = true; if (route.page === 'list') updateList(); else location.hash = '#auditoria/'+route.dim; break;
     case 'retry': demoError = false; updateList(); toast('Consulta refeita com os dados preservados.'); break;
-    case 'reset': operations = P.enrich(F.enrich(M.seed())); drafts={}; lists={preco:blankFilters(),performance:blankFilters()}; intake={}; demoError=false; persist(); closeDrawer(); if (location.hash === '#auditoria/preco') render(); else location.hash='#auditoria/preco'; break;
+    case 'reset': operations = P.enrich(F.enrich(M.seed())); drafts={}; lists={preco:blankFilters(),performance:blankFilters()}; intake={drafts:{}}; demoError=false; persist(); closeDrawer(); if (location.hash === '#auditoria/preco') render(); else location.hash='#auditoria/preco'; break;
   }
 });
 document.addEventListener('input', event => {
@@ -273,6 +273,6 @@ document.addEventListener('change', event => {
 
   if (t.id === 'complement-file') $('#complement-file-note').textContent=`${t.files[0]?.name || 'Nenhum arquivo'} · seleção local; sem leitura, upload ou conferência automática.`;
 });
-window.addEventListener('hashchange', () => { const previous = route; render(); if (route.page === 'list' && previous?.page === 'detail') window.scrollTo(0,lists[route.dim].scroll || 0); else window.scrollTo(0,0); $('#main').focus({preventScroll:true}); });
+window.addEventListener('hashchange', () => { const previous = route; render(); if (route.page === 'list' && previous?.page === 'detail') window.scrollTo(0,lists[route.dim].scroll || 0); else window.scrollTo(0,0); $('#main').focus({preventScroll:true}); runEntryAfter(); });
 persist();
 render();

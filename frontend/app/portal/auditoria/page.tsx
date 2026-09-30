@@ -10,7 +10,7 @@ export default function AuditoriaPage() {
   useEffect(() => {
     const hash = /^#(auditoria|cotacao|embarque)(\/|$)/.test(window.location.hash)
       ? window.location.hash : '#auditoria/preco';
-    setSource('/prototypes/centrix-auditoria/index.html?embed=1&v=20260913-audit-1' + hash);
+    setSource('/prototypes/centrix-auditoria/index.html?embed=1&v=20260930-audit-2' + hash);
   }, []);
 
   useEffect(() => {
