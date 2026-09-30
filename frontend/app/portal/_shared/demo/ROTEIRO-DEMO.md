@@ -20,7 +20,7 @@ testando o portal não pode encontrá-lo por engano):
 | `?demo=0` | desliga |
 | `Ctrl+Shift+D` | alterna |
 
-Ligado, aparece a aba **Demonstração** no canto inferior esquerdo. Ela abre o
+Ligado, aparece a aba **Demonstração** no canto inferior direito (o esquerdo é o botão "Ajuda" do cliente). Ela abre o
 Sheet "Painel de demonstração · simulação da Freitas".
 
 A escolha vive em `sessionStorage`: sobrevive à navegação e **morre ao fechar a

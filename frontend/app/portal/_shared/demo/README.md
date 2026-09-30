@@ -21,7 +21,7 @@ encontrá-lo por engano:
 | `?demo=0` | desliga |
 | `Ctrl+Shift+D` | alterna |
 
-Ligado, aparece uma aba **Demonstração** no canto inferior esquerdo; ela abre o
+Ligado, aparece uma aba **Demonstração** no canto inferior direito (o esquerdo é o botão "Ajuda" do cliente); ela abre o
 Sheet "Painel de demonstração · simulação da Freitas".
 
 A escolha vive em `sessionStorage`, não em `localStorage`: ela sobrevive à

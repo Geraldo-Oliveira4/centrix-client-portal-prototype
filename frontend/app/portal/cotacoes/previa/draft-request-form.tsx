@@ -1,5 +1,6 @@
 'use client';
 
+import { QUOTATION_HELP } from '@/app/portal/_shared/quotation-help';
 import { useState } from 'react';
 import { Input } from '@/components/ui';
 import {
@@ -147,6 +148,7 @@ export function DraftRequestForm({
           hardblocks ? (draft) => hardblocks(draft, supplier) : undefined
         }
         clientFacing
+        helpTips={QUOTATION_HELP}
         draft={{
           initial,
           onAssist: (snapshot) => {

@@ -7,6 +7,7 @@ import { PortalHeader } from './components/portal-header';
 import { PortalSidebar } from './components/portal-sidebar';
 import { SidebarProvider } from './components/sidebar-context';
 import { DemoPanel } from './_shared/demo/demo-panel';
+import { SupportLauncher } from './_shared/support-launcher';
 import { ModuleNotReleased } from './_shared/demo/module-not-released';
 import { isRouteReleased } from './_shared/demo/feature-flags';
 import { usePortalModuleFlags } from './_shared/demo/use-feature-flags';
@@ -89,6 +90,7 @@ export default function PortalLayout({
             painel: o avanco automatico tem de continuar acontecendo com o
             painel fechado, que e como uma demonstracao de verdade acontece. */}
         <PortalV2AutoAdvance />
+        <SupportLauncher />
         <DemoPanel />
       </div>
     </SidebarProvider>

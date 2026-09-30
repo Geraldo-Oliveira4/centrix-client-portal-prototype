@@ -1,5 +1,6 @@
 'use client';
 
+import { QUOTATION_HELP } from '@/app/portal/_shared/quotation-help';
 import { Suspense, useCallback, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -337,6 +338,7 @@ function PortalNovaCotacaoContent() {
             submitLabel={v2 ? 'Enviar para a Freitas' : undefined}
             hardblocks={v2 ? hardblocks : undefined}
             clientFacing
+            helpTips={QUOTATION_HELP}
             exporterSection={
               <PortalExporterSelect
                 value={exporter?.id ?? null}

@@ -48,13 +48,14 @@ export function DemoPanel() {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      {/* The tab. Bottom-left, under the mobile drawer's z-index so it can
+      {/* The tab. Bottom-RIGHT since 30/09/2026: bottom-left is now the client's
+          Ajuda button, and this is a presenter tool. Under the mobile drawer's z-index so it can
           never sit on top of the menu, and quiet enough not to compete with the
           screen it exists to demonstrate. */}
       <SheetTrigger asChild>
         <button
           type="button"
-          className="portal-small fixed bottom-4 left-4 z-30 inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 font-medium text-portal-neutral shadow-sm transition-colors hover:border-brand-indigo-800/40 hover:text-brand-indigo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="portal-small fixed bottom-4 right-4 z-30 inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 font-medium text-portal-neutral shadow-sm transition-colors hover:border-brand-indigo-800/40 hover:text-brand-indigo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <Beaker className="h-4 w-4 shrink-0" />
           Demonstração
