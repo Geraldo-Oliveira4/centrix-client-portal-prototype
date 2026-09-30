@@ -729,7 +729,10 @@ function QuotationDetail({
           </div>
         </section>
       )}
-      {profile && !cancelled && !needsInfo && !waiting && (
+      {/* MENOS DADO DEPOIS DA DECISAO (30/09/2026): o Raio X existe para
+          ESCOLHER. Com a cotacao fechada ele nao muda mais decisao nenhuma, e
+          vai para "ver detalhes" como os outros blocos de apoio. */}
+      {profile && !cancelled && !needsInfo && !waiting && !closed && (
         <AgentProfile
           quotation={q}
           proposal={profile}
@@ -737,6 +740,20 @@ function QuotationDetail({
           chosenId={winner?.id ?? chosen?.id}
           onInspect={setInspected}
         />
+      )}
+      {profile && closed && (
+        <details className={s.support}>
+          <summary>
+            Raio X do agente escolhido <ChevronDown size={16} />
+          </summary>
+          <AgentProfile
+            quotation={q}
+            proposal={profile}
+            proposals={proposals}
+            chosenId={winner?.id ?? chosen?.id}
+            onInspect={setInspected}
+          />
+        </details>
       )}
 
       {portalOrigin && (canGenerateSI || closed) && (
