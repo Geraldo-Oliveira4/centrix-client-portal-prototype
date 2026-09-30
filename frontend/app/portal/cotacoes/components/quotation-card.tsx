@@ -7,8 +7,16 @@ import { formatBRL, formatShortDate } from '@/lib/portal-formatters';
 import type { PortalBucketKey, PortalQuotation } from '@/types/portal';
 import { ClientReferenceTag } from '../../_shared/client-reference-tag';
 import { ModalIcon } from '../../_shared/modal-icon';
-import { V2StageBadge } from '../../_shared/demo/quotation-v2-labels';
-import { V2_STAGE_DESCRIPTIONS } from '../../_shared/demo/quotation-review';
+import {
+  ChangedFieldsList,
+  ResubmittedChip,
+  V2StageBadge,
+} from '../../_shared/demo/quotation-v2-labels';
+import {
+  V2_STAGE_DESCRIPTIONS,
+  isResubmission,
+  lastSubmission,
+} from '../../_shared/demo/quotation-review';
 import type { QuotationReview } from '../../_shared/demo/quotation-review';
 import { cardPresentation } from '../lib/card-presentation';
 
@@ -243,6 +251,14 @@ function V2CardFooter({
       <p className={cn('portal-body font-medium', emphasis)}>
         {V2_STAGE_DESCRIPTIONS[review.stage]}
       </p>
+      {/* "Reenviada" fica AQUI, abaixo da frase, e nao ao lado do selo do
+          topo: e informacao secundaria sobre a rodada, nao um segundo estado. */}
+      {isResubmission(review) && (
+        <div className="mt-2 space-y-1">
+          <ResubmittedChip />
+          <ChangedFieldsList changes={lastSubmission(review)?.changes} max={2} />
+        </div>
+      )}
       {review.stage === 'returned' && review.returnReason && (
         <p className="portal-small mt-1 flex items-start gap-1.5 text-portal-warning-ink">
           <Undo2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />

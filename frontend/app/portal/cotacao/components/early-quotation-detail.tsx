@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Undo2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, CheckCircle2, Clock3, Pencil, Undo2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useMyClient, useQuotationAgents } from '@/hooks/use-portal-quotations';
 import {
@@ -23,17 +23,41 @@ import {
 } from '../../cotacoes/lib/preparation-model';
 import { requestIssue } from '../../cotacoes/lib/repeat-model';
 import { PreparationSteps, WaitingResponses } from './quotation-preparation';
-import { V2StageBadge } from '../../_shared/demo/quotation-v2-labels';
+import {
+  ChangedFieldsList,
+  REVIEW_SLA_LABEL,
+  ResubmittedChip,
+  V2StageBadge,
+} from '../../_shared/demo/quotation-v2-labels';
 import { WhatHappensNextPanel } from '../../_shared/demo/what-happens-next';
 import {
+  V2_CLIENT_CANCELLABLE_STAGES,
   V2_STAGE_DESCRIPTIONS,
-  resubmit,
+  agentsNotified,
+  canResubmitEdit,
+  cancelByClient,
+  isResubmission,
+  lastSubmission,
+  resubmitEdited,
   submitToFreitas,
 } from '../../_shared/demo/quotation-review';
 import {
+  evaluateHardblocks,
+  hardblockCountLabel,
+} from '../../_shared/demo/quotation-hardblocks';
+import {
+  draftPatchFromSnapshot,
+  snapshotFromDraft,
+} from '../../_shared/demo/quotation-form-snapshot';
+import { reviewDueAt } from '../../_shared/demo/review-sla';
+import { effectiveProposals } from '../../_shared/demo/quotation-demo-proposals';
+import {
+  readQuotationReviewStore,
   updateQuotationReview,
   useQuotationReview,
 } from '../../_shared/demo/use-quotation-review';
+import { CancelDialog } from '../[id]/components/cancel-dialog';
+import type { ManualFormDraft } from '../../../cotacao/nova-cotacao/components/manual-form';
 import { usePortalModuleReleased } from '../../_shared/demo/use-feature-flags';
 import s from '../../cotacoes/previa/quotation-preview.module.css';
 
@@ -65,6 +89,12 @@ export function EarlyQuotationDetail({
   const [review, setReview] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [viewed, setViewed] = useState<PortalProposal | null>(null);
+  // Cotação V2: the client reopened the form while the entry review runs
+  // (Orsi, 29/09/2026). Local on purpose — until they resend, the Freitas keeps
+  // reviewing the version it has, and abandoning the edit changes nothing.
+  const [editingInReview, setEditingInReview] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [hasSavedDraft, setHasSavedDraft] = useState(false);
   const key = client
     ? `centrix-preparation-v1:${client.id}:${source.id}`
     : null;
@@ -77,6 +107,7 @@ export function EarlyQuotationDetail({
         if (!value?.quote?.manualDraft || !Array.isArray(value.invited))
           throw new Error();
         setSaved(value);
+        setHasSavedDraft(true);
       }
       setLoaded(true);
     } catch {
@@ -105,9 +136,47 @@ export function EarlyQuotationDetail({
   // payload: uma cotacao que ja esta com a Freitas continua AGUARDANDO_DADOS no
   // backend (a V2 nao tem estado no servidor), e sem esta linha o cliente
   // poderia reeditar e reenviar uma solicitacao que ja esta em revisao.
+  const stage = v2 ? overlay!.stage : null;
   const editing = v2
-    ? overlay!.stage === 'draft' || overlay!.stage === 'returned'
+    ? stage === 'draft' ||
+      stage === 'returned' ||
+      (stage === 'entry_review' && editingInReview)
     : source.state === 'AGUARDANDO_DADOS' && !saved.waiting;
+  // The stage moved while the client was editing (the Freitas approved and the
+  // RFQ went out, by hand or by the automatic reply). Close the form and SAY
+  // why, instead of letting it vanish with the edits in it.
+  useEffect(() => {
+    if (editingInReview && stage !== 'entry_review') {
+      setEditingInReview(false);
+      setError(
+        stage === 'cancelled'
+          ? ''
+          : 'A Freitas aprovou a solicitação e acionou os agentes enquanto você editava. As alterações não foram enviadas. Se algo mudou, cancele esta solicitação e abra uma nova.',
+      );
+    }
+  }, [editingInReview, stage]);
+  // A quotation sent from Nova cotação has no local draft: the form would
+  // reopen from the payload, which does not carry the choice factor, the NCM
+  // or the "agentes decidam" switches. The snapshot sent with it gives them
+  // back, so the client is not asked again for what they already answered.
+  const formQuote = useMemo(() => {
+    if (!v2 || hasSavedDraft || !overlay?.submittedForm || !q.manualDraft) {
+      return q;
+    }
+    const patch = draftPatchFromSnapshot(overlay.submittedForm);
+    const values: Record<string, unknown> = { ...q.manualDraft.values };
+    for (const [key, value] of Object.entries(patch.values)) {
+      if (values[key] == null || values[key] === '') values[key] = value;
+    }
+    return {
+      ...q,
+      manualDraft: {
+        ...q.manualDraft,
+        values: values as ManualFormDraft['values'],
+        flags: { ...q.manualDraft.flags, ...patch.flags },
+      },
+    };
+  }, [v2, hasSavedDraft, overlay?.submittedForm, q]);
   const proposals = source.proposals || [];
   const invited = mergeInvitations(
     catalog.rfqDispatched ? catalog.selectedAgentIds : [],
@@ -135,22 +204,72 @@ export function EarlyQuotationDetail({
    */
   const sendToFreitas = (patch?: Partial<Quote>) => {
     const next = patch ? apply(patch) : saved;
-    const issue = requestIssue(next.quote);
-    if (issue) {
-      setSaved(next);
-      setError(issue);
+    const draft = next.quote.manualDraft;
+    const form = draft ? snapshotFromDraft(draft, next.quote.supplier) : null;
+    // Na V2 o portao e a lista do Orsi, a mesma que desabilita o botao. O
+    // `requestIssue` do fluxo antigo pedia coisas que ela nao pede (prazo de
+    // resposta futuro, peso e volume) e travaria a correcao por outro motivo.
+    if (form) {
+      const { blocks } = evaluateHardblocks(form);
+      if (blocks.length) {
+        setSaved(next);
+        setError(
+          `${hardblockCountLabel(blocks.length)} para enviar: ${blocks
+            .map((block) => block.label)
+            .join(', ')}.`,
+        );
+        return;
+      }
+    }
+    // Le o store, nao o snapshot do React: a autorresposta pode ter avancado a
+    // etapa enquanto o cliente digitava.
+    const current = readQuotationReviewStore()[source.id] ?? overlay;
+    const from = current?.stage ?? 'draft';
+    if (from === 'entry_review' && current && form) {
+      const check = canResubmitEdit(current, form);
+      if (check === 'no_changes') {
+        setError('');
+        setNotice(
+          'Nada mudou em relação à versão que a Freitas está revisando. Altere um campo para reenviar, ou descarte a edição.',
+        );
+        return;
+      }
+    }
+    if (from !== 'draft' && from !== 'returned' && from !== 'entry_review') {
+      setEditingInReview(false);
       return;
     }
     if (patch && !write(next)) return;
     const at = new Date().toISOString();
     updateQuotationReview(source.id, (review) =>
-      review.stage === 'returned' ? resubmit(review, at) : submitToFreitas(review, at),
+      review.stage === 'entry_review' && form
+        ? resubmitEdited(review, form, at)
+        : submitToFreitas(review, at, form ?? undefined),
     );
     setError('');
     setSelected([]);
     setReview(false);
-    setNotice(`Solicitação ${source.reference} enviada à Freitas`);
+    setEditingInReview(false);
+    setNotice(
+      from === 'draft'
+        ? `Solicitação ${source.reference} enviada à Freitas. Ela entrou no Inbox da revisão de entrada (prazo: ${REVIEW_SLA_LABEL}).`
+        : from === 'returned'
+          ? `Correção enviada. ${source.reference} voltou ao Inbox da Freitas e a revisão recomeçou (prazo: ${REVIEW_SLA_LABEL}).`
+          : `Alterações reenviadas. ${source.reference} voltou ao Inbox da Freitas como nova rodada e a revisão recomeçou (prazo: ${REVIEW_SLA_LABEL}).`,
+    );
   };
+  const cancellable =
+    v2 && stage != null && V2_CLIENT_CANCELLABLE_STAGES.includes(stage);
+  const due =
+    v2 && (stage === 'entry_review' || stage === 'exit_review')
+      ? reviewDueAt(overlay!.stageEnteredAt)
+      : null;
+  const approvedProposal =
+    v2 && stage === 'approved'
+      ? effectiveProposals(source).find(
+          (p) => p.id === overlay!.approvedProposalId,
+        )
+      : undefined;
   const send = () => {
     const valid = selected.filter((id) =>
       available.some((agent) => agent.id === id),
@@ -192,12 +311,18 @@ export function EarlyQuotationDetail({
       </Link>
       <header className={s.heading}>
         <h1 className="text-2xl font-semibold">
-          {v2 && overlay?.stage === 'returned'
+          {v2 && stage === 'returned'
             ? 'Corrigir e reenviar'
-            : editing
-              ? 'Preencher solicitação'
-              : v2
-                ? 'Com a Freitas'
+            : v2 && stage === 'entry_review' && editing
+              ? 'Editar solicitação em revisão'
+              : editing
+                ? 'Preencher solicitação'
+                : v2 && stage === 'approved'
+                  ? 'Proposta aprovada'
+                  : v2 && stage === 'cancelled'
+                    ? 'Solicitação cancelada'
+                    : v2
+                      ? 'Com a Freitas'
                 : awaitingResponses
                   ? 'Aguardando agentes'
                   : 'Preparar envio aos agentes'}
@@ -230,17 +355,77 @@ export function EarlyQuotationDetail({
         </div>
       )}
       {v2 && overlay && overlay.stage !== 'returned' && (
-        <div className="flex flex-wrap items-center gap-2">
-          <V2StageBadge stage={overlay.stage} />
-          <span className="portal-small text-portal-neutral">
-            {V2_STAGE_DESCRIPTIONS[overlay.stage]}
-          </span>
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <V2StageBadge stage={overlay.stage} />
+            {isResubmission(overlay) && <ResubmittedChip />}
+            <span className="portal-small text-portal-neutral">
+              {V2_STAGE_DESCRIPTIONS[overlay.stage]}
+            </span>
+            {due && (
+              <span className="portal-small inline-flex items-center gap-1 text-portal-neutral">
+                <Clock3 className="h-4 w-4 shrink-0" />
+                Prazo da revisão: até{' '}
+                {due.toLocaleTimeString('pt-BR', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            )}
+          </div>
+          {isResubmission(overlay) && (
+            <ChangedFieldsList
+              changes={lastSubmission(overlay)?.changes}
+              max={6}
+            />
+          )}
         </div>
       )}
-      <PreparationSteps
-        waiting={v2 ? !editing : !editing && awaitingResponses}
-        subtext={v2 && !editing ? V2_STAGE_DESCRIPTIONS[overlay!.stage] : undefined}
-      />
+      {/* EDICAO EM REVISAO (Orsi, 29/09/2026): a faixa diz o que acontece com
+          a versao que a Freitas ja tem, e oferece a saida sem reenviar. */}
+      {v2 && stage === 'entry_review' && editing && (
+        <div
+          role="status"
+          className="flex flex-wrap items-start justify-between gap-4 rounded-lg border border-brand-indigo-800/30 bg-brand-indigo-100 px-4 py-3"
+        >
+          <div className="flex min-w-0 flex-1 gap-2.5">
+            <Pencil className="mt-0.5 h-5 w-5 shrink-0 text-brand-indigo" />
+            <div className="min-w-0">
+              <p className="portal-body font-medium text-foreground">
+                Você está editando uma solicitação em revisão
+              </p>
+              <p className="portal-small text-foreground/80">
+                A Freitas continua com a versão enviada até você reenviar. Ao
+                reenviar, a solicitação volta ao Inbox como nova rodada e a
+                revisão recomeça (prazo: {REVIEW_SLA_LABEL}).
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setEditingInReview(false);
+              setError('');
+              setNotice(
+                'Você saiu da edição sem reenviar. A Freitas segue revisando a versão enviada.',
+              );
+            }}
+          >
+            Sair sem reenviar
+          </Button>
+        </div>
+      )}
+      {/* Aprovada e cancelada nao estao mais na jornada de preparo: a regua
+          diria "aguardando" sobre uma cotacao que ja terminou. */}
+      {!(v2 && (stage === 'approved' || stage === 'cancelled')) && (
+        <PreparationSteps
+          waiting={v2 ? !editing : !editing && awaitingResponses}
+          subtext={
+            v2 && !editing ? V2_STAGE_DESCRIPTIONS[overlay!.stage] : undefined
+          }
+        />
+      )}
       {error && (
         <p role="alert" className="text-portal-warning-ink">
           {error}
@@ -257,24 +442,36 @@ export function EarlyQuotationDetail({
           <div className={s.sectionHeading}>
             <div>
               <h2>
-                {v2 && overlay?.stage === 'returned'
+                {v2 && stage === 'returned'
                   ? 'Corrigir e reenviar'
-                  : 'Rascunho da solicitação'}
+                  : v2 && stage === 'entry_review'
+                    ? 'Editar e reenviar'
+                    : 'Rascunho da solicitação'}
               </h2>
               <p>
-                {v2
-                  ? 'Confira os dados e envie. A Freitas revisa antes de acionar os agentes.'
-                  : 'Continue o formulário de onde parou. Revise os dados antes de selecionar os agentes.'}
+                {v2 && stage === 'entry_review'
+                  ? 'O formulário inteiro está aberto. Altere o que mudou e reenvie.'
+                  : v2
+                    ? 'Confira os dados e envie. A Freitas revisa antes de acionar os agentes.'
+                    : 'Continue o formulário de onde parou. Revise os dados antes de selecionar os agentes.'}
               </p>
             </div>
           </div>
           <DraftRequestForm
-            quotation={q}
+            quotation={formQuote}
             reviewLabel={
               v2
-                ? overlay?.stage === 'returned'
+                ? stage === 'returned'
                   ? 'Corrigir e reenviar'
-                  : 'Enviar para a Freitas'
+                  : stage === 'entry_review'
+                    ? 'Reenviar para a Freitas'
+                    : 'Enviar para a Freitas'
+                : undefined
+            }
+            hardblocks={
+              v2
+                ? (draft, supplier) =>
+                    evaluateHardblocks(snapshotFromDraft(draft, supplier))
                 : undefined
             }
             onSave={(patch) => {
@@ -298,6 +495,16 @@ export function EarlyQuotationDetail({
               setReview(true);
             }}
           />
+          {v2 && cancellable && (
+            <div className="flex justify-end px-6 pb-5">
+              <button
+                className={s.textButton}
+                onClick={() => setCancelOpen(true)}
+              >
+                Não vou mais cotar · Cancelar solicitação
+              </button>
+            </div>
+          )}
         </section>
         {v2 && <WhatHappensNextPanel />}
         </div>
@@ -326,7 +533,101 @@ export function EarlyQuotationDetail({
               </strong>
             </div>
           </section>
-          {awaitingResponses ? (
+          {v2 && overlay && stage === 'approved' ? (
+            <section className={s.panel}>
+              <div className={s.sectionHeading}>
+                <div>
+                  <h2 className="flex items-center gap-2">
+                    <CheckCircle2 className="h-6 w-6 shrink-0 text-portal-success" />
+                    Proposta aprovada
+                  </h2>
+                  <p>
+                    {approvedProposal
+                      ? `Você aprovou a proposta de ${approvedProposal.agent?.name || 'agente selecionado'} (${formatBRL(approvedProposal.total_brl)}). `
+                      : ''}
+                    A Freitas recebeu a instrução de fechamento e o embarque já
+                    está em Meus Embarques.
+                  </p>
+                </div>
+                <Link className={s.textButton} href="/portal/embarques">
+                  Acompanhar embarque <ArrowRight size={16} />
+                </Link>
+              </div>
+            </section>
+          ) : v2 && overlay && stage === 'cancelled' ? (
+            <section className={s.panel}>
+              <div className={s.sectionHeading}>
+                <div>
+                  <h2 className="flex items-center gap-2">
+                    <XCircle className="h-6 w-6 shrink-0 text-portal-neutral" />
+                    Solicitação cancelada
+                  </h2>
+                  <p>
+                    Justificativa registrada: “
+                    {[...overlay.history]
+                      .reverse()
+                      .find((event) => event.kind === 'cancelled')?.reason ??
+                      'não informada'}
+                    ”. A cotação está no Histórico, junto das canceladas.
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <Link className={s.textButton} href="/portal/cotacoes?tab=historico">
+                    Ver no Histórico <ArrowRight size={16} />
+                  </Link>
+                  <Link className={s.textButton} href="/portal/nova-cotacao">
+                    Abrir nova cotação <ArrowRight size={16} />
+                  </Link>
+                </div>
+              </div>
+            </section>
+          ) : v2 && overlay && stage ? (
+            <section className={s.panel}>
+              <div className={s.sectionHeading}>
+                <div>
+                  <h2>Com a Freitas</h2>
+                  <p>{V2_STAGE_DESCRIPTIONS[stage]}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-4 border-t border-border px-6 py-4">
+                {stage === 'entry_review' ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditingInReview(true);
+                        setNotice('');
+                        setError('');
+                      }}
+                    >
+                      <Pencil className="mr-2 h-5 w-5" />
+                      Editar solicitação
+                    </Button>
+                    <p className="portal-small min-w-0 flex-1 text-portal-neutral">
+                      O formulário inteiro reabre. Ao reenviar, a solicitação
+                      volta ao Inbox como nova rodada e a revisão recomeça.
+                    </p>
+                  </>
+                ) : agentsNotified(stage) ? (
+                  <p className="portal-small min-w-0 flex-1 text-portal-neutral">
+                    Os agentes já receberam o pedido, por isso os dados não
+                    podem mais ser editados por aqui: mudar agora exigiria um
+                    novo pedido. Se algo mudou, cancele esta solicitação e abra
+                    uma nova cotação.
+                  </p>
+                ) : null}
+                {cancellable && (
+                  <button
+                    className={s.textButton}
+                    onClick={() => setCancelOpen(true)}
+                  >
+                    Cancelar solicitação
+                  </button>
+                )}
+              </div>
+            </section>
+          ) : null}
+          {awaitingResponses && (!v2 || (stage != null && agentsNotified(stage))) ? (
             <WaitingResponses
               rows={invited.map((id) => ({
                 id,
@@ -351,22 +652,9 @@ export function EarlyQuotationDetail({
                 setViewed(proposals.find((p) => p.agent_id === id) || null)
               }
             />
-          ) : v2 ? (
-            // Na V2 nao existe "envio nao confirmado" do lado do cliente: a
-            // solicitacao esta com a Freitas, e e isso que a tela diz.
-            <section className={s.panel}>
-              <div className={s.sectionHeading}>
-                <div>
-                  <h2>Com a Freitas</h2>
-                  <p>
-                    {overlay
-                      ? V2_STAGE_DESCRIPTIONS[overlay.stage]
-                      : 'A Freitas está com a sua solicitação.'}
-                  </p>
-                </div>
-              </div>
-            </section>
-          ) : (
+          ) : v2 ? // Na V2 nao existe "envio nao confirmado" do lado do cliente:
+          // quem diz onde a solicitacao esta e o painel acima.
+          null : (
             <section className={s.panel}>
               <div className={s.sectionHeading}>
                 <div>
@@ -459,6 +747,23 @@ export function EarlyQuotationDetail({
           </section>
           )}
         </>
+      )}
+      {v2 && cancellable && stage && (
+        <CancelDialog
+          open={cancelOpen}
+          onOpenChange={setCancelOpen}
+          quotationId={source.id}
+          agentsNotified={agentsNotified(stage)}
+          onCancelled={(justification) => {
+            updateQuotationReview(source.id, (entry) =>
+              cancelByClient(entry, justification, new Date().toISOString()),
+            );
+            setEditingInReview(false);
+            setNotice('');
+            setError('');
+            refresh();
+          }}
+        />
       )}
       <Dialog open={review} onOpenChange={setReview}>
         <DialogContent>
