@@ -8,7 +8,7 @@ const ANALYSES = [
 ];
 const assistantDrafts=new Map();
 let assistantProvider='Claude';
-function assistantNav(current='biblioteca'){return tabs('assistentes',[['biblioteca','Biblioteca'],['conectar','Conectar sua IA']],current);}
+function assistantNav(current='biblioteca'){if(typeof inBlock!=='undefined'&&inBlock)return '';return tabs('assistentes',[['biblioteca','Biblioteca'],['conectar','Conectar sua IA']],current);}
 function assistantHref(a){const changes={};if(a.entity&&!params.get(a.entity))changes[a.entity]=a.entity==='supplier'?'east':'alpha';return url('assistentes/'+a.id+'/resumo',changes);}
 function assistantContextText(){const r=periodRange();return `Empresa: Aurora Indústria (demonstração).\nPeríodo: ${r.valid?fullDate(r.start)+' a '+fullDate(r.end):'intervalo inválido; definir antes de analisar'}.\nCritério do período: compromisso original de prontidão. Corte: ${fullDate(D.cutoff)}.\nFornecedor: ${params.get('supplier')?company(params.get('supplier')).name:'todos no recorte'}.\nAgente: ${params.get('agent')?agent(params.get('agent')).name:'todos no recorte'}.\nRota: ${params.get('route')?routeName(route(params.get('route'))):'todas no recorte'}.\nVariante: ${params.get('variant')==='conexao'?'via Singapura':params.get('variant')==='direto'?'direta':'todas no recorte'}.`;}
 function assistantCase(){return scope.find(o=>o.id===params.get('case'))||scope[0];}
