@@ -11,6 +11,11 @@ seed.companies.forEach(c=>{c.email='';c.phone='';c.locations=c.id==='east'?['eas
 seed.routes.forEach(r=>Object.assign(r,{supplier:r.id==='ningbo'?'east':r.id==='hamburgo'?'nord':'',pickup:r.id==='ningbo'?'east-factory':'',delivery:r.id==='ningbo'?'aurora-factory':'',via:[]}));
 seed.agents.forEach(a=>Object.assign(a,{email:'',phone:'',country:'Brasil',relationship:'Parceiro cadastrado',reason:'',modes:a.id==='beta'?['Marítimo','Aéreo']:['Marítimo']}));
 try{state=JSON.parse(localStorage.getItem(KEY))||structuredClone(seed)}catch{state=structuredClone(seed)}
+// ROTAS PREFERIDAS DAS BOAS-VINDAS (30/09/2026): a configuracao inicial do
+// portal grava em `centrix-proto-v2:onboarding` e esta tela as marca como
+// preferidas (e acrescenta as que faltam). Uma fonte so: o Radar le a mesma
+// chave. Idempotente por origem+destino.
+(function mergeOnboardingRoutes(){try{const raw=localStorage.getItem('centrix-proto-v2:onboarding');if(!raw)return;const chosen=(JSON.parse(raw).routes||[]);const ids={CNSHA:'shanghai',CNNGB:'ningbo',DEHAM:'hamburgo',FRA:'frankfurt',BRSSZ:'santos',BRITJ:'itajai',GRU:'gru'};chosen.forEach(r=>{const from=ids[r.origin],to=ids[r.destination];if(!from||!to)return;const found=state.routes.find(x=>x.from===from&&x.to===to);if(found){found.preferred=true;return;}state.routes.push({id:'onb-'+from+'-'+to,from,to,mode:r.modal==='AEREO'?'Aéreo':'Marítimo',equipment:r.modal==='AEREO'?'Carga geral':'FCL · 40 HC',company:'aurora',preferred:true,reason:'Configuração inicial',agent:'',count:0,notes:'Adicionada na configuração inicial do portal.',supplier:'',pickup:'',delivery:'',via:[]});});}catch{}})();
 Object.assign(locations,state.locations);
 const meta={empresas:['Empresas','Nova empresa','company','companies'],rotas:['Rotas','Nova rota','route','routes'],locais:['Locais','Novo local','location','locations'],agentes:['Agentes de carga','Cadastrar agente','agent','agents']};
 const labels={Importador:'Importador',Fornecedor:'Fornecedor da mercadoria',Exportador:'Exportador da mercadoria'};

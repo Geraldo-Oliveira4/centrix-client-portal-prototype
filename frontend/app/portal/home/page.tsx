@@ -24,6 +24,7 @@ import { rankByUrgency, summarizeAttention } from '../_shared/urgency';
 import { HomeShortcuts } from './components/home-shortcuts';
 import { HomeCustomizeDialog } from './components/customize-dialog';
 import { HomeOnboardingDialog } from './components/onboarding-dialog';
+import { useOnboarding } from '../_shared/use-onboarding';
 import {
   homeCardsHiddenByModule,
   releasedHomeCards,
@@ -102,6 +103,7 @@ export default function PortalHomePage() {
   // `_shared/demo/home-card-modules.ts` — os cards que só LINKAM para um módulo
   // desligado ficam, e quem some é o link.
   const flags = usePortalModuleFlags();
+  const onboarding = useOnboarding();
   const cards = useMemo(
     () => releasedHomeCards(chosenCards, flags),
     [chosenCards, flags],
@@ -320,8 +322,11 @@ export default function PortalHomePage() {
         <HomeShortcuts />
       </section>
 
+      {/* A escolha de temas e o ULTIMO passo das boas-vindas: espera o tour e a
+          configuracao inicial (`_shared/onboarding-flow.tsx`), em vez de abrir
+          por cima deles na primeira visita. */}
       <HomeOnboardingDialog
-        open={needsOnboarding}
+        open={needsOnboarding && onboarding.tourDone && onboarding.setupDone}
         saving={saving}
         onConfirm={handleOnboarding}
       />

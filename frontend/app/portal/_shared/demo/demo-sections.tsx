@@ -12,6 +12,7 @@
 // same subscription the screens use: a switch flipped here reaches the sidebar
 // without anything being passed down.
 
+import { resetOnboarding, useOnboarding } from '../use-onboarding';
 import { useState, type ComponentType } from 'react';
 import { RotateCcw } from 'lucide-react';
 
@@ -239,6 +240,22 @@ function ResetSection() {
  * The sections, in the order they appear. Append, do not insert: whoever is
  * running a demonstration learns where a control is by its position.
  */
+function OnboardingSection() {
+  const state = useOnboarding();
+  return (
+    <div className="space-y-2">
+      <p className="portal-small text-portal-neutral">
+        Tour {state.tourDone ? 'visto' : 'pendente'} · configuração inicial{' '}
+        {state.setupDone ? 'feita' : 'pendente'} · {state.routes.length}{' '}
+        {state.routes.length === 1 ? 'rota preferida' : 'rotas preferidas'}
+      </p>
+      <Button size="sm" variant="outline" onClick={() => resetOnboarding()}>
+        Reiniciar onboarding
+      </Button>
+    </div>
+  );
+}
+
 export const DEMO_SECTIONS: DemoSection[] = [
   {
     id: 'modules',
@@ -272,6 +289,13 @@ export const DEMO_SECTIONS: DemoSection[] = [
     description:
       'Pedidos com o agente preferido da rota, na revisão de entrada.',
     Content: DirectCloseSection,
+  },
+  // Acrescentada antes de "Reiniciar demonstracao", que continua a ultima.
+  {
+    id: 'onboarding',
+    title: 'Boas-vindas',
+    description: 'Tour e configuração inicial do primeiro login.',
+    Content: OnboardingSection,
   },
   {
     id: 'reset',

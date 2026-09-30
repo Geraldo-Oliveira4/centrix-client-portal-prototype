@@ -277,6 +277,7 @@ export function SupportLauncher() {
       <SheetTrigger asChild>
         <button
           type="button"
+          data-tour="suporte"
           className={cn(
             'portal-small fixed bottom-4 left-4 z-30 inline-flex h-11 items-center gap-2 rounded-full border border-border bg-card px-4 font-medium text-brand-indigo shadow-md transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             // Desktop: colado a direita da sidebar (240px aberta, 56px recolhida).

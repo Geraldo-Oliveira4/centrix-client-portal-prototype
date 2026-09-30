@@ -26,7 +26,7 @@ const percent = value => value==null?'—':(value>0?'+':'')+value.toLocaleString
 const observations = w => [-150,-100,-50,50,100,150].map(offset=>w.median+offset);
 const currentPrice = r => mode==='sem-fontes'||!r.windows.length?null:r.windows.at(-1).median;
 const priceOrigins=[{code:'CNSHA',name:'Shanghai'},{code:'DEHAM',name:'Hamburgo'},{code:'CNNGB',name:'Ningbo'}];
-const priceDestinations=[{code:'BRSSZ',name:'Santos'},{code:'BRIOA',name:'Itapoá'},{code:'BRPNG',name:'Paranaguá'}];
+const priceDestinations=[{code:'BRSSZ',name:'Santos'},{code:'BRITJ',name:'Itajaí'},{code:'BRIOA',name:'Itapoá'},{code:'BRPNG',name:'Paranaguá'}];
 function ensurePriceRoute({origin,destination,equipment,service}) {
  const from=priceOrigins.find(p=>p.code===origin),to=priceDestinations.find(p=>p.code===destination);
  if(!from||!to||!['40HC','20GP','40GP'].includes(equipment)||!['1 conexão','Direto'].includes(service))return null;
@@ -119,3 +119,18 @@ function renderPrices() {
 
 
 window.matchMedia('(max-width:700px)').addEventListener('change',()=>{if(route().startsWith('radar/mercado'))renderPrices();});
+
+// ROTAS PREFERIDAS DAS BOAS-VINDAS (30/09/2026): a configuracao inicial do
+// portal grava em `centrix-proto-v2:onboarding`; Configuracoes e este Radar
+// leem a mesma chave. Rota sem fonte de preco aparece como "Sem referencia de
+// mercado", que e a verdade. So rotas maritimas: este Radar cota frete maritimo.
+(function mergeOnboardingRoutes(){
+ if(typeof localStorage==='undefined')return;
+ try{
+  const raw=localStorage.getItem('centrix-proto-v2:onboarding');if(!raw)return;
+  (JSON.parse(raw).routes||[]).filter(r=>r.modal==='MARITIMO').forEach(r=>{
+   const route=priceRoutes.find(x=>x.origin===r.origin&&x.destination===r.destination)||ensurePriceRoute({origin:r.origin,destination:r.destination,equipment:'40HC',service:'Direto'});
+   if(route)route.preferred=true;
+  });
+ }catch{}
+})();
