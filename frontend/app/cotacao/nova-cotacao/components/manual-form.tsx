@@ -80,6 +80,8 @@ const manualFormSchema = z.object({
   price_or_performance: z.enum(['', 'PRECO', 'PERFORMANCE']).optional(),
   // Mercadoria
   product: z.string().optional(),
+  // Portal-only (Cotação V2 hardblocks): the analyst form never renders it.
+  ncm: z.string().optional(),
   carga_perigosa: z.enum(['NAO', 'RA', 'IMO']).optional(),
   un_number: z.string().optional(),
   imo_class: z.string().optional(),
@@ -105,7 +107,7 @@ export type ManualFormDraft = {
   values: Partial<ManualFormValues>;
   equipments: CreateEquipmentItem[];
   volumes: CreateVolumeItem[];
-  flags?: Partial<Record<'showRefrigerada' | 'agenteDefineLocalColeta' | 'agenteDefinePortoEmbarque' | 'agenteDefinePortoDestino' | 'agenteDefineAeroportoEmbarque' | 'agenteDefineAeroportoDestino', boolean>>;
+  flags?: Partial<Record<'showRefrigerada' | 'agenteDefineLocalColeta' | 'agenteDefinePortoEmbarque' | 'agenteDefinePortoDestino' | 'agenteDefineAeroportoEmbarque' | 'agenteDefineAeroportoDestino' | 'cargaPerigosaDeclarada', boolean>>;
 };
 
 interface ManualFormProps {

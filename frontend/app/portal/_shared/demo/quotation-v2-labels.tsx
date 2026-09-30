@@ -12,7 +12,14 @@
 // is 2.95:1 and fails AA for copy. The rule and its two tones are documented in
 // the portal design system section of `frontend/CLAUDE.md`.
 
-import { CheckCircle2, Clock3, FileEdit, UserCheck, Undo2 } from 'lucide-react';
+import {
+  CheckCircle2,
+  Clock3,
+  FileEdit,
+  UserCheck,
+  Undo2,
+  XCircle,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -32,10 +39,7 @@ import { reviewSlaLabel } from './review-sla';
  */
 export const REVIEW_SLA_LABEL = reviewSlaLabel();
 
-const STAGE_BADGE: Record<
-  V2Stage,
-  { icon: LucideIcon; className: string }
-> = {
+const STAGE_BADGE: Record<V2Stage, { icon: LucideIcon; className: string }> = {
   draft: {
     icon: FileEdit,
     className: 'bg-muted text-portal-neutral',
@@ -63,6 +67,10 @@ const STAGE_BADGE: Record<
   approved: {
     icon: CheckCircle2,
     className: 'bg-portal-success/15 text-portal-success',
+  },
+  cancelled: {
+    icon: XCircle,
+    className: 'bg-muted text-portal-neutral',
   },
 };
 
