@@ -8,6 +8,7 @@ import {
   CalendarDays,
   ChevronRight,
   Clock3,
+  Hourglass,
   SlidersHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,18 @@ import { EstadoBadge } from './estado-badge';
 import { arrivalDay, formatShipmentEta } from '../lib/shipment-date';
 import { REAL_STEPS } from '../lib/real-steps';
 import { delayRiskFromTracking } from '../lib/delay-risk';
+import { PO_STAGE_DESCRIPTIONS } from '../../_shared/demo/shipment-po-review';
+import {
+  NoQuotationChip,
+  PoStageBadge,
+  poNextStepLabel,
+} from '../../_shared/demo/shipment-po-labels';
+import {
+  countShipmentsInPoReview,
+  hidesRoute,
+  poRouteLabel,
+  type PortalShipmentWithReview,
+} from '../../_shared/demo/shipment-po-merge';
 import {
   buildShipmentOverview,
   compareShipmentOverview,
@@ -94,13 +107,24 @@ function ShipmentCard({
   actions,
   now,
 }: {
-  shipment: PortalShipment;
+  shipment: PortalShipmentWithReview;
   quotation: PortalQuotation | undefined;
   route: { origin: string; destination: string };
   actions: HomeAction[];
   now: Date;
 }) {
-  const href = `/portal/embarques/${shipment.id}`;
+  // EMBARQUE VIA PO (Tela 7). `review` e `undefined` em todo embarque comum, e
+  // nesse caso nada abaixo muda.
+  const review = shipment.review_status;
+  const inReview = hidesRoute(shipment);
+  // Um embarque em analise ainda nao tem detalhe: o que existe dele e o
+  // formulario. O ATIVO sem cotacao vai para o cenario da previa que exercita a
+  // Tela 9 (vincular cotacao).
+  const href = inReview
+    ? `/portal/embarques/novo?rascunho=${shipment.id}`
+    : review && !review.hasQuotation
+      ? `/portal/embarques/${shipment.id}?cenario=sem-cotacao`
+      : `/portal/embarques/${shipment.id}`;
   const action = actions[0];
   const risk = delayRiskFromTracking(shipment.tracking);
   const arrived = hasArrived(shipment, now);
@@ -124,6 +148,7 @@ function ShipmentCard({
             className="text-base font-semibold leading-snug text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
           >
             {quotation?.product?.trim() ||
+              review?.title ||
               shipment.client_reference ||
               shipment.referencia}
           </Link>
@@ -132,20 +157,29 @@ function ShipmentCard({
             <span className="portal-small text-portal-neutral">
               {shipment.referencia}
             </span>
+            {review && !review.hasQuotation && <NoQuotationChip />}
           </div>
           <p className="portal-small mt-2 flex items-start gap-1.5 text-portal-neutral">
             <ModalIcon
               modal={shipment.modal}
               className="mt-0.5 h-4 w-4 shrink-0"
             />
+            {/* "A definir" em vez do hub ILUSTRATIVO: para um embarque que a
+                Freitas ainda nao reviu, inventar um porto seria inventar
+                justamente o dado que a revisao existe para estabelecer. */}
             <span>
-              {route.origin} → {route.destination}
+              {poRouteLabel(shipment) ??
+                `${route.origin} → ${route.destination}`}
             </span>
           </p>
         </div>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <EstadoBadge estado={shipment.estado} />
+            {inReview && review ? (
+              <PoStageBadge stage={review.stage} />
+            ) : (
+              <EstadoBadge estado={shipment.estado} />
+            )}
             {shipment.carga_urgente && (
               <span className="portal-small font-medium text-portal-warning-ink">
                 Urgente
@@ -153,9 +187,19 @@ function ShipmentCard({
             )}
           </div>
           <p className="portal-small mt-2 leading-relaxed text-portal-neutral">
-            {arrived
-              ? 'A companhia confirmou a chegada ao destino.'
-              : ESTADO_DESCRIPTIONS[shipment.estado]}
+            {/* A descricao do ESTADO fala da jornada operacional ("aberto a
+                partir da cotacao aprovada"), que nao e verdade para um embarque
+                aberto por PO. Enquanto ele esta em analise, quem descreve a
+                situacao e a propria etapa. */}
+            {/* Vale para TODO embarque aberto por PO, nao so enquanto em
+                analise: "aberto a partir da cotacao aprovada" continua falso
+                depois de ele ser validado, porque cotacao e justamente o que
+                ele nao tem. */}
+            {review && !review.hasQuotation
+              ? PO_STAGE_DESCRIPTIONS[review.stage]
+              : arrived
+                ? 'A companhia confirmou a chegada ao destino.'
+                : ESTADO_DESCRIPTIONS[shipment.estado]}
           </p>
         </div>
         <div className="min-w-0">
@@ -193,7 +237,27 @@ function ShipmentCard({
           )}
         </div>
         <div className="flex min-w-0 flex-col items-start justify-center">
-          {action ? (
+          {/* PROXIMO PASSO do embarque em analise (Tela 7). Ele substitui a
+              coluna de acao porque, enquanto a Freitas revisa, nao ha acao do
+              cliente — o que existe e um prazo. */}
+          {inReview && review ? (
+            <>
+              <p className="portal-small font-medium text-portal-warning-ink">
+                {review.stage === 'returned' && review.returnReason
+                  ? `Ajuste pedido pela Freitas: ${review.returnReason}`
+                  : poNextStepLabel(review.since)}
+              </p>
+              <Link
+                href={href}
+                className="portal-small mt-2 inline-flex min-h-9 items-center gap-1 font-semibold text-brand-indigo hover:underline"
+              >
+                {review.stage === 'returned'
+                  ? 'Corrigir e reenviar'
+                  : 'Ver os dados enviados'}
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            </>
+          ) : action ? (
             <>
               <p className="portal-small mb-2 font-medium text-portal-warning-ink">
                 Sua ação é necessária
@@ -241,7 +305,7 @@ export function ShipmentListTab({
   searchOpen,
   onSearchOpenChange,
 }: {
-  shipments: PortalShipment[];
+  shipments: PortalShipmentWithReview[];
   quotations: PortalQuotation[];
   isLoading: boolean;
   searchOpen: boolean;
@@ -254,6 +318,12 @@ export function ShipmentListTab({
   const [period, setPeriod] = useState('all');
   const [metric, setMetric] = useState<ShipmentOverviewKey | null>(null);
   const [urgentOnly, setUrgentOnly] = useState(false);
+  // EMBARQUE VIA PO (Tela 7). `reviewOnly` e um recorte a parte dos `METRICS`:
+  // "em analise" nao e um estado operacional do embarque, e sim uma etapa antes
+  // de ele existir para a operacao — misturar os dois no mesmo grupo faria a
+  // soma dos indicadores deixar de fechar com a carteira.
+  const [reviewOnly, setReviewOnly] = useState(false);
+  const inReviewCount = countShipmentsInPoReview(shipments);
   const byQuotation = useMemo(() => indexQuotations(quotations), [quotations]);
   const routes = useMemo(
     () => new Map(shipments.map((s) => [s.id, routePartsOf(s, byQuotation)])),
@@ -277,6 +347,7 @@ export function ShipmentListTab({
     Number(origin !== 'all') +
     Number(period !== 'all');
   const clearFilters = () => {
+    setReviewOnly(false);
     setQuery('');
     setStatus('all');
     setOrigin('all');
@@ -293,6 +364,7 @@ export function ShipmentListTab({
     period === 'all' ? null : now.getTime() - Number(period) * 86_400_000;
   const filtered = shipments
     .filter((s) => {
+      if (reviewOnly && !hidesRoute(s)) return false;
       if (metric && !groups[metric].has(s.id)) return false;
       if (urgentOnly && !s.carga_urgente) return false;
       if (status !== 'all' && ESTADO_SEMAFORO[s.estado] !== status)
@@ -311,12 +383,16 @@ export function ShipmentListTab({
       );
     })
     .sort((a, b) => compareShipmentOverview(a, b, groups, now, metric));
-  const hasFilters = !!metric || !!query || urgentOnly || activeFilters > 0;
+  const hasFilters =
+    !!metric || !!query || urgentOnly || reviewOnly || activeFilters > 0;
 
   return (
     <div className="space-y-5">
       <div
-        className="grid overflow-hidden rounded-xl border border-border bg-card md:grid-cols-3"
+        className={cn(
+          'grid overflow-hidden rounded-xl border border-border bg-card',
+          inReviewCount > 0 ? 'md:grid-cols-4' : 'md:grid-cols-3',
+        )}
         aria-label="Resumo dos embarques"
       >
         {METRICS.map(({ key, icon: Icon, description }) => (
@@ -358,6 +434,42 @@ export function ShipmentListTab({
             </p>
           </button>
         ))}
+        {/* O quarto indicador so existe quando ha algo em analise: um "0 em
+            analise pela Freitas" permanente seria uma coluna morta na tela de
+            todo cliente que nunca abriu um embarque por PO. */}
+        {inReviewCount > 0 && (
+          <button
+            type="button"
+            aria-pressed={reviewOnly}
+            onClick={() => {
+              const next = !reviewOnly;
+              clearFilters();
+              setReviewOnly(next);
+            }}
+            className={cn(
+              'group relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 min-w-0 border-b border-border px-5 py-4 md:block md:py-5 text-left transition-colors last:border-b-0 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-brand-indigo md:border-b-0 md:border-r md:last:border-r-0',
+              reviewOnly
+                ? 'bg-brand-indigo-100 border-b-2 border-b-brand-indigo'
+                : 'hover:bg-muted/50',
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="portal-body font-medium text-foreground">
+                Em análise pela Freitas
+              </span>
+              <Hourglass className="hidden h-4 w-4 shrink-0 text-portal-warning-ink md:block" />
+            </div>
+            <div className="col-start-2 row-start-1 row-span-2 flex items-center justify-between self-center md:mt-2 md:items-end">
+              <span className="text-4xl font-semibold tabular-nums tracking-tight text-brand-indigo">
+                {inReviewCount}
+              </span>
+              <ArrowRight className="mb-1 hidden h-4 w-4 text-portal-neutral transition-transform group-hover:translate-x-1 md:block" />
+            </div>
+            <p className="portal-small col-start-1 mt-1 text-portal-neutral md:mt-2">
+              Abertos por PO, aguardando a revisão
+            </p>
+          </button>
+        )}
       </div>
       <p className="portal-small !mt-2 text-portal-neutral">
         Um embarque pode aparecer em mais de um indicador. Próximos 7 dias
@@ -486,6 +598,23 @@ export function ShipmentListTab({
           >
             Urgentes
           </Button>
+          {/* "Em análise (n)" (Tela 7), ao lado dos outros recortes. */}
+          {inReviewCount > 0 && (
+            <Button
+              variant={reviewOnly ? 'secondary' : 'outline'}
+              size="sm"
+              className="gap-1.5"
+              aria-pressed={reviewOnly}
+              onClick={() => {
+                const next = !reviewOnly;
+                clearFilters();
+                setReviewOnly(next);
+              }}
+            >
+              <Hourglass className="h-4 w-4 shrink-0" />
+              Em análise ({inReviewCount})
+            </Button>
+          )}
         </div>
       </div>
       <div

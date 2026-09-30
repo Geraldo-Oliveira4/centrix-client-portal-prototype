@@ -21,6 +21,15 @@ interface ApproveDialogProps {
   onOpenChange: (open: boolean) => void;
   quotationId: string;
   proposal: PortalProposal;
+  /**
+   * Aprovação SIMULADA, quando a proposta é ilustrativa.
+   *
+   * Opcional e ausente no caminho real: sem ela o diálogo chama
+   * `approveProposal` na API exatamente como sempre chamou. Ela existe porque o
+   * id de uma proposta ilustrativa não existe no backend e o POST daria 404 —
+   * ver `_shared/demo/quotation-approval.ts`.
+   */
+  onSimulatedApprove?: () => void;
 }
 
 export function ApproveDialog({
@@ -28,10 +37,16 @@ export function ApproveDialog({
   onOpenChange,
   quotationId,
   proposal,
+  onSimulatedApprove,
 }: ApproveDialogProps) {
   const [submitting, setSubmitting] = useState(false);
 
   const handleConfirm = async () => {
+    if (onSimulatedApprove) {
+      onSimulatedApprove();
+      onOpenChange(false);
+      return;
+    }
     setSubmitting(true);
     const ok = await approveProposal(quotationId, proposal.id);
     setSubmitting(false);

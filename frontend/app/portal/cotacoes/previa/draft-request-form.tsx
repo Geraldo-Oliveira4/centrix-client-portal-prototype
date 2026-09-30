@@ -14,11 +14,19 @@ export function DraftRequestForm({
   onSave,
   onReview,
   onSaveTemplate,
+  reviewLabel,
 }: {
   quotation: Quote;
   onSave: (patch: Partial<Quote>) => void;
   onReview: (patch: Partial<Quote>) => void;
   onSaveTemplate?: (patch: Partial<Quote>) => void;
+  /**
+   * Rotulo do botao principal. Opcional, e sem ele o formulario continua
+   * dizendo "Revisar solicitacao" — a Cotacao V2 o troca por "Enviar para a
+   * Freitas", porque ali o clique nao abre uma revisao de convite, ele manda a
+   * solicitacao para a fila da Freitas.
+   */
+  reviewLabel?: string;
 }) {
   const [supplier, setSupplier] = useState(q.supplier);
   const [assisting, setAssisting] = useState<ManualFormDraft | null>(null);
@@ -127,6 +135,7 @@ export function DraftRequestForm({
             onChange={(event) => setSupplier(event.target.value)}
           />
         }
+        submitLabel={reviewLabel}
         draft={{
           initial,
           onAssist: (snapshot) => {

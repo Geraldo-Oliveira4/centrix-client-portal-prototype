@@ -1283,6 +1283,178 @@ um detalhe de uma linha?".**
 > Class names composed in `types/` are only picked up because
 > `./types/**/*.{ts,tsx}` is in the Tailwind `content` globs. Keep it there.
 
+## Protótipo V2 — flags, Cotação V2 e Embarque via PO — 24/09/2026
+
+Três frentes construídas juntas, todas do **lado do cliente** e todas atrás de
+feature flags. A Freitas não ganhou tela nenhuma: ela é simulada no painel de
+demonstração. Nada do Centrix interno foi construído.
+
+Tudo vive em `app/portal/_shared/demo/`, com quatro documentos próprios:
+
+| Documento | Para quê |
+|---|---|
+| `README.md` | a camada de demonstração e as flags: como abrir o painel, como acrescentar um módulo e uma seção |
+| `README-cotacao-v2.md` | as seis etapas da revisão da cotação (HITL) |
+| `README-embarque-po.md` | a jornada do embarque a partir do PO |
+| `ROTEIRO-DEMO.md` | como apresentar, onda a onda e jornada a jornada |
+| `HANDOFF-BACKEND.md` | o que a versão integrada precisa ter de verdade |
+| `PUBLICACAO.md` | o que sobe, como conferir e como reverter |
+
+**Leia o README da pasta antes de mexer.** Abaixo fica só o que outra tela
+precisa saber.
+
+### O mapa de `_shared/demo/`
+
+| Arquivo | O que é |
+|---|---|
+| `demo-store.ts` | núcleo do store local (**puro**), prefixo `centrix-proto-v2:`, `resetPrefix()` |
+| `use-demo-store.ts` | `useSyncExternalStore` sobre o núcleo, seguro para SSR |
+| `feature-flags.ts` · `use-feature-flags.ts` | módulos, presets de onda, mapa rota → módulo |
+| `freitas-simulation.ts` · `use-freitas-simulation.ts` | `autoRespond` e `delaySeconds` |
+| `module-not-released.tsx` | a tela de módulo fechado, montada pelo `portal/layout.tsx` |
+| `use-demo-panel.ts` · `demo-panel.tsx` · `demo-sections.tsx` | o painel e **o registro de seções** |
+| `home-card-modules.ts` | quais cards da Home somem com o módulo desligado |
+| `quotation-review.ts` · `-notices.ts` · `-v2-scenarios.ts` | a Cotação V2 (**puros**) |
+| `quotation-demo-proposals.ts` · `quotation-approval.ts` | propostas ilustrativas e a aprovação simulada |
+| `use-quotation-review.ts` · `quotation-v2-labels.tsx` · `what-happens-next.tsx` | hooks, selos e o painel dos quatro passos |
+| `shipment-po-review.ts` · `-read.ts` · `-merge.ts` · `-scenarios.ts` · `-notices.ts` | o Embarque via PO (**puros**) |
+| `use-shipment-po-review.ts` · `shipment-po-labels.tsx` · `shipment-po-review-tab.tsx` | hooks, selos e a aba "Em análise" |
+| `new-shipment-dialog.tsx` · `link-quotation-card.tsx` · `po-review-view.ts` | modal de escolha, vínculo de cotação e os toggles A/B |
+| `po-overview.ts` · `po-overview-tab.tsx` | a "Visão por PO" (RQ-12, só protótipo) |
+| `use-v2-auto-advance.ts` · `portal-v2-auto-advance.tsx` | a autorresposta das DUAS jornadas, montada no layout |
+| `portal-notifications-bell.tsx` | o sino do cabeçalho, servindo os dois domínios |
+| `demo-section-cotacao-v2.tsx` · `demo-section-embarque-po.tsx` | as duas seções do painel |
+
+Os arquivos marcados **puros** rodam sob `node --test` (`npm run test:unit`) e
+por isso não usam o alias `@/` — imports relativos com extensão `.ts`, mesma
+regra de `embarques/lib/delay-risk.ts`.
+
+### Feature flags
+
+Sete módulos: `cotacao`, `cotacaoV2`, `embarques`, `embarqueViaPo`,
+`inteligencia`, `radar`, `auditoria`. **Sempre ligados, sem chave:** Início,
+Central de trabalho e Configurações — Início é para onde o `ModuleNotReleased`
+devolve o cliente, e uma onda capaz de escondê-los faria um portal sem saída.
+
+- **O padrão é TUDO ligado**, e módulo ausente do objeto gravado nasce no padrão.
+  É o que faz o protótipo publicado continuar se comportando como hoje e o que
+  impede que um módulo novo esconda uma tela num navegador já usado.
+- **Duas pontas escondem um módulo:** o filtro de `NAV_ITEMS` em
+  `components/portal-sidebar.tsx` (o drawer mobile renderiza o MESMO
+  `SidebarContent`) e o guard de `app/portal/layout.tsx`, que troca só o MIOLO —
+  sidebar e header continuam, porque módulo fechado é porta fechada dentro do
+  portal, não sessão perdida.
+- **Link para módulo fechado some, não fica apagado.** Já aplicado em "Verificar
+  embarque", nos atalhos da Home, no CTA do vazio de Meus Embarques, na fila do
+  card "Sua ação mais urgente" e nos links de rodapé de `savings-card` e
+  `price-trend-card`.
+- **Card da Home que É um módulo desligado some** (`home-card-modules.ts`); card
+  que só LINKA para ele fica, e some o link. A Home distingue os dois vazios:
+  "você desligou tudo" (tem solução em Personalizar) e "os seus cards não estão
+  liberados" (não tem).
+- **Prefixo mais específico ganha** no mapa rota → módulo — é o que faz
+  `/portal/embarques/novo` cair em `embarqueViaPo`. Rota que nenhum prefixo
+  reclama fica **liberada**, nunca bloqueada.
+- **Os iframes não são filtrados por dentro.** Central de trabalho,
+  Configurações, Auditoria, Radar e Inteligência embutem protótipos em
+  `public/prototypes/`; a flag decide se a rota hospedeira abre.
+- **Não é controle de acesso.** As flags moram no `localStorage` deste
+  navegador; no produto integrado elas são por cliente, ficam no servidor, e
+  esconder na tela não basta.
+
+**Painel:** oculto por padrão, aparece com `?demo=1` ou `Ctrl+Shift+D` (`?demo=0`
+esconde), guardado em `sessionStorage`. Quem acrescenta controle escreve uma
+seção e **acrescenta** uma entrada a `DEMO_SECTIONS` — o painel não muda.
+
+### Cotação V2 (HITL)
+
+Seis etapas mais `approved`, como **estado no cartão, nunca coluna** (RQ-4): as
+três colunas do Funil não mudaram. `entry_review` e `exit_review` dividem o selo
+"Em revisão" e se distinguem pela FRASE — qual das duas está rodando é o que o
+cliente precisa saber, e é o que uma segunda cor não diria.
+
+| Etapa | Coluna | Selo |
+|---|---|---|
+| `draft` | Preencher detalhes | Rascunho |
+| `entry_review` | Aguardando agentes | Em revisão |
+| `returned` | Preencher detalhes | Devolvida + motivo + "Corrigir e reenviar" |
+| `awaiting_quotes` | Aguardando agentes | Aguardando propostas |
+| `exit_review` | Aguardando agentes | Em revisão · "A comparação ainda não está liberada" |
+| `released` | Escolha sua proposta | Nova + "Comparar e escolher" |
+| `approved` | **nenhuma** — sai do Funil para a aba "Aprovadas" | Aprovada |
+
+- **O contador "aguardando sua ação" conta só `draft`, `returned` e `released`**
+  (RQ-6). As etapas que a Freitas segura ficam de fora: cobrar do cliente uma
+  ação que a tela não oferece é pior que não contar.
+- **O overlay manda no ROTEAMENTO do detalhe e na decisão.**
+  `usesPreparationDetail` e `canDecide` olham o `state` do payload, que na V2 não
+  acompanha a jornada — sem isso o cliente recebia a notificação de "propostas
+  liberadas" e caía no formulário de preparo, ou via a comparação com todos os
+  radios desabilitados.
+- **O filtro de "só as propostas liberadas" é DESENHO, não garantia.** Na versão
+  integrada a regra tem de estar na camada de dados e na API.
+- **Propostas ilustrativas** (`quotation-demo-proposals.ts`) entram **só** quando
+  o payload não tem nenhuma E existe overlay V2 — proposta real ganha sempre.
+  Uma cotação aberta pelo portal nasce em `TRIAGEM_IA` sem proposta e nunca
+  ganha uma, e sem elas a jornada travava na revisão de saída.
+- **Aprovar uma proposta ilustrativa é SIMULADO** (`quotation-approval.ts`): a
+  cotação vai para `approved` e um embarque ativo é criado no overlay, com rota,
+  agente e mercadoria vindos da COTAÇÃO e da PROPOSTA. **Aprovar uma proposta
+  real continua passando por `approveProposal` na API**, inalterado.
+- **`ManualForm`** (compartilhado com a tela do analista) ganhou `submitLabel`,
+  opcional e com o texto de sempre como padrão. `PreparationSteps` ganhou `done`
+  e `subtext`, ambos opcionais. A tela do analista não mudou.
+- **O sino do cabeçalho é novo** e serve os quatro tipos de aviso das duas
+  jornadas, sem link e sem e-mail.
+- **`REVIEW_SLA_LABEL` é PLACEHOLDER.**
+
+### Novo embarque a partir do PO
+
+Quatro etapas: `draft` (não aparece na carteira), `awaiting_review`, `returned`,
+`active`.
+
+- **`EmbarqueEstado` NÃO ganhou valor novo.** Um embarque em revisão é
+  `solicitado` mais um campo **opcional `review_status`** que só as telas da V2
+  leem. Acrescentar ao union respingaria em todo mapa indexado por ele
+  (`ESTADO_BADGE_CLASS`, `ESTADO_SEMAFORO`, `SHIPMENT_STEPS`, timeline, mapa).
+- **A origem não é fabricada.** `routePartsOf` cai no `illustrativeHub`, que
+  inventa um porto a partir da referência — para um embarque aberto por PO isso
+  seria inventar o dado que a revisão existe para estabelecer. `poRouteLabel`
+  devolve **"A definir"** para todo embarque com overlay e sem cotação, inclusive
+  depois de ativo. O cenário `sem-cotacao` da prévia segue a mesma regra.
+- **O guard rail dos "5 primeiros" (RQ-3) NÃO foi modelado.** A Open Question 2
+  não diz se a contagem é por cliente ou no total. Todo embarque via PO passa
+  pela revisão.
+- **A escolha entre selo (Tela 7) e aba (Tela 8) é um seletor no painel**, padrão
+  selo — a Open Question 10 está em aberto.
+- **As referências começam em `EMB-2026-0101`**, fora da faixa do seed
+  (0001..0013), e `nextPoReference` também lê as que a API devolveu.
+- **O PO da fixture é `PO-2026-1183`**, um dos que o seed grava — é o que faz o
+  diálogo de PO duplicado disparar sozinho numa demonstração.
+- **A "Visão por PO" (RQ-12) é só protótipo**, para validar aderência. Ela agrupa
+  pela chave normalizada do PO (a mesma do dedup) e a régua só posiciona as
+  chegadas que já existem.
+
+**O botão da Central de trabalho** mora no `index.html` do iframe
+(`public/prototypes/centrix-visao-geral/`), **escondido** e com `data-host-href`;
+quem o revela e trata o clique é o host (`visao-geral/page.tsx`), que conhece a
+flag e o router. É o único iframe tocado por esta frente.
+
+**A autorresposta das duas jornadas roda no mesmo hook**
+(`use-v2-auto-advance.ts`, montado no layout): funciona com o painel fechado,
+conta a partir do instante em que a etapa começou (sobrevive a reload) e **nunca
+devolve sozinha**.
+
+**Nenhum overlay toca `centrix-preparation-v1:`** — aquele store é do fluxo
+atual, que continua funcionando com as flags desligadas.
+
+Testes puros em `npm run test:unit`: `demo-store`, `feature-flags`,
+`freitas-simulation`, `home-card-modules`, `quotation-review`,
+`quotation-review-notices`, `quotation-v2-scenarios`, `quotation-demo-proposals`,
+`quotation-approval`, `shipment-po-review`, `shipment-po-read`,
+`shipment-po-merge`, `shipment-po-scenarios` e `po-overview`.
+
+
 ## MUDANÇA DE PROPÓSITO — 12/08/2026
 
 O protótipo virou **referência visual** para quem vai construir a versão

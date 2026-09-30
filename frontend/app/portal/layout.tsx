@@ -6,6 +6,11 @@ import { portalSession } from '@/lib/portal-session';
 import { PortalHeader } from './components/portal-header';
 import { PortalSidebar } from './components/portal-sidebar';
 import { SidebarProvider } from './components/sidebar-context';
+import { DemoPanel } from './_shared/demo/demo-panel';
+import { ModuleNotReleased } from './_shared/demo/module-not-released';
+import { isRouteReleased } from './_shared/demo/feature-flags';
+import { usePortalModuleFlags } from './_shared/demo/use-feature-flags';
+import { PortalV2AutoAdvance } from './_shared/demo/portal-v2-auto-advance';
 import { portalFont } from './portal-font';
 
 const PUBLIC_PATHS = [
@@ -24,6 +29,11 @@ export default function PortalLayout({
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
   const [authChecked, setAuthChecked] = useState(false);
+
+  // As flags moram no navegador e defaultam para tudo ligado, entao um portal
+  // sem nenhuma escolha gravada se comporta exatamente como antes desta camada
+  // existir. Ver `_shared/demo/feature-flags.ts`.
+  const flags = usePortalModuleFlags();
 
   useEffect(() => {
     if (isPublic) {
@@ -68,8 +78,18 @@ export default function PortalLayout({
         <PortalSidebar />
         <main className="flex-1 min-w-0 overflow-auto">
           <PortalHeader />
-          <div className="mx-auto w-full max-w-[1540px] px-4 py-6 md:px-8 md:py-9">{children}</div>
+          {/* O guard troca so o MIOLO. Sidebar e header continuam: modulo
+              fechado e uma porta fechada dentro do portal, nao uma sessao
+              perdida, e o cliente precisa continuar enxergando por onde sair. */}
+          <div className="mx-auto w-full max-w-[1540px] px-4 py-6 md:px-8 md:py-9">
+            {isRouteReleased(pathname, flags) ? children : <ModuleNotReleased />}
+          </div>
         </main>
+        {/* A autorresposta da Freitas simulada mora AQUI, e nao dentro do
+            painel: o avanco automatico tem de continuar acontecendo com o
+            painel fechado, que e como uma demonstracao de verdade acontece. */}
+        <PortalV2AutoAdvance />
+        <DemoPanel />
       </div>
     </SidebarProvider>
   );

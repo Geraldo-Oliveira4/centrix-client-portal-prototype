@@ -13,6 +13,8 @@ import { useLocalRequests } from './lib/local-requests';
 import { ApprovedTab } from './components/approved-tab';
 import { isApprovedQuotation } from './lib/approved-model';
 import { usePreparationData } from './lib/use-preparation-data';
+import { useQuotationReviewStore } from '../_shared/demo/use-quotation-review';
+import { usePortalModuleReleased } from '../_shared/demo/use-feature-flags';
 
 function PortalCotacoesContent() {
   const router = useRouter();
@@ -21,12 +23,19 @@ function PortalCotacoesContent() {
   const { client } = useMyClient();
   const data = usePreparationData(apiData, client?.id);
   const local = useLocalRequests(client?.id);
+  const v2Released = usePortalModuleReleased('cotacaoV2');
+  const rawReviews = useQuotationReviewStore();
+  const reviews = v2Released ? rawReviews : {};
   if (isLoading) return <LoaderComponent />;
   if (isError || !data) return <ErrorComponent />;
   const closed = [...data.buckets.finalizadas, ...data.buckets.cancelada];
+  // "Aprovadas" = o que o backend fechou MAIS o que a jornada V2 aprovou no
+  // overlay (RQ-18). As duas parcelas nao se sobrepoem: uma cotacao com overlay
+  // `approved` foi aprovada aqui justamente porque o backend nao tinha proposta
+  // real para fechar.
   const approved = Object.values(data.buckets)
     .flat()
-    .filter(isApprovedQuotation);
+    .filter((q) => isApprovedQuotation(q) || reviews[q.id]?.stage === 'approved');
   const funnelData = {
     ...data,
     buckets: Object.fromEntries(

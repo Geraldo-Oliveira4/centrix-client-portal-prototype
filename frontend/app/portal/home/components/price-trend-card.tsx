@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+
+import { usePortalModuleReleased } from '../../_shared/demo/use-feature-flags';
 import { ArrowRight, Radar } from 'lucide-react';
 
 import type { PriceRadarRoute } from '../../inteligencia/lib/price-radar';
@@ -41,6 +43,7 @@ const MAX_ROUTES = 3;
 export function PriceTrendCard({ routes }: { routes: PriceRadarRoute[] }) {
   const visible = routes.slice(0, MAX_ROUTES);
   const remaining = Math.max(0, routes.length - visible.length);
+  const radarReleased = usePortalModuleReleased('inteligencia');
 
   return (
     <section className="portal-card flex flex-col gap-4 p-6">
@@ -80,9 +83,14 @@ export function PriceTrendCard({ routes }: { routes: PriceRadarRoute[] }) {
       <div className="mt-auto space-y-1">
         {remaining > 0 ? (
           <p className="portal-small text-portal-neutral">
-            Mais {remaining} {remaining === 1 ? 'rota' : 'rotas'} no Radar.
+            {radarReleased
+              ? `Mais ${remaining} ${remaining === 1 ? 'rota' : 'rotas'} no Radar.`
+              : `Mais ${remaining} ${remaining === 1 ? 'rota' : 'rotas'} nas suas operações.`}
           </p>
         ) : null}
+        {/* Mesma regra do `savings-card`: a tendencia sai das rotas do proprio
+            cliente; o que aponta para a Inteligencia e o link. */}
+        {radarReleased ? (
         <Link
           href="/portal/inteligencia/radar"
           className="portal-small inline-flex items-center gap-1 font-medium text-brand-indigo hover:underline"
@@ -90,6 +98,7 @@ export function PriceTrendCard({ routes }: { routes: PriceRadarRoute[] }) {
           Ver no Radar de Preços
           <ArrowRight className="h-4 w-4" />
         </Link>
+        ) : null}
       </div>
     </section>
   );

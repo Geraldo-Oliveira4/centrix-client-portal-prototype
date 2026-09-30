@@ -22,6 +22,11 @@ import { HomeShortcuts } from './components/home-shortcuts';
 import { HomeCustomizeDialog } from './components/customize-dialog';
 import { HomeOnboardingDialog } from './components/onboarding-dialog';
 import {
+  homeCardsHiddenByModule,
+  releasedHomeCards,
+} from '../_shared/demo/home-card-modules';
+import { usePortalModuleFlags } from '../_shared/demo/use-feature-flags';
+import {
   cardsForThemes,
   knownThemes,
   layoutRows,
@@ -84,9 +89,23 @@ export default function PortalHomePage() {
     [layout],
   );
 
-  const cards = useMemo(
+  // Os cards que o CLIENTE escolheu, antes de qualquer flag.
+  const chosenCards = useMemo(
     () => visibleCards(themes, enabledCards),
     [themes, enabledCards],
+  );
+  // E os que ele pode ver: um card que É um módulo desligado sai da tela, senão
+  // a Home desenharia exatamente o que o menu acabou de esconder. Ver
+  // `_shared/demo/home-card-modules.ts` — os cards que só LINKAM para um módulo
+  // desligado ficam, e quem some é o link.
+  const flags = usePortalModuleFlags();
+  const cards = useMemo(
+    () => releasedHomeCards(chosenCards, flags),
+    [chosenCards, flags],
+  );
+  const hiddenByModule = useMemo(
+    () => homeCardsHiddenByModule(chosenCards, flags),
+    [chosenCards, flags],
   );
 
   // O FAROL do banner. A fonte e a MESMA do "Visao do todo" do Mapa e do card
@@ -204,18 +223,33 @@ export default function PortalHomePage() {
           e quem resolve card -> componente. Esta tela nunca cita um componente
           pelo nome nem decide largura de card. */}
       {needsOnboarding ? null : cards.length === 0 ? (
-        // Temas escolhidos e todos os cards desligados. Nao e o mesmo estado de
-        // "nunca onboardou" e nao pode reabrir o onboarding: foi uma escolha, e
-        // a tela devolve os dois caminhos de volta que ela tem.
+        // DOIS vazios diferentes, e a tela nao pode confundi-los. Se sobraram
+        // zero cards porque os modulos deles nao estao liberados, mandar o
+        // cliente para "Personalizar" seria mandar procurar um botao que nao
+        // resolve nada — o modal nao liga modulo.
         <div className="rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center">
-          <p className="portal-body font-medium text-foreground">
-            Todos os cards estão desligados.
-          </p>
-          <p className="portal-small text-portal-neutral">
-            Ligue um card em “Personalizar”, ou refaça a personalização do zero.
-            Os seus temas ({cardsForThemes(themes).length} cards disponíveis)
-            continuam salvos.
-          </p>
+          {hiddenByModule > 0 ? (
+            <>
+              <p className="portal-body font-medium text-foreground">
+                Os cards dos seus temas ainda não estão liberados.
+              </p>
+              <p className="portal-small text-portal-neutral">
+                A sua escolha de temas continua salva e eles voltam a aparecer
+                assim que os módulos forem liberados para a sua empresa.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="portal-body font-medium text-foreground">
+                Todos os cards estão desligados.
+              </p>
+              <p className="portal-small text-portal-neutral">
+                Ligue um card em “Personalizar”, ou refaça a personalização do
+                zero. Os seus temas ({cardsForThemes(themes).length} cards
+                disponíveis) continuam salvos.
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-6">

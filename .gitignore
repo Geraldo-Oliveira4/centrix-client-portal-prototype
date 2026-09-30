@@ -20,3 +20,10 @@ release-*.log
 cloudflared.deb
 .vercel
 .env*
+
+# Specs de produto (repositorio PUBLICO).
+# Elas citam pessoas e clientes reais e NAO podem ser versionadas aqui.
+# Ate agora estavam protegidas apenas por .git/info/exclude, que e local a cada
+# clone e nao viaja com o repositorio: em outra maquina um `git add -A` as
+# adicionaria sem aviso. A regra passa a viver aqui, onde e compartilhada.
+docs/specs-prototipo/

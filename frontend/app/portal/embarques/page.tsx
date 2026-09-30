@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Map as MapIcon, List, Bell, Plus } from 'lucide-react';
+import { Map as MapIcon, List, Bell, Hourglass, Package, Plus } from 'lucide-react';
 import { ErrorComponent, LoaderComponent } from '@arboria-tech/arboria-ui';
 
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,13 @@ import { useMyQuotations } from '@/hooks/use-portal-quotations';
 import { useMyShipments } from '@/hooks/use-portal-shipments';
 
 import { PagePortalHeader } from '../_shared/page-header';
+import { usePortalModuleReleased } from '../_shared/demo/use-feature-flags';
+import { NewShipmentDialog } from '../_shared/demo/new-shipment-dialog';
+import { ShipmentPoReviewTab } from '../_shared/demo/shipment-po-review-tab';
+import { PoOverviewTab } from '../_shared/demo/po-overview-tab';
+import { usePoReviewView } from '../_shared/demo/po-review-view';
+import { useShipmentsWithPo } from '../_shared/demo/use-shipment-po-review';
+import { countShipmentsInPoReview } from '../_shared/demo/shipment-po-merge';
 import { flattenQuotations } from '../inteligencia/lib/intel-helpers';
 
 import { ShipmentMapWorkspace } from './components/shipment-map-workspace';
@@ -25,7 +32,7 @@ import {
 } from './lib/shipment-filters';
 
 // Navegação do panorama da carteira ao detalhe e às ocorrências.
-const TABS = ['mapa', 'lista', 'alertas'] as const;
+const TABS = ['mapa', 'lista', 'analise', 'pos', 'alertas'] as const;
 type ShipmentTab = (typeof TABS)[number];
 
 const isShipmentTab = (value: string | null): value is ShipmentTab =>
@@ -40,7 +47,17 @@ const isShipmentFilterKey = (value: string | null): value is ShipmentFilterKey =
 function PortalEmbarquesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { shipments, isLoading, isError } = useMyShipments();
+  const { shipments: apiShipments, isLoading, isError } = useMyShipments();
+  const quotationReleased = usePortalModuleReleased('cotacao');
+  // EMBARQUE VIA PO. `useShipmentsWithPo` devolve o MESMO array quando a flag
+  // esta desligada ou nao ha overlay, entao a tela inteira continua identica
+  // fora da jornada.
+  const poReleased = usePortalModuleReleased('embarqueViaPo');
+  const shipments = useShipmentsWithPo(apiShipments);
+  const poView = usePoReviewView();
+  const inReview = countShipmentsInPoReview(shipments);
+  const showReviewTab = poReleased && poView === 'aba' && inReview > 0;
+  const [newShipmentOpen, setNewShipmentOpen] = useState(false);
 
   // Deep link from the header's "Verificar embarque" shortcut. It used to point
   // at `#verificar`, an anchor that disappeared when this screen was rebuilt as
@@ -85,7 +102,20 @@ function PortalEmbarquesContent() {
 
   return (
     <div className="space-y-9">
-      <PagePortalHeader title="Meus Embarques" subtitle={subtitle} />
+      {/* RQ-1: "Card correspondente em Meus Embarques". O mesmo modal de
+          escolha da Central, para quem chega por aqui. */}
+      <PagePortalHeader
+        title="Meus Embarques"
+        subtitle={subtitle}
+        action={
+          poReleased ? (
+            <Button onClick={() => setNewShipmentOpen(true)}>
+              <Plus className="mr-2 h-5 w-5" />
+              Abrir novo embarque
+            </Button>
+          ) : undefined
+        }
+      />
 
       {isLoading && tab !== 'alertas' ? (
         <div className="space-y-3">
@@ -104,12 +134,22 @@ function PortalEmbarquesContent() {
               Freitas.
             </p>
           </div>
-          <Button asChild>
-            <Link href="/portal/nova-cotacao">
+          {/* O embarque nasce de uma cotacao fechada, entao o vazio desta tela
+              so tem CTA quando a Cotacao esta liberada. Sem ela o texto acima
+              continua explicando de onde o embarque vem. */}
+          {poReleased ? (
+            <Button onClick={() => setNewShipmentOpen(true)}>
               <Plus className="mr-2 h-5 w-5" />
-              Criar cotação
-            </Link>
-          </Button>
+              Abrir novo embarque
+            </Button>
+          ) : quotationReleased ? (
+            <Button asChild>
+              <Link href="/portal/nova-cotacao">
+                <Plus className="mr-2 h-5 w-5" />
+                Criar cotação
+              </Link>
+            </Button>
+          ) : null}
         </div>
       ) : (
         <Tabs
@@ -117,7 +157,11 @@ function PortalEmbarquesContent() {
           onValueChange={(v) => { setTab(v as ShipmentTab); router.replace(`/portal/embarques?tab=${v}`, { scroll: false }); }}
           className="space-y-6"
         >
-          <TabsList>
+          {/* A tira ROLA no estreito. A tela nasceu com tres abas e cabia em
+              390px; os prompts do protótipo V2 acrescentaram "Em análise"
+              (opção B) e "Visão por PO", e sem isto a última aba ficava fora do
+              viewport e inalcançável no celular. */}
+          <TabsList className="max-w-full justify-start overflow-x-auto">
             <TabsTrigger value="mapa" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
               <MapIcon className="h-4 w-4" />
               Panorama
@@ -126,6 +170,27 @@ function PortalEmbarquesContent() {
               <List className="h-4 w-4" />
               Embarques
             </TabsTrigger>
+            {/* Opção B (Tela 8). A aba só existe quando o seletor do painel
+                escolhe "aba" E há algo em análise — uma aba permanentemente
+                vazia seria pior que não ter aba. */}
+            {showReviewTab && (
+              <TabsTrigger value="analise" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
+                <Hourglass className="h-4 w-4" />
+                Em análise
+                <span className="portal-small rounded bg-muted px-1.5 text-portal-neutral">
+                  {inReview}
+                </span>
+              </TabsTrigger>
+            )}
+            {/* RQ-12, so protótipo. Ela vive ao lado das abas existentes e
+                respeita a escolha A/B: a aba "Em analise" continua sendo
+                decidida pelo seletor do painel, independente desta. */}
+            {poReleased && (
+              <TabsTrigger value="pos" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
+                <Package className="h-4 w-4" />
+                Visão por PO
+              </TabsTrigger>
+            )}
             <TabsTrigger value="alertas" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
               <Bell className="h-4 w-4" />
               Alertas
@@ -145,6 +210,18 @@ function PortalEmbarquesContent() {
             />
           </TabsContent>
 
+          {showReviewTab && (
+            <TabsContent value="analise" className="space-y-4">
+              <ShipmentPoReviewTab />
+            </TabsContent>
+          )}
+
+          {poReleased && (
+            <TabsContent value="pos" className="space-y-4">
+              <PoOverviewTab shipments={shipments} />
+            </TabsContent>
+          )}
+
           <TabsContent value="alertas" className="space-y-4">
             <ShipmentAlertsPreview />
           </TabsContent>
@@ -161,6 +238,11 @@ function PortalEmbarquesContent() {
           </TabsContent>
         </Tabs>
       )}
+
+      <NewShipmentDialog
+        open={newShipmentOpen}
+        onOpenChange={setNewShipmentOpen}
+      />
     </div>
   );
 }

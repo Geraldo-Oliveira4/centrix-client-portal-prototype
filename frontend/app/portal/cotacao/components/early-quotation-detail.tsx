@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Undo2 } from 'lucide-react';
 import Link from 'next/link';
 import { useMyClient, useQuotationAgents } from '@/hooks/use-portal-quotations';
 import {
@@ -22,6 +23,18 @@ import {
 } from '../../cotacoes/lib/preparation-model';
 import { requestIssue } from '../../cotacoes/lib/repeat-model';
 import { PreparationSteps, WaitingResponses } from './quotation-preparation';
+import { V2StageBadge } from '../../_shared/demo/quotation-v2-labels';
+import { WhatHappensNextPanel } from '../../_shared/demo/what-happens-next';
+import {
+  V2_STAGE_DESCRIPTIONS,
+  resubmit,
+  submitToFreitas,
+} from '../../_shared/demo/quotation-review';
+import {
+  updateQuotationReview,
+  useQuotationReview,
+} from '../../_shared/demo/use-quotation-review';
+import { usePortalModuleReleased } from '../../_shared/demo/use-feature-flags';
 import s from '../../cotacoes/previa/quotation-preview.module.css';
 
 type Preparation = { quote: Quote; waiting: boolean; invited: string[] };
@@ -35,6 +48,12 @@ export function EarlyQuotationDetail({
 }) {
   const { client } = useMyClient();
   const catalog = useQuotationAgents(source.id);
+  // COTACAO V2. `v2` so e verdadeiro quando a flag esta ligada E esta cotacao
+  // tem overlay: uma cotacao antiga, sem overlay, continua com a escolha de
+  // agentes e o "Revisar convite" de sempre, mesmo com a flag ligada.
+  const v2Released = usePortalModuleReleased('cotacaoV2');
+  const overlay = useQuotationReview(source.id);
+  const v2 = v2Released && overlay != null;
   const [saved, setSaved] = useState<Preparation>(() => ({
     quote: editableQuotation(source),
     waiting: false,
@@ -82,7 +101,13 @@ export function EarlyQuotationDetail({
     }
   };
   const q = saved.quote;
-  const editing = source.state === 'AGUARDANDO_DADOS' && !saved.waiting;
+  // Na V2 quem decide se o formulario esta aberto e a ETAPA, nao o `state` do
+  // payload: uma cotacao que ja esta com a Freitas continua AGUARDANDO_DADOS no
+  // backend (a V2 nao tem estado no servidor), e sem esta linha o cliente
+  // poderia reeditar e reenviar uma solicitacao que ja esta em revisao.
+  const editing = v2
+    ? overlay!.stage === 'draft' || overlay!.stage === 'returned'
+    : source.state === 'AGUARDANDO_DADOS' && !saved.waiting;
   const proposals = source.proposals || [];
   const invited = mergeInvitations(
     catalog.rfqDispatched ? catalog.selectedAgentIds : [],
@@ -101,6 +126,31 @@ export function EarlyQuotationDetail({
     ...saved,
     quote: { ...saved.quote, ...patch },
   });
+  /**
+   * "Enviar para a Freitas" (RQ-1) e "Corrigir e reenviar" (RQ-5).
+   *
+   * A MESMA transicao para os dois botoes — o que muda e de que etapa ela sai,
+   * e o overlay registra qual das duas aconteceu (`submitted` x `resubmitted`).
+   * Nenhum agente e escolhido aqui: na V2 quem os aciona e a revisao de entrada.
+   */
+  const sendToFreitas = (patch?: Partial<Quote>) => {
+    const next = patch ? apply(patch) : saved;
+    const issue = requestIssue(next.quote);
+    if (issue) {
+      setSaved(next);
+      setError(issue);
+      return;
+    }
+    if (patch && !write(next)) return;
+    const at = new Date().toISOString();
+    updateQuotationReview(source.id, (review) =>
+      review.stage === 'returned' ? resubmit(review, at) : submitToFreitas(review, at),
+    );
+    setError('');
+    setSelected([]);
+    setReview(false);
+    setNotice(`Solicitação ${source.reference} enviada à Freitas`);
+  };
   const send = () => {
     const valid = selected.filter((id) =>
       available.some((agent) => agent.id === id),
@@ -142,11 +192,15 @@ export function EarlyQuotationDetail({
       </Link>
       <header className={s.heading}>
         <h1 className="text-2xl font-semibold">
-          {editing
-            ? 'Preencher solicitação'
-            : awaitingResponses
-              ? 'Aguardando agentes'
-              : 'Preparar envio aos agentes'}
+          {v2 && overlay?.stage === 'returned'
+            ? 'Corrigir e reenviar'
+            : editing
+              ? 'Preencher solicitação'
+              : v2
+                ? 'Com a Freitas'
+                : awaitingResponses
+                  ? 'Aguardando agentes'
+                  : 'Preparar envio aos agentes'}
         </h1>
         <p className="portal-body mt-2 text-portal-neutral">
           {source.reference} · {q.product || 'Mercadoria a informar'}
@@ -156,7 +210,37 @@ export function EarlyQuotationDetail({
         Prévia · alterações e convites salvos neste navegador. Nenhum envio real
         é realizado.
       </p>
-      <PreparationSteps waiting={!editing && awaitingResponses} />
+      {/* FAIXA DA DEVOLUCAO (RQ-5): o motivo escrito pela Freitas fica visivel
+          enquanto o cliente corrige, e nao dentro de um historico que ele teria
+          de abrir. */}
+      {v2 && overlay?.stage === 'returned' && overlay.returnReason && (
+        <div
+          role="status"
+          className="flex gap-2.5 rounded-lg border border-portal-warning/40 bg-portal-warning/10 px-4 py-3"
+        >
+          <Undo2 className="mt-0.5 h-5 w-5 shrink-0 text-portal-warning-ink" />
+          <div className="min-w-0">
+            <p className="portal-body font-medium text-portal-warning-ink">
+              A Freitas devolveu esta solicitação para ajuste
+            </p>
+            <p className="portal-small text-portal-warning-ink">
+              {overlay.returnReason}
+            </p>
+          </div>
+        </div>
+      )}
+      {v2 && overlay && overlay.stage !== 'returned' && (
+        <div className="flex flex-wrap items-center gap-2">
+          <V2StageBadge stage={overlay.stage} />
+          <span className="portal-small text-portal-neutral">
+            {V2_STAGE_DESCRIPTIONS[overlay.stage]}
+          </span>
+        </div>
+      )}
+      <PreparationSteps
+        waiting={v2 ? !editing : !editing && awaitingResponses}
+        subtext={v2 && !editing ? V2_STAGE_DESCRIPTIONS[overlay!.stage] : undefined}
+      />
       {error && (
         <p role="alert" className="text-portal-warning-ink">
           {error}
@@ -168,23 +252,40 @@ export function EarlyQuotationDetail({
         </p>
       )}
       {editing ? (
+        <div className={v2 ? 'grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]' : undefined}>
         <section className={s.panel + ' ' + s.formPanel}>
           <div className={s.sectionHeading}>
             <div>
-              <h2>Rascunho da solicitação</h2>
+              <h2>
+                {v2 && overlay?.stage === 'returned'
+                  ? 'Corrigir e reenviar'
+                  : 'Rascunho da solicitação'}
+              </h2>
               <p>
-                Continue o formulário de onde parou. Revise os dados antes de
-                selecionar os agentes.
+                {v2
+                  ? 'Confira os dados e envie. A Freitas revisa antes de acionar os agentes.'
+                  : 'Continue o formulário de onde parou. Revise os dados antes de selecionar os agentes.'}
               </p>
             </div>
           </div>
           <DraftRequestForm
             quotation={q}
+            reviewLabel={
+              v2
+                ? overlay?.stage === 'returned'
+                  ? 'Corrigir e reenviar'
+                  : 'Enviar para a Freitas'
+                : undefined
+            }
             onSave={(patch) => {
               if (write(apply(patch)))
                 setNotice('Rascunho salvo neste navegador.');
             }}
             onReview={(patch) => {
+              if (v2) {
+                sendToFreitas(patch);
+                return;
+              }
               const next = apply(patch);
               setSaved(next);
               const issue = requestIssue(next.quote);
@@ -198,6 +299,8 @@ export function EarlyQuotationDetail({
             }}
           />
         </section>
+        {v2 && <WhatHappensNextPanel />}
+        </div>
       ) : (
         <>
           <section className={s.context} aria-label="Necessidade da carga">
@@ -248,6 +351,21 @@ export function EarlyQuotationDetail({
                 setViewed(proposals.find((p) => p.agent_id === id) || null)
               }
             />
+          ) : v2 ? (
+            // Na V2 nao existe "envio nao confirmado" do lado do cliente: a
+            // solicitacao esta com a Freitas, e e isso que a tela diz.
+            <section className={s.panel}>
+              <div className={s.sectionHeading}>
+                <div>
+                  <h2>Com a Freitas</h2>
+                  <p>
+                    {overlay
+                      ? V2_STAGE_DESCRIPTIONS[overlay.stage]
+                      : 'A Freitas está com a sua solicitação.'}
+                  </p>
+                </div>
+              </div>
+            </section>
           ) : (
             <section className={s.panel}>
               <div className={s.sectionHeading}>
@@ -273,6 +391,13 @@ export function EarlyQuotationDetail({
               </div>
             </section>
           )}
+          {/* ESCOLHA DE AGENTES — SOME NA V2 (RQ-1).
+              Na V2 quem aciona os agentes e a revisao de entrada da Freitas,
+              depois de conferir os dados. Deixar o bloco visivel (ainda que
+              desabilitado) ofereceria ao cliente uma decisao que ele nao tem
+              mais, e "Convidar outros agentes" contradiz diretamente o painel
+              que acabou de dizer que ele nao precisa escolher ninguem. */}
+          {!v2 && (
           <section className={s.panel}>
             <div className={s.sectionHeading}>
               <div>
@@ -332,6 +457,7 @@ export function EarlyQuotationDetail({
               </Button>
             </div>
           </section>
+          )}
         </>
       )}
       <Dialog open={review} onOpenChange={setReview}>

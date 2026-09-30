@@ -1,12 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Hourglass, Sparkles, Zap } from 'lucide-react';
+import { ArrowRight, Hourglass, Sparkles, Undo2, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatBRL, formatShortDate } from '@/lib/portal-formatters';
 import type { PortalBucketKey, PortalQuotation } from '@/types/portal';
 import { ClientReferenceTag } from '../../_shared/client-reference-tag';
 import { ModalIcon } from '../../_shared/modal-icon';
+import { V2StageBadge } from '../../_shared/demo/quotation-v2-labels';
+import { V2_STAGE_DESCRIPTIONS } from '../../_shared/demo/quotation-review';
+import type { QuotationReview } from '../../_shared/demo/quotation-review';
 import { cardPresentation } from '../lib/card-presentation';
 
 const bucketAccentClass: Record<PortalBucketKey, string> = {
@@ -17,13 +20,25 @@ const bucketAccentClass: Record<PortalBucketKey, string> = {
   cancelada: 'border-l-portal-neutral/40',
 };
 
-/** Supplier/PO identify the demand first; the next step determines the emphasis. */
+/**
+ * Supplier/PO identify the demand first; the next step determines the emphasis.
+ *
+ * `review` is the Cotação V2 overlay (`_shared/demo/quotation-review.ts`) and is
+ * `null` for every quotation that does not have one — which is every quotation
+ * when `cotacaoV2` is off. In that case NOTHING below changes: the V2 block
+ * replaces the status footer only when there is an overlay to replace it with.
+ */
 export function QuotationCard({
   quotation: q,
   bucket,
+  review = null,
+  highlighted = false,
 }: {
   quotation: PortalQuotation;
   bucket: PortalBucketKey;
+  review?: QuotationReview | null;
+  /** Recem-enviada: o cartao que o cliente veio ver depois do envio (RQ-6). */
+  highlighted?: boolean;
 }) {
   const view = cardPresentation(q);
   const best = view.best;
@@ -41,6 +56,10 @@ export function QuotationCard({
       className={cn(
         'block rounded-md border border-l-4 bg-background p-4 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-portal-info',
         bucketAccentClass[bucket],
+        // O destaque e uma BORDA, nao um fundo: o cartao acabou de mudar de
+        // coluna, e mudar tambem a cor do corpo tornaria dificil compara-lo com
+        // os vizinhos, que e exatamente o que o cliente veio fazer.
+        highlighted && 'ring-2 ring-primary ring-offset-2 ring-offset-card',
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -50,7 +69,9 @@ export function QuotationCard({
         >
           {view.title}
         </h3>
-        {urgent ? (
+        {review ? (
+          <V2StageBadge stage={review.stage} />
+        ) : urgent ? (
           <span className="portal-small inline-flex shrink-0 items-center gap-1 text-portal-danger">
             <Zap className="h-3.5 w-3.5" />
             {q.urgency === 'VIP' ? 'VIP' : 'Urgente'}
@@ -92,7 +113,28 @@ export function QuotationCard({
       )}
 
       <div className="mt-3 border-t border-border/60 pt-3">
-        {view.deciding ? (
+        {review ? (
+          <>
+            {/* O preco continua aparecendo quando a cotacao ja tem proposta
+                vencedora no payload: o overlay muda QUEM o cliente pode ver, nao
+                apaga o que ele pode ver. Sem proposta no payload o bloco some
+                sozinho, em vez de imprimir "Valor a confirmar" numa etapa em que
+                nao ha valor nenhum a confirmar ainda. */}
+            {view.deciding && view.showPrice && best && (
+              <div className="mb-2">
+                <p className="text-xl font-semibold leading-tight text-foreground">
+                  {formatBRL(best.total_brl)}
+                </p>
+                <p className="portal-small mt-1 text-portal-neutral">
+                  {best.agent?.name || 'Agente a confirmar'}
+                  {best.transit_time != null &&
+                    ` · ${best.transit_time} dias de trânsito`}
+                </p>
+              </div>
+            )}
+            <V2CardFooter review={review} count={view.count} />
+          </>
+        ) : view.deciding ? (
           <>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xl font-semibold leading-tight text-foreground">
@@ -154,12 +196,78 @@ export function QuotationCard({
             )}
           </>
         )}
-        {view.needsInfo && (
+        {!review && view.needsInfo && (
           <span className="portal-small mt-2 inline-flex items-center gap-1 font-medium text-portal-warning-ink">
             Ver pendência <ArrowRight className="h-3.5 w-3.5" />
           </span>
         )}
       </div>
     </Link>
+  );
+}
+
+/**
+ * O rodapé de uma cotação V2: a frase da etapa, o motivo quando houve
+ * devolução, e a ÚNICA ação que a etapa oferece.
+ *
+ * O CTA é por etapa e não por coluna: "Corrigir e reenviar" (RQ-5) e "Comparar
+ * e escolher" (RQ-4) pedem coisas diferentes do cliente, e as três etapas em que
+ * a bola está com a Freitas não pedem nada — elas oferecem "Acompanhar", que
+ * leva ao detalhe sem prometer uma decisão que ainda não existe.
+ */
+function V2CardFooter({
+  review,
+  count,
+}: {
+  review: QuotationReview;
+  count: number;
+}) {
+  const cta =
+    review.stage === 'returned'
+      ? 'Corrigir e reenviar'
+      : review.stage === 'draft'
+        ? 'Continuar preenchendo'
+        : review.stage === 'released'
+          ? 'Comparar e escolher'
+          : 'Acompanhar';
+  const released = review.releasedProposalIds?.length ?? 0;
+  const emphasis =
+    review.stage === 'returned' || review.stage === 'draft'
+      ? 'text-portal-warning-ink'
+      : review.stage === 'released'
+        ? 'text-portal-success'
+        : 'text-foreground';
+
+  return (
+    <>
+      <p className={cn('portal-body font-medium', emphasis)}>
+        {V2_STAGE_DESCRIPTIONS[review.stage]}
+      </p>
+      {review.stage === 'returned' && review.returnReason && (
+        <p className="portal-small mt-1 flex items-start gap-1.5 text-portal-warning-ink">
+          <Undo2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            Ajuste pedido pela Freitas: {review.returnReason}
+          </span>
+        </p>
+      )}
+      {review.stage === 'released' && released > 0 && (
+        <p className="portal-small mt-1 text-portal-success">
+          {released}{' '}
+          {released === 1
+            ? 'proposta liberada pela Freitas'
+            : 'propostas liberadas pela Freitas'}
+        </p>
+      )}
+      {review.stage === 'exit_review' && count > 0 && (
+        <p className="portal-small mt-1 text-portal-neutral">
+          {count} {count === 1 ? 'proposta' : 'propostas'} em revisão pela
+          Freitas
+        </p>
+      )}
+      <span className="portal-small mt-2 inline-flex items-center gap-1 font-medium text-brand-indigo">
+        {cta} <ArrowRight className="h-3.5 w-3.5" />
+      </span>
+    </>
   );
 }

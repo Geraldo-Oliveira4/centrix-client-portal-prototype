@@ -2,23 +2,42 @@ import type { ReactNode } from 'react';
 import { Check, Clock3 } from 'lucide-react';
 import s from '../../cotacoes/previa/quotation-preview.module.css';
 
-export function PreparationSteps({ waiting }: { waiting: boolean }) {
+/**
+ * Os tres passos da cotacao.
+ *
+ * `done` e `subtext` sao da Cotacao V2 e ambos opcionais: sem eles o componente
+ * se comporta exatamente como antes. `done` marca os dois primeiros passos como
+ * concluidos e acende o terceiro (propostas liberadas); `subtext` diz em qual
+ * das tres esperas o cliente esta, porque o passo "Receber propostas" cobre a
+ * revisao de entrada, os agentes cotando e a revisao de saida — e uma quarta
+ * bolinha colocaria a fila interna da Freitas dentro da jornada do cliente.
+ */
+export function PreparationSteps({
+  waiting,
+  done = false,
+  subtext,
+}: {
+  waiting: boolean;
+  done?: boolean;
+  subtext?: string;
+}) {
+  const current = done ? 2 : waiting ? 1 : 0;
   return (
-    <ol className={s.preparationSteps} aria-label="Etapas da cotação">
-      {['Preparar solicitação', 'Receber propostas', 'Comparar e escolher'].map(
-        (label, index) => (
-          <li
-            key={label}
-            aria-current={index === (waiting ? 1 : 0) ? 'step' : undefined}
-          >
-            <span>
-              {waiting && index === 0 ? <Check size={13} /> : index + 1}
-            </span>
-            {label}
-          </li>
-        ),
+    <div>
+      <ol className={s.preparationSteps} aria-label="Etapas da cotação">
+        {['Preparar solicitação', 'Receber propostas', 'Comparar e escolher'].map(
+          (label, index) => (
+            <li key={label} aria-current={index === current ? 'step' : undefined}>
+              <span>{index < current ? <Check size={13} /> : index + 1}</span>
+              {label}
+            </li>
+          ),
+        )}
+      </ol>
+      {subtext && (
+        <p className="portal-small mt-2 text-portal-neutral">{subtext}</p>
       )}
-    </ol>
+    </div>
   );
 }
 

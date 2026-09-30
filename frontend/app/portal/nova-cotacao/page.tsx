@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useCallback, useMemo, useState } from 'react';
+import { toast } from 'react-toastify';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, Loader2, Radar } from 'lucide-react';
 import { LoaderComponent } from '@arboria-tech/arboria-ui';
@@ -21,6 +22,10 @@ import { UploadZone } from '@/app/cotacao/nova-cotacao/components/upload-zone';
 import { RfqDispatchCard } from '@/app/portal/cotacao/[id]/components/rfq-dispatch-card';
 import { PortalExporterSelect } from '@/app/portal/components/portal-exporter-select';
 import { PagePortalHeader } from '@/app/portal/_shared/page-header';
+import { WhatHappensNextPanel } from '@/app/portal/_shared/demo/what-happens-next';
+import { submitToFreitas } from '@/app/portal/_shared/demo/quotation-review';
+import { updateQuotationReview } from '@/app/portal/_shared/demo/use-quotation-review';
+import { usePortalModuleReleased } from '@/app/portal/_shared/demo/use-feature-flags';
 import {
   ORIGIN_PARAM,
   radarOriginFields,
@@ -95,6 +100,10 @@ function usePrefillFromParams(): {
 function PortalNovaCotacaoContent() {
   const router = useRouter();
   const { values: prefill, routeLabel, origin } = usePrefillFromParams();
+  // COTACAO V2 (RQ-1). Com a flag ligada o cliente nao escolhe agentes: o envio
+  // vai para a fila de revisao da Freitas, e a tela de sucesso com o
+  // `RfqDispatchCard` deixa de existir. Com a flag desligada nada abaixo muda.
+  const v2 = usePortalModuleReleased('cotacaoV2');
   const [phase, setPhase] = useState<PagePhase>('idle');
   const [createdQuotation, setCreatedQuotation] = useState<Quotation | null>(null);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
@@ -119,7 +128,34 @@ function PortalNovaCotacaoContent() {
     triggerExtractionFn: triggerMyQuotationExtraction,
   });
 
+  /**
+   * O que "Enviar para a Freitas" faz de verdade.
+   *
+   * A COTACAO CONTINUA SENDO CRIADA PELA API, exatamente como antes (o
+   * `createFn` ja rodou quando chegamos aqui) — o que o V2 acrescenta e o
+   * OVERLAY local em `entry_review`, com o id devolvido pelo backend. Nenhuma
+   * referencia e inventada e a numeracao do seed nao e tocada: o
+   * `reference` impresso na confirmacao e o que o repositorio gerou.
+   *
+   * Na versao integrada esta transicao e um estado da cotacao no backend; aqui
+   * ela vive no navegador (ver o cabecalho de `quotation-review.ts`).
+   */
+  const sendToFreitas = useCallback(
+    (quotation: Quotation) => {
+      updateQuotationReview(quotation.id, (review) =>
+        submitToFreitas(review, new Date().toISOString()),
+      );
+      toast.success(`Solicitação ${quotation.reference} enviada à Freitas`);
+      router.push(`/portal/cotacoes?destaque=${quotation.id}`);
+    },
+    [router],
+  );
+
   const handleManualCreated = (quotation: Quotation) => {
+    if (v2) {
+      sendToFreitas(quotation);
+      return;
+    }
     setCreatedQuotation(quotation);
     setPhase('done');
   };
@@ -135,6 +171,11 @@ function PortalNovaCotacaoContent() {
 
     if (!quotation) {
       setPhase('idle');
+      return;
+    }
+
+    if (v2) {
+      sendToFreitas(quotation);
       return;
     }
 
@@ -189,7 +230,11 @@ function PortalNovaCotacaoContent() {
     <div className="space-y-8">
       <PagePortalHeader
         title="Nova Cotação"
-        subtitle="Envie os documentos da sua carga ou preencha os dados manualmente."
+        subtitle={
+          v2
+            ? 'Preencha os dados da carga. A Freitas revisa antes de acionar os agentes.'
+            : 'Envie os documentos da sua carga ou preencha os dados manualmente.'
+        }
       />
 
       {/* De onde veio o pré-preenchimento. Sem esta linha, campos já
@@ -206,7 +251,16 @@ function PortalNovaCotacaoContent() {
         </div>
       )}
 
-      <Tabs defaultValue="manual">
+      {/* Com o V2 a tela ganha uma coluna lateral fixa: as quatro etapas do
+          RQ-3. Sem ele, o formulario ocupa a largura inteira como sempre
+          ocupou — o `grid` so existe quando ha um segundo elemento para
+          colocar ao lado. */}
+      <div
+        className={
+          v2 ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]' : undefined
+        }
+      >
+      <Tabs defaultValue="manual" className="min-w-0">
         <TabsList>
           <TabsTrigger className="data-[state=active]:border-brand-indigo-800" value="manual">Preencher manualmente</TabsTrigger>
           <TabsTrigger className="data-[state=active]:border-brand-indigo-800" value="upload">Enviar arquivos</TabsTrigger>
@@ -222,6 +276,7 @@ function PortalNovaCotacaoContent() {
             createFn={createWithOrigin}
             initialValues={prefill}
             exporterId={exporter?.id ?? null}
+            submitLabel={v2 ? 'Enviar para a Freitas' : undefined}
             exporterSection={
               <PortalExporterSelect
                 value={exporter?.id ?? null}
@@ -258,6 +313,8 @@ function PortalNovaCotacaoContent() {
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Enviando...
                   </>
+                ) : v2 ? (
+                  'Enviar para a Freitas'
                 ) : (
                   'Solicitar cotação'
                 )}
@@ -266,6 +323,9 @@ function PortalNovaCotacaoContent() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {v2 && <WhatHappensNextPanel />}
+      </div>
     </div>
   );
 }

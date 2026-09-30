@@ -9,6 +9,8 @@ import type { PortalQuotationsResponse } from '@/types/portal';
 import type { PortalShipment } from '@/types/portal-shipment';
 
 import { SectionHeading } from '../../_shared/page-header';
+import type { PortalModule } from '../../_shared/demo/feature-flags';
+import { usePortalModuleFlags } from '../../_shared/demo/use-feature-flags';
 import { REAL_STEPS } from '../../embarques/lib/real-steps';
 import { flattenQuotations } from '../../inteligencia/lib/intel-helpers';
 import { computePriceRadar } from '../../inteligencia/lib/price-radar';
@@ -16,6 +18,7 @@ import {
   computeIllustrativeSavings,
   computeSavingsTrend,
 } from '../../inteligencia/lib/illustrative-kpis';
+import type { HomeActionModule } from '../lib/home-actions';
 import { collectHomeActions } from '../lib/home-actions';
 import type { PortalHomeCard } from '../lib/home-layout';
 import { PriceTrendCard } from './price-trend-card';
@@ -31,11 +34,16 @@ import { UrgentActionCard } from './urgent-action-card';
  * cards nao pode custar quatro vezes o mesmo fetch, e dois cards nao podem
  * discordar por terem lido payloads diferentes.
  *
- * NENHUM COMPONENTE REAPROVEITADO FOI EDITADO. `UrgentActionCard` e
- * `SavingsCard` ja eram componentes burros e entram como estao; `ShipmentMap` e
- * burro nas props mas toca `window` no import (Leaflet), e por isso ganha o
- * wrapper com `dynamic({ ssr: false })` abaixo; `PriceAlertBadge` e
- * `PriceTrendLine` entram inteiros dentro de `PriceTrendCard`.
+ * NENHUM COMPONENTE COMPARTILHADO FOI EDITADO. `ShipmentMap` e burro nas props
+ * mas toca `window` no import (Leaflet), e por isso ganha o wrapper com
+ * `dynamic({ ssr: false })` abaixo; `PriceAlertBadge` e `PriceTrendLine` entram
+ * inteiros dentro de `PriceTrendCard`.
+ *
+ * Em 24/09/2026 `SavingsCard` e `PriceTrendCard` — que sao exclusivos da Home —
+ * passaram a esconder o LINK de rodape quando a Inteligencia nao esta liberada.
+ * O numero fica: ele sai das cotacoes e dos embarques do proprio cliente. Quem
+ * decide se um card INTEIRO some e `_shared/demo/home-card-modules.ts`, lido
+ * pela pagina.
  */
 
 export interface HomeCardProps {
@@ -53,7 +61,18 @@ const ShipmentMap = dynamic(
   { ssr: false, loading: () => <Skeleton className="h-full w-full rounded-lg" /> },
 );
 
+/**
+ * De qual modulo do portal nasce cada acao da Home. `HomeActionModule` fala do
+ * DOMINIO ("embarque", no singular); a chave de flag fala do MODULO do menu
+ * ("embarques"). A tabela existe para essa traducao e para nada mais.
+ */
+const ACTION_MODULE_FLAG: Record<HomeActionModule, PortalModule> = {
+  cotacao: 'cotacao',
+  embarque: 'embarques',
+};
+
 function AcaoUrgenteCard({ shipments, quotations, now }: HomeCardProps) {
+  const flags = usePortalModuleFlags();
   const actions = useMemo(
     () =>
       collectHomeActions({
@@ -65,10 +84,19 @@ function AcaoUrgenteCard({ shipments, quotations, now }: HomeCardProps) {
     [shipments, quotations, now],
   );
 
+  // O FILTRO VIVE AQUI, nao em `collectHomeActions`. Aquele modulo e puro,
+  // unit-testado e nao conhece flag nenhuma — passar as flags por dentro dele
+  // trocaria a assinatura de uma regra de negocio por causa de um adereco de
+  // demonstracao. Ele ja devolve `module` em cada acao, e e so isso que falta.
+  const released = useMemo(
+    () => actions.filter((action) => flags[ACTION_MODULE_FLAG[action.module]]),
+    [actions, flags],
+  );
+
   return (
     <section className="space-y-3">
       <SectionHeading title="Sua ação mais urgente" />
-      <UrgentActionCard action={actions[0]} />
+      <UrgentActionCard action={released[0]} />
     </section>
   );
 }

@@ -11,11 +11,16 @@ import {
 import { QuotationCard } from './quotation-card';
 import Link from 'next/link';
 import type { LocalRequest } from '../lib/repeat-model';
+import type { QuotationReviewStore } from '../../_shared/demo/quotation-review';
 
 interface KanbanColumnProps {
   bucket: PortalBucketKey;
   quotations: PortalQuotation[];
   localRequests?: LocalRequest[];
+  /** Overlay da Cotacao V2, por id. `{}` quando a flag esta desligada. */
+  reviews?: QuotationReviewStore;
+  /** Cartao recem-enviado, vindo de `?destaque=` (RQ-6). */
+  highlightId?: string | null;
 }
 
 const DEFAULT_ACCENT: Record<PortalBucketKey, string> = {
@@ -30,7 +35,7 @@ const DEFAULT_ACCENT: Record<PortalBucketKey, string> = {
   cancelada: 'border-t-portal-neutral/40',
 };
 
-export function KanbanColumn({ bucket, quotations, localRequests = [] }: KanbanColumnProps) {
+export function KanbanColumn({ bucket, quotations, localRequests = [], reviews = {}, highlightId = null }: KanbanColumnProps) {
   return (
     <div
       className={cn(
@@ -78,7 +83,7 @@ export function KanbanColumn({ bucket, quotations, localRequests = [] }: KanbanC
             </p>
           ) : (
             quotations.map((q) => (
-              <QuotationCard key={q.id} quotation={q} bucket={bucket} />
+              <QuotationCard key={q.id} quotation={q} bucket={bucket} review={reviews[q.id] ?? null} highlighted={q.id === highlightId} />
             ))
           )}
         </div>

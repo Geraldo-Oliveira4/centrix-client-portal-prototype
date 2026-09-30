@@ -15,6 +15,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 import { BrandMark } from '@/components/brand-mark';
 import { cn } from '@/lib/utils';
@@ -25,9 +26,23 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+import type { PortalModule } from '../_shared/demo/feature-flags';
+import { usePortalModuleFlags } from '../_shared/demo/use-feature-flags';
+
 import { useSidebar } from './sidebar-context';
 
-const NAV_ITEMS = [
+// `module` liga o item a uma chave de modulo (`_shared/demo/feature-flags.ts`).
+// SEM `module` = sempre no menu: Inicio, Central de trabalho e Configuracoes
+// nao entram nas ondas de liberacao — a Home e para onde o `ModuleNotReleased`
+// devolve o cliente, e as outras duas sao como ele encontra o proprio dia e as
+// proprias preferencias. Uma onda capaz de escondê-las produziria um portal sem
+// saida.
+const NAV_ITEMS: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  module?: PortalModule;
+}[] = [
   // A Home abre o menu porque e a landing do portal: `/portal` redireciona para
   // ca e o login cai aqui. Ela tem segmento proprio (`/portal/home`) em vez de
   // morar na raiz porque a regra de item ativo e `startsWith(href + '/')` — com
@@ -49,26 +64,31 @@ const NAV_ITEMS = [
     href: '/portal/cotacoes',
     label: 'Minhas Cotações',
     icon: FileText,
+    module: 'cotacao',
   },
   {
     href: '/portal/embarques',
     label: 'Meus Embarques',
     icon: Ship,
+    module: 'embarques',
   },
   {
     href: '/portal/inteligencia',
     label: 'Inteligência',
     icon: Sparkles,
+    module: 'inteligencia',
   },
   {
     href: '/portal/radar',
     label: 'Radar',
     icon: Radar,
+    module: 'radar',
   },
   {
     href: '/portal/auditoria',
     label: 'Auditoria',
     icon: Scale,
+    module: 'auditoria',
   },
   // Meus Exportadores e Meus Agentes NAO sao itens deste menu desde 26/08/2026:
   // sao telas de cadastro/configuracao e viraram abas de Minhas Preferencias
@@ -86,6 +106,12 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
   const pathname = usePathname();
   const { collapsed, toggle, toggleMobile } = useSidebar();
   const slim = collapsed && !mobile;
+  // A gaveta do mobile renderiza ESTE mesmo componente (ver `PortalSidebar`
+  // abaixo), entao o filtro vale nas duas sem nenhuma segunda lista.
+  const flags = usePortalModuleFlags();
+  const items = NAV_ITEMS.filter(
+    (item) => item.module == null || flags[item.module],
+  );
 
   return (
     <aside
@@ -160,7 +186,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
       <nav className="flex-1 px-3 py-5">
         <TooltipProvider delayDuration={0}>
           <ul className="space-y-2">
-            {NAV_ITEMS.map((item) => {
+            {items.map((item) => {
               const Icon = item.icon;
               const active =
                 pathname === item.href || pathname.startsWith(item.href + '/');
