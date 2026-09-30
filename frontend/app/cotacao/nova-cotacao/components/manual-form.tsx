@@ -210,7 +210,9 @@ export type ManualFormHelpField =
   | 'un_number'
   | 'stackability'
   | 'carga_tombavel'
-  | 'declared_value';
+  | 'declared_value'
+  | 'ncm'
+  | 'temperatura_min';
 
 export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues, draft, submitLabel, hardblocks, clientFacing, helpTips, onValuesChange }: ManualFormProps) {
   // O rotulo com o "?" ao lado. Botao FORA do <label>: dentro dele, o clique
@@ -982,7 +984,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                     name="ncm"
                     render={({ field }) => (
                       <FormItem id={fieldAnchor('ncm')}>
-                        <FormLabel>NCM</FormLabel>
+                        {withTip('ncm', 'NCM', <FormLabel>NCM</FormLabel>)}
                         <FormControl>
                           <Input inputMode="numeric" placeholder="Ex: 8517.62.77" {...field} />
                         </FormControl>
@@ -1001,7 +1003,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                   // switch that starts off reads as "Não" to someone who never
                   // looked at it — exactly the answer that must not slip by.
                   <div id={fieldAnchor('carga_perigosa')} className="flex flex-col gap-2">
-                    <Label htmlFor="carga-perigosa-resposta">Carga perigosa</Label>
+                    {withTip('carga_perigosa', 'Carga perigosa', <Label htmlFor="carga-perigosa-resposta">Carga perigosa</Label>)}
                     <Select
                       value={dangerousAnswer}
                       onValueChange={(answer) => {
@@ -1176,7 +1178,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       name="temperatura_min"
                       render={({ field }) => (
                         <FormItem id={fieldAnchor('temperatura_min')}>
-                          <FormLabel>Temp. Mín (°C)</FormLabel>
+                          {withTip('temperatura_min', 'Temperatura mínima', <FormLabel>Temp. Mín (°C)</FormLabel>)}
                           <FormControl>
                             <Input type="number" placeholder="Mín" {...field} />
                           </FormControl>

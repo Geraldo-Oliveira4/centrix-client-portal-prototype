@@ -718,3 +718,32 @@ export function parseQuotationReviewStore(
     return {};
   }
 }
+
+/**
+ * Os baldes da API realocados pelo overlay V2 — a MESMA leitura em todas as
+ * telas que perguntam "de quem é a vez" (Funil, Home, "Sua ação mais urgente").
+ *
+ * No backend uma cotação V2 em revisão de entrada (inclusive "Reenviada")
+ * continua AGUARDANDO_DADOS; lida crua, ela contaria como pendência do CLIENTE
+ * na escala de urgência, quando a vez é da Freitas. Com o overlay ela vai para
+ * "Aguardando agentes" e sai da fila do cliente. Etapa sem coluna (`approved`,
+ * `cancelled`) sai do funil. Sem overlay, nada muda.
+ */
+export function relocateBucketsV2<Row extends { id: string }>(
+  buckets: Record<string, Row[]>,
+  reviews: QuotationReviewStore,
+): Record<string, Row[]> {
+  if (Object.keys(reviews).length === 0) return buckets;
+  const next: Record<string, Row[]> = Object.fromEntries(
+    Object.keys(buckets).map((key) => [key, [] as Row[]]),
+  );
+  for (const [bucket, rows] of Object.entries(buckets)) {
+    for (const row of rows) {
+      const stage = reviews[row.id]?.stage;
+      if (stage && V2_STAGE_COLUMN[stage] == null) continue;
+      const target = stage ? (V2_STAGE_COLUMN[stage] as string) : bucket;
+      (next[target] ??= []).push(row);
+    }
+  }
+  return next;
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { EmptyState } from '@arboria-tech/arboria-ui';
 
@@ -13,8 +13,8 @@ import {
 
 import { PortalSearchInput } from '../../_shared/portal-search-input';
 import {
-  V2_STAGE_COLUMN,
   countV2ClientActions,
+  relocateBucketsV2,
 } from '../../_shared/demo/quotation-review';
 import { useQuotationReviewStore } from '../../_shared/demo/use-quotation-review';
 import { usePortalModuleReleased } from '../../_shared/demo/use-feature-flags';
@@ -49,7 +49,7 @@ export function FunnelTab({ data, localRequests = [] }: { data: PortalQuotations
 
   // COTACAO V2. `reviews` e `{}` sempre que a flag esta desligada ou a jornada
   // nao comecou, e nesse caso tudo abaixo cai nos mesmos valores de antes:
-  // `v2Column` devolve null, o `reduce` nao move cartao nenhum e o contador
+  // `relocateBucketsV2` devolve os baldes intactos e o contador
   // soma zero. E o que mantem a Onda 0 identica.
   const v2Released = usePortalModuleReleased('cotacaoV2');
   const rawReviews = useQuotationReviewStore();
@@ -57,36 +57,18 @@ export function FunnelTab({ data, localRequests = [] }: { data: PortalQuotations
     () => (v2Released ? rawReviews : {}),
     [v2Released, rawReviews],
   );
-  const v2Column = useCallback(
-    (id: string) => {
-      const stage = reviews[id]?.stage;
-      return stage ? V2_STAGE_COLUMN[stage] : null;
-    },
-    [reviews],
-  );
-
   // O overlay REALOCA o cartao: uma cotacao AGUARDANDO_DADOS no backend pode
   // estar em `entry_review` e pertencer a "Aguardando agentes". A realocacao
   // acontece uma vez, sobre os baldes crus, e todo o resto da tela (contagens,
   // filtros, colunas) le o resultado — duas passagens discordariam no primeiro
   // filtro aplicado.
-  const bucketsV2 = useMemo(() => {
-    if (Object.keys(reviews).length === 0) return data.buckets;
-    const next = Object.fromEntries(
-      Object.keys(data.buckets).map((key) => [key, [] as PortalQuotation[]]),
-    ) as PortalQuotationsResponse['buckets'];
-    for (const [bucket, rows] of Object.entries(data.buckets)) {
-      for (const q of rows) {
-        const stage = reviews[q.id]?.stage;
-        // Etapa SEM coluna (hoje so `approved`) sai do funil: ele e trabalho em
-        // curso, e uma cotacao aprovada ja foi para a aba "Aprovadas".
-        if (stage && V2_STAGE_COLUMN[stage] == null) continue;
-        const target = v2Column(q.id) ?? (bucket as PortalBucketKey);
-        (next[target] ??= []).push(q);
-      }
-    }
-    return next;
-  }, [data.buckets, reviews, v2Column]);
+  // A realocacao e a MESMA da Home (`relocateBucketsV2`): "de quem e a vez"
+  // tem de dar a mesma resposta no Funil e na frase "N itens exigem...".
+  const bucketsV2 = useMemo(
+    () =>
+      relocateBucketsV2(data.buckets, reviews) as PortalQuotationsResponse['buckets'],
+    [data.buckets, reviews],
+  );
 
   const dataV2 = useMemo(
     () => ({ ...data, buckets: bucketsV2 }),

@@ -25,6 +25,8 @@ import { HomeShortcuts } from './components/home-shortcuts';
 import { HomeCustomizeDialog } from './components/customize-dialog';
 import { HomeOnboardingDialog } from './components/onboarding-dialog';
 import { useOnboarding } from '../_shared/use-onboarding';
+import { relocateBucketsV2 } from '../_shared/demo/quotation-review';
+import { useQuotationReviewStore } from '../_shared/demo/use-quotation-review';
 import {
   homeCardsHiddenByModule,
   releasedHomeCards,
@@ -104,6 +106,8 @@ export default function PortalHomePage() {
   // desligado ficam, e quem some é o link.
   const flags = usePortalModuleFlags();
   const onboarding = useOnboarding();
+  const rawReviews = useQuotationReviewStore();
+  const v2Reviews = flags.cotacaoV2 ? rawReviews : {};
   const cards = useMemo(
     () => releasedHomeCards(chosenCards, flags),
     [chosenCards, flags],
@@ -128,7 +132,10 @@ export default function PortalHomePage() {
   const attention = useMemo(() => {
     const actions = collectHomeActions({
       shipments,
-      buckets: quotations?.buckets ?? {},
+      // Baldes realocados pelo overlay V2: cotacao em revisao da Freitas (ou
+      // "Reenviada") nao e pendencia do cliente, mesmo AGUARDANDO_DADOS no
+      // backend. Mesma leitura do Funil.
+      buckets: relocateBucketsV2(quotations?.buckets ?? {}, v2Reviews),
       realSteps: REAL_STEPS,
       now,
     }).filter((action) =>
@@ -137,7 +144,7 @@ export default function PortalHomePage() {
     return summarizeAttention(
       rankByUrgency(actions, now).map((ranked) => ranked.urgency),
     );
-  }, [shipments, quotations, now, flags]);
+  }, [shipments, quotations, now, flags, v2Reviews]);
 
   const persist = async (
     nextThemes: PortalHomeTheme[],

@@ -25,6 +25,8 @@ import { PriceTrendCard } from './price-trend-card';
 import { SavingsCard } from './savings-card';
 import { UrgentActionCard } from './urgent-action-card';
 import { rankByUrgency } from '../../_shared/urgency';
+import { relocateBucketsV2 } from '../../_shared/demo/quotation-review';
+import { useQuotationReviewStore } from '../../_shared/demo/use-quotation-review';
 
 /**
  * O REGISTRO: card -> componente.
@@ -74,15 +76,18 @@ const ACTION_MODULE_FLAG: Record<HomeActionModule, PortalModule> = {
 
 function AcaoUrgenteCard({ shipments, quotations, now }: HomeCardProps) {
   const flags = usePortalModuleFlags();
+  const rawReviews = useQuotationReviewStore();
+  const v2Reviews = flags.cotacaoV2 ? rawReviews : {};
   const actions = useMemo(
     () =>
       collectHomeActions({
         shipments,
-        buckets: quotations?.buckets ?? {},
+        // Mesma realocacao V2 do Funil e da frase do banner.
+        buckets: relocateBucketsV2(quotations?.buckets ?? {}, v2Reviews),
         realSteps: REAL_STEPS,
         now,
       }),
-    [shipments, quotations, now],
+    [shipments, quotations, now, v2Reviews],
   );
 
   // O FILTRO VIVE AQUI, nao em `collectHomeActions`. Aquele modulo e puro,
