@@ -59,36 +59,60 @@ intactos, porque é uma porta fechada dentro do portal, não uma sessão perdida
 
 ---
 
-## 3. Roteiro A — Cotação V2 (~10 minutos)
+## 3. Roteiro A — Cotação V2 (~12 minutos)
 
-Onda 1 ou superior.
+Onda 1 ou superior. Prazo de cada revisão: **1 hora** (Orsi, 29/09/2026).
 
-1. **Minhas Cotações → Em andamento.** Os seis estados no quadro de uma vez:
+1. **Minhas Cotações → Em andamento.** Os estados no quadro de uma vez:
    Rascunho e Devolvida em "Preencher detalhes"; duas "Em revisão" e uma
    "Aguardando propostas" em "Aguardando agentes"; uma "Nova" em "Escolha sua
    proposta". *Ponto:* revisão é **estado no cartão**, nunca coluna nova.
 2. **O contador do topo** conta só o que depende do cliente: rascunho,
-   devolvida e liberada. As três etapas que a Freitas segura ficam de fora.
-3. **Nova cotação.** O botão principal é **"Enviar para a Freitas"**, não há
-   escolha de agentes, e o painel lateral explica os quatro passos e quem
-   escolhe os agentes agora.
-4. **Enviar.** Confirmação "Solicitação COT-xxxx enviada à Freitas" e o cartão
-   aparece destacado em "Aguardando agentes", com o selo "Em revisão".
-5. **Painel → Cotação V2 → Devolver ao cliente.** Escolha um motivo pronto. O
-   cartão volta para "Preencher detalhes" com o motivo escrito e o CTA
-   "Corrigir e reenviar".
-6. **Corrigir e reenviar.** O formulário abre com a faixa do motivo. Ao
-   reenviar, o histórico é preservado — a devolução continua registrada.
-7. **Painel → Aprovar e disparar RFQ → Propostas chegaram.** O cartão passa por
-   "Aguardando propostas" e chega à revisão de saída, onde a comparação **ainda
-   não está liberada**.
-8. **Painel → Liberar propostas.** Desmarque uma para mostrar que só o que foi
-   liberado chega ao cliente. O cartão vira "Nova".
-9. **O sino** mostra "Propostas liberadas". Abra a cotação: a faixa diz quantas
-   a Freitas liberou, cada linha tem o selo "Revisada pela Freitas", e a
-   proposta não liberada **não aparece**.
-10. **Continuar com esta proposta.** A cotação vai para a aba "Aprovadas" e o
-    embarque aparece em Meus Embarques, já vinculado à cotação.
+   devolvida e liberada.
+3. **Nova cotação.** O botão principal é **"Enviar para a Freitas"** e começa
+   **desabilitado**: o quadro "Faltam N itens" lista os hardblocks do Orsi, e
+   cada campo pendente diz o motivo. *Ponto:* carga perigosa não tem resposta
+   padrão — é Sim ou Não, explícito.
+4. **Troque o Incoterm** (ex.: FCA → CIF → DAP). Os campos que passam a valer
+   aparecem sem salto de layout (valor da carga no CIF; endereço de entrega e
+   NCM no DAP) e o resumo revalida sozinho. Clique num item do resumo: a tela
+   leva ao campo e o destaca.
+5. **Corrija e envie.** "Tudo pronto" fica verde, o botão habilita. Confirmação
+   "Solicitação COT-xxxx enviada à Freitas" e o cartão em "Aguardando agentes"
+   com "Em revisão".
+6. **Editar em revisão.** Abra a cotação: "Editar solicitação" reabre o
+   formulário inteiro, com a faixa explicando que a Freitas segue com a versão
+   enviada. Reenvie **sem mudar nada** — a tela recusa ("Nada mudou…"). Mude o
+   Incoterm ou o produto e **Reenviar para a Freitas**: nova rodada, prazo
+   recomeça.
+7. **"Reenviada".** O cartão e o detalhe mostram o chip (discreto, abaixo do
+   selo) e os campos alterados, anterior → novo. No painel → Cotação V2, a linha
+   diz "Inbox · revisão de entrada (Para Cotar) · 2ª rodada" e o que mudou.
+   *Ponto:* o Inbox não é fila nova — é a visão da revisão de entrada sobre Para
+   Cotar.
+8. **Cancelar.** Numa outra cotação em revisão, "Cancelar solicitação": o botão
+   fica travado até a justificativa ter 10 caracteres, com contador. Como nenhum
+   agente recebeu o pedido, o diálogo diz que ela vai direto para as canceladas.
+   Confirme: a tela mostra a justificativa e o atalho para o Histórico.
+9. **Painel → Devolver ao cliente.** Escolha um motivo. O cartão volta para
+   "Preencher detalhes" com o motivo e "Corrigir e reenviar"; ao reenviar, o
+   histórico é preservado e o chip "Reenviada" volta com o diff da correção.
+10. **Painel → Aprovar e disparar RFQ → Propostas chegaram.** A revisão de
+    saída mostra "Liberar N propostas" e o texto de que a correção ao agente é
+    pedida por e-mail. *Ponto:* se a cotação deixar de atender à lista (os
+    cenários carregados mostram isso), liberar fica bloqueado com o motivo — e
+    as flags Crítico/Alto não entram na regra.
+11. **Liberar.** Desmarque uma proposta para mostrar que só o liberado chega ao
+    cliente. O cartão vira "Nova" e o sino avisa.
+12. **Continuar com esta proposta → Aprovar.** O diálogo diz que a cotação
+    passa a "Aprovada pelo cliente" e a Freitas recebe a instrução de
+    fechamento. A cotação vai para "Aprovadas" e o embarque aparece em Meus
+    Embarques.
+13. **Fechamento direto** (opcional, ~2 min). Nova cotação → "Fechar direto com
+    agente preferido". Escolha Izmir → Santos para mostrar o estado vazio (sem
+    agente preferido → "Cotar normalmente", com a rota preenchida); depois
+    Shanghai → Santos, preencha e envie. Painel → **Fechamento direto** →
+    aprove ou devolva.
 
 ---
 
@@ -152,6 +176,9 @@ Seção **Freitas simulada**: ligue "A Freitas responde sozinha" e escolha o tem
 - O relógio conta a partir do momento em que a etapa começou, então **um reload
   não reinicia a contagem**.
 - **Devolver nunca é automático.** Devolução é sempre um clique seu.
+- **Cotação bloqueada pelos hardblocks não anda sozinha**: a autorresposta não
+  aprova a entrada nem libera propostas dela. Ela espera um clique seu
+  (normalmente "Devolver ao cliente", com o motivo já sugerido).
 
 ---
 

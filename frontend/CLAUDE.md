@@ -1406,7 +1406,18 @@ cliente precisa saber, e é o que uma segunda cor não diria.
   e `subtext`, ambos opcionais. A tela do analista não mudou.
 - **O sino do cabeçalho é novo** e serve os quatro tipos de aviso das duas
   jornadas, sem link e sem e-mail.
-- **`REVIEW_SLA_LABEL` é PLACEHOLDER.**
+- **Prazo das revisões: 1 hora** (Orsi, 29/09/2026), numa regra só
+  (`review-sla.ts`) que formata `REVIEW_SLA_LABEL` e `PO_REVIEW_SLA_LABEL`.
+  Horário corrido é premissa, não decisão.
+- **Ajustes do Orsi de 29/09/2026** (detalhe em `README-cotacao-v2.md`): edição
+  em revisão de entrada = nova rodada (`resubmitEdited`), chip "Reenviada" com o
+  diff no histórico, cancelamento com justificativa obrigatória, "Aprovada pelo
+  cliente", hardblocks condicionais (`quotation-hardblocks.ts`) na entrada E na
+  saída, e o fechamento direto com o agente preferido da rota.
+- **`ManualForm` ganhou `hardblocks`** (opcional; só a V2 passa): resumo
+  "faltam N itens", motivo por campo, campos condicionais com transição
+  (`field-blocks.tsx`), carga perigosa como Sim/Não explícito e submit travado.
+  Sem a prop, a tela do analista não muda.
 
 ### Novo embarque a partir do PO
 
@@ -1449,7 +1460,8 @@ devolve sozinha**.
 atual, que continua funcionando com as flags desligadas.
 
 Testes puros em `npm run test:unit`: `demo-store`, `feature-flags`,
-`freitas-simulation`, `home-card-modules`, `quotation-review`,
+`freitas-simulation`, `home-card-modules`, `quotation-review`, `review-sla`,
+`quotation-hardblocks`, `quotation-form-snapshot`, `direct-close`,
 `quotation-review-notices`, `quotation-v2-scenarios`, `quotation-demo-proposals`,
 `quotation-approval`, `shipment-po-review`, `shipment-po-read`,
 `shipment-po-merge`, `shipment-po-scenarios` e `po-overview`.
