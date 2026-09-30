@@ -590,7 +590,7 @@ export default function HabitualPreview({
                   </dd>
                 </div>
                 <div>
-                  <dt>Referência do cliente</dt>
+                  <dt>Sua referência</dt>
                   <dd>{q.po || 'Não informada'}</dd>
                 </div>
               </dl>

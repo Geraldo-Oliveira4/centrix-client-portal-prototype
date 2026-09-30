@@ -533,7 +533,7 @@ export function journeyGuidance(q: Shipment) {
       (a) => a.kind === 'booking' && a.state !== 'Resolvida',
     );
     return {
-      phase: pending ? 'Booking em análise' : 'Booking aprovado pelo cliente',
+      phase: pending ? 'Booking em análise' : 'Booking aprovado por você',
       summary: pending
         ? 'A reserva está em revisão. A partida ainda não foi confirmada.'
         : 'Sua aprovação foi registrada. Coleta e partida continuam sem confirmação.',

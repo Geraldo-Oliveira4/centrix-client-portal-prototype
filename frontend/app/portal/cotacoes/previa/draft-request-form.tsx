@@ -146,6 +146,7 @@ export function DraftRequestForm({
         hardblocks={
           hardblocks ? (draft) => hardblocks(draft, supplier) : undefined
         }
+        clientFacing
         draft={{
           initial,
           onAssist: (snapshot) => {

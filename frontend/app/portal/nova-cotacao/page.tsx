@@ -336,6 +336,7 @@ function PortalNovaCotacaoContent() {
             exporterId={exporter?.id ?? null}
             submitLabel={v2 ? 'Enviar para a Freitas' : undefined}
             hardblocks={v2 ? hardblocks : undefined}
+            clientFacing
             exporterSection={
               <PortalExporterSelect
                 value={exporter?.id ?? null}

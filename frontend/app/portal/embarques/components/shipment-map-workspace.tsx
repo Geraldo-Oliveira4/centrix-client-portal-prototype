@@ -398,7 +398,7 @@ export function ShipmentMapWorkspace({
                     </p>
                     <small>
                       {actions.length
-                        ? 'Ação do cliente · prazo não informado'
+                        ? 'Depende de você · prazo não informado'
                         : 'Acompanhamento da operação · sem ação sua registrada'}
                     </small>
                     {actions.length > 1 && (
@@ -600,7 +600,7 @@ export function ShipmentMapWorkspace({
                       {action?.title ?? 'Acompanhar próximo marco'}
                       <small>
                         {action
-                          ? 'Ação do cliente · sem prazo informado'
+                          ? 'Depende de você · sem prazo informado'
                           : 'Sem ação sua registrada'}
                       </small>
                     </td>

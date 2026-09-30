@@ -187,9 +187,15 @@ interface ManualFormProps {
    * it renders.
    */
   hardblocks?: (snapshot: ManualFormDraft) => HardblockReport;
+  /**
+   * The CLIENT is filling the form (portal). Labels speak to them in the second
+   * person: "Referência do cliente" written to the client reads as if a third
+   * party were meant. The analyst screen passes nothing and keeps its wording.
+   */
+  clientFacing?: boolean;
 }
 
-export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues, draft, submitLabel, hardblocks }: ManualFormProps) {
+export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues, draft, submitLabel, hardblocks, clientFacing }: ManualFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraggingAttachments, setIsDraggingAttachments] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -1278,7 +1284,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 name="desired_deadline"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Deadline envio cotacao</FormLabel>
+                    <FormLabel>{clientFacing ? 'Receber propostas até' : 'Deadline envio cotacao'}</FormLabel>
                     <FormControl>
                       <Input type="datetime-local" {...field} />
                     </FormControl>
@@ -1306,7 +1312,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 name="data_limite_necessidade"
                 render={({ field }) => (
                   <FormItem className="col-span-2">
-                    <FormLabel>Data de chegada solicitada pelo cliente</FormLabel>
+                    <FormLabel>{clientFacing ? 'Quando você precisa da carga no destino' : 'Data de chegada solicitada pelo cliente'}</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -1336,7 +1342,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 name="client_reference"
                 render={({ field }) => (
                   <FormItem id={fieldAnchor('client_reference')}>
-                    <FormLabel>Referência do Cliente</FormLabel>
+                    <FormLabel>{clientFacing ? 'Sua referência (PO ou pedido)' : 'Referência do Cliente'}</FormLabel>
                     <FormControl>
                       <Input placeholder="Ex: PO-12345" {...field} />
                     </FormControl>

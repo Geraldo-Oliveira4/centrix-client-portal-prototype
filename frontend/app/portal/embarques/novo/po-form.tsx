@@ -302,7 +302,7 @@ export function PoForm({
 
             <div className="space-y-1.5">
               <Label htmlFor="po-ref" className="portal-small">
-                REF do cliente *
+                Sua referência (REF) *
               </Label>
               <Input
                 id="po-ref"
