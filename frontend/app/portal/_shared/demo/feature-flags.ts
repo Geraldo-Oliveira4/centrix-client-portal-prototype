@@ -195,6 +195,8 @@ export const PORTAL_MODULE_ROUTES: { prefix: string; module: PortalModule }[] = 
   { prefix: '/portal/cotacoes', module: 'cotacao' },
   { prefix: '/portal/cotacao', module: 'cotacao' },
   { prefix: '/portal/nova-cotacao', module: 'cotacao' },
+  // Fechamento direto passa pela revisão de entrada: sem a V2 ela não existe.
+  { prefix: '/portal/nova-cotacao/fechamento-direto', module: 'cotacaoV2' },
   { prefix: '/portal/inteligencia', module: 'inteligencia' },
   { prefix: '/portal/radar', module: 'radar' },
   { prefix: '/portal/auditoria', module: 'auditoria' },

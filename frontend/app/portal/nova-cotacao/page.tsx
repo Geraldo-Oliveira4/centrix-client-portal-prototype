@@ -3,7 +3,14 @@
 import { Suspense, useCallback, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { CheckCircle2, Loader2, Radar } from 'lucide-react';
+import Link from 'next/link';
+import {
+  ArrowRight,
+  CheckCircle2,
+  Handshake,
+  Loader2,
+  Radar,
+} from 'lucide-react';
 import { LoaderComponent } from '@arboria-tech/arboria-ui';
 import {
   Button,
@@ -273,6 +280,33 @@ function PortalNovaCotacaoContent() {
             ({routeLabel}). Confira e complete o resto da carga.
           </p>
         </div>
+      )}
+
+      {/* FECHAMENTO DIRETO (Orsi, 29/09/2026). Atalho SECUNDARIO: e navegacao,
+          nao a acao da tela, entao fica em indigo e nao em laranja — o CTA da
+          pagina continua sendo "Enviar para a Freitas". */}
+      {v2 && (
+        <Link
+          href="/portal/nova-cotacao/fechamento-direto"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="flex min-w-0 items-start gap-2.5">
+            <Handshake className="mt-0.5 h-6 w-6 shrink-0 text-brand-indigo" />
+            <span className="min-w-0">
+              <span className="portal-body block font-medium text-foreground">
+                Já embarca sempre com o mesmo agente nesta rota?
+              </span>
+              <span className="portal-small block text-portal-neutral">
+                Feche direto com o agente preferido da rota, sem cotar. A
+                Freitas revisa antes de instruir o agente.
+              </span>
+            </span>
+          </span>
+          <span className="portal-small inline-flex shrink-0 items-center gap-1 font-medium text-brand-indigo">
+            Fechar direto com agente preferido{' '}
+            <ArrowRight className="h-4 w-4" />
+          </span>
+        </Link>
       )}
 
       {/* Com o V2 a tela ganha uma coluna lateral fixa: as quatro etapas do
