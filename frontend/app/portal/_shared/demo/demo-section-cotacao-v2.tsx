@@ -12,9 +12,18 @@
 //
 // Devolver é sempre manual e sempre exige motivo (RQ-5). A autorresposta nunca
 // devolve — ver `use-v2-auto-advance.ts`.
+//
+// VOCABULÁRIO (Orsi, 29/09/2026). O Inbox NÃO é uma fila nova: é a visão que o
+// analista usa para a revisão de entrada, a mesma fila de "Para Cotar". Cada
+// linha diz em que coluna do Kanban interno a cotação estaria, para quem assiste
+// ligar o estado do cliente à fila da Freitas.
+//
+// HARDBLOCKS (mesma data). A lista do Orsi trava "Aprovar e disparar RFQ" na
+// entrada e "Liberar N propostas" na saída, com o motivo escrito. As flags
+// Crítico/Alto das propostas NÃO entram na regra.
 
 import { useMemo, useState } from 'react';
-import { Send, Undo2 } from 'lucide-react';
+import { Clock3, Mail, Send, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +49,10 @@ import type { PortalQuotation } from '@/types/portal';
 import {
   V2_STAGE_DESCRIPTIONS,
   V2_STAGE_LABELS,
+  isResubmission,
+  lastSubmission,
+  submissionRound,
+  type V2Stage,
   approveEntry,
   quotesArrived,
   releaseProposals,
@@ -57,6 +70,59 @@ import {
 import { usePortalModuleReleased } from './use-feature-flags';
 import { buildDemoScenarios } from './quotation-v2-scenarios';
 import { effectiveProposals } from './quotation-demo-proposals';
+import { quotationHardblocks, type Hardblock } from './quotation-hardblocks';
+import {
+  ChangedFieldsList,
+  REVIEW_SLA_LABEL,
+  ResubmittedChip,
+} from './quotation-v2-labels';
+import { reviewDueAt } from './review-sla';
+
+/**
+ * Onde a cotação estaria no Kanban interno da Freitas (spec, Figura 1). O Inbox
+ * é a visão da revisão de entrada sobre a coluna Para Cotar, não uma coluna.
+ */
+const INTERNAL_QUEUE: Record<V2Stage, string> = {
+  draft: 'Fora da fila · rascunho do cliente',
+  entry_review: 'Inbox · revisão de entrada (Para Cotar)',
+  returned: 'Fora da fila · devolvida ao cliente',
+  awaiting_quotes: 'Cotando',
+  exit_review: 'Para Análise · revisão de saída',
+  released: 'Enviada ao Cliente',
+  approved: 'Aprovada pelo Cliente',
+  cancelled: 'Cancelada pelo cliente',
+};
+
+function time(date: Date): string {
+  return date.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/** O quadro "por que este botão está travado", com a lista do Orsi. */
+function BlockedNote({
+  title,
+  blocks,
+  hint,
+}: {
+  title: string;
+  blocks: Hardblock[];
+  hint: string;
+}) {
+  return (
+    <div className="rounded-md border border-portal-warning/40 bg-portal-warning/10 px-3 py-2">
+      <p className="portal-small font-medium text-portal-warning-ink">
+        {title} ·{' '}
+        {blocks.length === 1 ? 'falta 1 item' : `faltam ${blocks.length} itens`}
+      </p>
+      <p className="portal-small text-foreground/80">
+        {blocks.map((block) => block.label).join(', ')}.
+      </p>
+      <p className="portal-small mt-1 text-portal-neutral">{hint}</p>
+    </div>
+  );
+}
 
 /**
  * Motivos prontos de devolução.
@@ -93,13 +159,17 @@ function now(): string {
 function ReturnDialog({
   quotationId,
   reference,
+  suggested,
   onClose,
 }: {
   quotationId: string;
   reference: string;
+  /** "Faltam dados obrigatórios: ..." quando a lista do Orsi bloqueia. */
+  suggested: string | null;
   onClose: () => void;
 }) {
-  const [choice, setChoice] = useState(RETURN_REASONS[0]);
+  const reasons = suggested ? [suggested, ...RETURN_REASONS] : RETURN_REASONS;
+  const [choice, setChoice] = useState(reasons[0]);
   const [free, setFree] = useState('');
   const reason = choice === FREE_REASON ? free.trim() : choice;
 
@@ -124,7 +194,7 @@ function ReturnDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {RETURN_REASONS.map((item) => (
+                {reasons.map((item) => (
                   <SelectItem key={item} value={item}>
                     {item}
                   </SelectItem>
@@ -224,7 +294,8 @@ function ReleaseDialog({
                     {proposal.label}
                     {proposal.blocked && (
                       <span className="portal-small block text-portal-warning-ink">
-                        Bloqueada · dado incompleto
+                        Bloqueada · sem valor. A correção é pedida ao agente por
+                        e-mail.
                       </span>
                     )}
                   </span>
@@ -260,25 +331,85 @@ function QuotationRow({
   quotationId,
   review,
   quotation,
+  blocks,
+  releasable,
   onReturn,
   onRelease,
 }: {
   quotationId: string;
   review: QuotationReview;
   quotation: PortalQuotation | undefined;
+  /** A lista do Orsi sobre esta cotação; `null` enquanto o payload carrega. */
+  blocks: Hardblock[] | null;
+  /** Propostas com valor, as que a revisão de saída pode liberar. */
+  releasable: number;
   onReturn: () => void;
   onRelease: () => void;
 }) {
   const reference = quotation?.reference ?? quotationId.slice(0, 8);
+  const blocked = blocks == null || blocks.length > 0;
+  const due =
+    review.stage === 'entry_review' || review.stage === 'exit_review'
+      ? reviewDueAt(review.stageEnteredAt)
+      : null;
+  const overdue = due != null && due.getTime() < Date.now();
+  const round = submissionRound(review);
 
   return (
     <li className="space-y-2 rounded-lg border border-border p-3">
-      <div className="min-w-0">
-        <p className="portal-body font-medium text-foreground">{reference}</p>
+      <div className="min-w-0 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="portal-body font-medium text-foreground">{reference}</p>
+          {isResubmission(review) && <ResubmittedChip />}
+        </div>
         <p className="portal-small text-portal-neutral">
-          {V2_STAGE_LABELS[review.stage]} · {V2_STAGE_DESCRIPTIONS[review.stage]}
+          {V2_STAGE_LABELS[review.stage]} ·{' '}
+          {V2_STAGE_DESCRIPTIONS[review.stage]}
         </p>
+        <p className="portal-small text-portal-neutral">
+          {INTERNAL_QUEUE[review.stage]}
+          {round > 1 && ` · ${round}ª rodada`}
+        </p>
+        {due && (
+          <p
+            className={
+              overdue
+                ? 'portal-small inline-flex items-center gap-1 font-medium text-portal-danger'
+                : 'portal-small inline-flex items-center gap-1 text-portal-neutral'
+            }
+          >
+            <Clock3 className="h-4 w-4 shrink-0" />
+            {overdue ? 'Prazo vencido às ' : 'Prazo da revisão: até '}
+            {time(due)}
+          </p>
+        )}
+        {isResubmission(review) && (
+          <div className="pt-1">
+            <p className="portal-small font-medium text-foreground">
+              O que mudou nesta rodada
+            </p>
+            <ChangedFieldsList
+              changes={lastSubmission(review)?.changes}
+              max={8}
+            />
+          </div>
+        )}
       </div>
+
+      {review.stage === 'entry_review' && blocks && blocks.length > 0 && (
+        <BlockedNote
+          title="RFQ bloqueado"
+          blocks={blocks}
+          hint="Devolva ao cliente pedindo esses itens. O motivo já vem sugerido."
+        />
+      )}
+      {review.stage === 'exit_review' && blocks && blocks.length > 0 && (
+        <BlockedNote
+          title="Liberação bloqueada"
+          blocks={blocks}
+          hint="A cotação deixou de atender à lista de bloqueios: nenhuma proposta pode ser liberada até esses itens estarem preenchidos. As flags Crítico e Alto não entram nesta regra."
+        />
+      )}
 
       <div className="flex flex-wrap gap-2">
         {review.stage === 'draft' && (
@@ -299,6 +430,7 @@ function QuotationRow({
           <>
             <Button
               size="sm"
+              disabled={blocked}
               onClick={() =>
                 updateQuotationReview(quotationId, (entry) =>
                   approveEntry(entry, now()),
@@ -328,9 +460,15 @@ function QuotationRow({
         )}
 
         {review.stage === 'exit_review' && (
-          <Button size="sm" onClick={onRelease}>
+          <Button
+            size="sm"
+            disabled={blocked || releasable === 0}
+            onClick={onRelease}
+          >
             <Send className="mr-1.5 h-4 w-4" />
-            Liberar propostas
+            {releasable === 0
+              ? 'Nada a liberar'
+              : `Liberar ${releasable} ${releasable === 1 ? 'proposta' : 'propostas'}`}
           </Button>
         )}
 
@@ -346,19 +484,60 @@ function QuotationRow({
           </p>
         )}
 
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-portal-neutral"
-          onClick={() =>
-            updateQuotationReview(quotationId, (entry) =>
-              resetToDraft(entry, now()),
-            )
-          }
-        >
-          Voltar ao rascunho
-        </Button>
+        {review.stage === 'approved' && (
+          <p className="portal-small text-portal-neutral">
+            A instrução de fechamento chegou ao analista. O embarque já foi
+            criado.
+          </p>
+        )}
+
+        {review.stage === 'cancelled' && (
+          <p className="portal-small text-portal-neutral">
+            Justificativa do cliente: “
+            {[...review.history]
+              .reverse()
+              .find((event) => event.kind === 'cancelled')?.reason ?? '—'}
+            ”
+          </p>
+        )}
+
+        {/* Cancelada tambem no BACKEND: voltar ao rascunho poria no funil uma
+            cotacao que o servidor ja encerrou. */}
+        {review.stage !== 'cancelled' && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-portal-neutral"
+            onClick={() =>
+              updateQuotationReview(quotationId, (entry) =>
+                resetToDraft(entry, now()),
+              )
+            }
+          >
+            Voltar ao rascunho
+          </Button>
+        )}
       </div>
+
+      {/* PEDIR CORRECAO AO AGENTE e sempre por e-mail (Orsi, 29/09/2026). E
+          texto, nao botao: nao ha tela do cliente nem fila de agente neste
+          prototipo, e um botao prometeria um envio que nao acontece. */}
+      {review.stage === 'exit_review' && (
+        <p className="portal-small flex items-start gap-1.5 text-portal-neutral">
+          <Mail className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            Proposta com problema? A correção é pedida ao agente por e-mail,
+            fora do portal. A proposta corrigida volta a esta revisão; o cliente
+            não vê nada até a liberação.
+          </span>
+        </p>
+      )}
+      {review.stage === 'exit_review' && releasable === 0 && (
+        <p className="portal-small text-portal-neutral">
+          Nenhuma proposta tem valor para comparar. Liberar zero propostas não é
+          possível: peça a correção aos agentes por e-mail.
+        </p>
+      )}
     </li>
   );
 }
@@ -374,7 +553,9 @@ export function CotacaoV2Section() {
   const entries = useMemo(
     () =>
       Object.entries(store).sort(([a], [b]) =>
-        (byId.get(a)?.reference ?? a).localeCompare(byId.get(b)?.reference ?? b),
+        (byId.get(a)?.reference ?? a).localeCompare(
+          byId.get(b)?.reference ?? b,
+        ),
       ),
     [store, byId],
   );
@@ -395,21 +576,32 @@ export function CotacaoV2Section() {
     if (!quotation) return [];
     return effectiveProposals(quotation).map((proposal, index) => ({
       id: proposal.id,
-      label:
-        proposal.agent?.name ??
-        `Proposta ${index + 1}`,
+      label: proposal.agent?.name ?? `Proposta ${index + 1}`,
       // "Bloqueada" aqui é ilustrativo: sem valor, a proposta não tem o que
       // comparar, e é o caso mais legível de bloqueio rígido para a demo.
       blocked: !(Number.isFinite(proposal.total_brl) && proposal.total_brl > 0),
     }));
   };
 
+  // A lista do Orsi sobre o que o cliente ENVIOU (snapshot do overlay) ou,
+  // sem ele, sobre o payload. `null` enquanto a cotação não carregou.
+  const blocksOf = (quotationId: string): Hardblock[] | null => {
+    const quotation = byId.get(quotationId);
+    if (!quotation) return null;
+    return quotationHardblocks(store[quotationId]?.submittedForm, quotation)
+      .blocks;
+  };
+
   return (
     <div className="space-y-4">
+      <p className="portal-small text-portal-neutral">
+        O Inbox não é uma fila nova: é a visão da revisão de entrada sobre a
+        coluna Para Cotar. Prazo de cada revisão: {REVIEW_SLA_LABEL}.
+      </p>
       {entries.length === 0 ? (
         <p className="portal-small text-portal-neutral">
-          Nenhuma cotação na jornada V2. Envie uma em “Nova cotação”, ou carregue
-          os cenários abaixo.
+          Nenhuma cotação na jornada V2. Envie uma em “Nova cotação”, ou
+          carregue os cenários abaixo.
         </p>
       ) : (
         <ul className="space-y-2">
@@ -419,6 +611,10 @@ export function CotacaoV2Section() {
               quotationId={quotationId}
               review={review}
               quotation={byId.get(quotationId)}
+              blocks={blocksOf(quotationId)}
+              releasable={
+                proposalsOf(quotationId).filter((p) => !p.blocked).length
+              }
               onReturn={() => setReturning(quotationId)}
               onRelease={() => setReleasing(quotationId)}
             />
@@ -446,14 +642,20 @@ export function CotacaoV2Section() {
         )}
       </div>
       <p className="portal-small text-portal-neutral">
-        Os cenários distribuem as seis etapas por cotações que já existem. Nada é
-        criado nem apagado no servidor.
+        Os cenários distribuem as seis etapas por cotações que já existem. Nada
+        é criado nem apagado no servidor.
       </p>
 
       {returning && (
         <ReturnDialog
           quotationId={returning}
           reference={byId.get(returning)?.reference ?? returning}
+          suggested={(() => {
+            const blocks = blocksOf(returning);
+            return blocks && blocks.length > 0
+              ? `Faltam dados obrigatórios: ${blocks.map((b) => b.label).join(', ')}`
+              : null;
+          })()}
           onClose={() => setReturning(null)}
         />
       )}

@@ -6,6 +6,7 @@ import {
   evaluateHardblocks,
   hardblockCountLabel,
   parseAmount,
+  quotationHardblocks,
 } from './quotation-hardblocks.ts';
 
 /** A complete maritime FCA quotation: passes every item. */
@@ -237,4 +238,14 @@ test('parseAmount aceita formato brasileiro e recusa texto', () => {
 test('o contador concorda em número', () => {
   assert.equal(hardblockCountLabel(1), 'Falta 1 item');
   assert.equal(hardblockCountLabel(4), 'Faltam 4 itens');
+});
+
+test('na revisão, o snapshot enviado vale mais que o payload', () => {
+  const payload = { modal: 'MARITIMO', incoterm: 'FCA' };
+  assert.deepEqual(quotationHardblocks(complete(), payload).blocks, []);
+  // Sem snapshot, o que o payload não traz (fator de escolha) bloqueia.
+  const items = quotationHardblocks(undefined, payload).blocks.map(
+    (b) => b.item,
+  );
+  assert.ok(items.includes('price_or_performance'));
 });

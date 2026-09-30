@@ -16,7 +16,11 @@
 // Na versão integrada esta regra vive no backend (a revisão de entrada recusa
 // disparar o RFQ, a de saída recusa liberar); aqui ela desenha a tela.
 
-import type { FormSnapshot } from './quotation-form-snapshot.ts';
+import {
+  snapshotFromQuotation,
+  type FormSnapshot,
+  type SnapshotQuotation,
+} from './quotation-form-snapshot.ts';
 
 export type HardblockItem =
   | 'tipo_cotacao'
@@ -316,4 +320,20 @@ export function evaluateHardblocks(snapshot: FormSnapshot): HardblockReport {
 /** "Falta 1 item" · "Faltam 3 itens". */
 export function hardblockCountLabel(count: number): string {
   return count === 1 ? 'Falta 1 item' : `Faltam ${count} itens`;
+}
+
+/**
+ * The hardblocks of a quotation ALREADY SENT — what the Freitas' two reviews
+ * check before approving the entry and before releasing proposals.
+ *
+ * The snapshot of the latest submission wins; without one (a quotation sent
+ * before this version, or by upload) the payload is the source, and whatever
+ * it does not carry blocks until someone fills it. Guessing it would release a
+ * proposal on a quotation nobody completed.
+ */
+export function quotationHardblocks(
+  submitted: FormSnapshot | undefined,
+  quotation: SnapshotQuotation,
+): HardblockReport {
+  return evaluateHardblocks(submitted ?? snapshotFromQuotation(quotation));
 }
