@@ -54,6 +54,15 @@ import { EquipmentDialog } from './equipment-dialog';
 import { EquipmentsTable } from './equipments-table';
 import { VolumeDialog } from './volume-dialog';
 import { VolumesTable } from './volumes-table';
+import {
+  FieldBlockHint,
+  FieldBlocksProvider,
+  FieldBlocksSummary,
+  FieldCollapse,
+  SubmitBlockedNote,
+  fieldAnchor,
+} from './field-blocks';
+import type { HardblockReport } from '@/app/portal/_shared/demo/quotation-hardblocks';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -80,6 +89,8 @@ const manualFormSchema = z.object({
   price_or_performance: z.enum(['', 'PRECO', 'PERFORMANCE']).optional(),
   // Mercadoria
   product: z.string().optional(),
+  // Portal-only (Cotação V2 hardblocks): the analyst form never renders it.
+  ncm: z.string().optional(),
   carga_perigosa: z.enum(['NAO', 'RA', 'IMO']).optional(),
   un_number: z.string().optional(),
   imo_class: z.string().optional(),
@@ -101,11 +112,26 @@ const manualFormSchema = z.object({
 
 export type ManualFormValues = z.infer<typeof manualFormSchema>;
 
+/**
+ * With `hardblocks` the Orsi list is the ONLY gate to sending (Cotação V2): a
+ * required field outside it would enable the button and then refuse the click
+ * with an error at the bottom of the page. Readiness date is the one such
+ * field; the backend create does not require it either.
+ */
+const hardblockFormSchema = manualFormSchema.extend({
+  data_prontidao: z.string().optional(),
+});
+
+/** Renders children only while `open`: the analyst form's plain behaviour. */
+function PlainReveal({ open, children }: { open: boolean; className?: string; closedOffset?: string; children: React.ReactNode }) {
+  return open ? <>{children}</> : null;
+}
+
 export type ManualFormDraft = {
   values: Partial<ManualFormValues>;
   equipments: CreateEquipmentItem[];
   volumes: CreateVolumeItem[];
-  flags?: Partial<Record<'showRefrigerada' | 'agenteDefineLocalColeta' | 'agenteDefinePortoEmbarque' | 'agenteDefinePortoDestino' | 'agenteDefineAeroportoEmbarque' | 'agenteDefineAeroportoDestino', boolean>>;
+  flags?: Partial<Record<'showRefrigerada' | 'agenteDefineLocalColeta' | 'agenteDefinePortoEmbarque' | 'agenteDefinePortoDestino' | 'agenteDefineAeroportoEmbarque' | 'agenteDefineAeroportoDestino' | 'cargaPerigosaDeclarada', boolean>>;
 };
 
 interface ManualFormProps {
@@ -117,7 +143,11 @@ interface ManualFormProps {
     onAssist?: (snapshot: ManualFormDraft) => void;
   };
   clientId: string | null;
-  onQuotationCreated: (quotation: Quotation) => void;
+  /**
+   * `snapshot` is what the client typed, for callers that keep a copy of it
+   * (the portal's Cotação V2 stores it to diff the next submission).
+   */
+  onQuotationCreated: (quotation: Quotation, snapshot?: ManualFormDraft) => void;
   disabled?: boolean;
   clientDna?: ClientDna | null;
   attachmentFiles?: File[];
@@ -148,9 +178,18 @@ interface ManualFormProps {
    * dispatches themselves, it ends in the Freitas' review queue.
    */
   submitLabel?: string;
+  /**
+   * Blocking rules evaluated on every change (portal Cotação V2 only). When
+   * present the form shows a "faltam N itens" summary, the reason under each
+   * pending field, reveals the conditional fields the rules ask for, asks the
+   * dangerous-goods question explicitly (Sim/Não, no default) and keeps the
+   * submit disabled until nothing blocks. Absent — the analyst screen — none of
+   * it renders.
+   */
+  hardblocks?: (snapshot: ManualFormDraft) => HardblockReport;
 }
 
-export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues, draft, submitLabel }: ManualFormProps) {
+export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues, draft, submitLabel, hardblocks }: ManualFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraggingAttachments, setIsDraggingAttachments] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -166,9 +205,12 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
   const [agenteDefinePortoDestino, setAgenteDefinePortoDestino] = useState(draft?.initial.flags?.agenteDefinePortoDestino ?? false);
   const [agenteDefineAeroportoEmbarque, setAgenteDefineAeroportoEmbarque] = useState(draft?.initial.flags?.agenteDefineAeroportoEmbarque ?? false);
   const [agenteDefineAeroportoDestino, setAgenteDefineAeroportoDestino] = useState(draft?.initial.flags?.agenteDefineAeroportoDestino ?? false);
+  // "Sim" to dangerous goods before a classification is chosen — a state the
+  // `carga_perigosa` enum cannot hold. Only the hardblock mode asks it.
+  const [cargaPerigosaDeclarada, setCargaPerigosaDeclarada] = useState(draft?.initial.flags?.cargaPerigosaDeclarada ?? false);
 
   const form = useForm<ManualFormValues>({
-    resolver: zodResolver(manualFormSchema),
+    resolver: zodResolver(hardblocks ? hardblockFormSchema : manualFormSchema),
     defaultValues: {
       tipo_cotacao: undefined,
       data_cotacao: todayISODate(),
@@ -299,10 +341,22 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
 
   const draftSnapshot = (values: Partial<ManualFormValues>): ManualFormDraft => ({
     values, equipments, volumes,
-    flags: { showRefrigerada, agenteDefineLocalColeta, agenteDefinePortoEmbarque, agenteDefinePortoDestino, agenteDefineAeroportoEmbarque, agenteDefineAeroportoDestino },
+    flags: { showRefrigerada, agenteDefineLocalColeta, agenteDefinePortoEmbarque, agenteDefinePortoDestino, agenteDefineAeroportoEmbarque, agenteDefineAeroportoDestino, cargaPerigosaDeclarada },
   });
 
+  // Re-evaluated on every render, and `watch()` re-renders on every change:
+  // switching the incoterm revalidates without anyone asking.
+  const report = hardblocks ? hardblocks(draftSnapshot(form.watch())) : null;
+  const blocked = (report?.blocks.length ?? 0) > 0;
+  const blockMap = new Map((report?.blocks ?? []).map((block) => [block.field, block]));
+  const countLabel = report ? (report.blocks.length === 1 ? 'Falta 1 item' : `Faltam ${report.blocks.length} itens`) : '';
+  const Reveal = report ? FieldCollapse : PlainReveal;
+  const dangerousAnswer =
+    watchCargaPerigosa === 'NAO' ? 'nao' : cargaPerigosaActive || cargaPerigosaDeclarada ? 'sim' : '';
+
   const handleSubmit = async (values: ManualFormValues) => {
+    // The button is disabled while anything blocks; this covers Enter in a field.
+    if (blocked) return;
     // Draft review must never create a quotation or upload attachments.
     if (draft) {
       draft.onReview(draftSnapshot(values));
@@ -326,13 +380,14 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
       aeroporto_destino: values.aeroporto_destino?.length ? values.aeroporto_destino : undefined,
       incluir_entrega_destino_final: parseBool(values.incluir_entrega_destino_final),
       endereco_entrega_final:
-        values.incluir_entrega_destino_final === 'true'
+        values.incluir_entrega_destino_final === 'true' || report?.applies.deliveryAddress
           ? values.endereco_entrega_final || undefined
           : undefined,
       incoterm: values.incoterm || undefined,
       ptax_negociada: values.ptax_negociada || undefined,
       price_or_performance: (values.price_or_performance || undefined) as PriceOrPerformance | undefined,
       product: values.product || undefined,
+      ncm: values.ncm || undefined,
       carga_perigosa: values.carga_perigosa as CargaPerigosa | undefined,
       un_number: values.un_number || undefined,
       imo_class: values.imo_class || undefined,
@@ -369,7 +424,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
         await Promise.all(uploads);
       }
       setIsSubmitting(false);
-      onQuotationCreated(result.quotation);
+      onQuotationCreated(result.quotation, draftSnapshot(values));
     } else {
       setIsSubmitting(false);
     }
@@ -377,8 +432,17 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
 
   return (
     <Form {...form}>
+      <FieldBlocksProvider value={report ? blockMap : null}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-5">
         {draft?.onAssist && <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/20 p-4"><div><p className="text-sm font-medium">Já tem os dados em um e-mail ou documento?</p><p className="text-xs text-muted-foreground">Use a IA para ajudar a preencher e confira as sugestões antes de aplicar.</p></div><Button type="button" variant="outline" onClick={() => draft.onAssist?.(draftSnapshot(form.getValues()))}>Preencher com IA</Button></div>}
+
+        {report && (
+          <FieldBlocksSummary
+            blocks={report.blocks}
+            countLabel={countLabel}
+            readyLabel="Tudo pronto: os itens obrigatórios estão preenchidos."
+          />
+        )}
 
         {/* The three blocks have very different field counts (Embarque is the
             longest, Observações the shortest), and `items-start` let each card
@@ -407,7 +471,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 control={form.control}
                 name="tipo_cotacao"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem id={fieldAnchor('tipo_cotacao')}>
                     <FormLabel>Tipo de Cotação</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
@@ -421,6 +485,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                    <FieldBlockHint field="tipo_cotacao" />
                   </FormItem>
                 )}
               />
@@ -443,7 +508,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 control={form.control}
                 name="service_type"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem id={fieldAnchor('service_type')}>
                     <FormLabel>Tipo de Serviço</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
@@ -457,6 +522,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                    <FieldBlockHint field="service_type" />
                   </FormItem>
                 )}
               />
@@ -465,7 +531,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 control={form.control}
                 name="modal"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem id={fieldAnchor('modal')}>
                     <FormLabel>Modal</FormLabel>
                     <Select
                       onValueChange={(value) => {
@@ -491,6 +557,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                    <FieldBlockHint field="modal" />
                   </FormItem>
                 )}
               />
@@ -524,7 +591,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 control={form.control}
                 name="incoterm"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem id={fieldAnchor('incoterm')}>
                     <FormLabel>Incoterm</FormLabel>
                     <FormControl>
                       <Combobox
@@ -536,6 +603,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       />
                     </FormControl>
                     <FormMessage />
+                    <FieldBlockHint field="incoterm" />
                   </FormItem>
                 )}
               />
@@ -569,7 +637,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 control={form.control}
                 name="price_or_performance"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem id={fieldAnchor('price_or_performance')}>
                     <FormLabel>Fator de Escolha</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
@@ -583,6 +651,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                    <FieldBlockHint field="price_or_performance" />
                   </FormItem>
                 )}
               />
@@ -591,7 +660,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 control={form.control}
                 name="origin"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem id={fieldAnchor('origin')}>
                     <FormLabel>Local de coleta</FormLabel>
                     <div className="flex items-center gap-2 mb-1">
                       <Switch
@@ -612,6 +681,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       />
                     </FormControl>
                     <FormMessage />
+                    <FieldBlockHint field="origin" />
                   </FormItem>
                 )}
               />
@@ -622,7 +692,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                     control={form.control}
                     name="porto_embarque"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem id={fieldAnchor('porto_embarque')}>
                         <FormLabel>{isRoad ? 'Fronteira de Embarque' : 'Porto de Embarque'}</FormLabel>
                         <div className="flex items-center gap-2 mb-1">
                           <Switch
@@ -654,6 +724,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                           )}
                         </FormControl>
                         <FormMessage />
+                        <FieldBlockHint field="porto_embarque" />
                       </FormItem>
                     )}
                   />
@@ -662,7 +733,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                     control={form.control}
                     name="porto_destino"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem id={fieldAnchor('porto_destino')}>
                         <FormLabel>{isRoad ? 'Fronteira de Destino' : 'Porto de Destino'}</FormLabel>
                         <div className="flex items-center gap-2 mb-1">
                           <Switch
@@ -695,6 +766,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                           )}
                         </FormControl>
                         <FormMessage />
+                        <FieldBlockHint field="porto_destino" />
                       </FormItem>
                     )}
                   />
@@ -707,7 +779,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                     control={form.control}
                     name="aeroporto_embarque"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem id={fieldAnchor('aeroporto_embarque')}>
                         <FormLabel>Aeroporto de Embarque</FormLabel>
                         <div className="flex items-center gap-2 mb-1">
                           <Switch
@@ -731,6 +803,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                           />
                         </FormControl>
                         <FormMessage />
+                        <FieldBlockHint field="aeroporto_embarque" />
                       </FormItem>
                     )}
                   />
@@ -739,7 +812,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                     control={form.control}
                     name="aeroporto_destino"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem id={fieldAnchor('aeroporto_destino')}>
                         <FormLabel>Aeroporto de Desembarque</FormLabel>
                         <div className="flex items-center gap-2 mb-1">
                           <Switch
@@ -763,6 +836,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                           />
                         </FormControl>
                         <FormMessage />
+                        <FieldBlockHint field="aeroporto_destino" />
                       </FormItem>
                     )}
                   />
@@ -800,17 +874,40 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       control={form.control}
                       name="endereco_entrega_final"
                       render={({ field }) => (
-                        <FormItem className="col-span-2">
+                        <FormItem id={fieldAnchor('endereco_entrega_final')} className="col-span-2">
                           <FormLabel>Endereço de Entrega Final</FormLabel>
                           <FormControl>
                             <Input placeholder="Ex: Rua das Flores, 123..." {...field} />
                           </FormControl>
                           <FormMessage />
+                          <FieldBlockHint field="endereco_entrega_final" />
                         </FormItem>
                       )}
                     />
                   )}
                 </>
+              )}
+
+              {/* DAP/DDP: the freight goes to the door, so the portal asks for
+                  the address whatever the modal. The air "porta-a-porta" field
+                  above already covers it when it is showing. */}
+              {report && !(isAir && form.watch('incluir_entrega_destino_final') === 'true') && (
+                <FieldCollapse open={report.applies.deliveryAddress} className="col-span-2" closedOffset="-mt-3">
+                  <FormField
+                    control={form.control}
+                    name="endereco_entrega_final"
+                    render={({ field }) => (
+                      <FormItem id={fieldAnchor('endereco_entrega_final')}>
+                        <FormLabel>Endereço de entrega final</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Rua, número, cidade e CEP" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        <FieldBlockHint field="endereco_entrega_final" />
+                      </FormItem>
+                    )}
+                  />
+                </FieldCollapse>
               )}
             </div>
           </CardSection>
@@ -826,18 +923,69 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 control={form.control}
                 name="product"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem id={fieldAnchor('product')}>
                     <FormLabel>Produto / Mercadoria</FormLabel>
                     <FormControl>
                       <Input placeholder="Ex: Eletrônicos, Têxteis..." {...field} />
                     </FormControl>
                     <FormMessage />
+                    <FieldBlockHint field="product" />
                   </FormItem>
                 )}
               />
 
+              {report && (
+                <FieldCollapse open={report.applies.ncm} closedOffset="-mt-3">
+                  <FormField
+                    control={form.control}
+                    name="ncm"
+                    render={({ field }) => (
+                      <FormItem id={fieldAnchor('ncm')}>
+                        <FormLabel>NCM</FormLabel>
+                        <FormControl>
+                          <Input inputMode="numeric" placeholder="Ex: 8517.62.77" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        <FieldBlockHint field="ncm" />
+                      </FormItem>
+                    )}
+                  />
+                </FieldCollapse>
+              )}
+
               {/* Carga Perigosa */}
               <div className="flex flex-col gap-2">
+                {report ? (
+                  // Hardblock mode: an explicit Sim/Não with NO default. A
+                  // switch that starts off reads as "Não" to someone who never
+                  // looked at it — exactly the answer that must not slip by.
+                  <div id={fieldAnchor('carga_perigosa')} className="flex flex-col gap-2">
+                    <Label htmlFor="carga-perigosa-resposta">Carga perigosa</Label>
+                    <Select
+                      value={dangerousAnswer}
+                      onValueChange={(answer) => {
+                        if (answer === 'nao') {
+                          setCargaPerigosaDeclarada(false);
+                          form.setValue('carga_perigosa', 'NAO');
+                          form.setValue('un_number', '');
+                          form.setValue('imo_class', '');
+                        } else {
+                          setCargaPerigosaDeclarada(true);
+                          if (form.getValues('carga_perigosa') === 'NAO') form.setValue('carga_perigosa', undefined);
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="carga-perigosa-resposta">
+                        <SelectValue placeholder="Selecionar..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nao">Não</SelectItem>
+                        <SelectItem value="sim">Sim</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FieldBlockHint field="carga_perigosa" />
+                  </div>
+                ) : (
                 <div className="flex items-center gap-2">
                   <Switch
                     checked={cargaPerigosaActive}
@@ -853,8 +1001,9 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                   />
                   <Label>Carga Perigosa</Label>
                 </div>
+                )}
 
-                {cargaPerigosaActive && (
+                <Reveal open={report ? dangerousAnswer === 'sim' : cargaPerigosaActive} closedOffset="-mt-2">
                   <div className="grid grid-cols-2 gap-3">
                     <FormField
                       control={form.control}
@@ -862,7 +1011,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Classificação</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                          <Select onValueChange={field.onChange} value={field.value === 'NAO' ? '' : (field.value ?? '')}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecionar..." />
@@ -878,17 +1027,18 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       )}
                     />
 
-                    {showUnNumber && (
+                    {(report ? report.applies.unNumber : showUnNumber) && (
                       <FormField
                         control={form.control}
                         name="un_number"
                         render={({ field }) => (
-                          <FormItem>
+                          <FormItem id={fieldAnchor('un_number')}>
                             <FormLabel>UN</FormLabel>
                             <FormControl>
                               <Input placeholder="Ex: UN1263" {...field} />
                             </FormControl>
                             <FormMessage />
+                            <FieldBlockHint field="un_number" />
                           </FormItem>
                         )}
                       />
@@ -910,7 +1060,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       />
                     )}
                   </div>
-                )}
+                </Reveal>
               </div>
 
               {/* Empilhável + Tombável */}
@@ -919,7 +1069,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                   control={form.control}
                   name="stackability"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem id={fieldAnchor('stackability')}>
                       <FormLabel>Empilhável</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
@@ -933,6 +1083,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                      <FieldBlockHint field="stackability" />
                     </FormItem>
                   )}
                 />
@@ -941,7 +1092,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                   control={form.control}
                   name="carga_tombavel"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem id={fieldAnchor('carga_tombavel')}>
                       <FormLabel>Carga Tombável</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
@@ -955,6 +1106,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                      <FieldBlockHint field="carga_tombavel" />
                     </FormItem>
                   )}
                 />
@@ -976,18 +1128,19 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                   <Label>Carga Refrigerada</Label>
                 </div>
 
-                {showRefrigerada && (
+                <Reveal open={showRefrigerada} closedOffset="-mt-2">
                   <div className="grid grid-cols-2 gap-3">
                     <FormField
                       control={form.control}
                       name="temperatura_min"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem id={fieldAnchor('temperatura_min')}>
                           <FormLabel>Temp. Mín (°C)</FormLabel>
                           <FormControl>
                             <Input type="number" placeholder="Mín" {...field} />
                           </FormControl>
                           <FormMessage />
+                          <FieldBlockHint field="temperatura_min" />
                         </FormItem>
                       )}
                     />
@@ -1005,7 +1158,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       )}
                     />
                   </div>
-                )}
+                </Reveal>
               </div>
 
               {/* FCL: equipment list */}
@@ -1048,7 +1201,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                     narrow to read or type into. Full width gives the input the
                     remaining ~180px. Also fixes the same field on the analyst
                     screen, which renders this shared form. */}
-                <FormItem className="col-span-2">
+                <FormItem className="col-span-2" id={fieldAnchor('declared_value')}>
                   <FormLabel>Valor da Carga</FormLabel>
                   <div className="flex gap-2">
                     <FormField
@@ -1085,6 +1238,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                       )}
                     />
                   </div>
+                  <FieldBlockHint field="declared_value" />
                 </FormItem>
 
                 <FormField
@@ -1181,12 +1335,13 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                 control={form.control}
                 name="client_reference"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem id={fieldAnchor('client_reference')}>
                     <FormLabel>Referência do Cliente</FormLabel>
                     <FormControl>
                       <Input placeholder="Ex: PO-12345" {...field} />
                     </FormControl>
                     <FormMessage />
+                    <FieldBlockHint field="client_reference" />
                   </FormItem>
                 )}
               />
@@ -1284,18 +1439,20 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
             </div>
           )}
 
-          <div className="flex flex-wrap justify-end gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {blocked && <SubmitBlockedNote countLabel={countLabel} />}
             {draft?.onSaveTemplate && <Button type="button" variant="ghost" onClick={() => draft.onSaveTemplate?.(draftSnapshot(form.getValues()))}>Salvar como habitual</Button>}
             {draft && <Button type="button" variant="outline" onClick={() => draft.onSave(draftSnapshot(form.getValues()))}>Salvar rascunho</Button>}
             <Button
               type="submit"
-              disabled={isSubmitting || disabled}
+              disabled={isSubmitting || disabled || blocked}
             >
               {draft ? (submitLabel ?? 'Revisar solicitação') : isSubmitting ? 'Criando cotação...' : (submitLabel ?? 'Criar cotação manual')}
             </Button>
           </div>
         </div>
       </form>
+      </FieldBlocksProvider>
 
       <EquipmentDialog
         open={equipmentDialogOpen}

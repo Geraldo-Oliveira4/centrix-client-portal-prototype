@@ -54,7 +54,10 @@ import {
   effectiveProposals,
   isDemoProposal,
 } from '../../_shared/demo/quotation-demo-proposals';
-import { approveQuotation } from '../../_shared/demo/quotation-review';
+import {
+  approveQuotation,
+  cancelByClient,
+} from '../../_shared/demo/quotation-review';
 import { updateQuotationReview } from '../../_shared/demo/use-quotation-review';
 import {
   approvalShipmentId,
@@ -857,7 +860,16 @@ function QuotationDetail({
           open={dialog === 'cancel'}
           onOpenChange={(open) => setDialog(open ? 'cancel' : null)}
           quotationId={q.id}
-          onCancelled={refresh}
+          onCancelled={(justification) => {
+            // Com overlay V2 a cotacao tambem sai do funil pelo overlay: sem
+            // isto a etapa `released` a devolveria a "Escolha sua proposta".
+            if (overlay) {
+              updateQuotationReview(q.id, (review) =>
+                cancelByClient(review, justification, new Date().toISOString()),
+              );
+            }
+            refresh();
+          }}
         />
       )}
     </div>

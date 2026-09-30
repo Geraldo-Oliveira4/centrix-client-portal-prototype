@@ -29,12 +29,79 @@ saída e liberada — mais "aprovada" para fechar a jornada.
 - **Data e hora de entrada em cada etapa de revisão**, para calcular prazo
   restante e alimentar métricas.
 
-## 2. Devolução e reenvio
+## 2. Devolução, edição em revisão e reenvio
 
 - Devolver exige motivo; sem motivo a ação não acontece.
 - Ao reenviar, a cotação volta à revisão de entrada e o **histórico é
   preservado**: a devolução anterior e o motivo dela continuam legíveis.
 - O reenvio precisa ser distinguível do primeiro envio no histórico.
+- **O cliente edita em rascunho, em revisão de entrada e em devolvida** (Orsi,
+  29/09/2026). Editar durante a revisão de entrada reabre o formulário inteiro;
+  ao reenviar, a cotação volta ao Inbox como **nova rodada**: nova data de
+  entrada na etapa, e o prazo da revisão recomeça. Enquanto o cliente não
+  reenvia, a Freitas segue revisando a versão anterior.
+- **Reenvio sem nenhuma alteração não abre rodada** — só zeraria o relógio da
+  revisão.
+- **Edição depois do RFQ disparado está fora do escopo**: o backend deve recusar
+  a alteração de dados a partir de "Cotando". O protótipo esconde o botão e
+  explica ao cliente que o caminho é cancelar e abrir outra.
+- A edição que chega depois de a Freitas ter aprovado a entrada precisa ser
+  recusada com um erro que o portal consiga explicar (no protótipo, a tela avisa
+  que as alterações não foram enviadas).
+- **Diff de campos**: cada reenvio (correção ou edição) grava no histórico os
+  campos alterados, com **valor anterior e novo**. É o que o Inbox mostra junto
+  do chip "Reenviada". A comparação precisa ser por valor normalizado (datas em
+  UTC, número em vez de texto formatado), senão um formulário intocado acusa
+  alteração.
+- **Prazo das revisões: 1 hora** na entrada e na saída (Orsi, 29/09/2026). Se a
+  hora é corrida ou útil ainda está em aberto; o protótipo assume corrida.
+
+## 2b. Cancelamento com justificativa
+
+- **Cancelar exige justificativa** do cliente (o endpoint hoje aceita `note`
+  opcional; passa a ser obrigatório). O protótipo pede no mínimo 10 caracteres.
+- A justificativa vai para o histórico da cotação e para o Kanban interno.
+- Cancelada na revisão de entrada, a cotação vai direto para as canceladas:
+  nenhum agente recebeu o pedido, então nenhum aviso de cancelamento é enviado.
+  A partir de "Cotando", os agentes acionados são avisados (como hoje).
+
+## 2c. Hardblocks de entrada e de saída
+
+A lista do Orsi (29/09/2026), **condicional**. A mesma regra vale nas duas
+pontas: o cliente não envia com pendência, a Freitas não dispara o RFQ nem
+**libera proposta** de cotação que deixou de atender a algum item. Precisa estar
+no backend — o protótipo só desenha a tela.
+
+| Item | Regra |
+|---|---|
+| Tipo de cotação, tipo de serviço, modal, Incoterm, fator de escolha, produto, referência do cliente | sempre |
+| Carga perigosa | sempre, **resposta explícita Sim/Não sem valor padrão**; Sim exige classificação |
+| Empilhável, tombável | sempre, resposta explícita |
+| Local de coleta | sempre, exceto FOB |
+| Local de embarque | só FOB |
+| Local de desembarque | só se informado; "Agentes decidam" não bloqueia |
+| Endereço de entrega final | só DAP/DDP |
+| UN | só carga perigosa |
+| Temperatura mínima | só carga refrigerada |
+| Valor da carga | só DAP, DDP, CIP, CIF |
+| NCM | só DAP/DDP |
+
+- **Flags Crítico/Alto das propostas não são regra de bloqueio** — seguem só
+  como indicador visual.
+- Três campos da lista **não existem no create do portal hoje**: o backend
+  ignora `price_or_performance`, `ncm` e os `agente_define_*` no POST do portal
+  (o protótipo os guarda no navegador). A versão real precisa persisti-los.
+- Liberar zero propostas continua impossível.
+
+## 2d. Fechamento direto
+
+- O cliente fecha direto com o **agente preferido da rota**, sem cotação. O
+  pedido entra no Inbox e passa pela revisão de entrada (aprovar = instrução ao
+  agente; devolver = motivo obrigatório).
+- Precisa de um cadastro **rota → agente preferido** por cliente, mantido pela
+  Freitas (não existe hoje; no protótipo é uma tabela fictícia). Rota sem
+  preferido não oferece o fechamento direto — oferece cotar.
+- Precisa de **origem** própria (fechamento direto), distinta de cotação.
 
 ## 3. Propostas — liberação e bloqueio
 
@@ -132,8 +199,8 @@ estabelecer.
 - **Guard rail dos "primeiros N embarques".** Não está definido se a contagem é
   por cliente ou no total, nem quem libera a saída. O protótipo faz **todo**
   embarque aberto por PO passar pela revisão.
-- **Prazos (SLA) de revisão.** Os textos usam um valor ilustrativo; o prazo real
-  está em aberto.
+- **Prazos (SLA) de revisão.** Definido em 1 hora (Orsi, 29/09/2026); falta
+  decidir se é hora corrida ou útil.
 - **Extração automática do PO.** A leitura no protótipo é uma fixture
   determinística, não OCR. Se o v1 for ler o PO de verdade, escopo e esforço
   mudam.

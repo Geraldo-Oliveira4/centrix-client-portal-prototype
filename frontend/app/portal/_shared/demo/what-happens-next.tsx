@@ -6,8 +6,8 @@
 // uma tela que só remove um passo, sem dizer quem passou a fazê-lo, lê como
 // funcionalidade perdida. Os quatro passos respondem exatamente isso.
 //
-// O prazo da revisão vem de `REVIEW_SLA_LABEL`, que é PLACEHOLDER — ver o
-// comentário na constante.
+// O prazo da revisão vem de `REVIEW_SLA_LABEL`, que sai da regra única de
+// `review-sla.ts` (1 hora, decisão do Orsi em 29/09/2026).
 
 import { Check, Info } from 'lucide-react';
 
@@ -16,11 +16,11 @@ import { REVIEW_SLA_LABEL } from './quotation-v2-labels';
 const STEPS = [
   {
     title: 'Você envia',
-    body: 'A solicitação entra na fila da Freitas.',
+    body: 'A solicitação entra no Inbox da Freitas, onde começa a revisão de entrada.',
   },
   {
     title: 'A Freitas revisa',
-    body: `Conferimos os dados e escolhemos os agentes da sua rota. Prazo estimado: ${REVIEW_SLA_LABEL}.`,
+    body: `Conferimos os dados e escolhemos os agentes da sua rota. Prazo: ${REVIEW_SLA_LABEL}. Enquanto isso, você ainda pode editar a solicitação.`,
   },
   {
     title: 'Agentes cotam',

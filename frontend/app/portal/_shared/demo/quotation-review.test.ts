@@ -63,7 +63,8 @@ const quotation = (proposalIds: string[]) => ({
 
 test('toda etapa tem rotulo, descricao e coluna', () => {
   const stages = Object.keys(V2_STAGE_COLUMN) as V2Stage[];
-  assert.equal(stages.length, 7);
+  // 6 etapas da jornada + `approved` + `cancelled` (Orsi, 29/09/2026).
+  assert.equal(stages.length, 8);
   for (const stage of stages) {
     assert.ok(V2_STAGE_LABELS[stage]?.length, `${stage} sem rotulo`);
     assert.ok(V2_STAGE_DESCRIPTIONS[stage]?.length, `${stage} sem descricao`);
@@ -274,7 +275,10 @@ test('o contador conta SO rascunho, devolvida e liberada', () => {
     c: releaseProposals(createReview(T0), ['p1'], T1),
     d: submitToFreitas(createReview(T0), T1),
     e: approveEntry(submitToFreitas(createReview(T0), T1), T2),
-    f: quotesArrived(approveEntry(submitToFreitas(createReview(T0), T1), T2), T3),
+    f: quotesArrived(
+      approveEntry(submitToFreitas(createReview(T0), T1), T2),
+      T3,
+    ),
   };
   assert.equal(countV2ClientActions(store), 3);
 });
@@ -299,7 +303,10 @@ test('quotationIdsAtStage lista so a etapa pedida', () => {
     b: submitToFreitas(createReview(T0), T1),
     c: createReview(T0),
   };
-  assert.deepEqual(quotationIdsAtStage(store, 'entry_review').sort(), ['a', 'b']);
+  assert.deepEqual(quotationIdsAtStage(store, 'entry_review').sort(), [
+    'a',
+    'b',
+  ]);
   assert.deepEqual(quotationIdsAtStage(store, 'released'), []);
 });
 
@@ -312,10 +319,7 @@ const at = (iso: string) => Date.parse(iso);
 test('o tempo restante sai do stageEnteredAt, nao de um cronometro', () => {
   const r = submitToFreitas(createReview(T0), '2026-09-24T10:00:00.000Z');
   // 8s de atraso, 3s ja decorridos.
-  assert.equal(
-    msUntilAutoAdvance(r, 8, at('2026-09-24T10:00:03.000Z')),
-    5000,
-  );
+  assert.equal(msUntilAutoAdvance(r, 8, at('2026-09-24T10:00:03.000Z')), 5000);
   // Reload cinco segundos depois: ainda 0, nao 8s de novo.
   assert.equal(msUntilAutoAdvance(r, 8, at('2026-09-24T10:00:09.000Z')), 0);
 });
@@ -332,10 +336,7 @@ test('etapa que nao avanca sozinha devolve null', () => {
 
 test('data de entrada no futuro espera o atraso inteiro, nao dispara na hora', () => {
   const r = submitToFreitas(createReview(T0), '2026-09-24T10:00:10.000Z');
-  assert.equal(
-    msUntilAutoAdvance(r, 8, at('2026-09-24T10:00:00.000Z')),
-    8000,
-  );
+  assert.equal(msUntilAutoAdvance(r, 8, at('2026-09-24T10:00:00.000Z')), 8000);
 });
 
 test('data de entrada ilegivel vence agora, em vez de travar a etapa', () => {
@@ -413,7 +414,10 @@ test('historico com evento malformado perde o evento, nao a entrada', () => {
 test('o que foi gravado sobrevive ao ciclo completo', () => {
   const store: QuotationReviewStore = {
     q1: releaseProposals(
-      quotesArrived(approveEntry(submitToFreitas(createReview(T0), T1), T2), T3),
+      quotesArrived(
+        approveEntry(submitToFreitas(createReview(T0), T1), T2),
+        T3,
+      ),
       ['p1', 'p2'],
       T4,
     ),
@@ -433,7 +437,11 @@ const releasedReview = () =>
   );
 
 test('aprovar leva de "liberada" a "aprovada" e guarda a proposta escolhida', () => {
-  const r = approveQuotation(releasedReview(), 'p1', '2026-09-24T15:00:00.000Z');
+  const r = approveQuotation(
+    releasedReview(),
+    'p1',
+    '2026-09-24T15:00:00.000Z',
+  );
   assert.equal(r.stage, 'approved');
   assert.equal(r.approvedProposalId, 'p1');
   assert.equal(r.history.at(-1)?.kind, 'approved');
@@ -493,4 +501,140 @@ test('aprovada NAO conta como "aguardando sua acao"', () => {
     countV2ClientActions({ q1: approveQuotation(releasedReview(), 'p1', T4) }),
     0,
   );
+});
+
+// ── Ajustes do Orsi, 29/09/2026 ─────────────────────────────────────────────
+//
+// Editar durante a revisão de entrada abre uma NOVA RODADA; o diff de campos
+// fica no histórico; cancelar exige justificativa.
+
+import {
+  V2_CLIENT_EDITABLE_STAGES,
+  agentsNotified,
+  canResubmitEdit,
+  cancelByClient,
+  isResubmission,
+  lastSubmission,
+  resubmitEdited,
+  submissionRound,
+} from './quotation-review.ts';
+
+const FORM_A = { incoterm: 'FOB', product: 'Peças', porto_destino: ['Santos'] };
+const FORM_B = { incoterm: 'CIF', product: 'Peças', porto_destino: ['Santos'] };
+
+function inEntryReview() {
+  return submitToFreitas(createReview(T0), T1, FORM_A);
+}
+
+test('o primeiro envio guarda o formulário e não é "Reenviada"', () => {
+  const review = inEntryReview();
+  assert.deepEqual(review.submittedForm, FORM_A);
+  assert.equal(isResubmission(review), false);
+  assert.equal(submissionRound(review), 1);
+});
+
+test('editar em revisão de entrada: nova rodada, SLA recomeça, histórico só cresce', () => {
+  const before = inEntryReview();
+  const after = resubmitEdited(before, FORM_B, T2);
+  assert.equal(after.stage, 'entry_review');
+  assert.equal(after.stageEnteredAt, T2);
+  assert.deepEqual(
+    after.history.slice(0, before.history.length),
+    before.history,
+  );
+  assert.equal(after.history.length, before.history.length + 1);
+  const last = lastSubmission(after);
+  assert.equal(last?.kind, 'edited');
+  assert.deepEqual(last?.changes, [
+    { field: 'incoterm', from: 'FOB', to: 'CIF' },
+  ]);
+  assert.deepEqual(after.submittedForm, FORM_B);
+  assert.equal(isResubmission(after), true);
+  assert.equal(submissionRound(after), 2);
+});
+
+test('edição sem mudança não abre rodada nova', () => {
+  const review = inEntryReview();
+  assert.equal(canResubmitEdit(review, { ...FORM_A }), 'no_changes');
+  assert.equal(resubmitEdited(review, { ...FORM_A }, T2), review);
+});
+
+test('edição chegando depois do RFQ disparado é recusada', () => {
+  const dispatched = approveEntry(inEntryReview(), T2);
+  assert.equal(canResubmitEdit(dispatched, FORM_B), 'stage_moved');
+  assert.equal(resubmitEdited(dispatched, FORM_B, T3), dispatched);
+});
+
+test('o cliente edita em rascunho, em revisão de entrada e em devolvida — e só', () => {
+  assert.deepEqual(V2_CLIENT_EDITABLE_STAGES, [
+    'draft',
+    'entry_review',
+    'returned',
+  ]);
+});
+
+test('a correção depois da devolução leva o diff e ganha o chip "Reenviada"', () => {
+  const returned = returnToClient(inEntryReview(), 'NCM incompatível', T2);
+  const corrected = submitToFreitas(returned, T3, FORM_B);
+  const last = lastSubmission(corrected);
+  assert.equal(last?.kind, 'resubmitted');
+  assert.deepEqual(last?.changes, [
+    { field: 'incoterm', from: 'FOB', to: 'CIF' },
+  ]);
+  assert.equal(isResubmission(corrected), true);
+  assert.equal(corrected.returnReason, undefined);
+  assert.equal(
+    corrected.history.find((event) => event.kind === 'returned')?.reason,
+    'NCM incompatível',
+  );
+});
+
+test('"Reenviada" só vale enquanto a Freitas revisa aquela rodada', () => {
+  const edited = resubmitEdited(inEntryReview(), FORM_B, T2);
+  assert.equal(isResubmission(approveEntry(edited, T3)), false);
+});
+
+test('cancelar exige justificativa e tira a cotação do funil', () => {
+  const review = inEntryReview();
+  assert.equal(cancelByClient(review, '   ', T2), review);
+  const cancelled = cancelByClient(review, 'Pedido do fornecedor suspenso', T2);
+  assert.equal(cancelled.stage, 'cancelled');
+  assert.equal(V2_STAGE_COLUMN.cancelled, null);
+  assert.equal(
+    cancelled.history.at(-1)?.reason,
+    'Pedido do fornecedor suspenso',
+  );
+  assert.equal(cancelByClient(cancelled, 'de novo', T3), cancelled);
+});
+
+test('cancelar em revisão de entrada não avisa agente; depois do RFQ, avisa', () => {
+  assert.equal(agentsNotified('entry_review'), false);
+  assert.equal(agentsNotified('draft'), false);
+  assert.equal(agentsNotified('awaiting_quotes'), true);
+  assert.equal(agentsNotified('released'), true);
+});
+
+test('aprovada vira "Aprovada pelo cliente" e sai do funil', () => {
+  assert.equal(V2_STAGE_LABELS.approved, 'Aprovada pelo cliente');
+  assert.equal(V2_STAGE_COLUMN.approved, null);
+  assert.match(V2_STAGE_DESCRIPTIONS.approved, /instrução de fechamento/);
+});
+
+test('snapshot e diff gravados por outra versão são saneados na leitura', () => {
+  const store = normalizeQuotationReviewStore({
+    q1: {
+      stage: 'entry_review',
+      stageEnteredAt: T1,
+      submittedForm: { incoterm: 'FOB', lixo: 1 },
+      history: [
+        {
+          kind: 'edited',
+          at: T1,
+          changes: [{ field: 'x', from: 'a', to: 'b' }],
+        },
+      ],
+    },
+  });
+  assert.deepEqual(store.q1.submittedForm, { incoterm: 'FOB' });
+  assert.deepEqual(store.q1.history[0].changes, []);
 });

@@ -7,6 +7,7 @@ import {
   type ManualFormDraft,
 } from '@/app/cotacao/nova-cotacao/components/manual-form';
 import type { Quote } from './model';
+import type { HardblockReport } from '../../_shared/demo/quotation-hardblocks';
 import { DraftAiAssist } from './draft-ai-assist';
 
 export function DraftRequestForm({
@@ -15,6 +16,7 @@ export function DraftRequestForm({
   onReview,
   onSaveTemplate,
   reviewLabel,
+  hardblocks,
 }: {
   quotation: Quote;
   onSave: (patch: Partial<Quote>) => void;
@@ -27,6 +29,11 @@ export function DraftRequestForm({
    * solicitacao para a fila da Freitas.
    */
   reviewLabel?: string;
+  /**
+   * Cotação V2: the Orsi blocking list, evaluated with the supplier typed in
+   * the exporter field above the form (it lives outside `ManualForm`).
+   */
+  hardblocks?: (draft: ManualFormDraft, supplier: string) => HardblockReport;
 }) {
   const [supplier, setSupplier] = useState(q.supplier);
   const [assisting, setAssisting] = useState<ManualFormDraft | null>(null);
@@ -136,6 +143,9 @@ export function DraftRequestForm({
           />
         }
         submitLabel={reviewLabel}
+        hardblocks={
+          hardblocks ? (draft) => hardblocks(draft, supplier) : undefined
+        }
         draft={{
           initial,
           onAssist: (snapshot) => {

@@ -16,7 +16,12 @@ import {
   effectiveProposals,
   releasableProposalIds,
 } from './quotation-demo-proposals';
-import { useV2AutoAdvance, type ProposalIdsByQuotation } from './use-v2-auto-advance';
+import { quotationHardblocks } from './quotation-hardblocks';
+import { useQuotationReviewStore } from './use-quotation-review';
+import {
+  useV2AutoAdvance,
+  type ProposalIdsByQuotation,
+} from './use-v2-auto-advance';
 
 export function PortalV2AutoAdvance() {
   const { data } = useMyQuotations();
@@ -39,6 +44,23 @@ export function PortalV2AutoAdvance() {
     return map;
   }, [data]);
 
-  useV2AutoAdvance(proposalIds);
+  // As cotacoes que a lista do Orsi bloqueia. A Freitas automatica nao aprova
+  // a entrada nem libera propostas delas — a mesma regra dos botoes do painel.
+  const reviews = useQuotationReviewStore();
+  const blocked = useMemo(() => {
+    const ids = new Set<string>();
+    for (const rows of Object.values(data?.buckets ?? {})) {
+      for (const q of rows) {
+        const review = reviews[q.id];
+        if (!review) continue;
+        if (quotationHardblocks(review.submittedForm, q).blocks.length > 0) {
+          ids.add(q.id);
+        }
+      }
+    }
+    return ids;
+  }, [data, reviews]);
+
+  useV2AutoAdvance(proposalIds, blocked);
   return null;
 }

@@ -19,6 +19,14 @@
 // It NEVER reads or writes `centrix-preparation-v1:` keys: that store belongs to
 // the current flow, which has to keep working untouched with the flag off.
 
+import {
+  diffSnapshots,
+  normalizeChanges,
+  normalizeSnapshot,
+  type FieldChange,
+  type FormSnapshot,
+} from './quotation-form-snapshot.ts';
+
 /** Storage name under `DEMO_STORE_PREFIX`. */
 export const QUOTATION_REVIEW_STORE_NAME = 'quotation-review';
 
@@ -38,7 +46,8 @@ export type V2Stage =
   | 'awaiting_quotes'
   | 'exit_review'
   | 'released'
-  | 'approved';
+  | 'approved'
+  | 'cancelled';
 
 /** Where the quotation came from. Today only the portal produces an overlay. */
 export type V2Origin = 'portal';
@@ -51,14 +60,25 @@ export type V2EventKind =
   | 'quotes_arrived'
   | 'proposals_released'
   | 'approved'
+  | 'edited'
+  | 'cancelled'
   | 'reset';
 
 export interface V2Event {
   kind: V2EventKind;
   /** ISO. Injected by the caller — this module never reads the clock. */
   at: string;
-  /** Only `returned` carries one. */
+  /**
+   * `returned` carries the Freitas' reason; `cancelled` carries the client's
+   * justification, which is mandatory (Orsi, 29/09/2026).
+   */
   reason?: string;
+  /**
+   * `resubmitted` and `edited` carry what the client changed against the
+   * previous submission — the "valor anterior -> novo" the Freitas reads in the
+   * Inbox. Absent when there was no previous snapshot to compare with.
+   */
+  changes?: FieldChange[];
   /** Only `proposals_released` carries one. */
   releasedCount?: number;
   /** Only `approved` carries one. */
@@ -80,6 +100,12 @@ export interface QuotationReview {
   stageEnteredAt: string;
   /** The proposal the client chose, once they have. */
   approvedProposalId?: string;
+  /**
+   * What the client sent in the latest submission. The base of the next diff
+   * and of the exit-review hardblocks — see `quotation-form-snapshot.ts` for why
+   * the payload alone is not enough.
+   */
+  submittedForm?: FormSnapshot;
   /** Oldest first. Survives a return and a resubmission (RQ-5). */
   history: V2Event[];
 }
@@ -116,7 +142,8 @@ export const V2_STAGE_LABELS: Record<V2Stage, string> = {
   awaiting_quotes: 'Aguardando propostas',
   exit_review: 'Em revisão',
   released: 'Nova',
-  approved: 'Aprovada',
+  approved: 'Aprovada pelo cliente',
+  cancelled: 'Cancelada',
 };
 
 /**
@@ -132,7 +159,9 @@ export const V2_STAGE_DESCRIPTIONS: Record<V2Stage, string> = {
   awaiting_quotes: 'Aguardando propostas dos agentes',
   exit_review: 'A comparação ainda não está liberada',
   released: 'A Freitas liberou as propostas para você comparar',
-  approved: 'Proposta aprovada. O embarque já está em Meus Embarques.',
+  approved:
+    'Você aprovou a proposta. A Freitas recebeu a instrução de fechamento e o embarque já está em Meus Embarques.',
+  cancelled: 'Solicitação cancelada por você',
 };
 
 /** Which Kanban column a stage belongs to. */
@@ -161,7 +190,39 @@ export const V2_STAGE_COLUMN: Record<V2Stage, V2Column | null> = {
   exit_review: 'buscando_propostas',
   released: 'aguardando_aprovacao',
   approved: null,
+  cancelled: null,
 };
+
+/**
+ * Where the client may still change the request (Orsi, 29/09/2026): while
+ * drafting, while the entry review runs, and after a return. From
+ * `awaiting_quotes` on the agents already have the RFQ, and editing would mean
+ * a second RFQ — out of scope; the screen says so instead of offering it.
+ */
+export const V2_CLIENT_EDITABLE_STAGES: V2Stage[] = [
+  'draft',
+  'entry_review',
+  'returned',
+];
+
+/** Where the client may still cancel. Terminal stages cannot be cancelled. */
+export const V2_CLIENT_CANCELLABLE_STAGES: V2Stage[] = [
+  'draft',
+  'entry_review',
+  'returned',
+  'awaiting_quotes',
+  'exit_review',
+  'released',
+];
+
+/** True when an agent already received the RFQ, so a cancel reaches agents. */
+export function agentsNotified(stage: V2Stage): boolean {
+  return (
+    stage === 'awaiting_quotes' ||
+    stage === 'exit_review' ||
+    stage === 'released'
+  );
+}
 
 /** A fresh overlay for a quotation the client just started. */
 export function createReview(at: string): QuotationReview {
@@ -189,16 +250,30 @@ function advance(
   };
 }
 
+const SUBMISSION_KINDS: V2EventKind[] = ['submitted', 'resubmitted', 'edited'];
+
+/** The changes against the previous submission, or `undefined` with no base. */
+function changesSince(
+  review: QuotationReview,
+  form: FormSnapshot | undefined,
+): FieldChange[] | undefined {
+  if (!form || !review.submittedForm) return undefined;
+  return diffSnapshots(review.submittedForm, form);
+}
+
 /** Client sends the request. Draft or returned -> entry review (RQ-1). */
 export function submitToFreitas(
   review: QuotationReview,
   at: string,
+  form?: FormSnapshot,
 ): QuotationReview {
-  const resubmitting = review.stage === 'returned';
-  return advance(review, 'entry_review', {
-    kind: resubmitting ? 'resubmitted' : 'submitted',
-    at,
-  });
+  if (review.stage === 'returned') return resubmit(review, at, form);
+  return advance(
+    review,
+    'entry_review',
+    { kind: 'submitted', at },
+    form ? { submittedForm: form } : {},
+  );
 }
 
 /**
@@ -213,10 +288,107 @@ export function submitToFreitas(
 export function resubmit(
   review: QuotationReview,
   at: string,
+  form?: FormSnapshot,
 ): QuotationReview {
-  const next = advance(review, 'entry_review', { kind: 'resubmitted', at });
+  const changes = changesSince(review, form);
+  const next = advance(
+    review,
+    'entry_review',
+    { kind: 'resubmitted', at, ...(changes ? { changes } : {}) },
+    form ? { submittedForm: form } : {},
+  );
   const { returnReason: _dropped, ...rest } = next;
   return rest;
+}
+
+/**
+ * The client edited the request WHILE the entry review was running (Orsi,
+ * 29/09/2026): the whole form reopens, and resending puts the quotation back in
+ * the Inbox as a NEW ROUND — new `stageEnteredAt`, so the 1-hour review SLA
+ * starts over.
+ *
+ * Refused (the review comes back untouched) in two cases, and the screen must
+ * tell them apart with `canResubmitEdit`:
+ * - the stage moved on while the client was typing (the Freitas approved and
+ *   the RFQ went out) — editing after the RFQ is out of scope;
+ * - nothing changed — a new round with no change would restart the Freitas'
+ *   clock for nothing.
+ */
+export function resubmitEdited(
+  review: QuotationReview,
+  form: FormSnapshot,
+  at: string,
+): QuotationReview {
+  if (canResubmitEdit(review, form) !== 'ok') return review;
+  const changes = changesSince(review, form);
+  return advance(
+    review,
+    'entry_review',
+    { kind: 'edited', at, ...(changes ? { changes } : {}) },
+    { submittedForm: form },
+  );
+}
+
+export type EditResubmitCheck = 'ok' | 'stage_moved' | 'no_changes';
+
+export function canResubmitEdit(
+  review: QuotationReview,
+  form: FormSnapshot,
+): EditResubmitCheck {
+  if (review.stage !== 'entry_review') return 'stage_moved';
+  const changes = changesSince(review, form);
+  if (changes && changes.length === 0) return 'no_changes';
+  return 'ok';
+}
+
+/**
+ * The client cancels, with a MANDATORY justification (Orsi, 29/09/2026).
+ *
+ * `cancelled` has no column: the quotation leaves the funnel, and the
+ * Histórico shows it through the backend, which the screen cancels for real.
+ * An empty justification or a terminal stage leaves the review untouched.
+ */
+export function cancelByClient(
+  review: QuotationReview,
+  justification: string,
+  at: string,
+): QuotationReview {
+  const trimmed = justification.trim();
+  if (!trimmed || !V2_CLIENT_CANCELLABLE_STAGES.includes(review.stage)) {
+    return review;
+  }
+  return advance(review, 'cancelled', {
+    kind: 'cancelled',
+    at,
+    reason: trimmed,
+  });
+}
+
+/** The latest submission event (first send, correction or edit), or null. */
+export function lastSubmission(review: QuotationReview): V2Event | null {
+  for (let i = review.history.length - 1; i >= 0; i -= 1) {
+    if (SUBMISSION_KINDS.includes(review.history[i].kind)) {
+      return review.history[i];
+    }
+  }
+  return null;
+}
+
+/** 1 for the first send; each correction or edit is one more round. */
+export function submissionRound(review: QuotationReview): number {
+  return review.history.filter((event) => SUBMISSION_KINDS.includes(event.kind))
+    .length;
+}
+
+/**
+ * The "Reenviada" chip: the round the Freitas is reviewing NOW came back by a
+ * correction or an edit. Only during the entry review — once the RFQ is out the
+ * chip would describe a round nobody is reviewing any more.
+ */
+export function isResubmission(review: QuotationReview): boolean {
+  if (review.stage !== 'entry_review') return false;
+  const last = lastSubmission(review);
+  return last?.kind === 'resubmitted' || last?.kind === 'edited';
 }
 
 /** Freitas sends it back with a reason. Always manual, never automatic. */
@@ -313,6 +485,7 @@ export function resetToDraft(
     returnReason: _r,
     releasedProposalIds: _p,
     approvedProposalId: _a,
+    submittedForm: _f,
     ...rest
   } = next;
   return rest;
@@ -474,14 +647,24 @@ function normalizeReview(raw: unknown): QuotationReview | null {
     return null;
   }
   const history = Array.isArray(source.history)
-    ? (source.history.filter(
-        (event) =>
-          event != null &&
-          typeof event === 'object' &&
-          typeof (event as V2Event).kind === 'string' &&
-          typeof (event as V2Event).at === 'string',
-      ) as V2Event[])
+    ? (
+        source.history.filter(
+          (event) =>
+            event != null &&
+            typeof event === 'object' &&
+            typeof (event as V2Event).kind === 'string' &&
+            typeof (event as V2Event).at === 'string',
+        ) as V2Event[]
+      ).map((event) => {
+        // A change list written by another version is sanitized, not trusted.
+        if (event.changes === undefined) return event;
+        const { changes: raw, ...rest } = event;
+        return Array.isArray(raw)
+          ? { ...rest, changes: normalizeChanges(raw) }
+          : rest;
+      })
     : [];
+  const submittedForm = normalizeSnapshot(source.submittedForm);
   const released = Array.isArray(source.releasedProposalIds)
     ? source.releasedProposalIds.filter(
         (id): id is string => typeof id === 'string',
@@ -499,9 +682,11 @@ function normalizeReview(raw: unknown): QuotationReview | null {
       ? { returnReason: source.returnReason }
       : {}),
     ...(released ? { releasedProposalIds: released } : {}),
-    ...(typeof source.approvedProposalId === 'string' && source.approvedProposalId
+    ...(typeof source.approvedProposalId === 'string' &&
+    source.approvedProposalId
       ? { approvedProposalId: source.approvedProposalId }
       : {}),
+    ...(submittedForm ? { submittedForm } : {}),
   };
 }
 

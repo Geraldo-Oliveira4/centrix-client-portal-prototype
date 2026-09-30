@@ -42,6 +42,8 @@ import {
   useShipmentPoStore,
 } from './use-shipment-po-review';
 
+const NO_BLOCKED: ReadonlySet<string> = new Set();
+
 /** Proposal ids per quotation, so the exit review has something to release. */
 export type ProposalIdsByQuotation = Record<string, string[]>;
 
@@ -52,7 +54,16 @@ export type ProposalIdsByQuotation = Record<string, string[]>;
  * per quotation: the entries share a delay, so N timers would fire within
  * milliseconds of each other and each would write the store on top of the last.
  */
-export function useV2AutoAdvance(proposalIds: ProposalIdsByQuotation): void {
+export function useV2AutoAdvance(
+  proposalIds: ProposalIdsByQuotation,
+  /**
+   * Quotations that fail the Orsi hardblocks. The automatic Freitas neither
+   * approves their entry nor releases their proposals — the same rule that
+   * disables both buttons in the panel. It never RETURNS them either: that is
+   * always a person's click, so a blocked entry simply waits for one.
+   */
+  blocked: ReadonlySet<string> = NO_BLOCKED,
+): void {
   const flags = usePortalModuleFlags();
   const simulation = useFreitasSimulation();
   const store = useQuotationReviewStore();
@@ -98,6 +109,12 @@ export function useV2AutoAdvance(proposalIds: ProposalIdsByQuotation): void {
 
       for (const [quotationId, review] of Object.entries(current)) {
         if (!V2_AUTO_ADVANCE_STAGES.includes(review.stage)) continue;
+        if (
+          (review.stage === 'entry_review' || review.stage === 'exit_review') &&
+          blocked.has(quotationId)
+        ) {
+          continue;
+        }
         const remaining = msUntilAutoAdvance(review, delaySeconds, now);
         if (remaining == null) continue;
         if (remaining <= 0) {
@@ -136,6 +153,7 @@ export function useV2AutoAdvance(proposalIds: ProposalIdsByQuotation): void {
     shipmentsEnabled,
     delaySeconds,
     proposalIds,
+    blocked,
     store,
     poStore,
   ]);

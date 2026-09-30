@@ -157,6 +157,8 @@ test('mapa rota -> modulo, incluindo as sub-rotas', () => {
     ['/portal/cotacoes?tab=fechadas', null],
     ['/portal/cotacao/abc-123', 'cotacao'],
     ['/portal/nova-cotacao', 'cotacao'],
+    // Fechamento direto so existe com a revisao de entrada da V2.
+    ['/portal/nova-cotacao/fechamento-direto', 'cotacaoV2'],
     ['/portal/embarques', 'embarques'],
     ['/portal/embarques/EMB-1', 'embarques'],
     ['/portal/inteligencia', 'inteligencia'],

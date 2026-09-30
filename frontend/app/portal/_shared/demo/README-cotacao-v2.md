@@ -34,7 +34,11 @@ A flag `cotacaoV2` decide tudo. Desligada (Onda 0), o fluxo atual fica
 | `use-quotation-review.ts` | hooks e escritores sobre o store |
 | `use-v2-auto-advance.ts` | a autorresposta; montada pelo **layout**, não pelo painel |
 | `portal-v2-auto-advance.tsx` | o componente sem saída visual que monta o hook acima |
-| `quotation-v2-labels.tsx` | os selos e o `REVIEW_SLA_LABEL` |
+| `quotation-v2-labels.tsx` | os selos, o chip "Reenviada", a lista de campos alterados e o `REVIEW_SLA_LABEL` |
+| `review-sla.ts` | **puro** — o prazo das revisões (1 hora) numa regra só |
+| `quotation-hardblocks.ts` | **puro** — a lista de bloqueios do Orsi, a mesma na entrada e na saída |
+| `quotation-form-snapshot.ts` | **puro** — o que o cliente enviou, o diff entre rodadas e os rótulos em português |
+| `direct-close.ts` · `use-direct-close.ts` · `demo-section-direct-close.tsx` | o fechamento direto com o agente preferido da rota |
 | `what-happens-next.tsx` | o painel lateral dos quatro passos (RQ-3) |
 | `portal-notifications-bell.tsx` | o sino do cabeçalho |
 | `demo-section-cotacao-v2.tsx` | a seção do painel: a Freitas simulada |
@@ -51,6 +55,8 @@ Os **puros** rodam sob `node --test` e por isso não usam o alias `@/`.
 | `awaiting_quotes` | Aguardando agentes | Aguardando propostas | espera |
 | `exit_review` | Aguardando agentes | Em revisão | espera |
 | `released` | Escolha sua proposta | Nova | compara e escolhe |
+| `approved` | sai do funil (aba Aprovadas) | Aprovada pelo cliente | acompanha o embarque |
+| `cancelled` | sai do funil (Histórico, via backend) | Cancelada | — |
 
 Três coisas nessa tabela não são detalhe:
 
@@ -63,6 +69,72 @@ Três coisas nessa tabela não são detalhe:
 - **O contador "aguardando sua ação" conta só `draft`, `returned` e `released`**
   (RQ-6). As três etapas que a Freitas segura ficam de fora: cobrar do cliente
   uma ação que a tela não oferece é pior que não contar nada.
+
+## Ajustes do Orsi (29/09/2026)
+
+Decisões de negócio que o protótipo passou a refletir. Onde a spec
+`01-cotacao-v2-hitl-self-service.md` diverge disto, isto vale mais.
+
+- **Prazo de cada revisão: 1 hora**, na entrada e na saída. Horário CORRIDO é
+  premissa (a pergunta segue aberta com o Orsi) e mora numa constante só,
+  `REVIEW_SLA` em `review-sla.ts`. O Embarque via PO herda o mesmo prazo.
+- **O Inbox não é uma fila nova.** É a visão que o analista usa para a revisão
+  de entrada, sobre a coluna Para Cotar. O painel diz, em cada linha, em que
+  coluna do Kanban interno a cotação estaria.
+- **O cliente edita em rascunho, em revisão de entrada e em devolvida**
+  (`V2_CLIENT_EDITABLE_STAGES`). Editar em revisão reabre o formulário inteiro;
+  reenviar é `resubmitEdited`: a cotação volta ao Inbox como NOVA RODADA, com
+  `stageEnteredAt` novo (o prazo recomeça). Até reenviar, a Freitas continua com
+  a versão enviada — sair da edição não muda nada. Reenviar sem mudar um campo é
+  recusado (`canResubmitEdit` = `no_changes`), porque abriria uma rodada só para
+  zerar o relógio da Freitas. Depois do RFQ disparado o botão não aparece e a
+  tela explica por quê.
+- **"Reenviada" + campos alterados.** Correção (`resubmitted`) e edição
+  (`edited`) guardam no evento do histórico o diff contra a rodada anterior
+  (`changes`: campo, valor anterior, valor novo). O chip é SECUNDÁRIO — contorno
+  neutro, abaixo da frase no cartão — e só aparece enquanto a Freitas revisa
+  aquela rodada (`isResubmission`).
+- **Cancelar exige justificativa** (mínimo 10 caracteres, contador, botão
+  travado com mensagem). Na revisão de entrada o diálogo não diz que "os agentes
+  serão avisados" (`agentsNotified`). O cancelamento é REAL no backend
+  (`POST /cancel`, a cotação vai ao Histórico) e o overlay vira `cancelled`, que
+  não tem coluna.
+- **Hardblocks** (`quotation-hardblocks.ts`): a lista condicional do Orsi. O
+  formulário mostra "faltam N itens" com atalhos, o motivo em cada campo, e só
+  habilita "Enviar para a Freitas" sem pendência. A MESMA função trava "Aprovar
+  e disparar RFQ" e "Liberar N propostas" no painel, e a autorresposta não
+  aprova nem libera cotação bloqueada. As flags Crítico/Alto não entram na regra.
+- **Snapshot do envio** (`submittedForm`). O payload não traz fator de escolha,
+  NCM nem os "agentes decidam"; sem guardar o que o cliente enviou, reabrir a
+  edição pediria de novo o que ele já respondeu. Os valores são canônicos (prazo
+  em UTC, valor numérico), senão um formulário intocado acusaria alterações.
+- **Correção ao agente é sempre por e-mail**: texto no painel, não botão.
+- **Aprovar** leva a "Aprovada pelo cliente" (a Freitas recebe a instrução de
+  fechamento). O detalhe mostra o desfecho, não mais "Com a Freitas".
+- **Fechamento direto** (`/portal/nova-cotacao/fechamento-direto`, atrás da flag
+  `cotacaoV2`): o cliente fecha com o agente preferido da rota, sem cotar. Passa
+  pela revisão de entrada (seção "Fechamento direto" do painel). A tabela rota →
+  agente preferido é FICTÍCIA; rota sem preferido mostra o estado vazio com
+  "Cotar normalmente" e a rota pré-preenchida.
+
+### A lista de hardblocks
+
+| Item | Quando bloqueia |
+|---|---|
+| Tipo de cotação, tipo de serviço, modal, Incoterm, fator de escolha, produto, referência do cliente | sempre, se vazio |
+| Carga perigosa | sempre: Sim/Não explícito, sem padrão. "Sim" sem classificação (IMO/RA) também bloqueia |
+| Empilhável, tombável | sempre, sem resposta ("Não" é resposta) |
+| Local de coleta | sempre, EXCETO FOB. "Agentes decidam" não dispensa |
+| Local de embarque | SÓ no FOB (porto ou aeroporto, conforme o modal) |
+| Local de desembarque | vazio e sem "Agentes decidam" |
+| Endereço de entrega final | SÓ DAP/DDP |
+| NCM | SÓ DAP/DDP; 8 dígitos |
+| UN | SÓ carga perigosa; 4 dígitos |
+| Temperatura mínima | SÓ carga refrigerada |
+| Valor da carga | SÓ DAP, DDP, CIP, CIF; maior que zero |
+
+No modo hardblock o formulário não exige mais a data de prontidão: a lista é o
+único portão, e um obrigatório fora dela liberaria o botão para recusar o clique.
 
 ## Como acrescentar uma etapa
 

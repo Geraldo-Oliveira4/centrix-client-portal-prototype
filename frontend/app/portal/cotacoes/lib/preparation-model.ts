@@ -23,6 +23,16 @@ export function editableQuotation(source: PortalQuotation) {
     source.temperatura_min == null ? '' : String(source.temperatura_min);
   values.temperatura_max =
     source.temperatura_max == null ? '' : String(source.temperatura_max);
+  // The payload spells the deadline as UTC ISO ("...T20:00:00Z"), which a
+  // `datetime-local` input cannot show: the field reopened visibly empty while
+  // still holding the value. Local "YYYY-MM-DDTHH:mm" is what the input takes.
+  const deadline = source.desired_deadline
+    ? new Date(source.desired_deadline)
+    : null;
+  if (deadline && Number.isFinite(deadline.getTime())) {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    values.desired_deadline = `${deadline.getFullYear()}-${pad(deadline.getMonth() + 1)}-${pad(deadline.getDate())}T${pad(deadline.getHours())}:${pad(deadline.getMinutes())}`;
+  }
   const withoutNulls = <T extends object>(item: T) =>
     Object.fromEntries(
       Object.entries(item).filter(([, value]) => value != null),

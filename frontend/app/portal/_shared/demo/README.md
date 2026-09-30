@@ -64,6 +64,9 @@ painel de demonstração — que é a única Freitas que existe neste protótipo
 | `portal-notifications-bell.tsx` | o sino do cabeçalho |
 | `demo-section-cotacao-v2.tsx` | a seção do painel |
 | `quotation-demo-proposals.ts` | **puro** — as propostas ilustrativas de uma cotação que não tem nenhuma |
+| `review-sla.ts` | **puro** — o prazo das revisões (1 hora), uma regra para as duas jornadas |
+| `quotation-hardblocks.ts` · `quotation-form-snapshot.ts` | **puros** — a lista de bloqueios do Orsi e o snapshot/diff do que o cliente enviou |
+| `direct-close.ts` · `use-direct-close.ts` · `demo-section-direct-close.tsx` | o fechamento direto com o agente preferido da rota |
 
 ### Novo embarque via PO
 

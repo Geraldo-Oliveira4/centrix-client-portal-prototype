@@ -3,7 +3,14 @@
 import { Suspense, useCallback, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { CheckCircle2, Loader2, Radar } from 'lucide-react';
+import Link from 'next/link';
+import {
+  ArrowRight,
+  CheckCircle2,
+  Handshake,
+  Loader2,
+  Radar,
+} from 'lucide-react';
 import { LoaderComponent } from '@arboria-tech/arboria-ui';
 import {
   Button,
@@ -16,6 +23,7 @@ import { createMyQuotation, triggerMyQuotationExtraction } from '@/hooks/use-por
 import { useQuotationUploadFlow } from '@/hooks/use-quotation-upload-flow';
 import {
   ManualForm,
+  type ManualFormDraft,
   type ManualFormValues,
 } from '@/app/cotacao/nova-cotacao/components/manual-form';
 import { UploadZone } from '@/app/cotacao/nova-cotacao/components/upload-zone';
@@ -24,6 +32,11 @@ import { PortalExporterSelect } from '@/app/portal/components/portal-exporter-se
 import { PagePortalHeader } from '@/app/portal/_shared/page-header';
 import { WhatHappensNextPanel } from '@/app/portal/_shared/demo/what-happens-next';
 import { submitToFreitas } from '@/app/portal/_shared/demo/quotation-review';
+import { evaluateHardblocks } from '@/app/portal/_shared/demo/quotation-hardblocks';
+import {
+  snapshotFromDraft,
+  type FormSnapshot,
+} from '@/app/portal/_shared/demo/quotation-form-snapshot';
 import { updateQuotationReview } from '@/app/portal/_shared/demo/use-quotation-review';
 import { usePortalModuleReleased } from '@/app/portal/_shared/demo/use-feature-flags';
 import {
@@ -141,9 +154,9 @@ function PortalNovaCotacaoContent() {
    * ela vive no navegador (ver o cabecalho de `quotation-review.ts`).
    */
   const sendToFreitas = useCallback(
-    (quotation: Quotation) => {
+    (quotation: Quotation, form?: FormSnapshot) => {
       updateQuotationReview(quotation.id, (review) =>
-        submitToFreitas(review, new Date().toISOString()),
+        submitToFreitas(review, new Date().toISOString(), form),
       );
       toast.success(`Solicitação ${quotation.reference} enviada à Freitas`);
       router.push(`/portal/cotacoes?destaque=${quotation.id}`);
@@ -151,9 +164,27 @@ function PortalNovaCotacaoContent() {
     [router],
   );
 
-  const handleManualCreated = (quotation: Quotation) => {
+  // Os hardblocks do Orsi (29/09/2026) so valem na V2: com a flag desligada o
+  // formulario continua exatamente como era.
+  const exporterName = exporter?.name ?? null;
+  const hardblocks = useCallback(
+    (draft: ManualFormDraft) =>
+      evaluateHardblocks(snapshotFromDraft(draft, exporterName)),
+    [exporterName],
+  );
+
+  const handleManualCreated = (
+    quotation: Quotation,
+    snapshot?: ManualFormDraft,
+  ) => {
     if (v2) {
-      sendToFreitas(quotation);
+      // O snapshot guarda o que o payload nao devolve (fator de escolha, NCM,
+      // "agentes decidam"): e a base do diff de uma edicao futura e dos
+      // hardblocks da revisao de saida.
+      sendToFreitas(
+        quotation,
+        snapshot ? snapshotFromDraft(snapshot, exporterName) : undefined,
+      );
       return;
     }
     setCreatedQuotation(quotation);
@@ -251,6 +282,33 @@ function PortalNovaCotacaoContent() {
         </div>
       )}
 
+      {/* FECHAMENTO DIRETO (Orsi, 29/09/2026). Atalho SECUNDARIO: e navegacao,
+          nao a acao da tela, entao fica em indigo e nao em laranja — o CTA da
+          pagina continua sendo "Enviar para a Freitas". */}
+      {v2 && (
+        <Link
+          href="/portal/nova-cotacao/fechamento-direto"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="flex min-w-0 items-start gap-2.5">
+            <Handshake className="mt-0.5 h-6 w-6 shrink-0 text-brand-indigo" />
+            <span className="min-w-0">
+              <span className="portal-body block font-medium text-foreground">
+                Já embarca sempre com o mesmo agente nesta rota?
+              </span>
+              <span className="portal-small block text-portal-neutral">
+                Feche direto com o agente preferido da rota, sem cotar. A
+                Freitas revisa antes de instruir o agente.
+              </span>
+            </span>
+          </span>
+          <span className="portal-small inline-flex shrink-0 items-center gap-1 font-medium text-brand-indigo">
+            Fechar direto com agente preferido{' '}
+            <ArrowRight className="h-4 w-4" />
+          </span>
+        </Link>
+      )}
+
       {/* Com o V2 a tela ganha uma coluna lateral fixa: as quatro etapas do
           RQ-3. Sem ele, o formulario ocupa a largura inteira como sempre
           ocupou — o `grid` so existe quando ha um segundo elemento para
@@ -277,6 +335,7 @@ function PortalNovaCotacaoContent() {
             initialValues={prefill}
             exporterId={exporter?.id ?? null}
             submitLabel={v2 ? 'Enviar para a Freitas' : undefined}
+            hardblocks={v2 ? hardblocks : undefined}
             exporterSection={
               <PortalExporterSelect
                 value={exporter?.id ?? null}

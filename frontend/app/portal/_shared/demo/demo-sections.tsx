@@ -54,6 +54,7 @@ import {
   useFreitasSimulation,
 } from './use-freitas-simulation';
 import { CotacaoV2Section } from './demo-section-cotacao-v2';
+import { DirectCloseSection } from './demo-section-direct-close';
 import { EmbarquePoSection } from './demo-section-embarque-po';
 
 export interface DemoSection {
@@ -254,7 +255,7 @@ export const DEMO_SECTIONS: DemoSection[] = [
   {
     id: 'cotacao-v2',
     title: 'Cotação V2',
-    description: 'A revisão da Freitas, de entrada e de saída.',
+    description: 'A revisão da Freitas: de entrada (Inbox) e de saída.',
     Content: CotacaoV2Section,
   },
   {
@@ -262,6 +263,15 @@ export const DEMO_SECTIONS: DemoSection[] = [
     title: 'Embarque via PO',
     description: 'A revisão da Freitas na abertura do embarque.',
     Content: EmbarquePoSection,
+  },
+  // Acrescentada depois das seções existentes; "Reiniciar" continua sendo a
+  // última, porque é a ação que encerra uma apresentação.
+  {
+    id: 'fechamento-direto',
+    title: 'Fechamento direto',
+    description:
+      'Pedidos com o agente preferido da rota, na revisão de entrada.',
+    Content: DirectCloseSection,
   },
   {
     id: 'reset',
