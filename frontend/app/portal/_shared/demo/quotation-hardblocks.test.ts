@@ -86,7 +86,7 @@ test('coleta a critério dos agentes não dispensa a coleta fora do FOB', () => 
     complete({ origin: '', agente_define_local_coleta: 'true' }),
   );
   const block = report.blocks.find((b) => b.item === 'local_coleta');
-  assert.match(block?.reason ?? '', /Desligue a opção/);
+  assert.match(block?.reason ?? '', /desligue/);
 });
 
 test('local de embarque: SÓ para FOB, e no campo do modal', () => {

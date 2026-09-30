@@ -142,3 +142,32 @@ test('dado gravado por outra versão é saneado, não confiado', () => {
     [{ field: 'incoterm', from: 'FOB', to: 'CIF' }],
   );
 });
+
+test('o mesmo valor em formatos diferentes não vira alteração', () => {
+  const typed = snapshotFromDraft({
+    values: {
+      desired_deadline: '2026-10-02T17:00',
+      declared_value: '48.000,00',
+      temperatura_min: '-18,0',
+    },
+    equipments: [],
+    volumes: [],
+    flags: { showRefrigerada: true },
+  });
+  const payload = snapshotFromQuotation({
+    desired_deadline: new Date('2026-10-02T17:00').toISOString(),
+    declared_value: 48000,
+    temperatura_min: -18,
+  });
+  for (const field of [
+    'desired_deadline',
+    'declared_value',
+    'temperatura_min',
+  ]) {
+    assert.equal(typed[field], payload[field], field);
+  }
+  assert.equal(
+    formatSnapshotValue('declared_value', typed.declared_value),
+    '48.000,00',
+  );
+});

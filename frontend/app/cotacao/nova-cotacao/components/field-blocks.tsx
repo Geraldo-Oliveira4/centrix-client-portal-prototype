@@ -36,10 +36,22 @@ export function goToField(field: string): void {
   const target = document.getElementById(fieldAnchor(field));
   if (!target) return;
   target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  const control = target.querySelector<HTMLElement>(
-    'input:not([disabled]), textarea:not([disabled]), button:not([disabled])',
-  );
-  control?.focus({ preventScroll: true });
+  // The field's own control, in this order: a text box, then a select or
+  // combobox trigger. Never the hidden checkbox behind a Switch (the "Deixar
+  // que agentes decidam" toggles sit BEFORE the input they govern).
+  const selectors = [
+    'input:not([disabled]):not([type=checkbox]):not([aria-hidden=true])',
+    'textarea:not([disabled])',
+    'button[role=combobox]:not([disabled])',
+    'button:not([disabled])',
+  ];
+  for (const selector of selectors) {
+    const control = target.querySelector<HTMLElement>(selector);
+    if (control) {
+      control.focus({ preventScroll: true });
+      break;
+    }
+  }
   target.classList.add('ring-2', 'ring-portal-warning', 'rounded-md');
   window.setTimeout(
     () =>

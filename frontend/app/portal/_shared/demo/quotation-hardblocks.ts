@@ -10,17 +10,21 @@
 // O QUE NÃO É HARDBLOCK. As flags de severidade das propostas (Crítico, Alto)
 // seguem só como indicador visual — decisão do Orsi. Nada aqui as lê.
 //
-// CADA MOTIVO DIZ O QUE FAZER, não só o que falta: é o texto que aparece no
-// próprio campo e no resumo "faltam N itens" do topo do formulário.
+// CADA MOTIVO DIZ O QUE FAZER, não só o que falta, e CABE NA CÉLULA: é o texto
+// que aparece embaixo do campo, e a 1440px o formulário tem três blocos lado a
+// lado com campos de ~100px. Frase longa ali vira uma coluna de sete linhas.
 //
 // Na versão integrada esta regra vive no backend (a revisão de entrada recusa
 // disparar o RFQ, a de saída recusa liberar); aqui ela desenha a tela.
 
 import {
+  parseAmount,
   snapshotFromQuotation,
   type FormSnapshot,
   type SnapshotQuotation,
 } from './quotation-form-snapshot.ts';
+
+export { parseAmount };
 
 export type HardblockItem =
   | 'tipo_cotacao'
@@ -106,16 +110,6 @@ function one(snapshot: FormSnapshot, field: string): string {
   return (value ?? '').trim();
 }
 
-/** "12.500,00", "12500.5", "12,5" -> number. Anything else -> NaN. */
-export function parseAmount(raw: string): number {
-  const cleaned = raw.replace(/\s/g, '');
-  if (!/^\d[\d.,]*$/.test(cleaned)) return Number.NaN;
-  const normalized = cleaned.includes(',')
-    ? cleaned.replace(/\./g, '').replace(',', '.')
-    : cleaned;
-  return Number(normalized);
-}
-
 const UN_PATTERN = /^(UN)?\s?\d{4}$/i;
 
 /** Evaluates the whole list against one snapshot. */
@@ -150,34 +144,26 @@ export function evaluateHardblocks(snapshot: FormSnapshot): HardblockReport {
     blocks.push({ item, field, label: HARDBLOCK_LABELS[item], reason });
 
   if (!one(snapshot, 'tipo_cotacao')) {
-    block(
-      'tipo_cotacao',
-      'tipo_cotacao',
-      'Escolha Real ou Estimativa: define se os agentes cotam para embarcar ou só para referência.',
-    );
+    block('tipo_cotacao', 'tipo_cotacao', 'Escolha Real ou Estimativa.');
   }
   if (!one(snapshot, 'service_type')) {
     block('service_type', 'service_type', 'Escolha Importação ou Exportação.');
   }
   if (!modal) {
-    block(
-      'modal',
-      'modal',
-      'Escolha o modal. Os campos de embarque e desembarque aparecem depois dele.',
-    );
+    block('modal', 'modal', 'Escolha o modal para liberar os locais.');
   }
   if (!incoterm) {
     block(
       'incoterm',
       'incoterm',
-      'Escolha o Incoterm. Ele decide quais locais, valores e documentos são obrigatórios.',
+      'Escolha o Incoterm: ele define o que mais é exigido.',
     );
   }
   if (!one(snapshot, 'price_or_performance')) {
     block(
       'price_or_performance',
       'price_or_performance',
-      'Diga se a prioridade é preço ou performance: é o critério da recomendação.',
+      'Diga se a prioridade é preço ou performance.',
     );
   }
 
@@ -188,8 +174,8 @@ export function evaluateHardblocks(snapshot: FormSnapshot): HardblockReport {
       'local_coleta',
       'origin',
       one(snapshot, 'agente_define_local_coleta') === 'true'
-        ? `Com Incoterm ${incoterm || 'diferente de FOB'} a coleta não pode ficar a critério dos agentes. Desligue a opção e informe o endereço.`
-        : `Informe onde a carga será coletada${incoterm ? ` (obrigatório para ${incoterm})` : ''}.`,
+        ? 'Fora do FOB a coleta não fica com os agentes: desligue e informe o local.'
+        : 'Informe onde coletar a carga.',
     );
   }
   if (modal && applies.loading) {
@@ -198,7 +184,7 @@ export function evaluateHardblocks(snapshot: FormSnapshot): HardblockReport {
       block(
         'local_embarque',
         field,
-        `No FOB a entrega é a bordo: informe ${isAir ? 'o aeroporto' : 'o porto'} de embarque.`,
+        `No FOB, informe ${isAir ? 'o aeroporto' : 'o porto'} de embarque.`,
       );
     }
   }
@@ -208,7 +194,7 @@ export function evaluateHardblocks(snapshot: FormSnapshot): HardblockReport {
       block(
         'local_desembarque',
         field,
-        'Informe o local de desembarque ou ligue "Deixar que agentes decidam".',
+        'Informe o local ou deixe os agentes decidirem.',
       );
     }
   }
@@ -216,7 +202,7 @@ export function evaluateHardblocks(snapshot: FormSnapshot): HardblockReport {
     block(
       'endereco_entrega_final',
       'endereco_entrega_final',
-      `No ${incoterm} o frete vai até a porta: informe o endereço de entrega final.`,
+      `No ${incoterm}, informe o endereço de entrega.`,
     );
   }
 
@@ -226,11 +212,7 @@ export function evaluateHardblocks(snapshot: FormSnapshot): HardblockReport {
   if (applies.ncm) {
     const digits = one(snapshot, 'ncm').replace(/\D/g, '');
     if (!digits) {
-      block(
-        'ncm',
-        'ncm',
-        `No ${incoterm} os impostos no destino entram na conta: informe o NCM.`,
-      );
+      block('ncm', 'ncm', `No ${incoterm}, informe o NCM da mercadoria.`);
     } else if (digits.length !== 8) {
       block('ncm', 'ncm', 'O NCM tem 8 dígitos (ex.: 8517.62.77).');
     }
@@ -239,23 +221,19 @@ export function evaluateHardblocks(snapshot: FormSnapshot): HardblockReport {
     block(
       'carga_perigosa',
       'carga_perigosa',
-      'Responda Sim ou Não. Não há resposta padrão para carga perigosa.',
+      'Responda Sim ou Não: não há resposta padrão.',
     );
   } else if (dangerous === 'SIM') {
     block(
       'carga_perigosa',
       'carga_perigosa',
-      'Escolha a classificação: IMO (perigosa) ou RA (radioativa).',
+      'Escolha a classificação: IMO ou RA.',
     );
   }
   if (applies.unNumber) {
     const un = one(snapshot, 'un_number');
     if (!un) {
-      block(
-        'un_number',
-        'un_number',
-        'Carga perigosa exige o número UN (ex.: UN1263).',
-      );
+      block('un_number', 'un_number', 'Informe o número UN (ex.: UN1263).');
     } else if (!UN_PATTERN.test(un)) {
       block(
         'un_number',
@@ -265,18 +243,10 @@ export function evaluateHardblocks(snapshot: FormSnapshot): HardblockReport {
     }
   }
   if (!one(snapshot, 'stackability')) {
-    block(
-      'stackability',
-      'stackability',
-      'Responda se a carga pode ser empilhada.',
-    );
+    block('stackability', 'stackability', 'Responda Sim ou Não.');
   }
   if (!one(snapshot, 'carga_tombavel')) {
-    block(
-      'carga_tombavel',
-      'carga_tombavel',
-      'Responda se a carga pode ser tombada.',
-    );
+    block('carga_tombavel', 'carga_tombavel', 'Responda Sim ou Não.');
   }
   if (applies.minTemperature) {
     const raw = one(snapshot, 'temperatura_min').replace(',', '.');
@@ -284,7 +254,7 @@ export function evaluateHardblocks(snapshot: FormSnapshot): HardblockReport {
       block(
         'temperatura_min',
         'temperatura_min',
-        'Carga refrigerada exige a temperatura mínima, em °C.',
+        'Informe a temperatura mínima, em °C.',
       );
     }
   }
@@ -295,13 +265,13 @@ export function evaluateHardblocks(snapshot: FormSnapshot): HardblockReport {
       block(
         'declared_value',
         'declared_value',
-        `No ${incoterm} o seguro ou os impostos saem deste valor: informe o valor da carga.`,
+        `No ${incoterm}, informe o valor da carga.`,
       );
     } else if (!(amount > 0)) {
       block(
         'declared_value',
         'declared_value',
-        'Informe um valor maior que zero (ex.: 12.500,00).',
+        'Informe um valor maior que zero.',
       );
     }
   }
@@ -310,7 +280,7 @@ export function evaluateHardblocks(snapshot: FormSnapshot): HardblockReport {
     block(
       'client_reference',
       'client_reference',
-      'Informe a sua referência (PO ou pedido): é por ela que você acha a cotação depois.',
+      'Informe seu PO ou número de pedido.',
     );
   }
 

@@ -142,10 +142,72 @@ export function formatSnapshotValue(
     if (raw === 'true') return 'Sim';
     if (raw === 'false') return 'Não';
   }
-  if (field === 'desired_deadline' && raw.includes('T')) {
-    return raw.replace('T', ' ');
+  if (field === 'desired_deadline') {
+    const at = Date.parse(raw.length === 16 ? `${raw}Z` : raw);
+    if (Number.isFinite(at)) {
+      return new Date(at).toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+  }
+  if (field === 'declared_value') {
+    const amount = Number(raw);
+    if (Number.isFinite(amount)) {
+      return amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    }
   }
   return CODE_LABELS[field]?.[raw] ?? raw;
+}
+
+/** "12.500,00", "12500.5", "12,5" -> number. Anything else -> NaN. */
+export function parseAmount(raw: string): number {
+  const cleaned = raw.replace(/\s/g, '');
+  if (!/^\d[\d.,]*$/.test(cleaned)) return Number.NaN;
+  const normalized = cleaned.includes(',')
+    ? cleaned.replace(/\./g, '').replace(',', '.')
+    : cleaned;
+  return Number(normalized);
+}
+
+/**
+ * One spelling per value, whichever side produced it.
+ *
+ * The edit form reopens from the PAYLOAD, which spells some values differently
+ * from what the client typed: the response deadline comes back as UTC ISO
+ * ("2026-10-02T20:00:00Z") where the form holds local datetime ("2026-10-02T17:00"),
+ * and the cargo value as 48000 where the client typed "48.000,00". Compared
+ * raw, an untouched form would report phantom changes — and a resend with
+ * nothing changed would open a new round. Both become the same string here.
+ */
+function canonical(field: SnapshotField, raw: string): string {
+  if (!raw) return raw;
+  if (field === 'desired_deadline') {
+    const at = Date.parse(raw);
+    return Number.isFinite(at) ? new Date(at).toISOString().slice(0, 16) : raw;
+  }
+  if (field === 'declared_value') {
+    const amount = parseAmount(raw);
+    return Number.isFinite(amount) ? String(amount) : raw;
+  }
+  if (field === 'temperatura_min' || field === 'temperatura_max') {
+    const value = Number(raw.replace(',', '.'));
+    return Number.isFinite(value) ? String(value) : raw;
+  }
+  return raw;
+}
+
+/** Applies `canonical` to every string value of a snapshot. */
+function canonicalize(snapshot: FormSnapshot): FormSnapshot {
+  const out: FormSnapshot = {};
+  for (const field of SNAPSHOT_FIELDS) {
+    const value = snapshot[field];
+    out[field] = typeof value === 'string' ? canonical(field, value) : value;
+  }
+  return out;
 }
 
 function text(value: unknown): string {
@@ -214,7 +276,7 @@ export function snapshotFromDraft(
   const v = draft.values ?? {};
   const f = draft.flags ?? {};
   const refrigerated = !!f.showRefrigerada;
-  return {
+  return canonicalize({
     supplier: text(supplier),
     tipo_cotacao: text(v.tipo_cotacao),
     service_type: text(v.service_type),
@@ -253,7 +315,7 @@ export function snapshotFromDraft(
     desired_deadline: text(v.desired_deadline),
     client_reference: text(v.client_reference),
     observations: text(v.observations),
-  };
+  });
 }
 
 /** The minimum this module reads from the portal quotation payload. */
@@ -298,7 +360,7 @@ export interface SnapshotQuotation {
  */
 export function snapshotFromQuotation(q: SnapshotQuotation): FormSnapshot {
   const refrigerated = q.temperatura_min != null || q.temperatura_max != null;
-  return {
+  return canonicalize({
     supplier: text(q.exporter_name),
     tipo_cotacao: text(q.tipo_cotacao),
     service_type: text(q.service_type),
@@ -334,7 +396,7 @@ export function snapshotFromQuotation(q: SnapshotQuotation): FormSnapshot {
     desired_deadline: text(q.desired_deadline),
     client_reference: text(q.client_reference),
     observations: text(q.observations),
-  };
+  });
 }
 
 export interface FieldChange {
