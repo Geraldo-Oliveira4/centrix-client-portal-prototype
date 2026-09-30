@@ -198,3 +198,13 @@ One scale for Home, Central de trabalho, Minhas Cotações, Meus Embarques and t
 - **A pending document without a due date is Normal.** It is work, not an emergency; it enters the scale by its due date when one exists. Counting it as Atenção painted 7 of 8 shipments amber.
 - **Ink tokens for text.** `danger`, `success` and `warning` fail AA as text on white or on their own 10% plates; `danger-ink`, `success-ink` and `warning-ink` pass (5.4, 5.8 and 4.9:1 on the plate). In dark mode the inks collapse into the base tones and the 10% plates drop to 8% (`styles/globals.css`).
 - **Card accent follows urgency.** A card's left border is `danger`/`warning` only when the card itself is Crítico/Atenção; `border` otherwise.
+
+## Insight pattern
+
+Every headline number carries its reading. A number alone ("73%") answers nothing; the client needs to know what it means and which way it moved.
+
+- **Shape:** the number, then a variation badge (arrow icon + colour + text, e.g. "↑ 15 pontos acima de julho"), then one sentence in the client's language ("Seus fornecedores deixaram a carga pronta no prazo em 73% dos embarques"), then, when useful, where it weighs most or the base the variation came from ("Agosto: 3 de 3 no prazo").
+- **Rates vary in points, amounts in %.** "0% no prazo" is an accusation, not a gap: with no data the card says so in words and shows no variation.
+- **Tone follows direction and meaning, not sign.** Good = `success-ink` on a 10% plate, bad = `danger-ink`, neutral = `portal-neutral` on `muted`. When neither side is better (freight contracted) the arrow shows without colour; commercial KPIs (savings) never go red.
+- **One source.** The variation is computed from the same data the screen already draws (in Inteligência, the monthly cohorts of the evolution chart), never from a second, invented baseline. A month with fewer than 3 eligible shipments does not enter the comparison.
+- **Code:** `frontend/app/portal/_shared/insight.ts` + `InsightLine` in React; `public/prototypes/centrix-inteligencia/insights.js` mirrors the same rule for the iframe.

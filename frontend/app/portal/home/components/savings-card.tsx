@@ -3,9 +3,10 @@
 import Link from 'next/link';
 
 import { usePortalModuleReleased } from '../../_shared/demo/use-feature-flags';
-import { ArrowRight, TrendingDown, TrendingUp } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { InsightLine } from '../../_shared/insight-line';
+import { variationOf } from '../../_shared/insight';
 
-import { cn } from '@/lib/utils';
 import { formatBRL } from '@/lib/portal-formatters';
 import type {
   IllustrativeSavings,
@@ -87,42 +88,30 @@ export function SavingsCard({
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-dashed pt-4">
-        {/* O badge só aparece quando existe mês anterior com base. Sem ponto de
-            partida não há "variação", e um "+100%" ali seria inventado. */}
-        {trend?.deltaPct != null ? (
-          <span
-            className={cn(
-              'portal-small inline-flex items-center gap-1 rounded border px-2 py-0.5 font-medium',
-              trend.deltaPct >= 0
-                ? 'border-portal-success/25 bg-portal-success/10 text-portal-success'
-                : // Queda de economia NÃO é vermelho: o semáforo do portal fala
-                  // de saúde de carga, e pintar um KPI comercial com ele leria
-                  // como embarque em risco.
-                  'border-portal-neutral/30 bg-muted text-portal-neutral',
-            )}
-          >
-            {trend.deltaPct >= 0 ? (
-              <TrendingUp className="h-4 w-4" />
-            ) : (
-              <TrendingDown className="h-4 w-4" />
-            )}
-            {trend.deltaPct >= 0 ? '+' : ''}
-            {trend.deltaPct}% vs. mês passado
-          </span>
-        ) : (
-          <span className="portal-small text-portal-neutral">
-            {monthly
-              ? 'Sem fechamento no mês passado para comparar.'
-              : 'Sem fechamento nos últimos dois meses.'}
-          </span>
-        )}
-        {trend != null && trend.previousBRL > 0 ? (
-          <span className="portal-small text-portal-neutral">
-            mês passado: {formatBRL(trend.previousBRL)}
-          </span>
-        ) : null}
-      </div>
+      {/* INSIGHT (30/09/2026): selo de variacao + frase. Queda de economia
+          NAO e vermelho (`badTone: 'neutral'`): o vermelho do portal fala de
+          prazo e custo correndo, e pintar um KPI comercial com ele leria como
+          embarque em risco. Sem mes anterior com base nao ha variacao. */}
+      <InsightLine
+        className="border-t border-dashed pt-4"
+        variation={
+          trend
+            ? variationOf(trend.currentBRL, trend.previousBRL || null, {
+                kind: 'pct',
+                higherIsBetter: true,
+                previousLabel: 'o mês passado',
+                badTone: 'neutral',
+              })
+            : null
+        }
+        sentence={
+          monthly
+            ? trend.previousBRL > 0
+              ? `Você economizou ${formatBRL(trend.currentBRL)} este mês nas cotações fechadas com a Freitas; no mês passado foram ${formatBRL(trend.previousBRL)}.`
+              : `Você economizou ${formatBRL(trend.currentBRL)} este mês. Não houve fechamento no mês passado para comparar.`
+            : 'Sem fechamento nos últimos dois meses: o valor acima é o acumulado.'
+        }
+      />
 
       <DetailLink />
     </section>
