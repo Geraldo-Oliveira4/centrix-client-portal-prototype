@@ -83,7 +83,9 @@ export default function PortalLayout({
           {/* O guard troca so o MIOLO. Sidebar e header continuam: modulo
               fechado e uma porta fechada dentro do portal, nao uma sessao
               perdida, e o cliente precisa continuar enxergando por onde sair. */}
-          <div className="mx-auto w-full max-w-[1540px] px-4 py-6 md:px-8 md:py-9">
+          {/* pb-24: o botao flutuante "Ajuda" (44px + 16px da borda) nunca
+              cobre o ultimo bloco da tela quando o cliente rola ate o fim. */}
+          <div className="mx-auto w-full max-w-[1540px] px-4 pb-24 pt-6 md:px-8 md:pt-9">
             {isRouteReleased(pathname, flags) ? children : <ModuleNotReleased />}
           </div>
         </main>
