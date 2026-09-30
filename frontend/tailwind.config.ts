@@ -122,6 +122,10 @@ const config = {
         'portal-warning-ink': 'hsl(var(--portal-warning-ink) / <alpha-value>)',
         // critical / blocked / divergent
         'portal-danger': 'hsl(var(--portal-danger) / <alpha-value>)',
+        // Text contrast for the urgency scale (same idea as warning-ink):
+        // #B42F2F and #136B42 on white and on their own /10 plates pass AA.
+        'portal-danger-ink': 'hsl(var(--portal-danger-ink) / <alpha-value>)',
+        'portal-success-ink': 'hsl(var(--portal-success-ink) / <alpha-value>)',
         // in progress, no action required
         'portal-info': 'hsl(var(--portal-info) / <alpha-value>)',
         // secondary metadata (indigo-600 na luz, indigo-400 no escuro)

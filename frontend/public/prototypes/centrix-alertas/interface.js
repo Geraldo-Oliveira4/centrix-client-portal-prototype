@@ -95,7 +95,7 @@ function visible() {
     .sort((a, b) => AlertRules.compare(a, b, priorityShipments));
 }
 function badge(x) {
-  const tone = AlertRules.tone(x);
+  const tone = AlertRules.tone(x, DEMO_NOW);
   return `<span class="badge ${tone}">${icon(x.group === "history" ? "check" : tone === "red" ? "alert" : x.type === "preco" ? "chart" : x.type === "confirmado" ? "ship" : "info")}${x.badge}</span>`;
 }
 function arrival(x) {
@@ -110,7 +110,7 @@ function contextLink(x) {
   return target ? `<a class="shipment-link" href="${target.href}" aria-label="${target.label} ${target.reference}">${icon(target.kind === "cotacao" ? "file" : "ship")}<span>${target.label}<small>${target.reference}</small></span>${icon("arrow")}</a>` : "";
 }
 function card(x) {
-  const tone = AlertRules.tone(x);
+  const tone = AlertRules.tone(x, DEMO_NOW);
   return `<article class="card tone-${tone} ${x.id === selected ? "selected" : ""}" data-id="${x.id}">
     <button class="card-main" data-open="${x.id}" aria-haspopup="dialog" aria-label="${esc((x.po || x.cargo) + " — " + x.title)}">
       <div class="alert-card-content"><div class="alert-copy">

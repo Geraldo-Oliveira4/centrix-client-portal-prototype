@@ -17,6 +17,9 @@ colors:
   success: "#1E9E63"
   warning: "#C98A00"
   danger: "#D64545"
+  danger-ink: "#B42F2F"
+  success-ink: "#136B42"
+  warning-ink: "#8A5E00"
   info: "#4C6FD1"
 typography:
   display:
@@ -177,3 +180,21 @@ A composição segue a regra 75/15/10. Cerca de 75% de cada peça é estrutural 
 - **Header**: 72px, logo vertical (versão principal) à esquerda com 48px de altura, navegação Source Sans 600 16px, CTA primário à direita. Versão escura sobre hero navy.
 - **Footer**: Navy Profundo, logo negativo, colunas de links em `indigo-300`, sem grafismo.
 - **Ícones**: Lucide, stroke 1,75, 16px inline, 20px em botões, 24px em cards. Sem emojis.
+
+## Urgency scale (Portal do Cliente)
+
+One scale for Home, Central de trabalho, Minhas Cotações, Meus Embarques and the shipment alerts. The question it answers is "do I need to act, and by when?", never "which stage is this in". Stage is information, written as text; urgency is what moves up the screen and gets colour. The rule lives in one pure module, `frontend/app/portal/_shared/urgency.ts`, and is drawn by `UrgencyBadge` (`_shared/urgency-badge.tsx`).
+
+| Level | When | Visual |
+|---|---|---|
+| Crítico | the client's deadline has passed, or a cost is running (demurrage) | `danger` plate at 10%, `danger-ink` text, octagon icon, reason text ("Prazo vencido") |
+| Atenção | the client's deadline is today or within 3 days, or the pending item holds the next step (booking, missing quotation data) | `warning` plate at 10%, `warning-ink` text, clock icon, reason ("Vence hoje", "Trava a próxima etapa") |
+| Normal | in progress with the Freitas or an agent; or a client item with no deadline ("Pendente com você") | neutral text, no plate, no border colour |
+| OK | done | small `success` plate with `success-ink` text; never a border |
+
+- **At most two levels of emphasis per screen.** Only Crítico and Atenção carry colour. Columns, tabs and stage labels are neutral.
+- **Colour never travels alone.** Every coloured plate has an icon and the reason in words.
+- **"Due today" is Atenção, not Crítico.** Red is reserved for what already costs something; otherwise red stops separating "missed" from "still possible".
+- **A pending document without a due date is Normal.** It is work, not an emergency; it enters the scale by its due date when one exists. Counting it as Atenção painted 7 of 8 shipments amber.
+- **Ink tokens for text.** `danger`, `success` and `warning` fail AA as text on white or on their own 10% plates; `danger-ink`, `success-ink` and `warning-ink` pass (5.4, 5.8 and 4.9:1 on the plate). In dark mode the inks collapse into the base tones and the 10% plates drop to 8% (`styles/globals.css`).
+- **Card accent follows urgency.** A card's left border is `danger`/`warning` only when the card itself is Crítico/Atenção; `border` otherwise.

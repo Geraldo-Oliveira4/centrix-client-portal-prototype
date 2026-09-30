@@ -14,12 +14,22 @@ const AlertRules = {
     if (!reference) return null;
     return { kind, reference, label: kind === "cotacao" ? "Ver cotação" : "Ver embarque", href: `#${kind}/${x.id}` };
   },
-  tone(x) {
+  // Escala de urgencia do portal (app/portal/_shared/urgency.ts, 30/09/2026):
+  // cor so para o que exige acao DO CLIENTE com prazo. Vermelho = prazo
+  // vencido; ambar = vence em ate 3 dias, ou booking parado (trava a proxima
+  // etapa); verde discreto = concluido; todo o resto e NEUTRO. Antes eram cinco
+  // cores (vermelho, ambar, azul, verde, roxo) e a previsao alterada, que nao
+  // pede nada ao cliente, disputava o ambar com o que pede.
+  tone(x, now) {
     if (x.group === "history" || x.type === "confirmado") return "green";
-    if (x.type === "preco") return "purple";
-    if (x.owner === "client" && x.group === "action") return x.deadline ? "red" : "amber";
-    if (x.type === "eta") return "amber";
-    return "blue";
+    if (x.owner !== "client" || x.group !== "action") return "neutral";
+    const limit = x.deadlineAt ? Date.parse(x.deadlineAt) : NaN;
+    const at = Date.parse(now || new Date().toISOString());
+    if (Number.isFinite(limit)) {
+      if (limit < at) return "red";
+      if (limit - at <= 3 * 86400000) return "amber";
+    }
+    return x.action === "booking" || x.type === "aprovacao" ? "amber" : "neutral";
   },
   tier(x) {
     if (x.group === "history") return 6;

@@ -111,6 +111,11 @@
     --portal-warning: 41.2 100% 39.4%; /* #C98A00 */
     --portal-warning-ink: 40.9 100% 27.1%; /* #8A5E00 */
     --portal-danger: 0 63.9% 55.5%; /* #D64545 */
+    /* Os dois INKS da escala de urgencia (30/09/2026), mesma logica do
+       warning-ink: o tom de preenchimento reprova como TEXTO sobre branco
+       (#D64545 4.38:1; #1E9E63 sobre a propria placa /10 2.89:1). */
+    --portal-danger-ink: 0 58.6% 44.5%; /* #B42F2F — 5.40:1 sobre a placa /10 */
+    --portal-success-ink: 152 69.8% 24.7%; /* #136B42 — 5.84:1 sobre a placa /10 */
     --portal-info: 224.2 59.1% 55.9%; /* #4C6FD1 */
     --portal-neutral: 237.6 19.8% 50.6%; /* #686A9A, indigo-600 */
 
@@ -181,6 +186,9 @@
        Duas cores para um estado so tem preco onde ha doenca. */
     --portal-warning-ink: 41.2 100% 39.4%; /* = --portal-warning */
     --portal-danger: 0 64.3% 69.2%; /* #E37E7E — 5.35:1 sobre #23253F */
+    /* No escuro os inks colapsam no tom base, como o warning-ink. */
+    --portal-danger-ink: 0 64.3% 69.2%; /* = --portal-danger */
+    --portal-success-ink: 152.3 68.4% 41%; /* = --portal-success */
     --portal-info: 224.5 59.2% 69.2%; /* #829ADF — 5.43:1 sobre #23253F */
     /* Neutral e o token mais usado do portal (284 chamadas). Indigo-400 e o
        `--fc-dark-ink-3` do tokens.css: 6.39:1, sem hex novo. */
@@ -224,6 +232,18 @@
 .dark .bg-portal-warning\/10,
 .fc-dark .bg-portal-warning\/10 {
   background-color: hsl(var(--portal-warning) / 0.08);
+}
+
+/* Mesma correcao para as placas de `critico` e `ok` da escala de urgencia:
+ * no escuro, o tom base sobre a propria placa /10 da 4.62 (danger) e 4.61
+ * (success) sobre o card #23253F; a /8 da 4.78 e 4.76. */
+.dark .bg-portal-danger\/10,
+.fc-dark .bg-portal-danger\/10 {
+  background-color: hsl(var(--portal-danger) / 0.08);
+}
+.dark .bg-portal-success\/10,
+.fc-dark .bg-portal-success\/10 {
+  background-color: hsl(var(--portal-success) / 0.08);
 }
 
 /* Glassmorphism effects */

@@ -11,6 +11,7 @@ import {
 import { QuotationCard } from './quotation-card';
 import Link from 'next/link';
 import type { LocalRequest } from '../lib/repeat-model';
+import type { Urgency } from '../../_shared/urgency';
 import type { QuotationReviewStore } from '../../_shared/demo/quotation-review';
 
 interface KanbanColumnProps {
@@ -21,21 +22,17 @@ interface KanbanColumnProps {
   reviews?: QuotationReviewStore;
   /** Cartao recem-enviado, vindo de `?destaque=` (RQ-6). */
   highlightId?: string | null;
+  /** Urgencia por cotacao (`_shared/urgency.ts`). Ausente = em andamento. */
+  urgencies?: Map<string, Urgency>;
 }
 
-const DEFAULT_ACCENT: Record<PortalBucketKey, string> = {
-  // Semantic accents: waiting on the client or on Freitas = warning, in
-  // progress = info, ready for the client to decide = success. The two terminal
-  // buckets no longer have a column (they live in the Histórico list), but the
-  // map stays exhaustive over PortalBucketKey.
-  aguardando_dados: 'border-t-portal-warning',
-  buscando_propostas: 'border-t-portal-info',
-  aguardando_aprovacao: 'border-t-portal-success',
-  finalizadas: 'border-t-portal-neutral/40',
-  cancelada: 'border-t-portal-neutral/40',
-};
+// COLUNAS NEUTRAS desde 30/09/2026. Elas eram pintadas por etapa (ambar,
+// azul, verde), e a cor da coluna competia com a do cartao: "Preencher
+// detalhes" lia como urgente mesmo com nada vencendo, e "Escolha sua proposta"
+// lia como resolvida. Quem carrega cor agora e o CARTAO, pela escala de
+// urgencia (`_shared/urgency.ts`); a coluna so diz a etapa, em texto.
 
-export function KanbanColumn({ bucket, quotations, localRequests = [], reviews = {}, highlightId = null }: KanbanColumnProps) {
+export function KanbanColumn({ bucket, quotations, localRequests = [], reviews = {}, highlightId = null, urgencies }: KanbanColumnProps) {
   return (
     <div
       className={cn(
@@ -54,8 +51,7 @@ export function KanbanColumn({ bucket, quotations, localRequests = [], reviews =
         // canvas navy — uma placa levemente elevada. O branco cravado virava
         // cinza sujo translucido sobre navy, que e o unico jeito de a coluna
         // ficar pior que sem fundo nenhum.
-        'flex flex-1 min-w-80 max-w-[34rem] flex-col rounded-xl border border-t-4 bg-card/60',
-        DEFAULT_ACCENT[bucket],
+        'flex flex-1 min-w-80 max-w-[34rem] flex-col rounded-xl border bg-card/60',
       )}
     >
       <header className="flex shrink-0 items-center justify-between rounded-t-xl px-4 py-3">
@@ -69,7 +65,7 @@ export function KanbanColumn({ bucket, quotations, localRequests = [], reviews =
 
       <ScrollArea className="flex-1 max-h-[calc(100vh-220px)]">
         <div className="space-y-2 p-2">
-          {localRequests.map((r) => <Link key={r.id} href={`/portal/cotacoes/repetir/${r.sourceId}?rascunho=${r.id}`} className="block rounded-md border border-l-4 border-l-portal-info bg-background p-4 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-portal-info">
+          {localRequests.map((r) => <Link key={r.id} href={`/portal/cotacoes/repetir/${r.sourceId}?rascunho=${r.id}`} className="block rounded-md border border-l-4 border-l-border bg-background p-4 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-portal-info">
             <h3 className="portal-body font-semibold">{r.quote.supplier || r.quote.product || 'Nova solicitação'}</h3>
             <p className="portal-small mt-1 text-portal-neutral">{r.quote.po || 'PO a informar'} · nova remessa</p>
             <p className="portal-small mt-2 text-portal-neutral">{r.quote.product}</p>
@@ -83,7 +79,7 @@ export function KanbanColumn({ bucket, quotations, localRequests = [], reviews =
             </p>
           ) : (
             quotations.map((q) => (
-              <QuotationCard key={q.id} quotation={q} bucket={bucket} review={reviews[q.id] ?? null} highlighted={q.id === highlightId} />
+              <QuotationCard key={q.id} quotation={q} bucket={bucket} review={reviews[q.id] ?? null} highlighted={q.id === highlightId} urgency={urgencies?.get(q.id) ?? null} />
             ))
           )}
         </div>

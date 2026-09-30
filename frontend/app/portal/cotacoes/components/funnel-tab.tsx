@@ -19,6 +19,9 @@ import {
 import { useQuotationReviewStore } from '../../_shared/demo/use-quotation-review';
 import { usePortalModuleReleased } from '../../_shared/demo/use-feature-flags';
 import { KanbanColumn } from './kanban-column';
+import { collectHomeActions } from '../../home/lib/home-actions';
+import { REAL_STEPS } from '../../embarques/lib/real-steps';
+import { urgencyByRecord } from '../../_shared/urgency';
 import type { LocalRequest } from '../lib/repeat-model';
 import {
   EMPTY_PORTAL_FILTERS,
@@ -92,6 +95,24 @@ export function FunnelTab({ data, localRequests = [] }: { data: PortalQuotations
 
   // "Preencher detalhes" is only shown when Freitas actually asked the client
   // for something — an empty column would read as a permanent pending task.
+  // URGENCIA POR CARTAO: a mesma fila de acoes do cliente da Home e da Central
+  // (`collectHomeActions`), sobre os baldes JA realocados pela V2. Uma leitura
+  // de relogio por montagem, como no resto do portal.
+  const [now] = useState(() => new Date());
+  const urgencies = useMemo(
+    () =>
+      urgencyByRecord(
+        collectHomeActions({
+          shipments: [],
+          buckets: dataV2.buckets,
+          realSteps: REAL_STEPS,
+          now,
+        }),
+        now,
+      ),
+    [dataV2, now],
+  );
+
   const activeBuckets = useMemo(
     () =>
       dataV2.bucket_order.filter(
@@ -220,6 +241,7 @@ export function FunnelTab({ data, localRequests = [] }: { data: PortalQuotations
               localRequests={localIn(bucket)}
               reviews={reviews}
               highlightId={highlightId}
+              urgencies={urgencies}
             />
           ))}
         </div>

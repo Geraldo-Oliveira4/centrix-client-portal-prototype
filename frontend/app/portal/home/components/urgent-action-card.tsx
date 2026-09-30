@@ -11,11 +11,12 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-import { cn } from '@/lib/utils';
 import { daysUntil } from '@/lib/portal-formatters';
 import { Button } from '@/components/ui';
 
 import type { HomeAction, HomeActionKind } from '../lib/home-actions';
+import type { Urgency } from '../../_shared/urgency';
+import { UrgencyBadge } from '../../_shared/urgency-badge';
 
 /**
  * "Sua ação mais urgente" — UM card, nunca uma lista.
@@ -48,13 +49,16 @@ const KIND_ICON: Record<HomeActionKind, LucideIcon> = {
   dados: AlertCircle,
 };
 
-const TONE_ICON: Record<HomeAction['tone'], string> = {
-  danger: 'text-portal-danger',
-  warning: 'text-portal-warning-ink',
-  info: 'text-portal-info',
-};
 
-export function UrgentActionCard({ action }: { action: HomeAction | undefined }) {
+
+export function UrgentActionCard({
+  action,
+  urgency,
+}: {
+  action: HomeAction | undefined;
+  /** Nivel na escala de urgencia; o selo substitui o prazo colorido. */
+  urgency?: Urgency;
+}) {
   if (!action) {
     return (
       <div className="portal-card flex items-start gap-3 p-6">
@@ -80,22 +84,18 @@ export function UrgentActionCard({ action }: { action: HomeAction | undefined })
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-brand-indigo-800/20 bg-brand-indigo-100 p-6 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 gap-3">
-        <Icon className={cn('mt-0.5 h-6 w-6 shrink-0', TONE_ICON[action.tone])} />
+        {/* O icone diz a CATEGORIA, em indigo; a urgencia fica no selo, com
+            texto. Antes o icone mudava de cor e a cor nao tinha legenda. */}
+        <Icon className="mt-0.5 h-6 w-6 shrink-0 text-brand-indigo" />
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="portal-small text-portal-neutral">
               {action.category}
             </span>
+            {urgency && <UrgencyBadge urgency={urgency} />}
             {deadline ? (
-              <span
-                className={cn(
-                  'portal-small font-medium',
-                  action.tone === 'danger'
-                    ? 'text-portal-danger'
-                    : 'text-portal-neutral',
-                )}
-              >
-                · {deadline}
+              <span className="portal-small text-portal-neutral">
+                {deadline}
               </span>
             ) : null}
           </div>
