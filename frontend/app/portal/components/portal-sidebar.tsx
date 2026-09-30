@@ -150,11 +150,9 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
               className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-md transition-opacity hover:opacity-80"
             >
               {/* `auto`, nao `principal`: a sidebar e branca na luz e Navy
-                  Profundo no escuro, e a escolha do lockup e pelo FUNDO. Com o
-                  principal fixo, a palavra "freitas" (navy) ficava navy sobre
-                  navy no tema escuro. A marca ja diz "freitas centrix", entao a
-                  segunda linha de texto que dizia "Freitas Comex" saiu: sobrou
-                  so o nome do PRODUTO, que o logotipo nao carrega. */}
+                  Profundo no escuro, e a tinta da palavra acompanha o FUNDO. A
+                  marca e "Centrix" (nunca "Freitas Centrix"); embaixo fica so o
+                  nome do PRODUTO, que o logotipo nao carrega. */}
               <BrandMark variant="auto" width={104} />
               <p className="truncate text-xs text-muted-foreground">Portal do Cliente</p>
             </Link>

@@ -545,6 +545,15 @@
    redundant `text-foreground`, which is why those were dropped from the call
    sites. */
 @layer components {
+  /* Palavra "centrix" do logotipo PROVISORIO (30/09/2026): o simbolo oficial
+     + a palavra composta em New Black, ate o marketing entregar a arte so
+     Centrix. Ver components/brand-mark.tsx. */
+  .brand-wordmark {
+    font-family: 'New Black', var(--font-source-sans), 'Source Sans 3', sans-serif;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
   .portal-h1 {
     font-family: 'New Black', var(--font-source-sans), 'Source Sans 3', sans-serif;
     font-size: 28px;

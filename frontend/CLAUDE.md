@@ -577,6 +577,15 @@ Tres coisas a nao afrouxar:
 
 ### Logotipo: `components/brand-mark.tsx`
 
+**Desde 30/09/2026 a marca é só "Centrix"** (feedback de marketing, Semanal de
+25/09): nunca "Freitas Centrix". Como não há arte só Centrix, o `BrandMark` é
+PROVISÓRIO — símbolo laranja oficial + a palavra "centrix" em New Black
+(`.brand-wordmark` em `globals.css`); os iframes usam `assets/centrix.svg`, cópia
+de `public/logos/centrix-lockup.svg`. Os SVGs `freitas-centrix-*` seguem
+intocados. "Freitas" continua onde fala da despachante ("A Freitas está
+revisando", "cliente Freitas Comex"). O texto abaixo descreve os lockups
+oficiais e vale de novo quando a arte nova chegar.
+
 Desde 04/09/2026 o logotipo oficial (Brand System v1.0) e VETOR, servido de
 `public/logos/`, e passa todo pelo `BrandMark`. Nenhum arquivo raster de marca e
 mais referenciado pelo portal nem pela proposta do cliente.

@@ -33,7 +33,7 @@ function parseRoute() {
 function nav() {
   const base = 'https://centrix-client-portal-prototype.vercel.app/portal/';
   const items = [['Início','home','home'],['Visão Geral','gauge','visao-geral'],['Minhas Cotações','file','cotacoes'],['Meus Embarques','ship','embarques'],['Inteligência','chart','inteligencia'],['Auditoria','shield',null],['Configurações','settings','preferencias']];
-  $('#sidebar').innerHTML = `<a class="brand" href="#auditoria/preco"><img class="logo" src="assets/centrix.svg" alt="Freitas Centrix"><small>Portal do Cliente</small></a><nav class="nav" aria-label="Navegação principal">${items.map(([label,i,path]) => `<a href="${path ? base+path : '#auditoria/'+(route.dim || 'preco')}" ${path ? 'target="_blank" rel="noopener" title="Abrir módulo publicado em outra aba"' : 'class="active" aria-current="page"'}>${icon(i)}${label}</a>`).join('')}</nav><div class="side-note">Conferência de valores e compromissos.<br><br>Demais módulos abrem o portal publicado.</div>`;
+  $('#sidebar').innerHTML = `<a class="brand" href="#auditoria/preco"><img class="logo" src="assets/centrix.svg" alt="Centrix"><small>Portal do Cliente</small></a><nav class="nav" aria-label="Navegação principal">${items.map(([label,i,path]) => `<a href="${path ? base+path : '#auditoria/'+(route.dim || 'preco')}" ${path ? 'target="_blank" rel="noopener" title="Abrir módulo publicado em outra aba"' : 'class="active" aria-current="page"'}>${icon(i)}${label}</a>`).join('')}</nav><div class="side-note">Conferência de valores e compromissos.<br><br>Demais módulos abrem o portal publicado.</div>`;
 }
 function result(op, dim = route.dim) { return dim === 'preco' ? M.financial(op) : M.operational(op); }
 function status(op, dim = route.dim) {

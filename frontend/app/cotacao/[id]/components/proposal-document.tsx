@@ -388,7 +388,7 @@ export function ProposalDocument({
         {config.highlightRecommendation && winner && (
           <View style={styles.recommendationBox}>
             <View style={styles.recommendationHeader}>
-              <Text style={styles.recommendationBadge}>RECOMENDAÇÃO FREITAS CENTRIX</Text>
+              <Text style={styles.recommendationBadge}>RECOMENDAÇÃO CENTRIX</Text>
             </View>
             <View style={styles.infoGrid}>
               <View style={styles.infoItem}>
@@ -515,7 +515,7 @@ export function ProposalDocument({
         )}
 
         <View style={styles.footer}>
-          <Text style={styles.footerCompany}>Freitas Centrix</Text>
+          <Text style={styles.footerCompany}>Centrix</Text>
           <Text>Esta proposta é válida conforme prazo informado pelos agentes.</Text>
           <Text>Gerado em {today}</Text>
         </View>

@@ -16,7 +16,7 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   title: 'Centrix',
-  description: 'Dashboard',
+  description: 'Centrix · Portal do Cliente e gestão de cotações e embarques',
   icons: {
     // Simbolo laranja em vetor (Brand System v1.0). Substitui
     // '/circlecentrix.png', que NAO existia em public/ — o favicon vinha
