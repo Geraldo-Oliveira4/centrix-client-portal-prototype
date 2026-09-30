@@ -16,6 +16,7 @@ import { createMyQuotation, triggerMyQuotationExtraction } from '@/hooks/use-por
 import { useQuotationUploadFlow } from '@/hooks/use-quotation-upload-flow';
 import {
   ManualForm,
+  type ManualFormDraft,
   type ManualFormValues,
 } from '@/app/cotacao/nova-cotacao/components/manual-form';
 import { UploadZone } from '@/app/cotacao/nova-cotacao/components/upload-zone';
@@ -24,6 +25,11 @@ import { PortalExporterSelect } from '@/app/portal/components/portal-exporter-se
 import { PagePortalHeader } from '@/app/portal/_shared/page-header';
 import { WhatHappensNextPanel } from '@/app/portal/_shared/demo/what-happens-next';
 import { submitToFreitas } from '@/app/portal/_shared/demo/quotation-review';
+import { evaluateHardblocks } from '@/app/portal/_shared/demo/quotation-hardblocks';
+import {
+  snapshotFromDraft,
+  type FormSnapshot,
+} from '@/app/portal/_shared/demo/quotation-form-snapshot';
 import { updateQuotationReview } from '@/app/portal/_shared/demo/use-quotation-review';
 import { usePortalModuleReleased } from '@/app/portal/_shared/demo/use-feature-flags';
 import {
@@ -141,9 +147,9 @@ function PortalNovaCotacaoContent() {
    * ela vive no navegador (ver o cabecalho de `quotation-review.ts`).
    */
   const sendToFreitas = useCallback(
-    (quotation: Quotation) => {
+    (quotation: Quotation, form?: FormSnapshot) => {
       updateQuotationReview(quotation.id, (review) =>
-        submitToFreitas(review, new Date().toISOString()),
+        submitToFreitas(review, new Date().toISOString(), form),
       );
       toast.success(`Solicitação ${quotation.reference} enviada à Freitas`);
       router.push(`/portal/cotacoes?destaque=${quotation.id}`);
@@ -151,9 +157,27 @@ function PortalNovaCotacaoContent() {
     [router],
   );
 
-  const handleManualCreated = (quotation: Quotation) => {
+  // Os hardblocks do Orsi (29/09/2026) so valem na V2: com a flag desligada o
+  // formulario continua exatamente como era.
+  const exporterName = exporter?.name ?? null;
+  const hardblocks = useCallback(
+    (draft: ManualFormDraft) =>
+      evaluateHardblocks(snapshotFromDraft(draft, exporterName)),
+    [exporterName],
+  );
+
+  const handleManualCreated = (
+    quotation: Quotation,
+    snapshot?: ManualFormDraft,
+  ) => {
     if (v2) {
-      sendToFreitas(quotation);
+      // O snapshot guarda o que o payload nao devolve (fator de escolha, NCM,
+      // "agentes decidam"): e a base do diff de uma edicao futura e dos
+      // hardblocks da revisao de saida.
+      sendToFreitas(
+        quotation,
+        snapshot ? snapshotFromDraft(snapshot, exporterName) : undefined,
+      );
       return;
     }
     setCreatedQuotation(quotation);
@@ -277,6 +301,7 @@ function PortalNovaCotacaoContent() {
             initialValues={prefill}
             exporterId={exporter?.id ?? null}
             submitLabel={v2 ? 'Enviar para a Freitas' : undefined}
+            hardblocks={v2 ? hardblocks : undefined}
             exporterSection={
               <PortalExporterSelect
                 value={exporter?.id ?? null}
