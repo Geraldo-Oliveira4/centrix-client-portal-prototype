@@ -5,13 +5,19 @@
 // relato gera um protocolo local. Nada sai deste navegador, e as duas telas
 // dizem isso.
 //
-// POSIÇÃO: canto inferior ESQUERDO, colado à direita da sidebar (o rodapé da
-// sidebar é Configurações e não pode ficar coberto) e acompanhando o estado
-// recolhido. A aba "Demonstração", que morava no mesmo canto, foi para o
-// inferior direito: é ferramenta de quem apresenta, e em cantos opostos as duas
-// nunca se sobrepõem.
+// POSIÇÃO (30/09/2026, segunda rodada): canto inferior DIREITO, fixo, num
+// portal em document.body. Antes ele ficava à esquerda, com o `left` calculado
+// pela largura da sidebar e z-30 dentro da árvore do layout: o drawer da
+// sidebar e os Sheets (z-50) o cobriam, e o deslocamento acompanhava a sidebar
+// e não o conteúdo, caindo em cima de texto de card. Agora:
+//   - `--z-support` (globals.css) é o único dono do z-index; abaixo só dos
+//     modais Radix abertos (Sheet/Dialog), que escurecem a tela inteira;
+//   - não há lógica de esconder por rolagem nem por rota;
+//   - o painel é um cartão ancorado à direita, acima do botão, nunca fora da
+//     viewport. A aba "Demonstração" foi para o canto oposto.
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { usePathname } from 'next/navigation';
 import { CheckCircle2, LifeBuoy, Paperclip, Send, X } from 'lucide-react';
 
@@ -19,18 +25,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
-import { useSidebar } from '../components/sidebar-context';
+import { portalFont } from '../portal-font';
 import { setDemoValue, useDemoValue } from './demo/use-demo-store';
 import {
   SUPPORT_GREETING,
@@ -281,56 +279,117 @@ function Report({ onDone }: { onDone: () => void }) {
 }
 
 export function SupportLauncher() {
-  const { collapsed } = useSidebar();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
 
-  return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <button
-          type="button"
-          data-tour="suporte"
-          className={cn(
-            'portal-small fixed bottom-4 left-4 z-30 inline-flex h-11 items-center gap-2 rounded-full border border-border bg-card px-4 font-medium text-brand-indigo shadow-md transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-            // Desktop: colado a direita da sidebar (240px aberta, 56px recolhida).
-            collapsed ? 'md:left-[72px]' : 'md:left-[256px]',
-          )}
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (!open) return;
+    panel.current
+      ?.querySelector<HTMLElement>('[role="tab"][data-state="active"]')
+      ?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      trigger.current?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  if (!mounted) return null;
+
+  const close = () => {
+    setOpen(false);
+    trigger.current?.focus();
+  };
+
+  return createPortal(
+    <div
+      className={cn(
+        'support-root',
+        portalFont.variable,
+        'font-[family-name:var(--font-source-sans)]',
+      )}
+    >
+      {open && (
+        <div
+          ref={panel}
+          id="suporte-painel"
+          role="dialog"
+          aria-modal="false"
+          aria-labelledby="suporte-titulo"
+          className="support-panel flex flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-xl sm:p-6"
         >
-          <LifeBuoy className="h-5 w-5 shrink-0" />
-          Ajuda
-        </button>
-      </SheetTrigger>
-      <SheetContent
-        side="left"
-        className="flex w-[24rem] max-w-[92vw] flex-col gap-4 sm:max-w-md"
+          <div className="flex shrink-0 items-start justify-between gap-2">
+            <div className="space-y-1">
+              <h2 id="suporte-titulo" className="portal-h3">
+                Ajuda e suporte
+              </h2>
+              <p className="portal-small text-portal-neutral">
+                Fale com a equipe do Centrix ou conte um problema que você
+                encontrou.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-11 w-11 shrink-0"
+              aria-label="Fechar ajuda"
+              onClick={close}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+          <Tabs defaultValue="chat" className="flex min-h-0 flex-1 flex-col">
+            <TabsList className="grid h-auto w-full shrink-0 grid-cols-2">
+              <TabsTrigger value="chat" className="min-h-11 whitespace-normal">
+                Falar com o suporte
+              </TabsTrigger>
+              <TabsTrigger
+                value="relato"
+                className="min-h-11 whitespace-normal"
+              >
+                Reportar um problema
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent
+              value="chat"
+              className="mt-4 min-h-0 flex-1 data-[state=inactive]:hidden"
+            >
+              <Chat />
+            </TabsContent>
+            <TabsContent
+              value="relato"
+              className="mt-4 min-h-0 overflow-y-auto"
+            >
+              <Report onDone={close} />
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
+      <button
+        ref={trigger}
+        type="button"
+        data-tour="suporte"
+        aria-label={open ? 'Fechar ajuda' : 'Abrir ajuda'}
+        aria-expanded={open}
+        aria-controls="suporte-painel"
+        onClick={() => setOpen((value) => !value)}
+        className="support-trigger portal-small inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-border bg-card px-3 font-medium text-brand-indigo shadow-md transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:px-4"
       >
-        <SheetHeader className="shrink-0 pr-8 text-left">
-          <SheetTitle className="portal-h3">Ajuda e suporte</SheetTitle>
-          <SheetDescription className="portal-small">
-            Fale com a equipe do Centrix ou conte um problema que você
-            encontrou.
-          </SheetDescription>
-        </SheetHeader>
-        <Tabs defaultValue="chat" className="flex min-h-0 flex-1 flex-col">
-          <TabsList className="grid h-auto w-full shrink-0 grid-cols-2">
-            <TabsTrigger value="chat" className="min-h-11 whitespace-normal">
-              Falar com o suporte
-            </TabsTrigger>
-            <TabsTrigger value="relato" className="min-h-11 whitespace-normal">
-              Reportar um problema
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent
-            value="chat"
-            className="mt-4 min-h-0 flex-1 data-[state=inactive]:hidden"
-          >
-            <Chat />
-          </TabsContent>
-          <TabsContent value="relato" className="mt-4 overflow-y-auto">
-            <Report onDone={() => setOpen(false)} />
-          </TabsContent>
-        </Tabs>
-      </SheetContent>
-    </Sheet>
+        {open ? (
+          <X className="h-5 w-5 shrink-0" />
+        ) : (
+          <LifeBuoy className="h-5 w-5 shrink-0" />
+        )}
+        <span className="hidden sm:inline">{open ? 'Fechar' : 'Ajuda'}</span>
+      </button>
+    </div>,
+    document.body,
   );
 }

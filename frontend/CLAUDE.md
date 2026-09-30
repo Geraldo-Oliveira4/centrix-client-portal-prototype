@@ -2458,7 +2458,7 @@ escala de urgência e padrão de insight documentados no `DESIGN.md` da raiz.
 | Tokens `portal-danger-ink` / `portal-success-ink` | `styles/globals.css`, `tailwind.config.ts` | Texto de estado usa o INK (AA); no escuro colapsa no tom base e as placas /10 viram /8 |
 | Insight escrito | `_shared/insight.ts` + `InsightLine`; `centrix-inteligencia/insights.js` | Variação sai do dado que a tela já desenha (nunca de uma base inventada); taxa em pontos, valor em %; mês com <3 elegíveis não compara; KPI comercial não fica vermelho |
 | Inteligência em blocos | `public/prototypes/centrix-inteligencia/app.js` (`overview`) | Executivo, Performance, Preços e rotas, Assistentes; uma camada de abas por bloco. Hashes antigos = "aba de um bloco"; rotas de detalhe intocadas |
-| Ajuda e suporte | `_shared/support-launcher.tsx`, `support-model.ts` | Só visual. Botão no inferior esquerdo, colado à sidebar; a aba Demonstração foi para o inferior direito |
+| Ajuda e suporte | `_shared/support-launcher.tsx`, `support-model.ts` | Só visual. Botão no inferior DIREITO, em portal no body, camada `--z-support` (globals.css), sem esconder por rolagem ou rota; a aba Demonstração fica no inferior esquerdo |
 | "?" de ajuda | `components/help-tip.tsx`, `_shared/quotation-help.ts` | Popover (toque + teclado), alvo de 44px; `ManualForm` só mostra com `helpTips` |
 | Boas-vindas | `_shared/onboarding.ts`, `onboarding-flow.tsx`, `use-onboarding.ts` | UM fluxo: tour → configuração inicial → temas da Home. Rotas preferidas têm UMA fonte (`centrix-proto-v2:onboarding`), lida por Configurações e Radar |
 | "Você já embarcou esta carga" | `_shared/history-match.ts` | Produto + origem + destino; a ação reaproveita "Cotar novamente" |

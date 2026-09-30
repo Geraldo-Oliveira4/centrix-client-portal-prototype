@@ -718,3 +718,42 @@
 html:has(.fc-brand-scope) svg.lucide {
   stroke-width: 1.75;
 }
+
+/* ---------------------------------------------------------------------------
+ * Botao flutuante "Ajuda" (app/portal/_shared/support-launcher.tsx).
+ *
+ * Portal em document.body, canto inferior DIREITO. `--z-support` e o unico
+ * dono da camada: acima de cards, header, iframes e do drawer da sidebar
+ * (z-40/50, sem Radix); abaixo de qualquer Sheet/Dialog Radix aberto, que
+ * escurece a tela inteira e e a unica coisa que pode cobrir o botao. A regra
+ * `:has()` e o que faz esse "abaixo": o painel da propria Ajuda nao usa
+ * `data-state`, entao nao casa com ela.
+ * ------------------------------------------------------------------------- */
+:root {
+  --z-support: 55;
+  --z-support-under-modal: 40;
+  --support-gap: 16px;
+}
+.support-root {
+  position: fixed;
+  right: calc(var(--support-gap) + env(safe-area-inset-right, 0px));
+  bottom: calc(var(--support-gap) + env(safe-area-inset-bottom, 0px));
+  z-index: var(--z-support);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+body:has([role='dialog'][data-state='open']) .support-root,
+body:has([role='alertdialog'][data-state='open']) .support-root {
+  z-index: var(--z-support-under-modal);
+}
+.support-panel {
+  width: min(380px, calc(100vw - 2 * var(--support-gap) - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+  height: min(600px, calc(100dvh - 44px - 8px - 2 * var(--support-gap) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+}
+@media (max-width: 640px) {
+  .support-panel {
+    height: calc(100dvh - 44px - 8px - 2 * var(--support-gap) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  }
+}

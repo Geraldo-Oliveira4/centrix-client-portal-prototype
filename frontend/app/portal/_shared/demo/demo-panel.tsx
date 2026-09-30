@@ -29,6 +29,9 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 
+import { cn } from '@/lib/utils';
+
+import { useSidebar } from '../../components/sidebar-context';
 import { DEMO_SECTIONS } from './demo-sections';
 import { useDemoPanel } from './use-demo-panel';
 
@@ -42,20 +45,26 @@ import { useDemoPanel } from './use-demo-panel';
  */
 export function DemoPanel() {
   const { enabled } = useDemoPanel();
+  const { collapsed } = useSidebar();
   const [open, setOpen] = useState(false);
 
   if (!enabled) return null;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      {/* The tab. Bottom-RIGHT since 30/09/2026: bottom-left is now the client's
-          Ajuda button, and this is a presenter tool. Under the mobile drawer's z-index so it can
-          never sit on top of the menu, and quiet enough not to compete with the
-          screen it exists to demonstrate. */}
+      {/* The tab. Bottom-LEFT again since the second 30/09/2026 round: the
+          client's Ajuda button owns bottom-right, and this is a presenter
+          tool, so the two sit in opposite corners and can never overlap. On
+          desktop it starts right of the sidebar (the sidebar footer is
+          Configurações and must stay clickable); on mobile, at the edge. Under
+          the mobile drawer's z-index so it never sits on top of the menu. */}
       <SheetTrigger asChild>
         <button
           type="button"
-          className="portal-small fixed bottom-4 right-4 z-30 inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 font-medium text-portal-neutral shadow-sm transition-colors hover:border-brand-indigo-800/40 hover:text-brand-indigo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className={cn(
+            'portal-small fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-[calc(1rem+env(safe-area-inset-left,0px))] z-30 inline-flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-3 py-1.5 font-medium text-portal-neutral shadow-sm transition-colors hover:border-brand-indigo-800/40 hover:text-brand-indigo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            collapsed ? 'md:left-[72px]' : 'md:left-[256px]',
+          )}
         >
           <Beaker className="h-4 w-4 shrink-0" />
           Demonstração
