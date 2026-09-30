@@ -359,9 +359,13 @@ export function EarlyQuotationDetail({
           <div className="flex flex-wrap items-center gap-2">
             <V2StageBadge stage={overlay.stage} />
             {isResubmission(overlay) && <ResubmittedChip />}
-            <span className="portal-small text-portal-neutral">
-              {V2_STAGE_DESCRIPTIONS[overlay.stage]}
-            </span>
+            {/* Nos estados finais o painel de desfecho logo abaixo ja diz a
+                frase; repeti-la aqui seria dizer a mesma coisa duas vezes. */}
+            {overlay.stage !== 'approved' && overlay.stage !== 'cancelled' && (
+              <span className="portal-small text-portal-neutral">
+                {V2_STAGE_DESCRIPTIONS[overlay.stage]}
+              </span>
+            )}
             {due && (
               <span className="portal-small inline-flex items-center gap-1 text-portal-neutral">
                 <Clock3 className="h-4 w-4 shrink-0" />
@@ -563,13 +567,14 @@ export function EarlyQuotationDetail({
                     Solicitação cancelada
                   </h2>
                   <p>
-                    Justificativa registrada: “
+                    Sua justificativa: “
                     {[...overlay.history]
                       .reverse()
                       .find((event) => event.kind === 'cancelled')?.reason ??
                       'não informada'}
-                    ”. A cotação está no Histórico, junto das canceladas.
+                    ”
                   </p>
+                  <p>A cotação está no Histórico, junto das canceladas.</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
                   <Link className={s.textButton} href="/portal/cotacoes?tab=historico">

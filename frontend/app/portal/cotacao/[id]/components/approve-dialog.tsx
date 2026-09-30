@@ -71,7 +71,9 @@ export function ApproveDialog({
             <span className="font-medium text-foreground">
               {proposal.transit_time} dias
             </span>
-            . Esta ação não pode ser desfeita pelo portal.
+            . A cotação passa a “Aprovada pelo cliente” e a Freitas recebe a
+            instrução de fechamento para preparar o embarque. Esta ação não
+            pode ser desfeita pelo portal.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
