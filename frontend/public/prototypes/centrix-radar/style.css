@@ -15,3 +15,6 @@ dialog{padding:0;border:0;border-left:1px solid var(--line);width:610px;max-widt
 .heading h1 .beta-badge{font-size:12px;vertical-align:middle;margin-left:8px;padding:3px 7px}.sidebar nav .beta-badge{margin-left:auto}
 
 .embedded .sidebar,.embedded .topbar{display:none!important}.embedded .shell{margin-left:0}.embedded main{padding:24px 8px 30px;max-width:none}.embedded .demo{padding:8px 12px}.embedded .heading{margin-bottom:20px}@media(max-width:700px){.embedded main{padding:20px 4px}.embedded .demo{padding:7px 8px;flex-wrap:wrap}.embedded .heading p{max-width:none}}
+
+/* Cliente nao ve ferramentas de revisao da previa (RADAR_REVIEW_TOOLS, app.js). */
+.client-view .review-tools,.client-view [data-coverage]{display:none!important}

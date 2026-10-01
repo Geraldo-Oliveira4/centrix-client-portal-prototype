@@ -26,7 +26,10 @@ const HELP_LABELS = {
   'Agentes neste recorte':'audit','Fornecimento por parceiro':'docs','Contratação e auditoria':'audit',
   'Previsto':'stages','Realizado':'stages','Desvio':'stages'
 };
-function dataHelp(key){return DATA_HELP[key]?`<button type="button" class="data-help" data-help="${key}" aria-label="Dados a confirmar: ${DATA_HELP[key][0]}" aria-expanded="false"><span aria-hidden="true">i</span></button>`:'';}
+// "Dados a confirmar" e nota de INTEGRACAO (Inova, ShipsGo, contrato proposto):
+// uso interno. Some do que o cliente ve com CLIENT_FLAGS.dataHelp = false
+// (flags.js); o conteudo continua aqui para a equipe.
+function dataHelp(key){return CLIENT_FLAGS.dataHelp&&DATA_HELP[key]?`<button type="button" class="data-help" data-help="${key}" aria-label="Dados a confirmar: ${DATA_HELP[key][0]}" aria-expanded="false"><span aria-hidden="true">i</span></button>`:'';}
 function dataLabel(label,key=HELP_LABELS[label]){return label+dataHelp(key);}
 
 let helpAnchor=null, helpPinned=false, helpTimer=null;
@@ -45,6 +48,6 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&helpAnchor){closeDa
 window.addEventListener('hashchange',closeDataHelp);
 window.addEventListener('resize',closeDataHelp);
 document.addEventListener('scroll',e=>{if(helpAnchor&&!helpTip.contains(e.target)){const r=helpAnchor.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)closeDataHelp();else positionDataHelp();}},true);
-function dataHelpReportNotes(article){const keys=[...new Set([...article.querySelectorAll('[data-help]')].map(b=>b.dataset.help))];if(!keys.length)return;const section=document.createElement('section');section.className='report-section data-help-notes';const title=document.createElement('h2');title.textContent='Dados a confirmar para integração';section.append(title);for(const key of keys){const [name,known,missing]=DATA_HELP[key],p=document.createElement('p'),b=document.createElement('b');b.textContent=name+': ';p.append(b,known+' O que falta: '+missing);p.className='spaced';section.append(p);}article.append(section);}
+function dataHelpReportNotes(article){if(!CLIENT_FLAGS.dataHelp)return;const keys=[...new Set([...article.querySelectorAll('[data-help]')].map(b=>b.dataset.help))];if(!keys.length)return;const section=document.createElement('section');section.className='report-section data-help-notes';const title=document.createElement('h2');title.textContent='Dados a confirmar para integração';section.append(title);for(const key of keys){const [name,known,missing]=DATA_HELP[key],p=document.createElement('p'),b=document.createElement('b');b.textContent=name+': ';p.append(b,known+' O que falta: '+missing);p.className='spaced';section.append(p);}article.append(section);}
 window.addEventListener('beforeprint',()=>{closeDataHelp();const article=document.querySelector('#report-document');if(article&&!article.querySelector('.data-help-notes'))dataHelpReportNotes(article);});
 window.addEventListener('afterprint',()=>document.querySelector('#report-document .data-help-notes')?.remove());

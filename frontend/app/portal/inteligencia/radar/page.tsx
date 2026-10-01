@@ -217,13 +217,15 @@ export default function PortalRadarPrecosPage() {
               mercado. Os limiares vêm das constantes do lib, não digitados aqui:
               um número escrito à mão divergiria do cálculo na primeira revisão. */}
           <p className="portal-small text-portal-neutral">
-            O preço de referência é a mediana das cotações fechadas na rota nos
-            últimos {HISTORICAL_WINDOW_DAYS} dias; a variação compara com a média
-            do mesmo período e a tendência olha os últimos {TREND_WINDOW_DAYS}{' '}
-            dias. Uma rota entra como oportunidade quando está ao menos{' '}
-            {OPPORTUNITY_BELOW_PCT}% abaixo da média e sem pressão de alta. Não é
-            cotação firme: o preço final depende de disponibilidade de espaço,
-            característica da carga e do agente que responder.
+            Referência ilustrativa do protótipo: os preços são simulados para
+            mostrar como a leitura funciona e não vêm de cotações fechadas nem
+            de um feed de mercado. A variação compara com a média de{' '}
+            {HISTORICAL_WINDOW_DAYS} dias e a tendência olha os últimos{' '}
+            {TREND_WINDOW_DAYS} dias. Uma rota entra como oportunidade quando
+            está ao menos {OPPORTUNITY_BELOW_PCT}% abaixo da média e sem pressão
+            de alta. Não é cotação firme: o preço final depende de
+            disponibilidade de espaço, característica da carga e do agente que
+            responder.
           </p>
         </>
       )}

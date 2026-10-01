@@ -1,4 +1,11 @@
 'use strict';
+// Ferramentas de REVISAO da previa (01/10/2026): seletor de cobertura
+// parcial/sem-fontes/suficiente ("Cenarios para revisao") e a gaveta "Fontes e
+// dados necessarios" (botoes data-coverage). Sao material da equipe, nao do
+// cliente: com a flag desligada a classe .client-view as esconde por CSS. O
+// codigo e os handlers ficam; ligar a flag traz tudo de volta.
+const RADAR_REVIEW_TOOLS = false;
+if (!RADAR_REVIEW_TOOLS) document.documentElement.classList.add('client-view');
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();

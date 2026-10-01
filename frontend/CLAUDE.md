@@ -1566,6 +1566,14 @@ isso. Não abra uma segunda.
 
 ### Inteligência (`/portal/inteligencia/`)
 
+> **Histórico.** Desde 13/09/2026 o `layout.tsx` mostra o iframe
+> `public/prototypes/centrix-inteligencia/` em toda rota sob
+> `/portal/inteligencia`, exceto `/radar`; as páginas React descritas abaixo
+> (`performance/`, `agentes/`, `executivo/`) não são renderizadas. A estrutura
+> atual está em "Inteligência em blocos — 01/10/2026". O Radar de Preços antigo
+> (`radar/page.tsx`) continua no ar e diz no rodapé que o preço é referência
+> ilustrativa do protótipo.
+
 Quatro abas (`layout.tsx`): `performance/`, `agentes/`, `executivo/` e
 `radar/`. A raiz `/portal/inteligencia` é só um `redirect()` para `performance`
 — a antiga aba "Visão geral" **foi fundida** no Performance, porque "estou indo
@@ -2431,6 +2439,21 @@ Prepared on 786d229 to retain the published Configurações release. Includes pr
 
 /portal/cotacoes/previa-habituais demonstrates entry from new quotation, history, supplier and preferred route. Reuses DraftRequestForm/ManualForm; an optional onSaveTemplate callback captures current form values without touching the normal create path. Named templates use an allow-list of stable fields, while occurrence data stays in a separate local draft. No API writes, calendar recurrence or changes to live Kanban/Configurações. See its README for local links, verification and integration limits. Branch codex/cotacao-habituais is not deployed.
 
+## Inteligência em blocos — 01/10/2026
+
+Pedido do Vinicius: mais blocos, menos abas, e todo card diz a CONCLUSÃO. O
+módulo continua sendo o iframe `public/prototypes/centrix-inteligencia/`, com
+dados fictícios (`data.js`) e nenhuma ligação a backend ou Metabase.
+
+| O quê | Onde | Regra que não pode afrouxar |
+|---|---|---|
+| Quatro blocos | `app.js` `overview` + `moduleNav` | Uma barra de âncoras só; nenhuma sub-aba. Detalhe abre em "Ver detalhes" no bloco ou na gaveta; fichas empilham seções |
+| Conclusão calculada | `insights.js` (`conclude`, `stageInsight`, `supplierInsight`, `agentInsight`, `routeInsight`, `localInsight`), testado em `insights.test.cjs` | Métrica + variação + conclusão; a conclusão sai da variação. Sem base comparável: "Sem variação relevante no período." — nunca inventar direção |
+| Agentes | `agentInsight` | Fala de CONCENTRAÇÃO de contratações, não de nota/pontualidade do agente (decisão pendente com o Orsi) |
+| Hierarquia e cor | `style.css` (fim) | Um destaque por bloco (`.featured`); piora em âmbar, melhora em verde, ambos discretos; vermelho só para ação do cliente |
+| Uso interno escondido | `flags.js` (`CLIENT_FLAGS`) | `assistants` (bloco Assistentes, Skill/prompt/MCP) e `dataHelp` ("Dados a confirmar", notas Inova/ShipsGo, seção do relatório) desligados; código preservado |
+| Radar Beta | `centrix-radar/app.js` (`RADAR_REVIEW_TOOLS`) | Seletor de cobertura, "Cenários para revisão" e "Fontes e dados necessários" escondidos pela classe `.client-view`; código e handlers preservados |
+
 ## Intelligence prototype publication — 2026-09-13
 
 `/portal/inteligencia` hosts the approved static experience in a same-origin iframe from `public/prototypes/centrix-inteligencia`. Hash routes preserve periods and context across Performance, Partners, Routes/Locations, Reports and Assistants. Legacy Performance/Agents/Executive URLs remain entry points. Radar is published separately at `/portal/radar`; its existing release is preserved. All new analytics and assistant examples are demonstrative; MCP connection is planned, with no live integration. Report versions are browser-local. Operational modules and Frame are unchanged.
@@ -2461,7 +2484,7 @@ escala de urgência e padrão de insight documentados no `DESIGN.md` da raiz.
 | Escala de urgência | `app/portal/_shared/urgency.ts` + `UrgencyBadge` | Pergunta "preciso agir, e até quando?", nunca etapa. Só Crítico (prazo vencido / custo correndo) e Atenção (≤3 dias ou trava a próxima etapa) têm cor. Documento sem prazo é Normal. Kanban, Embarques, alertas (iframe `alert-rules.js`), Home e Central usam a mesma fila (`collectHomeActions`) |
 | Tokens `portal-danger-ink` / `portal-success-ink` | `styles/globals.css`, `tailwind.config.ts` | Texto de estado usa o INK (AA); no escuro colapsa no tom base e as placas /10 viram /8 |
 | Insight escrito | `_shared/insight.ts` + `InsightLine`; `centrix-inteligencia/insights.js` | Variação sai do dado que a tela já desenha (nunca de uma base inventada); taxa em pontos, valor em %; mês com <3 elegíveis não compara; KPI comercial não fica vermelho |
-| Inteligência em blocos | `public/prototypes/centrix-inteligencia/app.js` (`overview`) | Executivo, Performance, Preços e rotas, Assistentes; uma camada de abas por bloco. Hashes antigos = "aba de um bloco"; rotas de detalhe intocadas |
+| Inteligência em blocos | `public/prototypes/centrix-inteligencia/app.js` (`overview`) | Desde 01/10/2026: Resumo, Prazos e etapas, Fornecedores e agentes, Preços e rotas — SEM sub-abas; fichas (fornecedor, rota, local, agente) em página única por seções (`stackedDetail`). Hashes antigos levam ao bloco/seção certa. Ver a seção "Inteligência em blocos" adiante |
 | Ajuda e suporte | `_shared/support-launcher.tsx`, `support-model.ts` | Só visual. Botão no inferior DIREITO, em portal no body, camada `--z-support` (globals.css), sem esconder por rolagem ou rota; a aba Demonstração fica no inferior esquerdo |
 | "?" de ajuda | `components/help-tip.tsx`, `_shared/quotation-help.ts` | Popover (toque + teclado), alvo de 44px; `ManualForm` só mostra com `helpTips` |
 | Boas-vindas | `_shared/onboarding.ts`, `onboarding-flow.tsx`, `use-onboarding.ts` | UM fluxo: tour → configuração inicial → temas da Home. Rotas preferidas têm UMA fonte (`centrix-proto-v2:onboarding`), lida por Configurações e Radar |

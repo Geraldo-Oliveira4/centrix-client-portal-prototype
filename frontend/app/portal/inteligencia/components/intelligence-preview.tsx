@@ -41,6 +41,6 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
 
   return source ? <>
     <style>{`@media(max-width:767px){main:has(iframe[data-intelligence])>header{flex-wrap:wrap;gap:8px}}`}</style>
-    <iframe data-intelligence ref={frame} src={source} title="Inteligência Centrix — Executivo, Performance, Preços e rotas, Assistentes" className="block w-full border-0" style={{ height: 'calc(100dvh - 150px)', minHeight: 580 }} />
+    <iframe data-intelligence ref={frame} src={source} title="Inteligência Centrix — Resumo, Prazos e etapas, Fornecedores e agentes, Preços e rotas" className="block w-full border-0" style={{ height: 'calc(100dvh - 150px)', minHeight: 580 }} />
   </> : <p role="status">Carregando Inteligência…</p>;
 }

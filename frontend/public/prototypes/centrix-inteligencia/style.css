@@ -50,3 +50,31 @@ details.more>summary{cursor:pointer;padding:14px 20px;color:var(--indigo);font-w
 .insight-text{font-size:14px;line-height:1.5;color:var(--ink)}
 @media(max-width:900px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric:nth-child(2n){border-right:0}.metric{border-bottom:1px solid var(--line)}}
 @media(max-width:560px){.metrics{grid-template-columns:1fr}.metric{border-right:0}.block-head small{margin-left:0}}
+/* INTELIGENCIA EM BLOCOS (01/10/2026). Quatro blocos sem sub-abas; cada card
+   diz metrica + variacao + conclusao. Hierarquia: UM destaque por bloco
+   (.featured: fio indigo a esquerda e numero maior), o resto em peso normal.
+   Cor so onde ha decisao: melhora em verde e piora em ambar, ambos discretos;
+   vermelho fica para acao do cliente (escala de _shared/urgency.ts), e nada
+   nesta tela pede acao. */
+.variation.bad{color:var(--amber);background:#fdf3e1}
+.variation.neutral{font-weight:500}
+.metric.insight .conclusion{font-size:15px;line-height:1.45;font-weight:600;color:var(--ink)}
+.metric.insight small{color:var(--muted)}
+.metric-shell.featured{background:#fbfbfe;box-shadow:inset 3px 0 0 var(--indigo)}
+.metric-shell.featured .metric b{font-size:36px}
+.conclusions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.conclusions.single{grid-template-columns:minmax(0,1fr)}
+.conclusion-card{background:white;border:1px solid var(--line);border-radius:8px;padding:20px 22px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.conclusion-card .kicker{font-size:12px;color:var(--muted)}
+.conclusion-card h3{font-size:19px;font-weight:600;color:var(--indigo)}
+.conclusion-card .conclusion{font-size:15px;line-height:1.45;font-weight:600;color:var(--ink)}
+.conclusion-card .basis{font-size:13px;line-height:1.5;color:var(--muted)}
+.conclusion-card.featured{box-shadow:inset 3px 0 0 var(--indigo);background:#fbfbfe}
+.conclusion-card.featured h3{font-size:22px}
+.detail-section{margin-top:36px;scroll-margin-top:72px}
+.detail-section-title{font-size:20px;margin-bottom:6px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+@media(max-width:700px){
+  .conclusions{grid-template-columns:1fr}
+  .conclusion-card{padding:16px}
+  .metric-shell.featured .metric b{font-size:30px!important}
+}
