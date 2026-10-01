@@ -185,9 +185,12 @@ function OnboardingSection() {
   return (
     <div className="space-y-2">
       <p className="portal-small text-portal-neutral">
-        Tour {state.tourDone ? 'visto' : 'pendente'} · configuração inicial{' '}
-        {state.setupDone ? 'feita' : 'pendente'} · {state.routes.length}{' '}
+        Tour {state.tourDone ? 'visto' : 'pendente'} · boas-vindas{' '}
+        {state.setupDone ? 'feitas' : 'pendentes'} · {state.routes.length}{' '}
         {state.routes.length === 1 ? 'rota preferida' : 'rotas preferidas'}
+      </p>
+      <p className="portal-small text-portal-neutral">
+        Reinicia também o checklist “Primeiros passos” da Home.
       </p>
       <Button size="sm" variant="outline" onClick={() => resetOnboarding()}>
         Reiniciar onboarding

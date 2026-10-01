@@ -3,7 +3,9 @@
 import { readDemoRaw } from './demo/demo-store';
 import { setDemoValue, useDemoValue } from './demo/use-demo-store';
 import {
+  EMPTY_FIRST_STEPS,
   EMPTY_ONBOARDING,
+  FIRST_STEPS_STORE_NAME,
   ONBOARDING_STORE_NAME,
   parseOnboarding,
   type OnboardingState,
@@ -34,7 +36,12 @@ export function restartTour(): void {
   updateOnboarding({ tourDone: false });
 }
 
-/** Painel de demonstração: primeiro login de novo, tour e configuração. */
+/**
+ * Painel de demonstração ("Reiniciar onboarding", seção Boas-vindas, que existe
+ * em produção): primeiro login de novo — tour, boas-vindas e o checklist
+ * "Primeiros passos" da Home.
+ */
 export function resetOnboarding(): void {
   setDemoValue(ONBOARDING_STORE_NAME, EMPTY_ONBOARDING);
+  setDemoValue(FIRST_STEPS_STORE_NAME, EMPTY_FIRST_STEPS);
 }

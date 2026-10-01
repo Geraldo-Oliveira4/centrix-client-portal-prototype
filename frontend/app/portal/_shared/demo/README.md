@@ -166,6 +166,17 @@ Sem essas seções, o cliente não pode travar. Por isso, **só em produção**:
   instrução enviada. Antes ele só andava pelo clique no painel.
 - A autorresposta nunca devolve; devolução é só Preview.
 
+## Boas-vindas e Primeiros passos (Prompt 4)
+
+O fluxo do primeiro acesso é tour → boas-vindas (`_shared/welcome-wizard.tsx`:
+saudação com o nome da empresa, prioridade, rotas no mapa SVG de
+`_shared/route-map.tsx`, papel) → a Home se monta. As regras puras estão em
+`_shared/onboarding.ts` (`themesForProfile`, `orderCardsForProfile`,
+`routeExample`, `FIRST_STEPS`), com testes. O checklist "Primeiros passos" mora
+no store `first-steps`; **"Reiniciar onboarding"** (seção Boas-vindas, que existe
+em produção) zera onboarding e checklist juntos. Nada disso depende das seções
+internas do painel.
+
 ## Tipo de cliente (existe em produção)
 
 Seção **"Tipo de cliente"** do painel: *Com operação Freitas* (padrão, o portal de

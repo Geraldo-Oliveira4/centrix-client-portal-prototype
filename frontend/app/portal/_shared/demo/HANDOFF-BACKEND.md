@@ -292,4 +292,18 @@ o contato é bloqueado ou a cotação muda de estado.
   determinística, não OCR. Se o v1 for ler o PO de verdade, escopo e esforço
   mudam.
 - **Gestão por PO** (PO dividido em vários embarques, linkagem linha a linha). A
-  aba "Visão por PO" do protótipo existe só para validar aderência.
+  aba "Visão por PO" do protótipo existe **só para validação (RQ-12)** — desde
+  01/10/2026 com faixa de resumo, linha do tempo de eixo compartilhado e a ação
+  "Informe a data de prontidão". Ela só desenha datas que existem: prontidão da
+  cotação de origem (`data_prontidao`, hoje vazia no seed), partida reportada
+  pela companhia (marco `OCEAN_TRANSIT` datado) e chegada prevista. Para a
+  versão real: a prontidão precisa ser campo do embarque/PO editável pelo
+  cliente, e é dela que o ETA deve sair. O "Exemplo" da aba
+  (`po-overview-examples.ts`) é fictício, gerado no navegador com datas
+  relativas a hoje — não existe no backend e não deve existir.
+- **Mapa e insights de rota das boas-vindas.** O prazo típico, a tendência e a
+  frase do cartão de rota são um EXEMPLO fictício (`routeExample`, sempre com a
+  etiqueta "exemplo"). No produto real dependem do **data lake** de frete; o
+  mapa em si é um SVG estático e não precisa de backend.
+- **Primeiros passos e convite de colega.** O checklist é local; convidar um
+  colega no real é o fluxo de convite da gestão de acessos (seção 10).
