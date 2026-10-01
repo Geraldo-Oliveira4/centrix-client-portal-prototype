@@ -7,9 +7,7 @@
 // render, and a provider would add a tree that the sidebar, the layout guard
 // and the panel would each have to sit inside.
 
-import { useCallback, useMemo } from 'react';
-
-import { effectiveFlags } from './client-profile';
+import { useCallback } from 'react';
 
 import {
   DEFAULT_MODULE_FLAGS,
@@ -22,14 +20,10 @@ import {
   type PortalModuleFlags,
   type PortalWaveId,
 } from './feature-flags';
-import { useViewingSnapshot } from './use-client-profile';
 import { setDemoValue, useDemoValue } from './use-demo-store';
 
-/**
- * The GLOBAL default: what the panel's "Módulos liberados" edits. It is also
- * the first row of the access matrix (/portal/admin/acessos).
- */
-export function useGlobalModuleFlags(): PortalModuleFlags {
+/** Every module's current state. Defaults to all released. */
+export function usePortalModuleFlags(): PortalModuleFlags {
   const stored = useDemoValue(MODULE_FLAGS_STORE_NAME, parseModuleFlags);
   // Produção não tem a seção "Módulos liberados" no painel: todos os módulos
   // do protótipo ficam visíveis, e o que estiver guardado no navegador (de uma
@@ -38,18 +32,6 @@ export function useGlobalModuleFlags(): PortalModuleFlags {
   return process.env.NEXT_PUBLIC_PROTO_INTERNAL === '1'
     ? stored
     : DEFAULT_MODULE_FLAGS;
-}
-
-/**
- * What the screens obey. Normally the global default; while "ver como" is on
- * (internal builds only), the viewed company's default + exceptions. One hook
- * for both, so the two consumers that hide a module — the sidebar filter and
- * the layout guard — follow "ver como" without a third mechanism.
- */
-export function usePortalModuleFlags(): PortalModuleFlags {
-  const global = useGlobalModuleFlags();
-  const viewing = useViewingSnapshot();
-  return useMemo(() => effectiveFlags(global, viewing), [global, viewing]);
 }
 
 /**

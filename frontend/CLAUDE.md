@@ -2467,16 +2467,18 @@ escala de urgência e padrão de insight documentados no `DESIGN.md` da raiz.
 | Tema nos iframes | `public/prototypes/_shared/theme-sync.{js,css}` | Ponte de protótipo: inversão de luminância com rotação de matiz. A versão integrada usa os tokens |
 | Rótulos em 2ª pessoa | `ManualForm clientFacing` | "Sua referência", "Quando você precisa da carga"; a tela do analista mantém a redação dela |
 
-## Gestão de acessos e cliente SaaS puro — 01/10/2026 (Prompt 3)
+## Painel de produção e cliente SaaS puro — 01/10/2026 (Prompt 3)
+
+A gestão de acessos (empresas, convites, CSV, módulos por empresa, registro,
+"ver como") é ferramenta INTERNA e **não está neste repositório principal**: o
+protótipo dela fica na branch `feat/proto-interno-acessos` (fora da `main`), e a
+especificação, na seção 10 de `_shared/demo/HANDOFF-BACKEND.md`. Não a traga de
+volta para o portal externo.
 
 | O quê | Onde | Regra que não pode afrouxar |
 |---|---|---|
 | Painel em produção | `demo-sections.tsx`, `demo-sections-internal.tsx`, `demo-panel.tsx` | Sem `NEXT_PUBLIC_PROTO_INTERNAL=1`: título "Painel de demonstração" e só Tipo de cliente, Boas-vindas e Reiniciar. Ondas, Freitas simulada e as mesas de revisão (Cotação V2, PO, Fechamento direto) são import dinâmico com condição inline, fora do bundle. Para nada travar, em produção os módulos são fixos (todos) e a Freitas responde sozinha (8 s, `PRODUCTION_FREITAS_SIMULATION`), incluindo o fechamento direto |
-| Gestão de acessos simulada (**interna**) | `/portal/admin/acessos` + `_shared/demo/access-model.ts`, `access-csv.ts`, `use-access.ts` | Só existe com `NEXT_PUBLIC_PROTO_INTERNAL=1` no build (Vercel: escopo Preview). Sem ela: 404 no `middleware.ts`, seção do painel e faixa do "ver como" fora do bundle (condição inline em volta de cada `import()`; `next.config.mjs` sempre define a variável). Com ela, ainda exige o modo de demonstração. **Não é controle de acesso**; no real mora no Centrix interno (modal de DNA) |
-| Flags efetivas | `use-feature-flags.ts`, `client-profile.ts` | `usePortalModuleFlags` = padrão global, ou padrão + exceções do RETRATO do "ver como" (store `viewing-as`, lido só em build interno). Nada de produção importa `access-model`. O painel edita o padrão (`useGlobalModuleFlags`) |
-| Convite | `access-model.ts` | Não convidado → Convite enviado → Cadastrado → Ativo; Expirado (7 dias) e Bloqueado laterais. Nenhum e-mail sai; toda ação diz "simulado" |
-| E-mail único | `emailsInUse` | Global entre empresas e logins reservados (demo do portal, analista) |
-| Tipo de cliente | `client-kind.ts` + `DataSourceStrip`; seletor em `use-client-profile.ts` | Seção "Tipo de cliente" do painel (existe em produção): Com operação Freitas (padrão) ou SaaS puro. SaaS puro: nada vem preenchido (Radar, leitura de documento/PO, agente preferido da rota). Telas importam `useClientKind` de `use-client-profile`, nunca de `use-access`. "Ver como" ativo manda sobre o seletor |
-| Dados | seed em `access-model.ts` | Empresas e pessoas inventadas, domínio `.example` |
+| Variável `NEXT_PUBLIC_PROTO_INTERNAL` | `next.config.mjs` | Sempre definida (`'1'` ou `'0'`) para o compilador eliminar o ramo interno. `'1'` só no escopo Preview da Vercel; padrão desligado |
+| Tipo de cliente | `client-kind.ts` + `DataSourceStrip`; seletor em `client-profile.ts` + `use-client-profile.ts` | Seção "Tipo de cliente" do painel (existe em produção): Com operação Freitas (padrão) ou SaaS puro. SaaS puro: nada vem preenchido (Radar, leitura de documento/PO, agente preferido da rota) em Nova cotação, Fechamento direto (`MANUAL_ROUTE_ID`) e Embarque via PO; o detalhe do embarque diz de onde vem cada dado |
 
-Handoff para o backend: seções 8, 10, 11 e 12 de `_shared/demo/HANDOFF-BACKEND.md` (a 12 é o risco do link público de cotação, que **não** foi construído).
+Handoff para o backend: seções 8, 10, 11, 11b e 12 de `_shared/demo/HANDOFF-BACKEND.md` (a 12 é o risco do link público de cotação, que **não** foi construído).

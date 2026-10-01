@@ -5,7 +5,7 @@
 // NEXT_PUBLIC_PROTO_INTERNAL=1 (preview), por import dinâmico em
 // `demo-sections.tsx`; ficam fora do bundle de produção. Em produção os
 // módulos são fixos (todos visíveis) e a Freitas responde sozinha — ver
-// `useGlobalModuleFlags` e `useFreitasSimulation`.
+// `usePortalModuleFlags` e `useFreitasSimulation`.
 
 import { useState } from 'react';
 
@@ -27,11 +27,10 @@ import {
   MIN_FREITAS_DELAY_SECONDS,
   clampFreitasDelay,
 } from './freitas-simulation';
-import { useViewingSnapshot } from './use-client-profile';
 import {
   applyPortalWave,
   setPortalModuleFlag,
-  useGlobalModuleFlags,
+  usePortalModuleFlags,
 } from './use-feature-flags';
 import {
   setFreitasSimulation,
@@ -39,20 +38,11 @@ import {
 } from './use-freitas-simulation';
 
 export function ModulesSection() {
-  // The panel edits the GLOBAL default. With "ver como" on, the portal obeys
-  // the viewed company instead, and the note below says so.
-  const flags = useGlobalModuleFlags();
-  const viewed = useViewingSnapshot();
+  const flags = usePortalModuleFlags();
   const current = matchingWave(flags);
 
   return (
     <div className="space-y-4">
-      {viewed && (
-        <p className="portal-small rounded-md bg-portal-info/10 px-3 py-2 text-portal-info">
-          Você está vendo como {viewed.name}: o portal segue as exceções dela.
-          Estes controles mudam o padrão global.
-        </p>
-      )}
       <div className="flex flex-wrap gap-2">
         {PORTAL_WAVE_PRESETS.map((wave) => (
           <Button

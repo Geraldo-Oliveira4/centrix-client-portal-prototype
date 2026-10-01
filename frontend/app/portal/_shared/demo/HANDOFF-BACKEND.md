@@ -193,18 +193,18 @@ estabelecer.
   isso é explicitamente insuficiente.
 - Ligar e desligar **não exige deploy**.
 - Registro de quem mudou cada flag, quando, e de qual valor para qual.
-- A tela simulada que demonstra isso é `/portal/admin/acessos` (seção 10), que
-  só existe nos deploys de Preview do protótipo. Lá o
-  padrão global é o que o painel edita, a exceção vale por empresa e "ver como"
-  usa a resolução das duas. **Tudo no `localStorage` deste navegador.**
+- A exceção por cliente e o "ver como" estão especificados na seção 10; o
+  protótipo deles fica na branch `feat/proto-interno-acessos`. Neste protótipo existe
+  só o padrão global, editado no painel (Preview).
 
 ## 10. Acessos, contatos e convites
 
-**No produto real, tudo isto mora no Centrix interno, no modal de DNA do cliente
-(spec 03) — nunca no portal do cliente.** No protótipo, a tela simulada é
-`/portal/admin/acessos` e só existe em build com `NEXT_PUBLIC_PROTO_INTERNAL=1`
-(escopo Preview da Vercel); no domínio de produção ela é 404 e não está no
-bundle. Mesmo no preview, exige o modo de demonstração ligado.
+**Especificação para a versão integrada. No produto real, tudo isto mora no
+Centrix interno, no modal de DNA do cliente (spec 03) — nunca no portal do
+cliente.** Não faz parte deste protótipo, que é o portal SaaS externo. O
+protótipo navegável dela (empresas, convites, CSV, módulos por empresa, registro
+e "ver como") está preservado na branch `feat/proto-interno-acessos`, que não vai
+para a `main`; a Vercel gera um preview dela.
 
 O que a versão integrada precisa ter no servidor:
 
@@ -229,8 +229,8 @@ O que a versão integrada precisa ter no servidor:
 - **Conta de demonstração/interna** (RQ-9): marcada na empresa, com selo na
   tela; no real precisa ficar fora de toda métrica de uso e de faturamento.
 - **"Ver como"** (RQ-8): no real é **somente leitura** e deixa trilha de quem viu
-  o quê e quando. No protótipo a navegação fica livre (as ações continuam locais)
-  e o início/fim do "ver como" entra no registro de alterações.
+  o quê e quando. No protótipo da branch a navegação fica livre (as ações
+  continuam locais) e o início/fim do "ver como" entra no registro.
 - **Registro de alterações**: quem, quando, empresa, o quê, de -> para, mais
   recente primeiro, filtrável por empresa. No real é tabela de auditoria
   imutável, não estado do navegador.
@@ -240,7 +240,7 @@ O que a versão integrada precisa ter no servidor:
 Atributo novo da empresa: **tipo de cliente** = Com operação Freitas | SaaS
 puro. No real é campo do cliente no Centrix interno (junto do DNA). No
 protótipo ele se liga pelo seletor "Tipo de cliente" do painel de Demonstração,
-que existe também em produção, ou, em preview, pelo "ver como". SaaS
+que existe também em produção. SaaS
 puro usa o Centrix sem a operação da Freitas e sem a integração Inova. Regra
 única do protótipo (`client-kind.ts`): **nada vem preenchido sozinho**.
 

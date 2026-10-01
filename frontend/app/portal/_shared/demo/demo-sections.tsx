@@ -30,11 +30,7 @@ import {
 import { Button } from '@/components/ui/button';
 
 import { CLIENT_KIND_LABELS, type ClientKind } from './client-profile';
-import {
-  setSelectedClientKind,
-  useSelectedClientKind,
-  useViewingSnapshot,
-} from './use-client-profile';
+import { setSelectedClientKind, useClientKind } from './use-client-profile';
 import { resetDemoStore } from './use-demo-store';
 
 export interface DemoSection {
@@ -48,8 +44,8 @@ export interface DemoSection {
 
 // SEÇÕES INTERNAS (Freitas/Ionix). Só existem em build com
 // NEXT_PUBLIC_PROTO_INTERNAL=1 (preview): ondas de módulos, Freitas simulada,
-// as mesas de revisão da Cotação V2, do Embarque via PO e do Fechamento direto,
-// e a gestão de acessos. A condição fica ESCRITA AQUI, inline, em volta de cada
+// e as mesas de revisão da Cotação V2, do Embarque via PO e do Fechamento
+// direto. A condição fica ESCRITA AQUI, inline, em volta de cada
 // `import()`, para o compilador resolvê-la e deixar esse código fora do bundle
 // de produção — uma constante importada de outro módulo não seria dobrada.
 // Em produção ficam só "Tipo de cliente", "Boas-vindas" e "Reiniciar".
@@ -101,30 +97,23 @@ const INTERNAL_SECTIONS: DemoSection[] =
             ),
           ),
         },
-        {
-          id: 'acessos',
-          title: 'Gestão de acessos (interno)',
-          description:
-            'Empresas, convites, módulos por cliente e "ver como". Só em preview.',
-          Content: dynamic(() =>
-            import('./demo-section-access').then((m) => m.AccessSection),
-          ),
-        },
       ]
     : [];
 
 /**
- * "Tipo de cliente" — existe também em produção. Liga o SaaS puro sem passar
- * pela gestão de acessos: Nova cotação, Fechamento direto e Embarque via PO
- * deixam de preencher qualquer coisa sozinhos, e o detalhe do embarque diz de
- * onde vem cada dado.
+ * "Tipo de cliente" — existe também em produção. Liga o SaaS puro: Nova
+ * cotação, Fechamento direto e Embarque via PO deixam de preencher qualquer
+ * coisa sozinhos, e o detalhe do embarque diz de onde vem cada dado.
  */
 function ClientKindSection() {
-  const selected = useSelectedClientKind();
-  const viewing = useViewingSnapshot();
+  const selected = useClientKind();
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Tipo de cliente">
+      <div
+        className="flex flex-wrap gap-2"
+        role="group"
+        aria-label="Tipo de cliente"
+      >
         {(Object.keys(CLIENT_KIND_LABELS) as ClientKind[]).map((kind) => (
           <Button
             key={kind}
@@ -143,12 +132,6 @@ function ClientKindSection() {
         direto e Embarque via PO não preenchem nada sozinhos, e o detalhe do
         embarque mostra de onde vem cada dado.
       </p>
-      {viewing && (
-        <p className="portal-small rounded-md bg-portal-info/10 px-3 py-2 text-portal-info">
-          Enquanto o “ver como” {viewing.name} estiver ativo, vale o tipo dessa
-          empresa.
-        </p>
-      )}
     </div>
   );
 }

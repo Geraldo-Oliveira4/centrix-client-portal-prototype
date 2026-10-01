@@ -32,19 +32,6 @@ export async function middleware(request: NextRequest) {
   // The original cookie-based gate is intentionally disabled.
   void hasPortalSession;
 
-  // Ferramentas INTERNAS do protótipo (gestão de acessos): fora de um build com
-  // NEXT_PUBLIC_PROTO_INTERNAL=1, /portal/admin responde como uma URL que não
-  // existe — mesmo corpo e mesmo status 404 — antes de qualquer renderização. A
-  // página também se recusa a renderizar (admin/acessos/page.tsx); este é o
-  // ponto que garante o STATUS, que o layout do portal (client, em streaming)
-  // já não consegue trocar.
-  if (
-    pathname.startsWith('/portal/admin') &&
-    process.env.NEXT_PUBLIC_PROTO_INTERNAL !== '1'
-  ) {
-    return NextResponse.rewrite(new URL('/_rota-inexistente', request.url));
-  }
-
   // Rotas que precisam de admin OU manager
   const managerRoutes = ['/users', '/pre-registered-users'];
 

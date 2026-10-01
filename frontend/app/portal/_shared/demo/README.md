@@ -43,10 +43,7 @@ pessoa.
 | `use-demo-panel.ts` | visibilidade do painel (`?demo`, `Ctrl+Shift+D`, sessão) |
 | `demo-sections.tsx` | **o registro de seções do painel** |
 | `demo-panel.tsx` | a aba e o Sheet. Renderiza `DEMO_SECTIONS` e nada mais |
-| `access-model.ts` · `access-csv.ts` | gestão de acessos simulada: convites, flags por empresa, onda em lote, registro e importação CSV. **Puros** |
-| `use-access.ts` | estado de acessos e "ver como" (**interno**; só carregado em preview) |
-| `demo-section-access.tsx` · `viewing-as-banner.tsx` | a porta para `/portal/admin/acessos` e a faixa do "ver como" (**internos**, import dinâmico atrás de `NEXT_PUBLIC_PROTO_INTERNAL`) |
-| `client-profile.ts` · `use-client-profile.ts` | tipo de cliente do painel + retrato do "ver como"; **seguros para produção**. **Puro** + hook |
+| `client-profile.ts` · `use-client-profile.ts` | o tipo de cliente escolhido no painel (store `client-kind`). **Puro** + hook |
 | `client-kind.ts` · `data-source-strip.tsx` | Cliente Freitas x SaaS puro: a regra "nada vem preenchido" e a faixa de origem do dado. **Puro** + desenho |
 
 ### Cotação V2 (HITL)
@@ -153,13 +150,12 @@ Em produção (build sem `NEXT_PUBLIC_PROTO_INTERNAL=1`) o painel se chama
 Reiniciar demonstração. Tudo o que é conceito interno (Freitas/Ionix) só existe
 em Preview e fica fora do bundle de produção: Módulos liberados (ondas), Freitas
 simulada, as mesas de revisão da Cotação V2, do Embarque via PO e do Fechamento
-direto (`demo-sections-internal.tsx` + os três `demo-section-*.tsx`) e a Gestão
-de acessos. A condição é inline em volta de cada `import()` dinâmico em
+direto (`demo-sections-internal.tsx` + os três `demo-section-*.tsx`). A condição é inline em volta de cada `import()` dinâmico em
 `demo-sections.tsx`.
 
 Sem essas seções, o cliente não pode travar. Por isso, **só em produção**:
 
-- **Módulos fixos, todos visíveis** (`useGlobalModuleFlags` devolve
+- **Módulos fixos, todos visíveis** (`usePortalModuleFlags` devolve
   `DEFAULT_MODULE_FLAGS` e ignora o que estiver guardado no navegador). Em
   Preview o padrão também é tudo ligado, e o painel muda.
 - **A Freitas responde sozinha, sempre, 8 s por etapa**
@@ -176,32 +172,15 @@ Seção **"Tipo de cliente"** do painel: *Com operação Freitas* (padrão, o po
 sempre) ou *SaaS puro*. Com SaaS puro, Nova cotação, Fechamento direto e Embarque
 via PO não preenchem nada sozinhos e o detalhe do embarque mostra de onde vem
 cada dado. A regra mora em `client-kind.ts`; o seletor em `client-profile.ts` +
-`use-client-profile.ts` (store `client-kind`). **Não depende da gestão de
-acessos.**
+`use-client-profile.ts` (store `client-kind`).
 
-## Gestão de acessos — INTERNA, só em preview
+## Gestão de acessos — fora deste protótipo
 
-Conceito interno (Freitas/Ionix): `/portal/admin/acessos`, a seção "Gestão de
-acessos (interno)" do painel, o "ver como", o registro de alterações e a
-importação de CSV. Só existem em build com **`NEXT_PUBLIC_PROTO_INTERNAL=1`**
-(na Vercel, ligada só no escopo **Preview**). O padrão é desligado.
-
-- **Sem a variável** (produção): `/portal/admin/*` responde 404 no
-  `middleware.ts`, igual a uma URL que não existe; a seção do painel e a faixa
-  do "ver como" nem renderizam, e o código delas fica fora do bundle — a
-  condição é escrita inline (`process.env.NEXT_PUBLIC_PROTO_INTERNAL === '1'`)
-  em volta de cada `import()` dinâmico, e `next.config.mjs` sempre define a
-  variável (`'1'` ou `'0'`) para o compilador eliminar o ramo. Um retrato de
-  "ver como" que tenha ficado num navegador é ignorado.
-- **Com a variável** (preview): a rota ainda exige o modo de demonstração
-  ligado nesta aba; sem ele, 404.
-- **Ver como** grava um retrato pequeno da empresa (id, nome, tipo, exceções) no
-  store `viewing-as`; `usePortalModuleFlags` e `useClientKind` só leem esse
-  retrato, nunca o modelo da gestão de acessos. Enquanto ativo, ele manda sobre o
-  seletor "Tipo de cliente". O painel "Módulos liberados" edita o **padrão
-  global**.
-- **Não é controle de acesso.** No produto real esta tela mora no Centrix
-  interno (modal de DNA), não no portal.
+A gestão de acessos (empresas, convites, importação de CSV, módulos por
+empresa, registro de alterações e "ver como") é ferramenta INTERNA da
+Freitas/Ionix e não faz parte do portal externo. O protótipo dela está preservado
+na branch `feat/proto-interno-acessos` (a Vercel gera um preview da branch); a
+especificação para a versão integrada está na seção 10 do `HANDOFF-BACKEND.md`.
 
 ## O que o reset apaga
 

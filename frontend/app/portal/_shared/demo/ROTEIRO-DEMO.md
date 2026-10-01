@@ -11,11 +11,11 @@ não há integração.
 
 | | Produção (domínio que os clientes veem) | Preview (`NEXT_PUBLIC_PROTO_INTERNAL=1`) |
 |---|---|---|
-| Painel | "Painel de demonstração": **Tipo de cliente**, **Boas-vindas**, **Reiniciar demonstração** | tudo: + Módulos liberados, Freitas simulada, Cotação V2, Embarque via PO, Fechamento direto, Gestão de acessos |
+| Painel | "Painel de demonstração": **Tipo de cliente**, **Boas-vindas**, **Reiniciar demonstração** | tudo: + Módulos liberados, Freitas simulada, Cotação V2, Embarque via PO, Fechamento direto |
 | Módulos | **fixos: todos visíveis** (ondas guardadas no navegador são ignoradas) | o painel escolhe (padrão: todos) |
 | Freitas | **responde sozinha, sempre**, 8 s por etapa | o painel liga/desliga (padrão: desligada, para conduzir no clique) |
-| Roteiros | **A, B e C em modo "anda sozinho"** (abaixo), **E** e **F** | todos |
-| Só em Preview | — | ondas (§2), cenários carregados, devolver/liberar/validar no clique, **D** (gestão de acessos) |
+| Roteiros | **A, B e C em modo "anda sozinho"** (abaixo), **D** e **E** | todos |
+| Só em Preview | — | ondas (§2), cenários carregados, devolver/liberar/validar no clique |
 
 **Em produção, nunca dependa do painel para a jornada andar.** Envie a cotação,
 o fechamento direto ou o PO como cliente e espere: em ~8 s cada etapa da
@@ -193,37 +193,9 @@ B. "PO dividido em 3 embarques" (cenário do painel) é só Preview.
 
 ---
 
-## 5b. Roteiro D — Gestão de acessos (~8 minutos) — INTERNO, só em preview
+## 5b. Roteiro D — Cliente SaaS puro (~6 minutos) — produção e Preview
 
-**Só para apresentação interna (Freitas/Ionix), num deploy de Preview.** No
-domínio de produção, que os clientes veem, nada disto existe: a rota dá 404 e a
-seção do painel não aparece. Nunca apresente este roteiro a cliente.
-
-Painel → **Gestão de acessos (interno)** → **Abrir gestão de acessos**. A faixa do topo diz
-que a tela é da Freitas, simulada; o aviso amarelo diz que aqui a flag só esconde
-a tela. Leia os dois em voz alta.
-
-1. **Importar CSV** → "Usar exemplo com erros". Mostre as três linhas recusadas
-   (e-mail inválido, empresa vazia, e-mail que já é de outra empresa) e o
-   relatório copiável. **Importar** leva só as válidas, como "Não convidado".
-2. **Empresas** → Indústria Exemplo → Contatos e convites → **Enviar convite**
-   (diga: nenhum e-mail sai daqui) → Simular cadastro → Simular primeiro acesso.
-   O status anda pelo caminho Não convidado → Convite enviado → Cadastrado → Ativo.
-3. **Módulos** → marque a empresa → **Onda 0**. A confirmação diz quantas
-   empresas e quais módulos desligam. Aplique; as células viram "exceção".
-4. **Empresas** → **Ver como** Indústria Exemplo → vá para Início. A faixa azul
-   diz em quem você está; Meus Embarques sumiu do menu e a rota mostra a porta
-   fechada. **Voltar à visão normal**.
-5. **Registro**: tudo o que você fez, mais recente primeiro.
-
-Sem o modo de demonstração, `/portal/admin/acessos` dá o mesmo 404 de uma URL
-inexistente. O cliente não tem como chegar lá.
-
-## 5c. Roteiro E — Cliente SaaS puro (~6 minutos) — produção e Preview
-
-Painel → **Tipo de cliente** → **SaaS puro**. (Em preview dá também para chegar
-aqui pelo "ver como" de uma empresa SaaS puro; o seletor é o caminho para
-apresentar a cliente.)
+Painel → **Tipo de cliente** → **SaaS puro**.
 
 1. **Nova cotação**: a faixa "Você informa tudo" substitui qualquer
    pré-preenchimento; mesmo vindo do Radar, nada entra sozinho. A aba de
@@ -237,7 +209,7 @@ apresentar a cliente.)
 
 Volte para **Com operação Freitas** antes do próximo roteiro.
 
-## 5d. Roteiro F — Auditoria fora de ordem (~4 minutos) — produção e Preview
+## 5c. Roteiro E — Auditoria fora de ordem (~4 minutos) — produção e Preview
 
 Auditoria → **Adicionar à auditoria** → "Usar embarque" (E-DEMO-02).
 
@@ -303,12 +275,8 @@ começar.
   aberto: o protótipo assume corrido (`review-sla.ts`).
 - **A Visão por PO é só protótipo**, para validar aderência. A gestão por PO
   (PO dividido, linkagem linha a linha) é V2.
-- **As flags não são controle de acesso.** Elas moram neste navegador; a
-  exceção "por cliente" da Gestão de acessos também, e nenhum endpoint recusa
-  chamada de módulo desligado.
-- **Convites não enviam e-mail.** "Cadastrado" e "Ativo" são simulados por botão.
-- **A gestão de acessos é interna e só existe em preview** (`NEXT_PUBLIC_PROTO_INTERNAL=1`).
-- **"Ver como" usa os dados demo do portal**: muda módulos e tipo de cliente,
-  não troca a carteira de cotações e embarques.
+- **As flags não são controle de acesso.** Elas moram neste navegador e nenhum
+  endpoint recusa chamada de módulo desligado.
+- **A gestão de acessos não está neste protótipo**: é ferramenta interna; o protótipo dela está na branch `feat/proto-interno-acessos`.
 - **O link público de cotação não está no protótipo** (risco listado no handoff).
 - **Todos os dados são fictícios.**
