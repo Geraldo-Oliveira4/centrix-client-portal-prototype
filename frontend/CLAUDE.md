@@ -1544,7 +1544,9 @@ portal que escrevem no backend (ver a seção delas adiante).
 os módulos parecem iguais"): **Operação** (Início, Central de trabalho, Minhas
 Cotações, Meus Embarques — tinta `foreground`) e **Performance** (Inteligência,
 Radar, Auditoria — tinta `portal-neutral`, peso menor), com Configurações fixa no
-rodapé (a sidebar desktop é `sticky h-screen` por isso). Grupo sem módulo liberado
+rodapé. Desde 01/10/2026 (Prompt 5) a sidebar desktop é `fixed` em `100dvh` com
+um espaçador da mesma largura no fluxo: o `overflow-auto` do layout quebrava o
+`sticky` e deixava um vão cinza abaixo do menu ao rolar. O nav rola por dentro. Grupo sem módulo liberado
 some com o rótulo. O parágrafo abaixo é o histórico da versão plana.
 
 **A sidebar tinha SETE itens** (03/09/2026): Início, Visão Geral, Minhas Cotações,
@@ -2482,3 +2484,22 @@ volta para o portal externo.
 | Tipo de cliente | `client-kind.ts` + `DataSourceStrip`; seletor em `client-profile.ts` + `use-client-profile.ts` | Seção "Tipo de cliente" do painel (existe em produção): Com operação Freitas (padrão) ou SaaS puro. SaaS puro: nada vem preenchido (Radar, leitura de documento/PO, agente preferido da rota) em Nova cotação, Fechamento direto (`MANUAL_ROUTE_ID`) e Embarque via PO; o detalhe do embarque diz de onde vem cada dado |
 
 Handoff para o backend: seções 8, 10, 11, 11b e 12 de `_shared/demo/HANDOFF-BACKEND.md` (a 12 é o risco do link público de cotação, que **não** foi construído).
+
+## Visão por PO v2 e boas-vindas "uau" — 01/10/2026 (Prompt 4)
+
+| O quê | Onde | Regra que não pode afrouxar |
+|---|---|---|
+| Visão por PO | `_shared/demo/po-overview.ts` (puro) + `po-overview-tab.tsx` | Só datas que existem: prontidão da cotação (`data_prontidao`), partida = marco `OCEAN_TRANSIT` datado, chegada prevista. Eixo COMPARTILHADO com "Hoje"; trilho pontilhado só de hoje até a chegada. Risco = atraso >3 dias da companhia (mesma `delayRiskFromTracking`), exceção ou previsão vencida; é neutro (ícone), não vermelho. "Sem previsão" é a única cor de atenção (pede ação do cliente). Faixas: 7 / 30 dias. "Seus pedidos \| Exemplo": o exemplo (`po-overview-examples.ts`, puro) gera POs fictícios com datas RELATIVAS a hoje, nunca misturados aos do cliente; abre no exemplo só no Preview. Data `is_mock` dos pedidos do cliente leva selo `preview`. Ainda só para validação (RQ-12) |
+| Boas-vindas | `_shared/welcome-wizard.tsx`, `route-map.tsx`, `onboarding.ts` | Substitui a antiga configuração inicial. "Pular" em toda tela, retomável (`wizardStep`), sem citar a Freitas. A prioridade vira o 1º tema da Home, o papel ordena o resto (`themesForProfile`); grava o layout pelo endpoint da Home. Insight de rota é EXEMPLO fictício, sempre etiquetado. Fonte do portal aplicada no conteúdo do diálogo (portal do Radix fica fora do layout) |
+| Revelação e Primeiros passos | `home/components/home-ready-banner.tsx`, `first-steps-card.tsx`, `_shared/use-first-steps.ts` | `revealPending` dispara a entrada em sequência (`.home-reveal`); checklist em `first-steps`, zerado por `resetOnboarding`. Animações só em `prefers-reduced-motion: no-preference` (globals.css) |
+
+## Polimento antes do merge do PR #11 — 01/10/2026 (Prompt 5)
+
+| O quê | Onde | Regra que não pode afrouxar |
+|---|---|---|
+| Linha do tempo por PO | `po-overview.ts` (`atrasado`, `PO_AXIS_*`, `weeks`, `isBeforeAxis`, `shortDayLabel`) + `po-overview-tab.tsx` | Grupo **Atrasados** antes de "Chega esta semana" (previsão vencida e não confirmada nunca conta como "chega em 7 dias"). Janela do eixo presa em hoje −60 / +120 dias; data fora dela vira "◀ N dias atrás". Trilho âmbar da previsão vencida até "Hoje", rótulo ancorado à esquerda da linha |
+| "Cotar esta rota agora" | `onboarding.ts::welcomeQuotationHref` + `nova-cotacao/page.tsx` | `fonte=boas_vindas` pré-preenche mesmo no SaaS puro (valor informado pelo cliente); o Radar continua bloqueado no SaaS. Não grava `portal_origin`. O passo "primeira cotação" fecha no ENVIO, nunca no clique |
+| Mapa da Home | `home/components/home-route-map.tsx` | `ShipmentMap` ganhou só o slot opcional `children` (sem ele, nada muda) — é a única edição num componente reaproveitado da Home. Rotas da escolha do cliente em laranja; não são posição de carga |
+| Contagem dos números | `home/lib/count-up.ts` (puro) + `count-up-on-reveal.tsx` | Anima o texto já renderizado e termina SEMPRE no texto original; zero e ano não contam; desligado com `prefers-reduced-motion` |
+| Mini tour | `TOUR_STEPS` em `onboarding.ts`, `onboarding-flow.tsx` | No máximo 3 paradas (menu, Central, Ajuda), DEPOIS das boas-vindas e opcional; espera a revelação e não abre na Nova cotação |
+| Primeiros passos | `first-steps-card.tsx`, `use-first-steps.ts` (`justDone`, `acknowledgeFirstStep`) | No topo da Home; botão do próximo passo; barra fina com 2 de 3 (`firstStepsCompact`) |

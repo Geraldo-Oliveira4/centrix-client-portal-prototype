@@ -166,6 +166,33 @@ Sem essas seções, o cliente não pode travar. Por isso, **só em produção**:
   instrução enviada. Antes ele só andava pelo clique no painel.
 - A autorresposta nunca devolve; devolução é só Preview.
 
+## Boas-vindas e Primeiros passos (Prompts 4 e 5)
+
+O fluxo do primeiro acesso é boas-vindas (`_shared/welcome-wizard.tsx`:
+saudação com o nome da empresa, prioridade, rotas no mapa SVG de
+`_shared/route-map.tsx`, papel) → a Home se monta → **mini tour opcional** de 3
+paradas (menu, Central de trabalho, Ajuda; ligado por padrão no último passo,
+"Pular" sempre à vista). Desde o Prompt 5 o tour vem DEPOIS, não antes.
+
+- **"Cotar esta rota agora"** (tela de rotas): abre a Nova cotação com origem,
+  destino e modal preenchidos (`welcomeQuotationHref`, `fonte=boas_vindas`).
+  Vale também para o SaaS puro: são valores que o cliente informou, não
+  deduzidos. Enviar a cotação marca sozinho o passo "Abrir a sua primeira
+  cotação" (`markFirstStep('cotacao')` na Nova cotação), e a Home comemora uma
+  vez (`justDone`).
+- **Revelação da Home**: "Sua rota principal é X → Y" (o prazo típico ao lado
+  leva "exemplo"), as rotas escolhidas em laranja no "Mapa dos embarques"
+  (`home/components/home-route-map.tsx`, pelo slot `children` do
+  `ShipmentMap`), os números dos cards contando (`count-up-on-reveal.tsx`, que
+  termina sempre no texto original) e a entrada em sequência.
+- **Primeiros passos** no topo da Home, com o botão do próximo passo e o anel
+  animado; com 2 de 3 feitos vira uma barra fina. As regras puras estão em
+`_shared/onboarding.ts` (`themesForProfile`, `orderCardsForProfile`,
+`routeExample`, `FIRST_STEPS`), com testes. O checklist "Primeiros passos" mora
+no store `first-steps`; **"Reiniciar onboarding"** (seção Boas-vindas, que existe
+em produção) zera onboarding e checklist juntos. Nada disso depende das seções
+internas do painel.
+
 ## Tipo de cliente (existe em produção)
 
 Seção **"Tipo de cliente"** do painel: *Com operação Freitas* (padrão, o portal de

@@ -12,7 +12,11 @@
 // que já estiverem preenchidas. Um PO cujos embarques ainda não têm ETA aparece
 // com o grupo montado e a linha do tempo vazia — que é a verdade.
 
-import type { PortalShipment } from '../../../../types/portal-shipment.ts';
+import type {
+  EmbarqueEstado,
+  PortalShipment,
+} from '../../../../types/portal-shipment.ts';
+import { delayRiskFromTracking } from '../../embarques/lib/delay-risk.ts';
 import { normalizePo } from './shipment-po-review.ts';
 import type { PortalShipmentWithReview } from './shipment-po-merge.ts';
 
@@ -26,6 +30,37 @@ export interface PoOverviewShipment {
   eta: string | null;
   /** True quando a chegada já foi confirmada pela companhia. */
   etaIsActual: boolean;
+  /**
+   * Prontidão da carga, da COTAÇÃO que originou o embarque (`data_prontidao`).
+   * Null sem cotação vinculada ou sem a data — e é isso que vira a ação
+   * "Informe a data de prontidão".
+   */
+  readyDate: string | null;
+  /**
+   * Partida datada pela companhia: só quando o último marco reportado é
+   * `OCEAN_TRANSIT` e veio com data. Marcos posteriores não datam a partida, e
+   * ela não é deduzida deles.
+   */
+  departureDate: string | null;
+  estado: EmbarqueEstado;
+  /** A carga já chegou (chegada confirmada ou marco de chegada em diante). */
+  arrived: boolean;
+  /** Por que está em risco, em poucas palavras; null quando não está. */
+  riskReason: string | null;
+  /** SKUs, quando o embarque nasceu de um PO com itens. */
+  items: PoOverviewItem[];
+  /**
+   * As datas de rastreamento são de DEMONSTRAÇÃO (`tracking.is_mock`). Toda
+   * tela que mostra uma data dessas tem de dizer isso (CLAUDE.md, contrato do
+   * `tracking_is_mock`).
+   */
+  trackingIsMock: boolean;
+}
+
+export interface PoOverviewItem {
+  partNumber: string;
+  description: string;
+  quantity: number | null;
 }
 
 export interface PoOverviewGroup {
@@ -42,6 +77,25 @@ export interface PoOverviewGroup {
 /** De onde sai o rótulo de estado e o ETA de cada embarque. */
 export interface PoOverviewResolvers {
   stateLabel: (shipment: PortalShipmentWithReview) => string;
+  /** Prontidão vinda da cotação de origem; ausente = sem dado. */
+  readyDate?: (shipment: PortalShipmentWithReview) => string | null;
+  /** Itens do PO (overlay da jornada por PO); ausente = sem itens. */
+  items?: (shipment: PortalShipmentWithReview) => PoOverviewItem[];
+}
+
+const ARRIVAL_MILESTONES = ['ARRIVAL', 'DISCHARGE', 'AVAILABLE'];
+const EXCEPTION_ESTADOS: EmbarqueEstado[] = ['postergado', 'booking_divergente'];
+
+function riskOf(shipment: PortalShipment, arrived: boolean): string | null {
+  if (EXCEPTION_ESTADOS.includes(shipment.estado)) {
+    return shipment.estado === 'postergado' ? 'Embarque postergado' : 'Booking divergente';
+  }
+  if (arrived) return null;
+  // A MESMA régua do badge de atraso do portal: mais de 3 dias sobre a primeira
+  // previsão da companhia é atraso. Atenção (1 a 3 dias) não é "risco" aqui.
+  const risk = delayRiskFromTracking(shipment.tracking);
+  if (risk.status === 'delayed') return risk.label;
+  return null;
 }
 
 function etaOf(shipment: PortalShipment): {
@@ -88,6 +142,11 @@ export function groupShipmentsByPo(
     if (!key) continue;
 
     const { eta, actual } = etaOf(shipment);
+    const tracking = shipment.tracking;
+    const arrived =
+      actual ||
+      (!!tracking?.last_milestone &&
+        ARRIVAL_MILESTONES.includes(tracking.last_milestone));
     const row: PoOverviewShipment = {
       id: shipment.id,
       reference: shipment.referencia,
@@ -95,6 +154,16 @@ export function groupShipmentsByPo(
       stateLabel: resolvers.stateLabel(shipment),
       eta,
       etaIsActual: actual,
+      readyDate: resolvers.readyDate?.(shipment) ?? null,
+      departureDate:
+        tracking?.last_milestone === 'OCEAN_TRANSIT'
+          ? (tracking.last_milestone_at ?? null)
+          : null,
+      estado: shipment.estado,
+      arrived,
+      riskReason: riskOf(shipment, arrived),
+      items: resolvers.items?.(shipment) ?? [],
+      trackingIsMock: tracking?.is_mock === true,
     };
 
     const existing = groups.get(key);
@@ -164,4 +233,255 @@ export function etaPositions(group: PoOverviewGroup): Map<string, number> {
 /** Quantos POs têm mais de um embarque — o caso que a aba existe para mostrar. */
 export function splitPoCount(groups: PoOverviewGroup[]): number {
   return groups.filter((group) => group.shipments.length > 1).length;
+}
+
+// ---------------------------------------------------------------------------
+// Segunda versão da tela (Prompt 4, 01/10/2026): "quando chega cada PO e algum
+// está em risco?". Tudo abaixo LÊ as datas que o agrupamento já trouxe; nada
+// aqui cria data.
+// ---------------------------------------------------------------------------
+
+const DAY = 24 * 60 * 60 * 1000;
+
+/** Dia (UTC) de uma data ISO ou data pura; datas puras valem pelo dia inteiro. */
+function dayOf(iso: string): number {
+  return Math.floor(Date.parse(iso.length <= 10 ? `${iso}T00:00:00Z` : iso) / DAY);
+}
+
+function today(now: Date): number {
+  return Math.floor(now.getTime() / DAY);
+}
+
+export type PoBucket = 'atrasado' | 'semana' | 'mes' | 'depois' | 'sem_previsao' | 'chegou';
+
+export const PO_BUCKET_LABELS: Record<PoBucket, string> = {
+  atrasado: 'Atrasados',
+  semana: 'Chega esta semana',
+  mes: 'Este mês',
+  depois: 'Depois',
+  sem_previsao: 'Sem previsão',
+  chegou: 'Já chegou',
+};
+
+/** Ordem dos grupos na tela: o que chega antes, primeiro. */
+/**
+ * Ordem dos grupos na tela: "Atrasados" no topo (a previsão já venceu e a carga
+ * não chegou — é o que pede olhar primeiro), depois o que chega antes.
+ */
+export const PO_BUCKET_ORDER: PoBucket[] = ['atrasado', 'semana', 'mes', 'depois', 'sem_previsao', 'chegou'];
+
+/** "Esta semana" = até 7 dias; "este mês" = até 30. Os mesmos 7 do chip. */
+export const PO_SOON_DAYS = 7;
+export const PO_MONTH_DAYS = 30;
+
+export interface PoGroupStatus {
+  bucket: PoBucket;
+  /** A próxima chegada que ainda não aconteceu (ISO), quando existe. */
+  nextEta: string | null;
+  /** Dias até a próxima chegada; negativo = previsão vencida. */
+  daysToNext: number | null;
+  /** Algum embarque do PO está em risco (atraso da companhia ou exceção). */
+  atRisk: boolean;
+  riskReasons: string[];
+  /** Embarques sem chegada prevista (e que ainda não chegaram). */
+  withoutForecast: number;
+  /** Tudo já chegou. */
+  allArrived: boolean;
+}
+
+export function poGroupStatus(group: PoOverviewGroup, now: Date): PoGroupStatus {
+  const t = today(now);
+  const pending = group.shipments.filter((s) => !s.arrived);
+  const withoutForecast = pending.filter((s) => !s.eta).length;
+  const riskReasons = group.shipments
+    .map((s) => s.riskReason)
+    .filter((r): r is string => !!r);
+  const upcoming = pending
+    .filter((s) => s.eta)
+    .map((s) => ({ eta: s.eta as string, day: dayOf(s.eta as string) }))
+    .sort((a, b) => a.day - b.day);
+  const next = upcoming[0] ?? null;
+  const daysToNext = next ? next.day - t : null;
+  // Previsão vencida sem chegada confirmada também é risco: a carga devia ter
+  // chegado e ninguém confirmou.
+  if (daysToNext != null && daysToNext < 0) riskReasons.push('Previsão de chegada vencida');
+
+  let bucket: PoBucket;
+  if (pending.length === 0) bucket = 'chegou';
+  else if (next == null) bucket = 'sem_previsao';
+  // Previsão vencida NUNCA cai em "Chega esta semana": a data já passou.
+  else if ((daysToNext as number) < 0) bucket = 'atrasado';
+  else if ((daysToNext as number) <= PO_SOON_DAYS) bucket = 'semana';
+  else if ((daysToNext as number) <= PO_MONTH_DAYS) bucket = 'mes';
+  else bucket = 'depois';
+
+  return {
+    bucket,
+    nextEta: next?.eta ?? null,
+    daysToNext,
+    atRisk: riskReasons.length > 0,
+    riskReasons: Array.from(new Set(riskReasons)),
+    withoutForecast,
+    allArrived: pending.length === 0,
+  };
+}
+
+export type PoFilter = 'ativos' | 'sete_dias' | 'risco' | 'sem_previsao';
+
+export const PO_FILTER_LABELS: Record<PoFilter, string> = {
+  ativos: 'POs ativos',
+  sete_dias: 'Chegam em 7 dias',
+  risco: 'Em risco',
+  sem_previsao: 'Sem previsão',
+};
+
+export function matchesPoFilter(status: PoGroupStatus, filter: PoFilter): boolean {
+  switch (filter) {
+    case 'ativos':
+      return !status.allArrived;
+    case 'sete_dias':
+      return status.daysToNext != null && status.daysToNext >= 0 && status.daysToNext <= PO_SOON_DAYS;
+    case 'risco':
+      return status.atRisk;
+    case 'sem_previsao':
+      return status.withoutForecast > 0;
+  }
+}
+
+export function summarizePoGroups(
+  statuses: PoGroupStatus[],
+): Record<PoFilter, number> {
+  const out = { ativos: 0, sete_dias: 0, risco: 0, sem_previsao: 0 };
+  for (const status of statuses)
+    for (const key of Object.keys(out) as PoFilter[])
+      if (matchesPoFilter(status, key)) out[key]++;
+  return out;
+}
+
+/** Janela máxima do eixo em volta de hoje, para nenhuma linha virar um risco. */
+export const PO_AXIS_PAST_DAYS = 60;
+export const PO_AXIS_FUTURE_DAYS = 120;
+
+export interface PoTimelineAxis {
+  /** Primeiro e último dia (UTC, em dias) do eixo compartilhado. */
+  startDay: number;
+  endDay: number;
+  /** Início de cada semana (segunda-feira) dentro da janela: grade leve. */
+  weeks: number[];
+  todayDay: number;
+  /** Marcas do eixo: início de cada mês dentro do intervalo. */
+  ticks: { day: number; label: string }[];
+}
+
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/** Todas as datas que existem nos grupos — e nenhuma outra. */
+function allDates(groups: PoOverviewGroup[]): number[] {
+  const out: number[] = [];
+  for (const group of groups)
+    for (const s of group.shipments)
+      for (const d of [s.readyDate, s.departureDate, s.eta])
+        if (d && Number.isFinite(Date.parse(d.length <= 10 ? `${d}T00:00:00Z` : d))) out.push(dayOf(d));
+  return out;
+}
+
+/**
+ * O eixo é COMPARTILHADO entre os POs: a mesma régua para todos, de modo que
+ * "chega antes" se lê de cima a baixo sem conta. Vai da data mais cedo à mais
+ * tarde (hoje sempre dentro), com 3 dias de folga em cada ponta.
+ */
+export function poTimelineAxis(groups: PoOverviewGroup[], now: Date): PoTimelineAxis {
+  const t = today(now);
+  const days = [...allDates(groups), t];
+  // Janela: as datas que existem, com folga de 3 dias, mas limitada a 60 dias
+  // para trás e 120 para frente. O que cair antes vira "◀ N dias atrás" na
+  // borda (ver `isBeforeAxis`) — esticar o eixo até lá espremeria todo o resto.
+  const startDay = Math.max(Math.min(...days) - 3, t - PO_AXIS_PAST_DAYS);
+  const endDay = Math.min(Math.max(...days, t + 14) + 3, t + PO_AXIS_FUTURE_DAYS);
+  const ticks: { day: number; label: string }[] = [];
+  const first = new Date(startDay * DAY);
+  let cursor = Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 1);
+  while (cursor / DAY <= endDay) {
+    const d = new Date(cursor);
+    ticks.push({ day: cursor / DAY, label: `${MONTHS[d.getUTCMonth()]}${d.getUTCMonth() === 0 ? ` ${d.getUTCFullYear()}` : ''}` });
+    cursor = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
+  }
+  const weeks: number[] = [];
+  // 1970-01-01 (dia 0) foi quinta-feira: a segunda seguinte é o dia 4.
+  let week = startDay + ((4 - startDay) % 7 + 7) % 7;
+  for (; week <= endDay; week += 7) weeks.push(week);
+  return { startDay, endDay, weeks, todayDay: t, ticks };
+}
+
+/** "05 set": a data curta do lado de cada ponto. Lida em UTC, sem fuso. */
+export function shortDayLabel(iso: string | number): string {
+  const day = typeof iso === 'number' ? iso : dayOf(iso);
+  const d = new Date(day * DAY);
+  return `${String(d.getUTCDate()).padStart(2, '0')} ${MONTHS[d.getUTCMonth()]}`;
+}
+
+/** A data cai antes da janela do eixo? Devolve quantos dias atrás (de hoje). */
+export function isBeforeAxis(axis: PoTimelineAxis, iso: string): number | null {
+  const day = dayOf(iso);
+  return day < axis.startDay ? axis.todayDay - day : null;
+}
+
+/** Dias corridos de uma data até hoje (positivo = no passado). */
+export function daysAgo(axis: PoTimelineAxis, iso: string): number {
+  return axis.todayDay - dayOf(iso);
+}
+
+/** Posição de uma data no eixo, em 0..100. */
+export function axisPercent(axis: PoTimelineAxis, iso: string | number): number {
+  const day = typeof iso === 'number' ? iso : dayOf(iso);
+  const span = Math.max(1, axis.endDay - axis.startDay);
+  return Math.min(100, Math.max(0, ((day - axis.startDay) / span) * 100));
+}
+
+export type PoPointKind = 'prontidao' | 'embarque' | 'chegada';
+
+export const PO_POINT_LABELS: Record<PoPointKind, string> = {
+  prontidao: 'Prontidão',
+  embarque: 'Embarque',
+  chegada: 'Chegada prevista',
+};
+
+export interface PoBarPoint {
+  kind: PoPointKind;
+  date: string;
+  /** Para a chegada: já confirmada pela companhia. */
+  actual?: boolean;
+}
+
+/**
+ * Os pontos da barra de um embarque, na ordem prontidão → embarque → chegada,
+ * SÓ os que têm data. Os segmentos são desenhados entre pontos consecutivos;
+ * com um ponto só não há segmento — há um marcador.
+ */
+export function shipmentBarPoints(s: PoOverviewShipment): PoBarPoint[] {
+  const points: PoBarPoint[] = [];
+  if (s.readyDate) points.push({ kind: 'prontidao', date: s.readyDate });
+  if (s.departureDate) points.push({ kind: 'embarque', date: s.departureDate });
+  if (s.eta) points.push({ kind: 'chegada', date: s.eta, actual: s.etaIsActual });
+  return points;
+}
+
+/** As etapas do embarque para os mini-passos e a barra do celular. */
+export const PO_STEP_ESTADOS: EmbarqueEstado[] = [
+  'solicitado',
+  'aguardando_prontidao',
+  'coletado',
+  'analise_booking',
+  'embarcado',
+];
+
+/**
+ * Progresso de 0 a 1 pela ETAPA real (cinco estados do GE + chegada). Estado
+ * de exceção não tem lugar na régua: devolve null, e a tela diz a exceção.
+ */
+export function shipmentProgress(s: PoOverviewShipment): number | null {
+  if (s.arrived) return 1;
+  const index = PO_STEP_ESTADOS.indexOf(s.estado);
+  if (index < 0) return null;
+  return (index + 1) / (PO_STEP_ESTADOS.length + 1);
 }

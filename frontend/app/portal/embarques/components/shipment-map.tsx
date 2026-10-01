@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { MapContainer, Polyline, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.markercluster';
@@ -240,10 +240,16 @@ function arcPoints(from: Port, to: Port): [number, number][] {
 export function ShipmentMap({
   shipments,
   originByShipmentId,
+  children,
 }: {
   shipments: PortalShipment[];
   /** Origin string of the quotation that generated each shipment, when known. */
   originByShipmentId: Record<string, string | null>;
+  /**
+   * Extra react-leaflet layers drawn on top (Home: the routes chosen in the
+   * welcome flow). Optional and additive: without it the map is unchanged.
+   */
+  children?: ReactNode;
 }) {
   const [tilesFailed, setTilesFailed] = useState(false);
   const errorCount = useRef(0);
@@ -311,6 +317,7 @@ export function ShipmentMap({
 
         <ClusteredMarkers plotted={plotted} />
         <FitToPlotted plotted={plotted} />
+        {children}
       </MapContainer>
 
       {tilesFailed && (

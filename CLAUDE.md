@@ -610,7 +610,9 @@ O que sustenta isso, e não pode afrouxar:
   `Record<PortalHomeCard, ...>`: card novo sem componente quebra o build.
 - **Nenhum componente reaproveitado foi editado.** `UrgentActionCard`,
   `SavingsCard`, `ShipmentMap`, `PriceAlertBadge` e `PriceTrendLine` entram como
-  estão — o registro só adiciona wrappers.
+  estão — o registro só adiciona wrappers. Única exceção (01/10/2026): o
+  `ShipmentMap` ganhou um slot `children` opcional, por onde a Home desenha as
+  rotas das boas-vindas; sem ele o mapa é o mesmo.
 - **Ausência de linha é o estado normal** e nenhum seed a popula: é ela que faz o
   onboarding abrir. Reset APAGA a linha; zerar os campos deixaria a tabela
   dizendo "já onboardou" e o modal nunca mais abriria.

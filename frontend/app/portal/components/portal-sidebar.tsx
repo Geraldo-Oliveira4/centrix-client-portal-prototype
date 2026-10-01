@@ -222,7 +222,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
           aria-label="Menu principal"
           className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-5"
         >
-          <div className="space-y-5">
+          <div className="space-y-5" data-tour="menu">
             {groups.map((group, index) => (
               <div key={group.id}>
                 {slim ? (
@@ -255,14 +255,23 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
 }
 
 export function PortalSidebar() {
-  const { mobileOpen, toggleMobile } = useSidebar();
+  const { mobileOpen, toggleMobile, collapsed } = useSidebar();
 
   return (
     <>
-      {/* Desktop sidebar */}
-      {/* Fixa na altura da janela: sem isto a sidebar tinha a altura da
-          PAGINA e Configuracoes, no rodape, ficava abaixo da dobra. */}
-      <div className="sticky top-0 hidden h-screen shrink-0 md:block">
+      {/* Desktop sidebar — FIXA na janela (100dvh), com rolagem interna no
+          miolo. Era `sticky`, e o `overflow-auto` do wrapper do layout raiz
+          (app/layout.tsx, que também serve o analista) quebrava o sticky: o
+          menu rolava junto com a página e deixava um vão cinza embaixo. O
+          espaçador ocupa a largura do menu no fluxo, aberto ou recolhido. */}
+      <div
+        aria-hidden="true"
+        className={cn(
+          'hidden shrink-0 transition-[width] duration-200 md:block',
+          collapsed ? 'w-14' : 'w-60',
+        )}
+      />
+      <div className="fixed inset-y-0 left-0 z-30 hidden h-[100dvh] md:block">
         <SidebarContent />
       </div>
 

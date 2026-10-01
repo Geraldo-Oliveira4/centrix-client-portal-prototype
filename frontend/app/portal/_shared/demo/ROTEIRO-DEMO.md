@@ -14,7 +14,7 @@ não há integração.
 | Painel | "Painel de demonstração": **Tipo de cliente**, **Boas-vindas**, **Reiniciar demonstração** | tudo: + Módulos liberados, Freitas simulada, Cotação V2, Embarque via PO, Fechamento direto |
 | Módulos | **fixos: todos visíveis** (ondas guardadas no navegador são ignoradas) | o painel escolhe (padrão: todos) |
 | Freitas | **responde sozinha, sempre**, 8 s por etapa | o painel liga/desliga (padrão: desligada, para conduzir no clique) |
-| Roteiros | **A, B e C em modo "anda sozinho"** (abaixo), **D** e **E** | todos |
+| Roteiros | **A, B e C em modo "anda sozinho"** (abaixo), **D**, **E** e **F** | todos |
 | Só em Preview | — | ondas (§2), cenários carregados, devolver/liberar/validar no clique |
 
 **Em produção, nunca dependa do painel para a jornada andar.** Envie a cotação,
@@ -186,12 +186,68 @@ B. "PO dividido em 3 embarques" (cenário do painel) é só Preview.
    vinculada" e o card "Cotação vinculada". O modal busca por número, referência
    do PO ou cliente e lista só cotações aprovadas. Ao vincular, o embarque
    mantém o mesmo ID e o chip some.
-2. **Visão por PO** (aba em Meus Embarques). Carregue "PO dividido em 3
-   embarques" no painel: um pedido com três parciais, cada uma num estágio, e a
-   régua com a chegada prevista de cada carga. *Ponto:* só as datas que já
-   existem entram na régua; carga sem previsão aparece na lista e fora dela.
+2. **Visão por PO** (aba em Meus Embarques) — funciona em produção.
+   - A faixa de resumo responde de cara: POs ativos, chegam em 7 dias, em risco
+     e sem previsão. Cada chip **filtra** a tela; clicar de novo desfaz.
+   - **Linha do tempo** (padrão): o eixo é o MESMO para todos os POs, com
+     "Hoje" marcado; uma barra por embarque, com prontidão → embarque →
+     chegada prevista só onde a data existe, e um trilho pontilhado de hoje até
+     a chegada. Passe o mouse ou o Tab numa barra: as datas aparecem.
+   - **"Informe a data de prontidão"**: onde não há previsão, a barra tracejada
+     convida a agir (leva ao detalhe do embarque). *Ponto:* é dessa data que sai
+     o ETA.
+   - O eixo tem marcas de semana e mês em cima e embaixo, linhas de grade leves
+     e a linha "Hoje · 01 out" atravessando todas as linhas; cada ponto tem a
+     data ao lado ("05 set"). Previsão vencida vira um trilho âmbar até o
+     "Hoje" com "vencida há N d"; data antes da janela vira "◀ N dias atrás".
+   - Grupos por quando chega (**Atrasados** no topo, esta semana, este mês,
+     depois, sem previsão) — PO atrasado nunca aparece em "Chega esta semana";
+     abra um PO para ver os embarques, a etapa em mini-passos e os SKUs.
+   - **Lista**: a mesma informação sem eixo. No celular, cada PO vira um cartão
+     com mini barra de progresso.
+   - **"Seus pedidos | Exemplo"**: o Exemplo é um conjunto fictício com datas
+     calculadas a partir de HOJE (chegadas em 3, 12 e 40 dias, um PO dividido
+     em 2 embarques, um em risco, um atrasado, um sem previsão, um já
+     entregue). Ele nunca
+     envelhece e nunca se mistura aos pedidos do cliente. No Preview a aba abre
+     nele; em produção abre nos pedidos do cliente, com o Exemplo a um clique.
+     *Diga:* "isto é um exemplo; os seus pedidos estão no botão ao lado".
+   - Datas de rastreamento de demonstração (`is_mock`) nos pedidos do cliente
+     aparecem com o selo "Pré-visualização" e a frase que diz isso.
+   - Com **SaaS puro**, a tela é a mesma, sem citar a Freitas.
 
 ---
+
+## 5a. Roteiro F — Boas-vindas "uau" (~2 minutos) — produção e Preview
+
+Para mostrar o primeiro acesso: painel → **Boas-vindas** → **Reiniciar
+onboarding** (reinicia também o checklist "Primeiros passos"). Feche o painel e
+recarregue o Início.
+
+1. **Bem-vindo, {empresa}**: a saudação com o nome da empresa. "Pular" fica no
+   canto em todas as telas, e Esc também pula.
+2. **O que mais importa?** Custo, prazo ou visibilidade, em cartões.
+3. **Rotas principais**: escolha origem e destino no mapa ou nos botões; o arco
+   se desenha e aparece um cartão da rota com prazo típico e tendência —
+   **sempre com a etiqueta "exemplo"**. *Diga:* no produto, isso vem dos dados
+   reais de frete (data lake); aqui é um exemplo fictício.
+   - Atalho: **"Cotar esta rota agora"** abre a Nova cotação com origem,
+     destino e modal já preenchidos (também no SaaS puro — foi o cliente quem
+     escolheu). Ao enviar, o passo "Abrir a sua primeira cotação" se marca
+     sozinho e a Home comemora quando você voltar a ela.
+4. **Seu papel**: Comex, Compras, Financeiro ou Gestor. Ele ordena a Home. O
+   interruptor **"Fazer um tour rápido depois"** vem ligado.
+5. **Montar minha Home**: "Sua Home está pronta" com **"Sua rota principal é
+   X → Y"** (prazo típico com "exemplo"), **Primeiros passos** no topo (anel,
+   botão do próximo passo; vira barra fina com 2 de 3), os cards entrando em
+   sequência com os números contando, e no **Mapa dos embarques** as rotas
+   escolhidas se desenhando em laranja.
+6. **Mini tour** de 3 paradas: os grupos Operação/Performance do menu, a Central
+   de trabalho e o botão Ajuda. "Pular" em todas. No celular o card fica
+   centralizado (o menu está fechado).
+
+Fechar o navegador no meio retoma na mesma tela. Quem prefere menos movimento
+(`prefers-reduced-motion`) vê tudo sem animação.
 
 ## 5b. Roteiro D — Cliente SaaS puro (~6 minutos) — produção e Preview
 
