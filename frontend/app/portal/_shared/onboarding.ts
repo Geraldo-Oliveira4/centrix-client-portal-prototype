@@ -226,11 +226,19 @@ export interface TourStep {
   module?: 'cotacao' | 'embarques' | 'inteligencia';
 }
 
+/**
+ * O MINI TOUR (Prompt 5): no máximo três paradas, opcional, oferecido no fim
+ * das boas-vindas — não antes delas, como era. Mostra onde ficam as coisas que
+ * o cliente não acha sozinho: os dois grupos do menu, a Central de trabalho e
+ * o botão de Ajuda. Sem alvo visível (menu fechado no celular), o card fica
+ * centralizado e o texto continua valendo.
+ */
 export const TOUR_STEPS: TourStep[] = [
   {
-    id: 'boas-vindas',
-    title: 'Bem-vindo ao Centrix',
-    body: 'Em um minuto, mostramos onde fica cada coisa. Você pode pular e rever o tour quando quiser, em Configurações.',
+    id: 'menu',
+    title: 'Operação e Performance',
+    body: 'O menu tem dois grupos: Operação, para o dia a dia (cotações e embarques), e Performance, para a leitura da semana (indicadores, preços e auditoria).',
+    target: '[data-tour="menu"]',
   },
   {
     id: 'central',
@@ -239,33 +247,15 @@ export const TOUR_STEPS: TourStep[] = [
     target: 'a[href="/portal/visao-geral"]',
   },
   {
-    id: 'cotacoes',
-    title: 'Minhas Cotações e Nova cotação',
-    body: 'Acompanhe cada cotação até a escolha da proposta. Para pedir uma nova, use "Solicitar nova cotação" no topo da tela.',
-    target: 'a[href="/portal/cotacoes"]',
-    module: 'cotacao',
-  },
-  {
-    id: 'embarques',
-    title: 'Meus Embarques',
-    body: 'Onde está cada carga, a previsão de chegada e o que depende de você, como documentos e aprovação de booking.',
-    target: 'a[href="/portal/embarques"]',
-    module: 'embarques',
-  },
-  {
-    id: 'performance',
-    title: 'Performance',
-    body: 'Para a leitura da semana: pontualidade, preços das suas rotas e auditoria de frete, com o que mudou em cada número.',
-    target: 'a[href="/portal/inteligencia"]',
-    module: 'inteligencia',
-  },
-  {
     id: 'suporte',
-    title: 'Ajuda e suporte',
+    title: 'Ajuda',
     body: 'Dúvida ou problema? Fale com o suporte ou reporte o que aconteceu, direto desta tela.',
     target: '[data-tour="suporte"]',
   },
 ];
+
+/** Teto do mini tour: mais que isso deixa de ser "mini". */
+export const MAX_TOUR_STEPS = 3;
 
 export function visibleTourSteps(
   flags: Partial<Record<string, boolean>>,
@@ -427,6 +417,35 @@ export function arcPath(
 }
 
 /**
+ * O mesmo arco, em [lat, lng] para o Leaflet (mapa da Home): bezier
+ * quadrática com o meio erguido para o norte, amostrada em `n` pontos.
+ */
+export function routeArcLatLngs(
+  originCode: string,
+  destinationCode: string,
+  n = 32,
+): [number, number][] | null {
+  const a = PLACE_COORDS[originCode];
+  const b = PLACE_COORDS[destinationCode];
+  if (!a || !b) return null;
+  const [lon1, lat1] = a;
+  const [lon2, lat2] = b;
+  const lift = Math.min(28, Math.hypot(lon2 - lon1, lat2 - lat1) / 4);
+  const cLon = (lon1 + lon2) / 2;
+  const cLat = (lat1 + lat2) / 2 + lift;
+  const points: [number, number][] = [];
+  for (let i = 0; i <= n; i += 1) {
+    const t = i / n;
+    const u = 1 - t;
+    points.push([
+      u * u * lat1 + 2 * u * t * cLat + t * t * lat2,
+      u * u * lon1 + 2 * u * t * cLon + t * t * lon2,
+    ]);
+  }
+  return points;
+}
+
+/**
  * EXEMPLO de leitura de rota, do seed fictício. Sempre exibido com a etiqueta
  * "exemplo": no produto real isto viria do data lake (HANDOFF-BACKEND.md).
  * Nenhum número aqui é medição.
@@ -492,6 +511,49 @@ export function routeExample(route: {
   return ROUTE_EXAMPLES[`${route.origin}>${route.destination}`] ?? null;
 }
 
+// --------------------------------------------- "Cotar esta rota agora" --
+
+/**
+ * O valor do formulário da Nova cotação para cada ponto do mapa. Mapa
+ * explícito, como o `QUOTATION_PORT_OPTION` do Radar: o formulário fala
+ * UN/LOCODE em inglês e a busca por prefixo erraria calada. O teste confere
+ * cada valor contra as listas reais do formulário.
+ */
+export const WELCOME_FORM_OPTION: Record<string, string> = {
+  CNSHA: 'Shanghai, China (CNSHA)',
+  CNNGB: 'Ningbo, China (CNNGB)',
+  DEHAM: 'Hamburg, Germany (DEHAM)',
+  FRA: '(FRA) Frankfurt am Main, DE',
+  BRSSZ: 'Santos, Brazil (BRSSZ)',
+  BRITJ: 'Itajai, Brazil (BRITJ)',
+  GRU: '(GRU) São Paulo, BR',
+};
+
+/** Marca a cotação que nasceu das boas-vindas (`fonte=boas_vindas`). */
+export const WELCOME_SOURCE_PARAM = 'fonte';
+export const WELCOME_SOURCE = 'boas_vindas';
+
+/**
+ * Link da Nova cotação com origem, destino e modal da rota escolhida. São
+ * valores que o PRÓPRIO cliente informou, por isso valem também para o SaaS
+ * puro (a regra "nada vem preenchido" é sobre o que o sistema deduz).
+ */
+export function welcomeQuotationHref(route: PreferredRoute): string {
+  const params = new URLSearchParams();
+  params.set('modal', route.modal);
+  const from = WELCOME_FORM_OPTION[route.origin];
+  const to = WELCOME_FORM_OPTION[route.destination];
+  const air = route.modal === 'AEREO';
+  if (from) params.set(air ? 'aeroporto_embarque' : 'porto_embarque', from);
+  if (to) params.set(air ? 'aeroporto_destino' : 'porto_destino', to);
+  params.set(
+    'rota',
+    `${placeName(route.origin)} → ${placeName(route.destination)}`,
+  );
+  params.set(WELCOME_SOURCE_PARAM, WELCOME_SOURCE);
+  return `/portal/nova-cotacao?${params.toString()}`;
+}
+
 /** Até 3 rotas nas boas-vindas: é uma amostra, não um cadastro. */
 export const MAX_WELCOME_ROUTES = 3;
 
@@ -518,11 +580,17 @@ export type FirstStepId = (typeof FIRST_STEPS)[number]['id'];
 export interface FirstStepsState {
   done: FirstStepId[];
   dismissed: boolean;
+  /**
+   * O passo concluído por último e ainda não comemorado: a Home anima o anel
+   * uma vez e limpa. Existe porque a cotação conclui o passo em OUTRA tela.
+   */
+  justDone: FirstStepId | null;
 }
 
 export const EMPTY_FIRST_STEPS: FirstStepsState = {
   done: [],
   dismissed: false,
+  justDone: null,
 };
 
 export function parseFirstSteps(raw: string | null): FirstStepsState {
@@ -539,10 +607,26 @@ export function parseFirstSteps(raw: string | null): FirstStepsState {
           ),
         )
       : [];
-    return { done, dismissed: d.dismissed === true };
+    const justDone =
+      typeof d.justDone === 'string' && done.includes(d.justDone as FirstStepId)
+        ? (d.justDone as FirstStepId)
+        : null;
+    return { done, dismissed: d.dismissed === true, justDone };
   } catch {
     return EMPTY_FIRST_STEPS;
   }
+}
+
+/** O próximo passo a fazer, na ordem da lista, ou `null` se acabou. */
+export function nextFirstStep(
+  state: FirstStepsState,
+): (typeof FIRST_STEPS)[number] | null {
+  return FIRST_STEPS.find((s) => !state.done.includes(s.id)) ?? null;
+}
+
+/** Com 2 de 3 feitos o cartão vira uma barra fina: o resto já é rotina. */
+export function firstStepsCompact(state: FirstStepsState): boolean {
+  return state.done.length >= FIRST_STEPS.length - 1;
 }
 
 export function firstStepsProgress(state: FirstStepsState): {

@@ -15,6 +15,8 @@ import assert from 'node:assert/strict';
 
 import {
   axisPercent,
+  isBeforeAxis,
+  shortDayLabel,
   etaPositions,
   groupShipmentsByPo,
   matchesPoFilter,
@@ -243,6 +245,24 @@ const tracked = (eta: string, first: string, extra: Record<string, unknown> = {}
   ...extra,
 });
 
+test('previsão vencida vai para "Atrasados", nunca para "Chega esta semana"', () => {
+  const [g] = groupShipmentsByPo([ship('x', 'EMB-X', 'PO-X', '2026-09-05')], RESOLVERS);
+  const st = poGroupStatus(g, NOW);
+  assert.equal(st.bucket, 'atrasado');
+  assert.equal(matchesPoFilter(st, 'sete_dias'), false);
+  assert.equal(st.atRisk, true);
+});
+
+test('eixo: janela limitada, grade semanal em segundas e marcador para data antiga', () => {
+  const groups = groupShipmentsByPo([ship('a', 'EMB-A', 'PO-A', '2026-03-01'), ship('b', 'EMB-B', 'PO-B', '2026-10-20')], RESOLVERS);
+  const axis = poTimelineAxis(groups, NOW);
+  assert.ok(axis.todayDay - axis.startDay <= 60);
+  assert.ok(axis.weeks.length > 4);
+  for (const w of axis.weeks) assert.equal(new Date(w * 86400000).getUTCDay(), 1);
+  assert.ok((isBeforeAxis(axis, '2026-03-01') ?? 0) > 200);
+  assert.equal(isBeforeAxis(axis, '2026-10-20'), null);
+});
+
 test('faixa: até 7 dias, até 30, depois, sem previsão e já chegou', () => {
   const groups = groupShipmentsByPo(
     [
@@ -334,4 +354,9 @@ test('progresso pela etapa real; exceção não tem lugar na régua', () => {
   const byRef = Object.fromEntries(g.shipments.map((s) => [s.reference, shipmentProgress(s)]));
   assert.ok((byRef['EMB-A'] as number) > 0 && (byRef['EMB-A'] as number) < 0.5);
   assert.equal(byRef['EMB-B'], null);
+});
+
+test('data curta ao lado do ponto: "05 set", sem deslocar por fuso', () => {
+  assert.equal(shortDayLabel('2026-09-05'), '05 set');
+  assert.equal(shortDayLabel('2026-09-05T23:30:00Z'), '05 set');
 });

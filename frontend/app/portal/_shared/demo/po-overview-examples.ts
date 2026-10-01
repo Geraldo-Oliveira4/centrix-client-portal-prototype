@@ -18,6 +18,7 @@
 //   - um PO dividido em 2 embarques;
 //   - um PO em risco (a companhia empurrou a chegada em 7 dias, > 3 = atraso);
 //   - um PO sem previsão (vira "Informe a data de prontidão");
+//   - um PO atrasado (previsão vencida, grupo "Atrasados");
 //   - um PO que já chegou.
 
 import type {
@@ -143,6 +144,20 @@ export function buildPoOverviewExample(now: Date): PoOverviewExample {
     ),
     // Sem previsão: falta a data de prontidão.
     shipment('exemplo-d1', po(4), 'aguardando_prontidao', 'AEREO', d(-3), null),
+    // Atrasado: a previsão era há 5 dias e a chegada não foi confirmada.
+    shipment(
+      'exemplo-f1',
+      po(6),
+      'embarcado',
+      'MARITIMO',
+      d(-45),
+      tracking({
+        first_eta: d(-5),
+        current_eta: d(-5),
+        last_milestone: 'OCEAN_TRANSIT',
+        last_milestone_at: d(-33),
+      }),
+    ),
     // Já chegou e foi liberado.
     shipment(
       'exemplo-e1',
@@ -168,6 +183,7 @@ export function buildPoOverviewExample(now: Date): PoOverviewExample {
       'exemplo-b1': d(6),
       'exemplo-c1': d(-32),
       'exemplo-e1': d(-50),
+      'exemplo-f1': d(-36),
     },
     items: {
       'exemplo-a1': [

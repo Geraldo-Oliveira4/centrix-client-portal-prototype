@@ -27,6 +27,7 @@ import { UrgentActionCard } from './urgent-action-card';
 import { rankByUrgency } from '../../_shared/urgency';
 import { relocateBucketsV2 } from '../../_shared/demo/quotation-review';
 import { useQuotationReviewStore } from '../../_shared/demo/use-quotation-review';
+import { useOnboarding } from '../../_shared/use-onboarding';
 
 /**
  * O REGISTRO: card -> componente.
@@ -59,8 +60,10 @@ export interface HomeCardProps {
 // Leaflet toca `window` no import: o mapa nao pode ser renderizado no servidor.
 // Este e o unico lugar da Home que sabe disso — mesmo arranjo de
 // `embarques/components/shipment-map-view.tsx`.
-const ShipmentMap = dynamic(
-  () => import('../../embarques/components/shipment-map').then((m) => m.ShipmentMap),
+// Desde o Prompt 5 o mapa da Home é `HomeRouteMap`: o MESMO `ShipmentMap`,
+// inteiro, com as rotas das boas-vindas numa camada por cima.
+const HomeRouteMap = dynamic(
+  () => import('./home-route-map').then((m) => m.HomeRouteMap),
   { ssr: false, loading: () => <Skeleton className="h-full w-full rounded-lg" /> },
 );
 
@@ -112,6 +115,7 @@ function AcaoUrgenteCard({ shipments, quotations, now }: HomeCardProps) {
 }
 
 function MapaEmbarquesCard({ shipments, quotations }: HomeCardProps) {
+  const onboarding = useOnboarding();
   // O join com a cotacao e o que da a origem REAL de um embarque; sem ele o
   // mapa cai no hub ilustrativo. Memoizado porque este objeto e dependencia do
   // efeito que anexa os marcadores ao Leaflet — recriado a cada render, ele
@@ -134,12 +138,23 @@ function MapaEmbarquesCard({ shipments, quotations }: HomeCardProps) {
         title="Mapa dos embarques"
         hint="cada marcador é o porto de origem, não a posição do navio"
       />
+      {onboarding.routes.length > 0 && (
+        <p className="portal-small flex items-center gap-2 text-portal-neutral">
+          <span
+            aria-hidden="true"
+            className="h-1 w-6 rounded-full bg-brand-orange"
+          />
+          Em laranja, as rotas que você escolheu nas boas-vindas.
+        </p>
+      )}
       {/* As cores dos marcadores sao as do semaforo (`ESTADO_SEMAFORO`), as
           mesmas do farol — o mapa nao tem paleta propria. */}
       <div className="h-[26rem] xl:h-[32rem]">
-        <ShipmentMap
+        <HomeRouteMap
           shipments={shipments}
           originByShipmentId={originByShipmentId}
+          routes={onboarding.routes}
+          animate={onboarding.revealPending}
         />
       </div>
     </section>

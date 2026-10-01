@@ -35,7 +35,15 @@ export function markFirstStep(id: FirstStepId): void {
   setDemoValue(FIRST_STEPS_STORE_NAME, {
     ...current,
     done: [...current.done, id],
+    justDone: id,
   });
+}
+
+/** A Home já comemorou o último passo: não repete na próxima visita. */
+export function acknowledgeFirstStep(): void {
+  const current = readFirstSteps();
+  if (current.justDone == null) return;
+  setDemoValue(FIRST_STEPS_STORE_NAME, { ...current, justDone: null });
 }
 
 export function dismissFirstSteps(): void {

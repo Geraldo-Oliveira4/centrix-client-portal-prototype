@@ -196,13 +196,19 @@ B. "PO dividido em 3 embarques" (cenário do painel) é só Preview.
    - **"Informe a data de prontidão"**: onde não há previsão, a barra tracejada
      convida a agir (leva ao detalhe do embarque). *Ponto:* é dessa data que sai
      o ETA.
-   - Grupos por quando chega (esta semana, este mês, depois, sem previsão);
+   - O eixo tem marcas de semana e mês em cima e embaixo, linhas de grade leves
+     e a linha "Hoje · 01 out" atravessando todas as linhas; cada ponto tem a
+     data ao lado ("05 set"). Previsão vencida vira um trilho âmbar até o
+     "Hoje" com "vencida há N d"; data antes da janela vira "◀ N dias atrás".
+   - Grupos por quando chega (**Atrasados** no topo, esta semana, este mês,
+     depois, sem previsão) — PO atrasado nunca aparece em "Chega esta semana";
      abra um PO para ver os embarques, a etapa em mini-passos e os SKUs.
    - **Lista**: a mesma informação sem eixo. No celular, cada PO vira um cartão
      com mini barra de progresso.
    - **"Seus pedidos | Exemplo"**: o Exemplo é um conjunto fictício com datas
      calculadas a partir de HOJE (chegadas em 3, 12 e 40 dias, um PO dividido
-     em 2 embarques, um em risco, um sem previsão, um já entregue). Ele nunca
+     em 2 embarques, um em risco, um atrasado, um sem previsão, um já
+     entregue). Ele nunca
      envelhece e nunca se mistura aos pedidos do cliente. No Preview a aba abre
      nele; em produção abre nos pedidos do cliente, com o Exemplo a um clique.
      *Diga:* "isto é um exemplo; os seus pedidos estão no botão ao lado".
@@ -218,19 +224,27 @@ Para mostrar o primeiro acesso: painel → **Boas-vindas** → **Reiniciar
 onboarding** (reinicia também o checklist "Primeiros passos"). Feche o painel e
 recarregue o Início.
 
-1. **Tour** de 6 passos (ou "Pular tour").
-2. **Bem-vindo, {empresa}**: a saudação com o nome da empresa. "Pular" fica no
+1. **Bem-vindo, {empresa}**: a saudação com o nome da empresa. "Pular" fica no
    canto em todas as telas, e Esc também pula.
-3. **O que mais importa?** Custo, prazo ou visibilidade, em cartões.
-4. **Rotas principais**: escolha origem e destino no mapa ou nos botões; o arco
+2. **O que mais importa?** Custo, prazo ou visibilidade, em cartões.
+3. **Rotas principais**: escolha origem e destino no mapa ou nos botões; o arco
    se desenha e aparece um cartão da rota com prazo típico e tendência —
    **sempre com a etiqueta "exemplo"**. *Diga:* no produto, isso vem dos dados
    reais de frete (data lake); aqui é um exemplo fictício.
-5. **Seu papel**: Comex, Compras, Financeiro ou Gestor. Ele ordena a Home.
-6. **Montar minha Home**: os cards entram em sequência, com "Sua Home está
-   pronta", as rotas escolhidas e o porquê da ordem. Logo abaixo, **Primeiros
-   passos** (abrir a 1ª cotação, configurar alertas, convidar um colega — tudo
-   simulado), com anel de progresso e uma comemoração discreta no fim.
+   - Atalho: **"Cotar esta rota agora"** abre a Nova cotação com origem,
+     destino e modal já preenchidos (também no SaaS puro — foi o cliente quem
+     escolheu). Ao enviar, o passo "Abrir a sua primeira cotação" se marca
+     sozinho e a Home comemora quando você voltar a ela.
+4. **Seu papel**: Comex, Compras, Financeiro ou Gestor. Ele ordena a Home. O
+   interruptor **"Fazer um tour rápido depois"** vem ligado.
+5. **Montar minha Home**: "Sua Home está pronta" com **"Sua rota principal é
+   X → Y"** (prazo típico com "exemplo"), **Primeiros passos** no topo (anel,
+   botão do próximo passo; vira barra fina com 2 de 3), os cards entrando em
+   sequência com os números contando, e no **Mapa dos embarques** as rotas
+   escolhidas se desenhando em laranja.
+6. **Mini tour** de 3 paradas: os grupos Operação/Performance do menu, a Central
+   de trabalho e o botão Ajuda. "Pular" em todas. No celular o card fica
+   centralizado (o menu está fechado).
 
 Fechar o navegador no meio retoma na mesma tela. Quem prefere menos movimento
 (`prefers-reduced-motion`) vê tudo sem animação.

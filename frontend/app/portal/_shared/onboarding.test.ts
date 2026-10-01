@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import {
+  AIRPORTS_DEPARTURE_OPTIONS,
+  AIRPORTS_DESTINATION_OPTIONS,
+} from '../../../constants/airports.ts';
+import {
+  PORTS_DEPARTURE_OPTIONS,
+  PORTS_DESTINATION_OPTIONS,
+} from '../../../constants/ports.ts';
 import { PORTAL_HOME_CARD_THEME } from '../home/lib/home-layout.ts';
 import {
   EMPTY_ONBOARDING,
@@ -8,10 +16,15 @@ import {
   PERSONA_OPTIONS,
   ROUTE_DESTINATIONS as DESTS,
   ROUTE_ORIGINS as ORIGS,
+  MAX_TOUR_STEPS,
   TOUR_STEPS,
+  WELCOME_FORM_OPTION,
+  welcomeQuotationHref,
   arcPath,
   contactIssue,
+  firstStepsCompact,
   firstStepsProgress,
+  nextFirstStep,
   orderCardsForProfile,
   parseFirstSteps,
   parseOnboarding,
@@ -23,17 +36,22 @@ import {
   visibleTourSteps,
 } from './onboarding.ts';
 
-test('o tour tem de 5 a 6 passos e termina no suporte', () => {
-  assert.ok(TOUR_STEPS.length >= 5 && TOUR_STEPS.length <= 6);
-  assert.equal(TOUR_STEPS.at(-1)?.id, 'suporte');
+test('mini tour: no máximo 3 paradas — menu, Central e Ajuda', () => {
+  assert.ok(TOUR_STEPS.length <= MAX_TOUR_STEPS);
+  assert.deepEqual(
+    TOUR_STEPS.map((s) => s.id),
+    ['menu', 'central', 'suporte'],
+  );
+  assert.ok(TOUR_STEPS.every((s) => s.target));
 });
 
-test('módulo desligado tira o passo do tour', () => {
-  const steps = visibleTourSteps({ embarques: false, inteligencia: false });
-  assert.deepEqual(
-    steps.map((s) => s.id),
-    ['boas-vindas', 'central', 'cotacoes', 'suporte'],
-  );
+test('nenhuma parada do mini tour depende de módulo que possa sumir', () => {
+  const steps = visibleTourSteps({
+    embarques: false,
+    inteligencia: false,
+    cotacao: false,
+  });
+  assert.equal(steps.length, TOUR_STEPS.length);
 });
 
 test('rota exige origem e destino do mesmo modal, sem repetição', () => {
@@ -198,8 +216,105 @@ test('primeiros passos: três itens, progresso e ids desconhecidos descartados',
     firstStepsProgress({
       done: ['cotacao', 'alertas', 'colega'],
       dismissed: false,
+      justDone: null,
     }).complete,
     true,
   );
-  assert.deepEqual(parseFirstSteps('lixo'), { done: [], dismissed: false });
+  assert.deepEqual(parseFirstSteps('lixo'), {
+    done: [],
+    dismissed: false,
+    justDone: null,
+  });
+});
+
+test('cotar esta rota: todo ponto do mapa existe nas listas do formulário', () => {
+  const has = (list: { value: string }[], v: string) =>
+    list.some((o) => o.value === v);
+  for (const p of ORIGS) {
+    const v = WELCOME_FORM_OPTION[p.code];
+    assert.ok(v, p.code);
+    assert.ok(
+      has(
+        p.modal === 'AEREO'
+          ? AIRPORTS_DEPARTURE_OPTIONS
+          : PORTS_DEPARTURE_OPTIONS,
+        v,
+      ),
+      v,
+    );
+  }
+  for (const p of DESTS) {
+    const v = WELCOME_FORM_OPTION[p.code];
+    assert.ok(v, p.code);
+    assert.ok(
+      has(
+        p.modal === 'AEREO'
+          ? AIRPORTS_DESTINATION_OPTIONS
+          : PORTS_DESTINATION_OPTIONS,
+        v,
+      ),
+      v,
+    );
+  }
+});
+
+test('cotar esta rota: o link leva modal, origem, destino e a fonte', () => {
+  const sea = new URL(
+    welcomeQuotationHref({
+      origin: 'CNSHA',
+      destination: 'BRSSZ',
+      modal: 'MARITIMO',
+    }),
+    'http://x',
+  );
+  assert.equal(sea.pathname, '/portal/nova-cotacao');
+  assert.equal(sea.searchParams.get('modal'), 'MARITIMO');
+  assert.equal(
+    sea.searchParams.get('porto_embarque'),
+    'Shanghai, China (CNSHA)',
+  );
+  assert.equal(sea.searchParams.get('porto_destino'), 'Santos, Brazil (BRSSZ)');
+  assert.equal(sea.searchParams.get('fonte'), 'boas_vindas');
+  const air = new URL(
+    welcomeQuotationHref({ origin: 'FRA', destination: 'GRU', modal: 'AEREO' }),
+    'http://x',
+  );
+  assert.equal(
+    air.searchParams.get('aeroporto_embarque'),
+    '(FRA) Frankfurt am Main, DE',
+  );
+  assert.equal(
+    air.searchParams.get('aeroporto_destino'),
+    '(GRU) São Paulo, BR',
+  );
+  assert.equal(air.searchParams.get('porto_embarque'), null);
+});
+
+test('primeiros passos: próximo passo, barra fina com 2 de 3 e comemoração pendente', () => {
+  const none = parseFirstSteps(null);
+  assert.equal(nextFirstStep(none)?.id, 'cotacao');
+  assert.equal(firstStepsCompact(none), false);
+  const one = parseFirstSteps(
+    JSON.stringify({ done: ['cotacao'], justDone: 'cotacao' }),
+  );
+  assert.equal(one.justDone, 'cotacao');
+  assert.equal(nextFirstStep(one)?.id, 'alertas');
+  const two = parseFirstSteps(
+    JSON.stringify({ done: ['cotacao', 'colega'], justDone: 'alertas' }),
+  );
+  assert.equal(
+    two.justDone,
+    null,
+    'justDone precisa estar entre os concluídos',
+  );
+  assert.equal(firstStepsCompact(two), true);
+  assert.equal(nextFirstStep(two)?.id, 'alertas');
+  assert.equal(
+    nextFirstStep(
+      parseFirstSteps(
+        JSON.stringify({ done: ['cotacao', 'alertas', 'colega'] }),
+      ),
+    ),
+    null,
+  );
 });

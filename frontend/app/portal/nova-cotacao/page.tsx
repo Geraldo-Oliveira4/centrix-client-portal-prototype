@@ -13,6 +13,7 @@ import {
   History,
   Loader2,
   Radar,
+  Sparkles,
 } from 'lucide-react';
 import { LoaderComponent } from '@arboria-tech/arboria-ui';
 import {
@@ -51,6 +52,11 @@ import {
 } from '@/app/portal/_shared/demo/quotation-form-snapshot';
 import { updateQuotationReview } from '@/app/portal/_shared/demo/use-quotation-review';
 import { usePortalModuleReleased } from '@/app/portal/_shared/demo/use-feature-flags';
+import {
+  WELCOME_SOURCE,
+  WELCOME_SOURCE_PARAM,
+} from '@/app/portal/_shared/onboarding';
+import { markFirstStep } from '@/app/portal/_shared/use-first-steps';
 import {
   ORIGIN_PARAM,
   radarOriginFields,
@@ -97,13 +103,19 @@ function usePrefillFromParams(): {
   values: Partial<ManualFormValues>;
   routeLabel: string | null;
   origin: PortalQuotationOriginFields | null;
+  fromWelcome: boolean;
 } {
   const params = useSearchParams();
   const modal = params.get('modal');
   const portoEmbarque = params.get('porto_embarque');
   const portoDestino = params.get('porto_destino');
+  const aeroportoEmbarque = params.get('aeroporto_embarque');
+  const aeroportoDestino = params.get('aeroporto_destino');
   const routeLabel = params.get('rota');
   const origem = params.get(ORIGIN_PARAM);
+  // "Cotar esta rota agora" das boas-vindas (Prompt 5): a rota foi INFORMADA
+  // pelo cliente, então vale também para o SaaS puro.
+  const fromWelcome = params.get(WELCOME_SOURCE_PARAM) === WELCOME_SOURCE;
 
   return useMemo(() => {
     const values: Partial<ManualFormValues> = {};
@@ -114,17 +126,35 @@ function usePrefillFromParams(): {
     // `porto_destino` é lista no formulário: a cotação pode nomear vários portos
     // candidatos. O radar conhece um, então a lista sai com um item.
     if (portoDestino) values.porto_destino = [portoDestino];
+    // Aéreo só chega pelas boas-vindas; o Radar cota porto a porto.
+    if (aeroportoEmbarque) values.aeroporto_embarque = aeroportoEmbarque;
+    if (aeroportoDestino) values.aeroporto_destino = [aeroportoDestino];
     return {
       values,
       routeLabel: Object.keys(values).length > 0 ? routeLabel : null,
-      origin: radarOriginFields(origem, routeLabel),
+      origin: fromWelcome ? null : radarOriginFields(origem, routeLabel),
+      fromWelcome,
     };
-  }, [modal, portoEmbarque, portoDestino, routeLabel, origem]);
+  }, [
+    modal,
+    portoEmbarque,
+    portoDestino,
+    aeroportoEmbarque,
+    aeroportoDestino,
+    routeLabel,
+    origem,
+    fromWelcome,
+  ]);
 }
 
 function PortalNovaCotacaoContent() {
   const router = useRouter();
-  const { values: prefill, routeLabel, origin } = usePrefillFromParams();
+  const {
+    values: prefill,
+    routeLabel,
+    origin,
+    fromWelcome,
+  } = usePrefillFromParams();
   // COTACAO V2 (RQ-1). Com a flag ligada o cliente nao escolhe agentes: o envio
   // vai para a fila de revisao da Freitas, e a tela de sucesso com o
   // `RfqDispatchCard` deixa de existir. Com a flag desligada nada abaixo muda.
@@ -133,6 +163,9 @@ function PortalNovaCotacaoContent() {
   // leitura de documentos. A regra mora em `client-kind.ts`.
   const clientKind = useClientKind();
   const autoFill = allowsAutoFill(clientKind);
+  // O que o próprio cliente escolheu nas boas-vindas entra mesmo no SaaS puro;
+  // o que o sistema deduz (Radar) só entra com a operação Freitas.
+  const usePrefill = autoFill || fromWelcome;
   const [phase, setPhase] = useState<PagePhase>('idle');
   const [createdQuotation, setCreatedQuotation] = useState<Quotation | null>(null);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
@@ -189,6 +222,7 @@ function PortalNovaCotacaoContent() {
         submitToFreitas(review, new Date().toISOString(), form),
       );
       toast.success(`Solicitação ${quotation.reference} enviada à Freitas`);
+      markFirstStep('cotacao');
       router.push(`/portal/cotacoes?destaque=${quotation.id}`);
     },
     [router],
@@ -217,6 +251,7 @@ function PortalNovaCotacaoContent() {
       );
       return;
     }
+    markFirstStep('cotacao');
     setCreatedQuotation(quotation);
     setPhase('done');
   };
@@ -240,6 +275,7 @@ function PortalNovaCotacaoContent() {
       return;
     }
 
+    markFirstStep('cotacao');
     setCreatedQuotation(quotation);
     setPhase('done');
   };
@@ -308,7 +344,18 @@ function PortalNovaCotacaoContent() {
         />
       )}
 
-      {autoFill && routeLabel && (
+      {fromWelcome && routeLabel && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-indigo-800/30 bg-brand-indigo-100 px-4 py-3">
+          <Sparkles className="h-6 w-6 shrink-0 text-brand-indigo" />
+          <p className="portal-body text-foreground/80">
+            Rota e modal preenchidos com o que você escolheu nas boas-vindas (
+            <span className="font-medium text-foreground">{routeLabel}</span>).
+            Confira e complete o resto da carga.
+          </p>
+        </div>
+      )}
+
+      {autoFill && !fromWelcome && routeLabel && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-indigo-800/30 bg-brand-indigo-100 px-4 py-3">
           <Radar className="h-6 w-6 shrink-0 text-brand-indigo" />
           <p className="portal-body text-foreground/80">
@@ -396,7 +443,7 @@ function PortalNovaCotacaoContent() {
             attachmentFiles={attachmentFiles}
             onAttachmentFilesChange={setAttachmentFiles}
             createFn={createWithOrigin}
-            initialValues={autoFill ? prefill : undefined}
+            initialValues={usePrefill ? prefill : undefined}
             exporterId={exporter?.id ?? null}
             submitLabel={v2 ? 'Enviar para a Freitas' : undefined}
             hardblocks={v2 ? hardblocks : undefined}

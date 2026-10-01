@@ -44,10 +44,10 @@ test('um de cada: PO dividido, em risco, sem previsão, já chegou, e as três f
     'PO dividido em 2',
   );
   const buckets = statuses.map((s) => s.bucket);
-  for (const b of ['semana', 'mes', 'depois', 'sem_previsao', 'chegou'])
+  for (const b of ['atrasado', 'semana', 'mes', 'depois', 'sem_previsao', 'chegou'])
     assert.ok(buckets.includes(b as never), `falta faixa ${b}`);
   const summary = summarizePoGroups(statuses);
-  assert.equal(summary.risco, 1);
+  assert.equal(summary.risco, 2);
   assert.equal(summary.sem_previsao, 1);
   assert.ok(summary.sete_dias >= 1);
 });

@@ -51,6 +51,9 @@ import {
   PO_POINT_LABELS,
   PO_STEP_ESTADOS,
   axisPercent,
+  daysAgo,
+  isBeforeAxis,
+  shortDayLabel,
   groupShipmentsByPo,
   matchesPoFilter,
   poGroupStatus,
@@ -209,6 +212,9 @@ function datesSummary(shipment: PoOverviewShipment): string {
     .join(' · ');
 }
 
+/** Largura da coluna do nome; o mesmo valor no corpo, no eixo e na grade. */
+const NAME_COL = 'grid-cols-[12rem_minmax(0,1fr)]';
+
 function ShipmentBar({
   shipment,
   axis,
@@ -219,55 +225,146 @@ function ShipmentBar({
   saas: boolean;
 }) {
   const points = shipmentBarPoints(shipment);
+  const todayPct = axisPercent(axis, axis.todayDay);
+  // Trilho-base: nenhum ponto fica flutuando, mesmo sozinho.
+  const baseRail = (
+    <span
+      aria-hidden="true"
+      className="absolute inset-x-0 top-[13px] h-px bg-border"
+    />
+  );
 
   if (!points.length) {
-    // "Sem previsão" vira AÇÃO: a barra tracejada parte de hoje e diz o que
+    // "Sem previsão" vira AÇÃO: a pílula tracejada parte de hoje e diz o que
     // destrava a previsão. Não ocupa nenhuma data — é um convite, não um prazo.
-    const left = axisPercent(axis, axis.todayDay);
     return (
-      <Link
-        href={`/portal/embarques/${shipment.id}`}
-        className="group relative block h-7 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label={`${shipment.reference}: sem previsão. Informe a data de prontidão`}
-      >
-        <span
-          className="portal-small absolute top-0.5 flex h-6 items-center gap-1 whitespace-nowrap rounded-full border border-dashed border-portal-warning/70 bg-portal-warning/10 px-2.5 font-medium text-portal-warning-ink group-hover:underline"
-          style={{ left: `min(${left}%, calc(100% - 15rem))` }}
+      <div className="relative h-11">
+        {baseRail}
+        <Link
+          href={`/portal/embarques/${shipment.id}`}
+          className="group absolute top-0.5 flex h-6 items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          style={{ left: `min(${todayPct}%, calc(100% - 15rem))` }}
+          aria-label={`${shipment.reference}: sem previsão. Informe a data de prontidão`}
         >
-          <CalendarClock className="h-4 w-4 shrink-0" aria-hidden="true" />
-          Informe a data de prontidão
-          <span className="sr-only">
-            {saas
-              ? ' — dela sai a previsão de chegada'
-              : ' — a Freitas monitora essa data e dela sai a previsão de chegada'}
+          <span className="portal-small flex h-6 items-center gap-1 whitespace-nowrap rounded-full border border-dashed border-portal-warning/70 bg-portal-warning/10 px-2.5 font-medium text-portal-warning-ink group-hover:underline">
+            <CalendarClock className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Informe a data de prontidão
+            <span className="sr-only">
+              {saas
+                ? ' — dela sai a previsão de chegada'
+                : ' — a Freitas monitora essa data e dela sai a previsão de chegada'}
+            </span>
           </span>
-        </span>
-      </Link>
+        </Link>
+      </div>
     );
   }
 
-  const first = points[0];
-  const last = points[points.length - 1];
-  const start = axisPercent(axis, first.date);
-  const end = axisPercent(axis, last.date);
-  const todayPct = axisPercent(axis, axis.todayDay);
   const atRisk = !!shipment.riskReason;
-  // Trilho de "falta quanto": de hoje até a chegada prevista, pontilhado. Usa
-  // só duas datas que existem (hoje e a chegada) e não cria ponto nenhum.
-  const etaPct =
-    shipment.eta && !shipment.arrived ? axisPercent(axis, shipment.eta) : null;
+  const inside = points.filter((p) => isBeforeAxis(axis, p.date) == null);
+  const beforeDays = points
+    .map((p) => isBeforeAxis(axis, p.date))
+    .filter((n): n is number => n != null);
+  const oldestBefore = beforeDays.length ? Math.max(...beforeDays) : null;
+
+  const positions = inside.map((p) => ({
+    ...p,
+    pct: axisPercent(axis, p.date),
+  }));
+  // Segmentos entre pontos consecutivos; se há data antes da janela, o trilho
+  // sai da borda esquerda (é lá que ela continua).
+  const segStart = oldestBefore != null ? 0 : (positions[0]?.pct ?? 0);
+  const segEnd = positions.length ? positions[positions.length - 1].pct : 0;
+
+  // Previsão vencida: a chegada prevista ficou para trás e não foi confirmada.
+  const overdue =
+    shipment.eta &&
+    !shipment.arrived &&
+    !shipment.etaIsActual &&
+    daysAgo(axis, shipment.eta) > 0
+      ? daysAgo(axis, shipment.eta)
+      : null;
+  const etaPct = shipment.eta ? axisPercent(axis, shipment.eta) : null;
+  const etaBefore = shipment.eta
+    ? isBeforeAxis(axis, shipment.eta) != null
+    : false;
+  // Falta quanto: de hoje até a chegada prevista futura, pontilhado.
   const remaining =
-    etaPct != null && etaPct > todayPct
+    etaPct != null && !shipment.arrived && etaPct > todayPct
       ? {
-          from: Math.max(todayPct, start === etaPct ? todayPct : start),
+          from: Math.max(todayPct, segEnd === etaPct ? todayPct : segEnd),
           to: etaPct,
         }
       : null;
-  const hitFrom = Math.min(start, remaining?.from ?? start);
-  const hitTo = Math.max(end, remaining?.to ?? end);
+
+  // Rótulos de data ao lado dos pontos: a chegada sempre; os outros só quando
+  // não colam no vizinho (o tooltip continua com todas as datas).
+  const labels: { kind: string; pct: number; text: string }[] = [];
+  for (const p of positions) {
+    const text =
+      p.kind === 'chegada' && p.actual
+        ? `chegou ${shortDayLabel(p.date)}`
+        : shortDayLabel(p.date);
+    const last = labels[labels.length - 1];
+    if (last && p.pct - last.pct < 9) {
+      if (p.kind === 'chegada')
+        labels[labels.length - 1] = { kind: p.kind, pct: p.pct, text };
+      continue;
+    }
+    labels.push({ kind: p.kind, pct: p.pct, text });
+  }
+
+  const hitFrom = Math.min(
+    segStart,
+    overdue != null ? Math.min(etaPct ?? todayPct, todayPct) : segStart,
+    remaining?.from ?? segStart,
+  );
+  const hitTo = Math.max(
+    segEnd,
+    remaining?.to ?? segEnd,
+    overdue != null ? todayPct : segEnd,
+  );
 
   return (
-    <div className="relative h-7">
+    <div className="relative h-11">
+      {baseRail}
+      {oldestBefore != null && (
+        <span className="portal-small absolute left-0 top-[18px] whitespace-nowrap text-portal-neutral">
+          ◀ {oldestBefore} dias atrás
+        </span>
+      )}
+      {(positions.length > 1 || oldestBefore != null) && (
+        <span
+          aria-hidden="true"
+          className={cn(
+            'absolute top-3 h-1.5 rounded-full',
+            atRisk ? 'bg-portal-warning/60' : 'bg-brand-indigo/40',
+          )}
+          style={{
+            left: `${segStart}%`,
+            width: `${Math.max(0.6, segEnd - segStart)}%`,
+          }}
+        />
+      )}
+      {overdue != null && (
+        <>
+          <span
+            aria-hidden="true"
+            className="absolute top-3 h-1.5 rounded-full bg-portal-warning/70"
+            style={{
+              left: `${etaBefore ? 0 : (etaPct ?? 0)}%`,
+              width: `${Math.max(0.6, todayPct - (etaBefore ? 0 : (etaPct ?? 0)))}%`,
+            }}
+          />
+          {/* Ancorado à esquerda do "Hoje", para não cruzar a linha. */}
+          <span
+            className="portal-small absolute top-[20px] -translate-x-full whitespace-nowrap rounded bg-portal-warning/10 px-1 font-medium text-portal-warning-ink"
+            style={{ left: `calc(${todayPct}% - 6px)` }}
+          >
+            previsão {shortDayLabel(shipment.eta!)} · vencida há {overdue} d
+          </span>
+        </>
+      )}
       {remaining && (
         <span
           aria-hidden="true"
@@ -278,34 +375,50 @@ function ShipmentBar({
           }}
         />
       )}
-      {points.length > 1 && (
-        <span
-          aria-hidden="true"
-          className={cn(
-            'absolute top-3 h-1.5 rounded-full',
-            atRisk ? 'bg-portal-warning/60' : 'bg-brand-indigo/40',
-          )}
-          style={{ left: `${start}%`, width: `${Math.max(0.6, end - start)}%` }}
-        />
-      )}
-      {points.map((point) => (
+      {positions.map((point) => (
         <span
           key={point.kind}
           aria-hidden="true"
           className={cn(
-            'absolute top-1.5 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-card',
+            'absolute top-[7px] h-3.5 w-3.5 -translate-x-1/2 rounded-full border-2 border-card',
             point.kind === 'prontidao' && 'bg-card ring-2 ring-brand-indigo/60',
             point.kind === 'embarque' && 'bg-brand-indigo/70',
             point.kind === 'chegada' &&
               (point.actual
                 ? 'bg-portal-success'
-                : atRisk
+                : atRisk || overdue != null
                   ? 'bg-portal-warning'
                   : 'bg-brand-indigo'),
           )}
-          style={{ left: `${axisPercent(axis, point.date)}%` }}
+          style={{ left: `${point.pct}%` }}
         />
       ))}
+      {overdue == null &&
+        labels.map((label) => (
+          <span
+            key={label.kind}
+            aria-hidden="true"
+            className="portal-small absolute top-[22px] -translate-x-1/2 whitespace-nowrap text-portal-neutral"
+            style={{ left: `${Math.min(96, Math.max(4, label.pct))}%` }}
+          >
+            {label.text}
+          </span>
+        ))}
+      {overdue != null &&
+        labels
+          .filter(
+            (label) => label.kind !== 'chegada' && label.pct < todayPct - 24,
+          )
+          .map((label) => (
+            <span
+              key={label.kind}
+              aria-hidden="true"
+              className="portal-small absolute top-[22px] -translate-x-1/2 whitespace-nowrap text-portal-neutral"
+              style={{ left: `${Math.min(96, Math.max(4, label.pct))}%` }}
+            >
+              {label.text}
+            </span>
+          ))}
       {/* O alvo de foco e de toque cobre só a extensão da barra, para o
           tooltip abrir junto dos pontos e não no meio da linha. */}
       <Tooltip>
@@ -317,7 +430,7 @@ function ShipmentBar({
               left: `calc(${hitFrom}% - 10px)`,
               width: `calc(${Math.max(0, hitTo - hitFrom)}% + 20px)`,
             }}
-            aria-label={`${shipment.reference}: ${datesSummary(shipment)}${atRisk ? `. Em risco: ${shipment.riskReason}` : ''}`}
+            aria-label={`${shipment.reference}: ${datesSummary(shipment)}${overdue != null ? `. Previsão vencida há ${overdue} dias` : ''}${atRisk ? `. Em risco: ${shipment.riskReason}` : ''}`}
           />
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs">
@@ -330,6 +443,11 @@ function ShipmentBar({
               : {formatShortDate(p.date)}
             </p>
           ))}
+          {overdue != null && (
+            <p className="portal-small font-medium">
+              Previsão vencida há {overdue} dias
+            </p>
+          )}
           {atRisk && (
             <p className="portal-small font-medium">
               Em risco: {shipment.riskReason}
@@ -341,44 +459,86 @@ function ShipmentBar({
   );
 }
 
-function AxisHeader({ axis }: { axis: PoTimelineAxis }) {
+/** Rótulos do eixo: meses (fortes) e marcas de semana (leves), mais "Hoje". */
+function AxisScale({
+  axis,
+  position,
+}: {
+  axis: PoTimelineAxis;
+  position: 'top' | 'bottom';
+}) {
   const todayPct = axisPercent(axis, axis.todayDay);
   return (
-    <div className="relative h-6" aria-hidden="true">
-      {axis.ticks.map((tick) => (
+    <div className="relative h-7" aria-hidden="true">
+      {axis.weeks.map((week) => (
         <span
-          key={tick.day}
-          className="portal-small absolute top-0 -translate-x-1/2 text-portal-neutral"
-          style={{ left: `${axisPercent(axis, tick.day)}%` }}
-        >
-          {tick.label}
-        </span>
+          key={week}
+          className={cn(
+            'absolute h-1.5 w-px bg-border',
+            position === 'top' ? 'bottom-0' : 'top-0',
+          )}
+          style={{ left: `${axisPercent(axis, week)}%` }}
+        />
       ))}
+      {axis.ticks
+        .filter((tick) => Math.abs(axisPercent(axis, tick.day) - todayPct) > 7)
+        .map((tick) => (
+          <span
+            key={tick.day}
+            className={cn(
+              'portal-small absolute -translate-x-1/2 font-medium text-foreground/80',
+              position === 'top' ? 'top-0' : 'bottom-0',
+            )}
+            style={{ left: `${axisPercent(axis, tick.day)}%` }}
+          >
+            {tick.label}
+          </span>
+        ))}
       <span
-        className="portal-small absolute top-0 -translate-x-1/2 rounded bg-brand-indigo px-1.5 font-medium text-white dark:bg-brand-indigo-700"
+        className={cn(
+          'portal-small absolute -translate-x-1/2 rounded bg-brand-indigo px-1.5 font-medium text-white dark:bg-brand-indigo-700',
+          position === 'top' ? 'top-0' : 'bottom-0',
+        )}
         style={{ left: `${todayPct}%` }}
       >
-        Hoje
+        Hoje · {shortDayLabel(axis.todayDay)}
       </span>
     </div>
   );
 }
 
-function AxisGuides({ axis }: { axis: PoTimelineAxis }) {
+/** Grade leve (semanas e meses) e a linha "Hoje", atrás de TODAS as linhas. */
+function AxisGrid({ axis }: { axis: PoTimelineAxis }) {
   return (
-    <span aria-hidden="true" className="pointer-events-none absolute inset-0">
-      {axis.ticks.map((tick) => (
+    <div
+      aria-hidden="true"
+      className={cn(
+        'pointer-events-none absolute inset-0 grid gap-x-4 px-4',
+        NAME_COL,
+      )}
+    >
+      <span />
+      <span className="relative">
+        {axis.weeks.map((week) => (
+          <span
+            key={week}
+            className="absolute inset-y-0 w-px bg-border/40"
+            style={{ left: `${axisPercent(axis, week)}%` }}
+          />
+        ))}
+        {axis.ticks.map((tick) => (
+          <span
+            key={tick.day}
+            className="absolute inset-y-0 w-px bg-border"
+            style={{ left: `${axisPercent(axis, tick.day)}%` }}
+          />
+        ))}
         <span
-          key={tick.day}
-          className="absolute inset-y-0 w-px bg-border/60"
-          style={{ left: `${axisPercent(axis, tick.day)}%` }}
+          className="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-brand-indigo/70"
+          style={{ left: `${axisPercent(axis, axis.todayDay)}%` }}
         />
-      ))}
-      <span
-        className="absolute inset-y-0 w-0.5 bg-brand-indigo/70"
-        style={{ left: `${axisPercent(axis, axis.todayDay)}%` }}
-      />
-    </span>
+      </span>
+    </div>
   );
 }
 
@@ -529,53 +689,83 @@ function TimelineView({
 }) {
   return (
     <TooltipProvider delayDuration={150}>
-      {/* Desktop: eixo compartilhado. */}
+      {/* Desktop: eixo compartilhado, no topo e repetido no fim, com a grade e
+          a linha "Hoje" atravessando todas as linhas. */}
       <div className="portal-card hidden overflow-hidden sm:block">
-        <div className="grid grid-cols-[15rem_minmax(0,1fr)] gap-x-4 border-b border-border px-4 py-2">
-          <span className="portal-small text-portal-neutral">Pedido</span>
-          <AxisHeader axis={axis} />
+        <div
+          className={cn(
+            'grid gap-x-4 border-b border-border px-4 pb-1 pt-2',
+            NAME_COL,
+          )}
+        >
+          <span className="portal-small self-end text-portal-neutral">
+            Pedido
+          </span>
+          <AxisScale axis={axis} position="top" />
         </div>
-        {buckets.map(([bucket, rows]) => (
-          <section key={bucket} aria-label={PO_BUCKET_LABELS[bucket]}>
-            <h3 className="portal-small border-b border-border bg-muted/30 px-4 py-1.5 font-medium text-foreground">
-              {PO_BUCKET_LABELS[bucket]}{' '}
-              <span className="text-portal-neutral">· {rows.length}</span>
-            </h3>
-            {rows.map((row) => {
-              const open = openKeys.has(row.group.key);
-              return (
-                <div
-                  key={row.group.key}
-                  className="border-b border-border/60 px-4 py-3 last:border-b-0"
-                >
-                  <div className="grid grid-cols-[15rem_minmax(0,1fr)] items-start gap-x-4">
-                    <PoRowHeader
-                      row={row}
-                      open={open}
-                      onToggle={() => toggle(row.group.key)}
-                    />
-                    <div className="relative space-y-1 py-1">
-                      <AxisGuides axis={axis} />
-                      {row.group.shipments.map((s) => (
-                        <ShipmentBar
-                          key={s.id}
-                          shipment={s}
-                          axis={axis}
-                          saas={saas}
-                        />
-                      ))}
+        <div className="relative">
+          <AxisGrid axis={axis} />
+          {buckets.map(([bucket, rows]) => (
+            <section
+              key={bucket}
+              aria-label={PO_BUCKET_LABELS[bucket]}
+              className="relative"
+            >
+              <h3
+                className={cn(
+                  'portal-small border-b border-border px-4 py-1.5 font-medium',
+                  bucket === 'atrasado'
+                    ? 'bg-portal-warning/10 text-portal-warning-ink'
+                    : 'bg-muted/30 text-foreground',
+                )}
+              >
+                {PO_BUCKET_LABELS[bucket]}{' '}
+                <span className="text-portal-neutral">· {rows.length}</span>
+              </h3>
+              {rows.map((row) => {
+                const open = openKeys.has(row.group.key);
+                return (
+                  <div
+                    key={row.group.key}
+                    className="border-b border-border/60 px-4 py-2 last:border-b-0"
+                  >
+                    <div className={cn('grid items-start gap-x-4', NAME_COL)}>
+                      <PoRowHeader
+                        row={row}
+                        open={open}
+                        onToggle={() => toggle(row.group.key)}
+                      />
+                      <div className="relative py-1">
+                        {row.group.shipments.map((s) => (
+                          <ShipmentBar
+                            key={s.id}
+                            shipment={s}
+                            axis={axis}
+                            saas={saas}
+                          />
+                        ))}
+                      </div>
                     </div>
+                    {open && (
+                      <div className="relative mt-2 pl-6">
+                        <ExpandedDetail group={row.group} saas={saas} />
+                      </div>
+                    )}
                   </div>
-                  {open && (
-                    <div className="mt-3 pl-6">
-                      <ExpandedDetail group={row.group} saas={saas} />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </section>
-        ))}
+                );
+              })}
+            </section>
+          ))}
+        </div>
+        <div
+          className={cn(
+            'grid gap-x-4 border-t border-border px-4 pb-2 pt-1',
+            NAME_COL,
+          )}
+        >
+          <span />
+          <AxisScale axis={axis} position="bottom" />
+        </div>
         <p className="portal-small flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border px-4 py-2 text-portal-neutral">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-3 w-3 rounded-full bg-card ring-2 ring-brand-indigo/60" />{' '}
@@ -592,6 +782,10 @@ function TimelineView({
           <span className="inline-flex items-center gap-1.5">
             <span className="h-3 w-3 rounded-full bg-portal-success" /> Chegou
           </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1.5 w-5 rounded-full bg-portal-warning/70" />{' '}
+            Previsão vencida
+          </span>
           <span>Só aparecem as datas que já existem.</span>
         </p>
       </div>
@@ -604,7 +798,14 @@ function TimelineView({
             aria-label={PO_BUCKET_LABELS[bucket]}
             className="space-y-2"
           >
-            <h3 className="portal-small font-medium text-foreground">
+            <h3
+              className={cn(
+                'portal-small font-medium',
+                bucket === 'atrasado'
+                  ? 'text-portal-warning-ink'
+                  : 'text-foreground',
+              )}
+            >
               {PO_BUCKET_LABELS[bucket]}{' '}
               <span className="text-portal-neutral">· {rows.length}</span>
             </h3>
@@ -693,7 +894,14 @@ function ListView({
           aria-label={PO_BUCKET_LABELS[bucket]}
           className="space-y-2"
         >
-          <h3 className="portal-small font-medium text-foreground">
+          <h3
+            className={cn(
+              'portal-small font-medium',
+              bucket === 'atrasado'
+                ? 'text-portal-warning-ink'
+                : 'text-foreground',
+            )}
+          >
             {PO_BUCKET_LABELS[bucket]}{' '}
             <span className="text-portal-neutral">· {rows.length}</span>
           </h3>

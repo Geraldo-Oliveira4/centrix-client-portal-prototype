@@ -780,6 +780,42 @@ body:has([role='alertdialog'][data-state='open']) .support-root {
   .welcome-orb {
     animation: welcome-orb 6s ease-in-out infinite alternate;
   }
+  /* Primeiros passos: seis faíscas saem do anel quando um passo fecha. */
+  .first-steps-burst > span {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    margin: -3px 0 0 -3px;
+    border-radius: 9999px;
+    background: hsl(var(--orange));
+    opacity: 0;
+    animation: first-steps-burst 0.9s ease-out 0.25s forwards;
+    --angle: calc(var(--i) * 60deg);
+  }
+  .first-steps-burst > span:nth-child(even) {
+    background: hsl(var(--portal-success));
+  }
+  /* Mapa da Home: a rota principal se desenha e pulsa uma vez. */
+  .home-route-draw {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: route-draw 1.4s ease-out 0.4s forwards;
+  }
+  .count-up-pop {
+    animation: first-steps-pop 0.6s ease-out;
+  }
+}
+@keyframes first-steps-burst {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--angle)) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateY(-34px);
+  }
 }
 @keyframes route-draw {
   to {

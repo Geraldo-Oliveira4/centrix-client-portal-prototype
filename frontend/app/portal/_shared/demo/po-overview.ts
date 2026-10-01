@@ -252,9 +252,10 @@ function today(now: Date): number {
   return Math.floor(now.getTime() / DAY);
 }
 
-export type PoBucket = 'semana' | 'mes' | 'depois' | 'sem_previsao' | 'chegou';
+export type PoBucket = 'atrasado' | 'semana' | 'mes' | 'depois' | 'sem_previsao' | 'chegou';
 
 export const PO_BUCKET_LABELS: Record<PoBucket, string> = {
+  atrasado: 'Atrasados',
   semana: 'Chega esta semana',
   mes: 'Este mês',
   depois: 'Depois',
@@ -263,7 +264,11 @@ export const PO_BUCKET_LABELS: Record<PoBucket, string> = {
 };
 
 /** Ordem dos grupos na tela: o que chega antes, primeiro. */
-export const PO_BUCKET_ORDER: PoBucket[] = ['semana', 'mes', 'depois', 'sem_previsao', 'chegou'];
+/**
+ * Ordem dos grupos na tela: "Atrasados" no topo (a previsão já venceu e a carga
+ * não chegou — é o que pede olhar primeiro), depois o que chega antes.
+ */
+export const PO_BUCKET_ORDER: PoBucket[] = ['atrasado', 'semana', 'mes', 'depois', 'sem_previsao', 'chegou'];
 
 /** "Esta semana" = até 7 dias; "este mês" = até 30. Os mesmos 7 do chip. */
 export const PO_SOON_DAYS = 7;
@@ -304,6 +309,8 @@ export function poGroupStatus(group: PoOverviewGroup, now: Date): PoGroupStatus 
   let bucket: PoBucket;
   if (pending.length === 0) bucket = 'chegou';
   else if (next == null) bucket = 'sem_previsao';
+  // Previsão vencida NUNCA cai em "Chega esta semana": a data já passou.
+  else if ((daysToNext as number) < 0) bucket = 'atrasado';
   else if ((daysToNext as number) <= PO_SOON_DAYS) bucket = 'semana';
   else if ((daysToNext as number) <= PO_MONTH_DAYS) bucket = 'mes';
   else bucket = 'depois';
@@ -351,10 +358,16 @@ export function summarizePoGroups(
   return out;
 }
 
+/** Janela máxima do eixo em volta de hoje, para nenhuma linha virar um risco. */
+export const PO_AXIS_PAST_DAYS = 60;
+export const PO_AXIS_FUTURE_DAYS = 120;
+
 export interface PoTimelineAxis {
   /** Primeiro e último dia (UTC, em dias) do eixo compartilhado. */
   startDay: number;
   endDay: number;
+  /** Início de cada semana (segunda-feira) dentro da janela: grade leve. */
+  weeks: number[];
   todayDay: number;
   /** Marcas do eixo: início de cada mês dentro do intervalo. */
   ticks: { day: number; label: string }[];
@@ -380,8 +393,11 @@ function allDates(groups: PoOverviewGroup[]): number[] {
 export function poTimelineAxis(groups: PoOverviewGroup[], now: Date): PoTimelineAxis {
   const t = today(now);
   const days = [...allDates(groups), t];
-  const startDay = Math.min(...days) - 3;
-  const endDay = Math.max(...days, t + 14) + 3;
+  // Janela: as datas que existem, com folga de 3 dias, mas limitada a 60 dias
+  // para trás e 120 para frente. O que cair antes vira "◀ N dias atrás" na
+  // borda (ver `isBeforeAxis`) — esticar o eixo até lá espremeria todo o resto.
+  const startDay = Math.max(Math.min(...days) - 3, t - PO_AXIS_PAST_DAYS);
+  const endDay = Math.min(Math.max(...days, t + 14) + 3, t + PO_AXIS_FUTURE_DAYS);
   const ticks: { day: number; label: string }[] = [];
   const first = new Date(startDay * DAY);
   let cursor = Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 1);
@@ -390,7 +406,29 @@ export function poTimelineAxis(groups: PoOverviewGroup[], now: Date): PoTimeline
     ticks.push({ day: cursor / DAY, label: `${MONTHS[d.getUTCMonth()]}${d.getUTCMonth() === 0 ? ` ${d.getUTCFullYear()}` : ''}` });
     cursor = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
   }
-  return { startDay, endDay, todayDay: t, ticks };
+  const weeks: number[] = [];
+  // 1970-01-01 (dia 0) foi quinta-feira: a segunda seguinte é o dia 4.
+  let week = startDay + ((4 - startDay) % 7 + 7) % 7;
+  for (; week <= endDay; week += 7) weeks.push(week);
+  return { startDay, endDay, weeks, todayDay: t, ticks };
+}
+
+/** "05 set": a data curta do lado de cada ponto. Lida em UTC, sem fuso. */
+export function shortDayLabel(iso: string | number): string {
+  const day = typeof iso === 'number' ? iso : dayOf(iso);
+  const d = new Date(day * DAY);
+  return `${String(d.getUTCDate()).padStart(2, '0')} ${MONTHS[d.getUTCMonth()]}`;
+}
+
+/** A data cai antes da janela do eixo? Devolve quantos dias atrás (de hoje). */
+export function isBeforeAxis(axis: PoTimelineAxis, iso: string): number | null {
+  const day = dayOf(iso);
+  return day < axis.startDay ? axis.todayDay - day : null;
+}
+
+/** Dias corridos de uma data até hoje (positivo = no passado). */
+export function daysAgo(axis: PoTimelineAxis, iso: string): number {
+  return axis.todayDay - dayOf(iso);
 }
 
 /** Posição de uma data no eixo, em 0..100. */

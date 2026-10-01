@@ -1,14 +1,16 @@
 'use client';
 
-// O fluxo de boas-vindas do primeiro login: TOUR -> BOAS-VINDAS (três
-// perguntas e o mapa de rotas, `welcome-wizard.tsx`, desde 01/10/2026) -> a
-// Home se monta com o perfil escolhido. Montado no layout do portal, para
-// funcionar em qualquer tela de entrada. Regras em `onboarding.ts`.
+// O fluxo de boas-vindas do primeiro login: BOAS-VINDAS (três perguntas e o
+// mapa de rotas, `welcome-wizard.tsx`) -> a Home se monta com o perfil
+// escolhido -> MINI TOUR opcional de 3 paradas (Prompt 5; antes eram 6, e
+// vinham ANTES das boas-vindas). Montado no layout do portal, para funcionar
+// em qualquer tela de entrada. Regras em `onboarding.ts`.
 //
 // Acessibilidade: o card do tour e o assistente são diálogos modais do Radix
 // (foco preso, Esc fecha, foco devolvido). No tour, Esc = "Pular tour".
 
 import { useCallback, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 
 import { Button } from '@/components/ui/button';
@@ -117,7 +119,7 @@ function Tour({ onFinish }: { onFinish: () => void }) {
               className="text-portal-neutral"
               onClick={onFinish}
             >
-              Pular tour
+              Pular
             </Button>
             <div className="flex gap-2">
               {index > 0 && (
@@ -138,15 +140,35 @@ function Tour({ onFinish }: { onFinish: () => void }) {
 
 // ── Configuração inicial ───────────────────────────────────────────────────
 
+// O tour espera a Home terminar de "se montar" (os cards entram em sequência
+// por ~1,5 s) para não destacar o menu por cima da revelação.
+const TOUR_DELAY_AFTER_REVEAL_MS = 1800;
+
 export function OnboardingFlow() {
   const state = useOnboarding();
+  const pathname = usePathname();
   // Montado so no cliente: o estado vive no localStorage e o SSR nao o ve.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const tourPending = mounted && state.setupDone && !state.tourDone;
+  // Quem saiu das boas-vindas direto para "Cotar esta rota agora" está no meio
+  // de um formulário: o tour espera ele sair dali.
+  const tourHere = tourPending && !pathname?.startsWith('/portal/nova-cotacao');
+  const [tourReady, setTourReady] = useState(false);
+  useEffect(() => {
+    if (!tourHere) {
+      setTourReady(false);
+      return;
+    }
+    const delay = state.revealPending ? TOUR_DELAY_AFTER_REVEAL_MS : 300;
+    const id = window.setTimeout(() => setTourReady(true), delay);
+    return () => window.clearTimeout(id);
+  }, [tourHere, state.revealPending]);
+
   if (!mounted) return null;
-  if (!state.tourDone) {
+  if (!state.setupDone) return <WelcomeWizard initial={state} />;
+  if (tourHere && tourReady) {
     return <Tour onFinish={() => updateOnboarding({ tourDone: true })} />;
   }
-  if (!state.setupDone) return <WelcomeWizard initial={state} />;
   return null;
 }

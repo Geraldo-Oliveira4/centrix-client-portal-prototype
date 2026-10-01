@@ -29,6 +29,7 @@ import { updateOnboarding, useOnboarding } from '../_shared/use-onboarding';
 import { orderCardsForProfile } from '../_shared/onboarding';
 import { FirstStepsCard } from './components/first-steps-card';
 import { HomeReadyBanner } from './components/home-ready-banner';
+import { CountUpOnReveal } from './components/count-up-on-reveal';
 import { relocateBucketsV2 } from '../_shared/demo/quotation-review';
 import { useQuotationReviewStore } from '../_shared/demo/use-quotation-review';
 import {
@@ -287,10 +288,13 @@ export default function PortalHomePage() {
         />
       )}
 
+      {/* PRIMEIROS PASSOS no topo do conteudo (Prompt 5): logo abaixo do
+          aviso de Home pronta e antes dos cards; com 2 de 3 feitos o proprio cartao
+          vira uma barra fina e devolve o espaco. */}
       {!needsOnboarding && onboarding.setupDone && (
         <div
           className={revealing ? 'home-reveal' : undefined}
-          style={revealing ? { ['--reveal-index' as string]: 1 } : undefined}
+          style={revealing ? { ['--reveal-index' as string]: 0 } : undefined}
         >
           <FirstStepsCard />
         </div>
@@ -351,11 +355,18 @@ export default function PortalHomePage() {
                 const Card = HOME_LAYOUT_CARD_COMPONENTS[card];
                 return (
                   <div key={card} className="min-w-0">
-                    <Card
-                      shipments={shipments}
-                      quotations={quotations}
-                      now={now}
-                    />
+                    {/* Na revelacao os numeros contam, no ritmo da entrada
+                        da fileira (140 ms por fileira, como no CSS). */}
+                    <CountUpOnReveal
+                      active={revealing}
+                      delayMs={(rowIndex + 2) * 140 + 300}
+                    >
+                      <Card
+                        shipments={shipments}
+                        quotations={quotations}
+                        now={now}
+                      />
+                    </CountUpOnReveal>
                   </div>
                 );
               })}
@@ -370,11 +381,11 @@ export default function PortalHomePage() {
         <HomeShortcuts />
       </section>
 
-      {/* A escolha de temas e o ULTIMO passo das boas-vindas: espera o tour e a
-          configuracao inicial (`_shared/onboarding-flow.tsx`), em vez de abrir
-          por cima deles na primeira visita. */}
+      {/* Rede de seguranca: as boas-vindas ja gravam os temas. Este modal so
+          abre se, depois delas (`_shared/onboarding-flow.tsx`), ainda faltar a
+          linha do layout — nunca por cima do assistente. */}
       <HomeOnboardingDialog
-        open={needsOnboarding && onboarding.tourDone && onboarding.setupDone}
+        open={needsOnboarding && onboarding.setupDone}
         saving={saving}
         onConfirm={handleOnboarding}
       />

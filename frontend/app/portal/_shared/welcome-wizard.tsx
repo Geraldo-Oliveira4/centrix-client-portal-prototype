@@ -28,6 +28,7 @@ import {
   Clock3,
   Eye,
   LineChart,
+  Navigation,
   Ship,
   ShoppingCart,
   Sparkles,
@@ -36,6 +37,7 @@ import {
 import { toast } from 'react-toastify';
 
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { useMyClient } from '@/hooks/use-portal-quotations';
 import {
   saveMyHomeLayout,
@@ -56,6 +58,7 @@ import {
   routeExample,
   routeIssue,
   themesForProfile,
+  welcomeQuotationHref,
   type OnboardingState,
   type Persona,
   type PreferredRoute,
@@ -204,6 +207,8 @@ export function WelcomeWizard({ initial }: { initial: OnboardingState }) {
   );
   const [routeError, setRouteError] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
+  // Mini tour de 3 paradas depois da Home montada: opcional, ligado por padrão.
+  const [wantTour, setWantTour] = useState(true);
 
   const companyName = initial.company.name || client?.name || '';
 
@@ -240,7 +245,16 @@ export function WelcomeWizard({ initial }: { initial: OnboardingState }) {
     setDraft({});
   };
 
-  const finish = async (skipped: boolean) => {
+  /**
+   * `goTo`: para onde ir depois de gravar. Por padrão a Home; o "Cotar esta
+   * rota agora" leva à Nova cotação, e a Home se revela quando a pessoa
+   * voltar a ela.
+   */
+  const finish = async (
+    skipped: boolean,
+    goTo = '/portal/home',
+    finalRoutes = routes,
+  ) => {
     setFinishing(true);
     const themes = themesForProfile(
       skipped ? '' : persona,
@@ -258,13 +272,35 @@ export function WelcomeWizard({ initial }: { initial: OnboardingState }) {
       wizardStep: 0,
       priority,
       persona,
-      routes,
+      routes: finalRoutes,
       company: { ...initial.company, name: companyName },
       revealPending: !skipped,
+      // Pular as boas-vindas pula o tour também: ~90 s no total, no máximo.
+      tourDone: skipped || !wantTour,
     });
     setFinishing(false);
     if (skipped) toast.info('Tudo bem. Você personaliza a Home quando quiser.');
-    router.push('/portal/home');
+    router.push(goTo);
+  };
+
+  // A rota do "Cotar esta rota agora": a que está sendo escolhida, se está
+  // completa e válida; senão a última acrescentada.
+  const draftRoute: PreferredRoute | null =
+    draft.origin && draft.destination && !routeIssue(draft, routes)
+      ? {
+          origin: draft.origin,
+          destination: draft.destination,
+          modal: ROUTE_ORIGINS.find((p) => p.code === draft.origin)!.modal,
+        }
+      : null;
+  const quoteRoute = draftRoute ?? routes[routes.length - 1] ?? null;
+  const quoteNow = () => {
+    if (!quoteRoute) return;
+    const finalRoutes =
+      draftRoute && routes.length < MAX_WELCOME_ROUTES
+        ? [...routes, draftRoute]
+        : routes;
+    finish(false, welcomeQuotationHref(quoteRoute), finalRoutes);
   };
 
   const canAdd =
@@ -415,6 +451,21 @@ export function WelcomeWizard({ initial }: { initial: OnboardingState }) {
                   >
                     Adicionar rota
                   </Button>
+                  {quoteRoute && (
+                    <Button
+                      type="button"
+                      onClick={quoteNow}
+                      disabled={finishing}
+                      className="gap-1.5"
+                    >
+                      <Navigation className="h-5 w-5" aria-hidden="true" />
+                      Cotar esta rota agora
+                      <span className="sr-only">
+                        : {placeName(quoteRoute.origin)} para{' '}
+                        {placeName(quoteRoute.destination)}
+                      </span>
+                    </Button>
+                  )}
                   {routeError && (
                     <p
                       className="portal-small text-portal-danger-ink"
@@ -468,6 +519,25 @@ export function WelcomeWizard({ initial }: { initial: OnboardingState }) {
                     />
                   ))}
                 </div>
+                <label
+                  htmlFor="welcome-tour"
+                  className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3"
+                >
+                  <span className="min-w-0">
+                    <span className="portal-body block font-medium text-foreground">
+                      Fazer um tour rápido depois
+                    </span>
+                    <span className="portal-small block text-portal-neutral">
+                      3 paradas: o menu, a Central de trabalho e a Ajuda. Dá
+                      para pular a qualquer momento.
+                    </span>
+                  </span>
+                  <Switch
+                    id="welcome-tour"
+                    checked={wantTour}
+                    onCheckedChange={setWantTour}
+                  />
+                </label>
               </div>
             )}
           </div>
