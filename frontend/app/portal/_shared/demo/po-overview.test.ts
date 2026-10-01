@@ -14,9 +14,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  axisPercent,
   etaPositions,
   groupShipmentsByPo,
+  matchesPoFilter,
+  poGroupStatus,
+  poTimelineAxis,
+  shipmentBarPoints,
+  shipmentProgress,
   splitPoCount,
+  summarizePoGroups,
 } from './po-overview.ts';
 import type { PortalShipmentWithReview } from './shipment-po-merge.ts';
 
@@ -220,4 +227,111 @@ test('o rotulo de estado vem de quem chamou, nao daqui', () => {
 test('carteira vazia devolve zero grupos', () => {
   assert.deepEqual(groupShipmentsByPo([], RESOLVERS), []);
   assert.equal(splitPoCount([]), 0);
+});
+
+// ---- segunda versão (Prompt 4) ----
+
+const NOW = new Date('2026-10-01T12:00:00.000Z');
+const tracked = (eta: string, first: string, extra: Record<string, unknown> = {}) => ({
+  first_eta: first,
+  current_eta: eta,
+  eta_is_actual: false,
+  data_status: 'COMPLETE' as const,
+  last_milestone: null,
+  last_milestone_at: null,
+  is_mock: false,
+  ...extra,
+});
+
+test('faixa: até 7 dias, até 30, depois, sem previsão e já chegou', () => {
+  const groups = groupShipmentsByPo(
+    [
+      ship('a', 'EMB-A', 'PO-A', '2026-10-05'),
+      ship('b', 'EMB-B', 'PO-B', '2026-10-20'),
+      ship('c', 'EMB-C', 'PO-C', '2026-12-01'),
+      ship('d', 'EMB-D', 'PO-D', null),
+      ship('e', 'EMB-E', 'PO-E', null, { tracking: { ...tracked('2026-09-20', '2026-09-20'), eta_is_actual: true } }),
+    ],
+    RESOLVERS,
+  );
+  const byPo = Object.fromEntries(groups.map((g) => [g.po, poGroupStatus(g, NOW).bucket]));
+  assert.deepEqual(byPo, { 'PO-A': 'semana', 'PO-B': 'mes', 'PO-C': 'depois', 'PO-D': 'sem_previsao', 'PO-E': 'chegou' });
+});
+
+test('risco: atraso da companhia (>3 dias), exceção e previsão vencida; atenção de 1-3 dias não', () => {
+  const groups = groupShipmentsByPo(
+    [
+      ship('a', 'EMB-A', 'PO-A', null, { tracking: tracked('2026-10-20', '2026-10-10') }),
+      ship('b', 'EMB-B', 'PO-B', null, { tracking: tracked('2026-10-12', '2026-10-10') }),
+      ship('c', 'EMB-C', 'PO-C', null, { estado: 'postergado' }),
+      ship('d', 'EMB-D', 'PO-D', '2026-09-25'),
+    ],
+    RESOLVERS,
+  );
+  const risk = Object.fromEntries(groups.map((g) => [g.po, poGroupStatus(g, NOW).atRisk]));
+  assert.deepEqual(risk, { 'PO-A': true, 'PO-B': false, 'PO-C': true, 'PO-D': true });
+  const d = poGroupStatus(groups.find((g) => g.po === 'PO-D')!, NOW);
+  assert.ok(d.riskReasons.includes('Previsão de chegada vencida'));
+});
+
+test('chips: contagem e filtro usam a MESMA regra', () => {
+  const groups = groupShipmentsByPo(
+    [
+      ship('a', 'EMB-A', 'PO-A', '2026-10-05'),
+      ship('a2', 'EMB-A2', 'PO-A', null),
+      ship('b', 'EMB-B', 'PO-B', '2026-11-20'),
+    ],
+    RESOLVERS,
+  );
+  const statuses = groups.map((g) => poGroupStatus(g, NOW));
+  const summary = summarizePoGroups(statuses);
+  assert.deepEqual(summary, { ativos: 2, sete_dias: 1, risco: 0, sem_previsao: 1 });
+  for (const key of ['ativos', 'sete_dias', 'risco', 'sem_previsao'] as const)
+    assert.equal(statuses.filter((st) => matchesPoFilter(st, key)).length, summary[key]);
+});
+
+test('barra: só os pontos com data, na ordem prontidão -> embarque -> chegada', () => {
+  const [group] = groupShipmentsByPo(
+    [ship('a', 'EMB-A', 'PO-A', null, { tracking: tracked('2026-10-20', '2026-10-20', { last_milestone: 'OCEAN_TRANSIT', last_milestone_at: '2026-09-28' }) })],
+    { ...RESOLVERS, readyDate: () => '2026-09-15' },
+  );
+  assert.deepEqual(shipmentBarPoints(group.shipments[0]).map((p) => p.kind), ['prontidao', 'embarque', 'chegada']);
+  const [bare] = groupShipmentsByPo([ship('b', 'EMB-B', 'PO-B', '2026-10-20')], RESOLVERS);
+  assert.deepEqual(shipmentBarPoints(bare.shipments[0]).map((p) => p.kind), ['chegada']);
+  const [none] = groupShipmentsByPo([ship('c', 'EMB-C', 'PO-C', null)], RESOLVERS);
+  assert.deepEqual(shipmentBarPoints(none.shipments[0]), []);
+});
+
+test('partida só vem do marco OCEAN_TRANSIT datado; marco posterior não data a partida', () => {
+  const [group] = groupShipmentsByPo(
+    [ship('a', 'EMB-A', 'PO-A', null, { tracking: tracked('2026-10-20', '2026-10-20', { last_milestone: 'ARRIVAL', last_milestone_at: '2026-10-19' }) })],
+    RESOLVERS,
+  );
+  assert.equal(group.shipments[0].departureDate, null);
+  assert.equal(group.shipments[0].arrived, true);
+});
+
+test('eixo compartilhado contém hoje e todas as datas, e posiciona dentro de 0..100', () => {
+  const groups = groupShipmentsByPo(
+    [ship('a', 'EMB-A', 'PO-A', '2026-10-05'), ship('b', 'EMB-B', 'PO-B', '2026-12-20')],
+    { ...RESOLVERS, readyDate: () => '2026-09-10' },
+  );
+  const axis = poTimelineAxis(groups, NOW);
+  assert.ok(axisPercent(axis, '2026-09-10') > 0 && axisPercent(axis, '2026-12-20') < 100);
+  const todayPct = axisPercent(axis, axis.todayDay);
+  assert.ok(todayPct > axisPercent(axis, '2026-09-10') && todayPct < axisPercent(axis, '2026-10-05'));
+  assert.ok(axis.ticks.some((t) => t.label === 'nov'));
+});
+
+test('progresso pela etapa real; exceção não tem lugar na régua', () => {
+  const [g] = groupShipmentsByPo(
+    [
+      ship('a', 'EMB-A', 'PO-A', null, { estado: 'solicitado' }),
+      ship('b', 'EMB-B', 'PO-A', null, { estado: 'postergado' }),
+    ],
+    RESOLVERS,
+  );
+  const byRef = Object.fromEntries(g.shipments.map((s) => [s.reference, shipmentProgress(s)]));
+  assert.ok((byRef['EMB-A'] as number) > 0 && (byRef['EMB-A'] as number) < 0.5);
+  assert.equal(byRef['EMB-B'], null);
 });
