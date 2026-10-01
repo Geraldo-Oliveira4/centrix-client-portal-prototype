@@ -20,7 +20,11 @@ import {
   type AccessState,
   type ClientKind,
 } from './access-model';
-import { DEFAULT_MODULE_FLAGS, MODULE_FLAGS_STORE_NAME, parseModuleFlags } from './feature-flags';
+import {
+  DEFAULT_MODULE_FLAGS,
+  MODULE_FLAGS_STORE_NAME,
+  parseModuleFlags,
+} from './feature-flags';
 import { readDemoRaw } from './demo-store';
 import { setDemoValue, useDemoValue } from './use-demo-store';
 import { useGlobalModuleFlags } from './use-feature-flags';
@@ -56,7 +60,9 @@ export function writeAccessState(next: AccessState): void {
   setDemoValue(ACCESS_STORE_NAME, next);
 }
 
-export function updateAccessState(fn: (state: AccessState) => AccessState): AccessState {
+export function updateAccessState(
+  fn: (state: AccessState) => AccessState,
+): AccessState {
   const next = fn(readAccessState());
   writeAccessState(next);
   return next;

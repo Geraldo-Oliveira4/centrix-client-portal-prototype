@@ -35,7 +35,15 @@ export const CSV_TEMPLATE_SHORT = [
   'Indústria Exemplo Ltda.,joana.alves@industria-exemplo.example,Joana Alves',
 ].join('\n');
 
-type Column = 'company' | 'cnpj' | 'kind' | 'wave' | 'name' | 'email' | 'responsible' | 'demo';
+type Column =
+  | 'company'
+  | 'cnpj'
+  | 'kind'
+  | 'wave'
+  | 'name'
+  | 'email'
+  | 'responsible'
+  | 'demo';
 
 const HEADER_ALIASES: Record<string, Column> = {
   empresa: 'company',
@@ -103,7 +111,8 @@ function splitLine(line: string, separator: string): string[] {
   return out.map((value) => value.trim());
 }
 
-const yes = (value: string) => ['sim', 's', 'yes', 'y', 'true', '1', 'x'].includes(normalizeName(value));
+const yes = (value: string) =>
+  ['sim', 's', 'yes', 'y', 'true', '1', 'x'].includes(normalizeName(value));
 const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 
 function parseKind(value: string): ClientKind | null | 'invalid' {
@@ -114,14 +123,23 @@ function parseKind(value: string): ClientKind | null | 'invalid' {
   return 'invalid';
 }
 
-export function parseAccessCsv(text: string, state: AccessState): CsvParseResult {
+export function parseAccessCsv(
+  text: string,
+  state: AccessState,
+): CsvParseResult {
   const lines = text.replace(/^﻿/, '').split(/\r?\n/);
   const headerIndex = lines.findIndex((line) => line.trim() !== '');
-  if (headerIndex < 0) return { fileError: 'O arquivo está vazio.', format: null, rows: [] };
+  if (headerIndex < 0)
+    return { fileError: 'O arquivo está vazio.', format: null, rows: [] };
   const headerLine = lines[headerIndex];
-  const separator = headerLine.split(';').length > headerLine.split(',').length ? ';' : ',';
-  const header = splitLine(headerLine, separator).map((cell) => HEADER_ALIASES[normalizeName(cell)] ?? null);
-  const missing = (['company', 'email', 'name'] as Column[]).filter((column) => !header.includes(column));
+  const separator =
+    headerLine.split(';').length > headerLine.split(',').length ? ';' : ',';
+  const header = splitLine(headerLine, separator).map(
+    (cell) => HEADER_ALIASES[normalizeName(cell)] ?? null,
+  );
+  const missing = (['company', 'email', 'name'] as Column[]).filter(
+    (column) => !header.includes(column),
+  );
   if (missing.length) {
     return {
       fileError:
@@ -130,7 +148,8 @@ export function parseAccessCsv(text: string, state: AccessState): CsvParseResult
       rows: [],
     };
   }
-  const format = header.includes('kind') || header.includes('wave') ? 'completo' : 'curto';
+  const format =
+    header.includes('kind') || header.includes('wave') ? 'completo' : 'curto';
   const inUse = emailsInUse(state.companies);
   const seenInFile = new Map<string, number>();
   const rows: CsvRow[] = [];
@@ -140,7 +159,7 @@ export function parseAccessCsv(text: string, state: AccessState): CsvParseResult
     const cells = splitLine(raw, separator);
     const get = (column: Column) => {
       const index = header.indexOf(column);
-      return index >= 0 ? cells[index] ?? '' : '';
+      return index >= 0 ? (cells[index] ?? '') : '';
     };
     const errors: string[] = [];
     const company = get('company');
@@ -155,13 +174,19 @@ export function parseAccessCsv(text: string, state: AccessState): CsvParseResult
     else if (!EMAIL.test(email)) errors.push(`E-mail inválido: "${email}".`);
     else {
       const key = normalizeEmail(email);
-      if (inUse.has(key)) errors.push('E-mail já cadastrado em outra empresa ou login existente.');
+      if (inUse.has(key))
+        errors.push(
+          'E-mail já cadastrado em outra empresa ou login existente.',
+        );
       const first = seenInFile.get(key);
-      if (first) errors.push(`E-mail repetido no arquivo (já na linha ${first}).`);
+      if (first)
+        errors.push(`E-mail repetido no arquivo (já na linha ${first}).`);
       else seenInFile.set(key, i + 1);
     }
     if (kind === 'invalid')
-      errors.push(`Tipo de cliente desconhecido: use "${CLIENT_KIND_LABELS.freitas}" ou "${CLIENT_KIND_LABELS.saas}".`);
+      errors.push(
+        `Tipo de cliente desconhecido: use "${CLIENT_KIND_LABELS.freitas}" ou "${CLIENT_KIND_LABELS.saas}".`,
+      );
     if (wave !== null && !WAVE_NUMBERS.includes(wave as WaveNumber))
       errors.push(`Onda fora do intervalo: "${waveRaw}" (use 0 a 3).`);
     rows.push({
@@ -173,7 +198,10 @@ export function parseAccessCsv(text: string, state: AccessState): CsvParseResult
         company,
         cnpj: get('cnpj'),
         kind: kind === 'invalid' ? null : kind,
-        wave: wave !== null && WAVE_NUMBERS.includes(wave as WaveNumber) ? (wave as WaveNumber) : null,
+        wave:
+          wave !== null && WAVE_NUMBERS.includes(wave as WaveNumber)
+            ? (wave as WaveNumber)
+            : null,
         name,
         email,
         responsible: yes(get('responsible')),
@@ -181,7 +209,13 @@ export function parseAccessCsv(text: string, state: AccessState): CsvParseResult
       },
     });
   }
-  return { fileError: rows.length ? null : 'Nenhuma linha de dados depois do cabeçalho.', format, rows };
+  return {
+    fileError: rows.length
+      ? null
+      : 'Nenhuma linha de dados depois do cabeçalho.',
+    format,
+    rows,
+  };
 }
 
 export interface CsvImportResult {
@@ -204,13 +238,21 @@ export function importAccessCsv(
   at: string,
   applyWave: (company: AccessCompany, wave: WaveNumber) => AccessCompany,
 ): CsvImportResult {
-  let next: AccessState = { ...state, companies: state.companies.map((c) => ({ ...c, contacts: [...c.contacts] })) };
+  let next: AccessState = {
+    ...state,
+    companies: state.companies.map((c) => ({
+      ...c,
+      contacts: [...c.contacts],
+    })),
+  };
   let createdCompanies = 0;
   let addedContacts = 0;
   for (const row of rows) {
     if (!row.ok) continue;
     const d = row.data;
-    let company = next.companies.find((c) => normalizeName(c.name) === normalizeName(d.company));
+    let company = next.companies.find(
+      (c) => normalizeName(c.name) === normalizeName(d.company),
+    );
     if (!company) {
       next.seq++;
       company = {
@@ -240,7 +282,8 @@ export function importAccessCsv(
     const contact = newContact(`ct-imp-${next.seq}`, d.name, d.email);
     const target = next.companies.find((c) => c.id === company!.id)!;
     target.contacts.push(contact);
-    if (d.responsible || !target.responsibleId) target.responsibleId = contact.id;
+    if (d.responsible || !target.responsibleId)
+      target.responsibleId = contact.id;
     addedContacts++;
     next = appendLog(next, {
       at,
@@ -251,7 +294,12 @@ export function importAccessCsv(
       to: 'Não convidado',
     });
   }
-  return { state: next, createdCompanies, addedContacts, skipped: rows.filter((r) => !r.ok).length };
+  return {
+    state: next,
+    createdCompanies,
+    addedContacts,
+    skipped: rows.filter((r) => !r.ok).length,
+  };
 }
 
 /** Relatório de erros, para copiar e devolver a quem mandou a planilha. */

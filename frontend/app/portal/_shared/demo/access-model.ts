@@ -149,7 +149,13 @@ export function allowedInviteActions(
     case 'nao_convidado':
       return ['enviar', 'bloquear'];
     case 'convite_enviado':
-      return ['reenviar', 'revogar', 'simular_cadastro', 'simular_expiracao', 'bloquear'];
+      return [
+        'reenviar',
+        'revogar',
+        'simular_cadastro',
+        'simular_expiracao',
+        'bloquear',
+      ];
     case 'expirado':
       return ['reenviar', 'revogar', 'bloquear'];
     case 'cadastrado':
@@ -191,7 +197,9 @@ export function applyInviteAction(
     case 'reenviar':
       next.status = 'convite_enviado';
       next.invitedAt = at;
-      next.expiresAt = new Date(now.getTime() + INVITE_TTL_DAYS * DAY_MS).toISOString();
+      next.expiresAt = new Date(
+        now.getTime() + INVITE_TTL_DAYS * DAY_MS,
+      ).toISOString();
       break;
     case 'revogar':
       next.status = 'nao_convidado';
@@ -218,7 +226,8 @@ export function applyInviteAction(
     case 'desbloquear':
       // Um convite vencido não volta a valer por ter sido bloqueado no meio.
       next.status =
-        contact.statusBeforeBlock === 'expirado' || contact.statusBeforeBlock == null
+        contact.statusBeforeBlock === 'expirado' ||
+        contact.statusBeforeBlock == null
           ? 'nao_convidado'
           : contact.statusBeforeBlock;
       if (next.status === 'nao_convidado') {
@@ -229,7 +238,12 @@ export function applyInviteAction(
       next.blockedAt = null;
       break;
   }
-  return { ok: true, contact: next, from, to: effectiveInviteStatus(next, now) };
+  return {
+    ok: true,
+    contact: next,
+    from,
+    to: effectiveInviteStatus(next, now),
+  };
 }
 
 // ---------------------------------------------------------------- empresa --
@@ -285,11 +299,16 @@ export function normalizeName(name: string): string {
 export function emailsInUse(companies: AccessCompany[]): Set<string> {
   const out = new Set(RESERVED_LOGIN_EMAILS.map(normalizeEmail));
   for (const company of companies)
-    for (const contact of company.contacts) out.add(normalizeEmail(contact.email));
+    for (const contact of company.contacts)
+      out.add(normalizeEmail(contact.email));
   return out;
 }
 
-export function newContact(id: string, name: string, email: string): AccessContact {
+export function newContact(
+  id: string,
+  name: string,
+  email: string,
+): AccessContact {
   return {
     id,
     name: name.trim(),
@@ -312,7 +331,8 @@ export function companyAccessSummary(
   const out = Object.fromEntries(
     Object.keys(INVITE_STATUS_LABELS).map((key) => [key, 0]),
   ) as Record<InviteStatus, number>;
-  for (const contact of company.contacts) out[effectiveInviteStatus(contact, now)]++;
+  for (const contact of company.contacts)
+    out[effectiveInviteStatus(contact, now)]++;
   return out;
 }
 
@@ -324,7 +344,11 @@ export interface CompanyFilter {
   demo: 'only' | 'hide' | null;
 }
 
-export const EMPTY_COMPANY_FILTER: CompanyFilter = { wave: null, status: null, demo: null };
+export const EMPTY_COMPANY_FILTER: CompanyFilter = {
+  wave: null,
+  status: null,
+  demo: null,
+};
 
 export function filterCompanies(
   companies: AccessCompany[],
@@ -332,9 +356,18 @@ export function filterCompanies(
   now: Date,
 ): AccessCompany[] {
   return companies.filter((company) => {
-    if (filter.wave === 'none' ? company.wave !== null : filter.wave !== null && company.wave !== filter.wave)
+    if (
+      filter.wave === 'none'
+        ? company.wave !== null
+        : filter.wave !== null && company.wave !== filter.wave
+    )
       return false;
-    if (filter.status && !company.contacts.some((c) => effectiveInviteStatus(c, now) === filter.status))
+    if (
+      filter.status &&
+      !company.contacts.some(
+        (c) => effectiveInviteStatus(c, now) === filter.status,
+      )
+    )
       return false;
     if (filter.demo === 'only' && !company.demo) return false;
     if (filter.demo === 'hide' && company.demo) return false;
@@ -349,9 +382,9 @@ export function resolveCompanyFlags(
   company: AccessCompany,
 ): PortalModuleFlags {
   const out = { ...global };
-  for (const module of PORTAL_MODULES) {
-    const value = company.exceptions[module];
-    if (typeof value === 'boolean') out[module] = value;
+  for (const mod of PORTAL_MODULES) {
+    const value = company.exceptions[mod];
+    if (typeof value === 'boolean') out[mod] = value;
   }
   return out;
 }
@@ -360,30 +393,30 @@ export function resolveCompanyFlags(
 export function isException(
   global: PortalModuleFlags,
   company: AccessCompany,
-  module: PortalModule,
+  mod: PortalModule,
 ): boolean {
-  const value = company.exceptions[module];
-  return typeof value === 'boolean' && value !== global[module];
+  const value = company.exceptions[mod];
+  return typeof value === 'boolean' && value !== global[mod];
 }
 
 export function setCompanyModule(
   company: AccessCompany,
   global: PortalModuleFlags,
-  module: PortalModule,
+  mod: PortalModule,
   released: boolean,
 ): AccessCompany {
   const exceptions = { ...company.exceptions };
-  if (released === global[module]) delete exceptions[module];
-  else exceptions[module] = released;
+  if (released === global[mod]) delete exceptions[mod];
+  else exceptions[mod] = released;
   return { ...company, exceptions };
 }
 
 export function clearCompanyModule(
   company: AccessCompany,
-  module: PortalModule,
+  mod: PortalModule,
 ): AccessCompany {
   const exceptions = { ...company.exceptions };
-  delete exceptions[module];
+  delete exceptions[mod];
   return { ...company, exceptions };
 }
 
@@ -395,8 +428,8 @@ export function applyWaveToCompany(
 ): AccessCompany {
   const target = flagsForWave(WAVE_ID[wave]);
   const exceptions: Partial<PortalModuleFlags> = {};
-  for (const module of PORTAL_MODULES)
-    if (target[module] !== global[module]) exceptions[module] = target[module];
+  for (const mod of PORTAL_MODULES)
+    if (target[mod] !== global[mod]) exceptions[mod] = target[mod];
   return { ...company, wave, exceptions };
 }
 
@@ -421,17 +454,26 @@ export function previewWave(
   let changing = 0;
   for (const company of chosen) {
     const before = resolveCompanyFlags(global, company);
-    const after = resolveCompanyFlags(global, applyWaveToCompany(company, global, wave));
+    const after = resolveCompanyFlags(
+      global,
+      applyWaveToCompany(company, global, wave),
+    );
     let changed = false;
-    for (const module of PORTAL_MODULES) {
-      if (before[module] === after[module]) continue;
+    for (const mod of PORTAL_MODULES) {
+      if (before[mod] === after[mod]) continue;
       changed = true;
-      (after[module] ? turnOn : turnOff).add(module);
+      (after[mod] ? turnOn : turnOff).add(mod);
     }
     if (changed) changing++;
   }
-  const order = (set: Set<PortalModule>) => PORTAL_MODULES.filter((m) => set.has(m));
-  return { companies: chosen.length, changing, turnOn: order(turnOn), turnOff: order(turnOff) };
+  const order = (set: Set<PortalModule>) =>
+    PORTAL_MODULES.filter((m) => set.has(m));
+  return {
+    companies: chosen.length,
+    changing,
+    turnOn: order(turnOn),
+    turnOff: order(turnOff),
+  };
 }
 
 // -------------------------------------------------------------- registro --
@@ -444,14 +486,24 @@ export function appendLog(
   return {
     ...state,
     seq,
-    log: [{ id: `log-${seq}`, actor: entry.actor ?? ACCESS_ACTOR, ...entry }, ...state.log],
+    log: [
+      { id: `log-${seq}`, actor: entry.actor ?? ACCESS_ACTOR, ...entry },
+      ...state.log,
+    ],
   };
 }
 
-export function filterLog(log: AccessLogEntry[], companyId: string | null): AccessLogEntry[] {
+export function filterLog(
+  log: AccessLogEntry[],
+  companyId: string | null,
+): AccessLogEntry[] {
   return [...log]
     .filter((entry) => !companyId || entry.companyId === companyId)
-    .sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id, 'en', { numeric: true }));
+    .sort(
+      (a, b) =>
+        b.at.localeCompare(a.at) ||
+        b.id.localeCompare(a.id, 'en', { numeric: true }),
+    );
 }
 
 export function flagLabel(value: boolean | undefined): string {
@@ -487,17 +539,34 @@ export function seedAccessState(): AccessState {
         responsibleId: 'ct-aurora-1',
         exceptions: {},
         contacts: [
-          contact('ct-aurora-1', 'Ana Souza', 'ana.souza@aurora-metal.example', 'ativo', {
-            invitedAt: '2026-09-01T12:00:00.000Z',
-            expiresAt: '2026-09-08T12:00:00.000Z',
-            registeredAt: '2026-09-02T12:00:00.000Z',
-            activeSince: '2026-09-02T13:00:00.000Z',
-          }),
-          contact('ct-aurora-2', 'Bruno Lima', 'bruno.lima@aurora-metal.example', 'convite_enviado', {
-            invitedAt: '2026-09-29T12:00:00.000Z',
-            expiresAt: '2026-10-06T12:00:00.000Z',
-          }),
-          contact('ct-aurora-3', 'Carla Nunes', 'carla.nunes@aurora-metal.example', 'nao_convidado'),
+          contact(
+            'ct-aurora-1',
+            'Ana Souza',
+            'ana.souza@aurora-metal.example',
+            'ativo',
+            {
+              invitedAt: '2026-09-01T12:00:00.000Z',
+              expiresAt: '2026-09-08T12:00:00.000Z',
+              registeredAt: '2026-09-02T12:00:00.000Z',
+              activeSince: '2026-09-02T13:00:00.000Z',
+            },
+          ),
+          contact(
+            'ct-aurora-2',
+            'Bruno Lima',
+            'bruno.lima@aurora-metal.example',
+            'convite_enviado',
+            {
+              invitedAt: '2026-09-29T12:00:00.000Z',
+              expiresAt: '2026-10-06T12:00:00.000Z',
+            },
+          ),
+          contact(
+            'ct-aurora-3',
+            'Carla Nunes',
+            'carla.nunes@aurora-metal.example',
+            'nao_convidado',
+          ),
         ],
       },
       {
@@ -510,15 +579,27 @@ export function seedAccessState(): AccessState {
         responsibleId: 'ct-horizonte-1',
         exceptions: {},
         contacts: [
-          contact('ct-horizonte-1', 'Diego Prado', 'diego.prado@horizonte-textil.example', 'cadastrado', {
-            invitedAt: '2026-09-20T12:00:00.000Z',
-            expiresAt: '2026-09-27T12:00:00.000Z',
-            registeredAt: '2026-09-21T12:00:00.000Z',
-          }),
-          contact('ct-horizonte-2', 'Elisa Rocha', 'elisa.rocha@horizonte-textil.example', 'convite_enviado', {
-            invitedAt: '2026-09-10T12:00:00.000Z',
-            expiresAt: '2026-09-17T12:00:00.000Z',
-          }),
+          contact(
+            'ct-horizonte-1',
+            'Diego Prado',
+            'diego.prado@horizonte-textil.example',
+            'cadastrado',
+            {
+              invitedAt: '2026-09-20T12:00:00.000Z',
+              expiresAt: '2026-09-27T12:00:00.000Z',
+              registeredAt: '2026-09-21T12:00:00.000Z',
+            },
+          ),
+          contact(
+            'ct-horizonte-2',
+            'Elisa Rocha',
+            'elisa.rocha@horizonte-textil.example',
+            'convite_enviado',
+            {
+              invitedAt: '2026-09-10T12:00:00.000Z',
+              expiresAt: '2026-09-17T12:00:00.000Z',
+            },
+          ),
         ],
       },
       {
@@ -531,14 +612,20 @@ export function seedAccessState(): AccessState {
         responsibleId: 'ct-valeverde-1',
         exceptions: {},
         contacts: [
-          contact('ct-valeverde-1', 'Fábio Teixeira', 'fabio.teixeira@valeverde-alimentos.example', 'bloqueado', {
-            invitedAt: '2026-08-10T12:00:00.000Z',
-            expiresAt: '2026-08-17T12:00:00.000Z',
-            registeredAt: '2026-08-11T12:00:00.000Z',
-            activeSince: '2026-08-11T13:00:00.000Z',
-            blockedAt: '2026-09-15T12:00:00.000Z',
-            statusBeforeBlock: 'ativo',
-          }),
+          contact(
+            'ct-valeverde-1',
+            'Fábio Teixeira',
+            'fabio.teixeira@valeverde-alimentos.example',
+            'bloqueado',
+            {
+              invitedAt: '2026-08-10T12:00:00.000Z',
+              expiresAt: '2026-08-17T12:00:00.000Z',
+              registeredAt: '2026-08-11T12:00:00.000Z',
+              activeSince: '2026-08-11T13:00:00.000Z',
+              blockedAt: '2026-09-15T12:00:00.000Z',
+              statusBeforeBlock: 'ativo',
+            },
+          ),
         ],
       },
       {
@@ -551,12 +638,18 @@ export function seedAccessState(): AccessState {
         responsibleId: 'ct-demo-1',
         exceptions: {},
         contacts: [
-          contact('ct-demo-1', 'Apresentação interna', 'apresentacao@freitas-demo.example', 'ativo', {
-            invitedAt: '2026-08-01T12:00:00.000Z',
-            expiresAt: '2026-08-08T12:00:00.000Z',
-            registeredAt: '2026-08-01T12:30:00.000Z',
-            activeSince: '2026-08-01T13:00:00.000Z',
-          }),
+          contact(
+            'ct-demo-1',
+            'Apresentação interna',
+            'apresentacao@freitas-demo.example',
+            'ativo',
+            {
+              invitedAt: '2026-08-01T12:00:00.000Z',
+              expiresAt: '2026-08-08T12:00:00.000Z',
+              registeredAt: '2026-08-01T12:30:00.000Z',
+              activeSince: '2026-08-01T13:00:00.000Z',
+            },
+          ),
         ],
       },
     ],
@@ -573,14 +666,17 @@ export function seedWithWaves(global: PortalModuleFlags): AccessState {
   return {
     ...state,
     companies: state.companies.map((company) =>
-      company.wave == null ? company : applyWaveToCompany(company, global, company.wave),
+      company.wave == null
+        ? company
+        : applyWaveToCompany(company, global, company.wave),
     ),
   };
 }
 
 const STATUSES = Object.keys(INVITE_STATUS_LABELS) as InviteStatus[];
 const str = (v: unknown): v is string => typeof v === 'string';
-const strOrNull = (v: unknown) => (v === null || typeof v === 'string' ? (v as string | null) : null);
+const strOrNull = (v: unknown) =>
+  v === null || typeof v === 'string' ? (v as string | null) : null;
 
 /** Lê o store. Estado desconhecido é descartado; ausência vira `null` (seed na tela). */
 export function parseAccessState(raw: string | null): AccessState | null {
@@ -592,13 +688,31 @@ export function parseAccessState(raw: string | null): AccessState | null {
     return null;
   }
   const d = data as Record<string, unknown>;
-  if (!d || d.schema !== 1 || !Array.isArray(d.companies) || !Array.isArray(d.log)) return null;
+  if (
+    !d ||
+    d.schema !== 1 ||
+    !Array.isArray(d.companies) ||
+    !Array.isArray(d.log)
+  )
+    return null;
   const companies: AccessCompany[] = [];
   for (const value of d.companies as Record<string, unknown>[]) {
-    if (!value || !str(value.id) || !str(value.name) || !Array.isArray(value.contacts)) continue;
+    if (
+      !value ||
+      !str(value.id) ||
+      !str(value.name) ||
+      !Array.isArray(value.contacts)
+    )
+      continue;
     const contacts: AccessContact[] = [];
     for (const c of value.contacts as Record<string, unknown>[]) {
-      if (!c || !str(c.id) || !str(c.email) || !STATUSES.includes(c.status as InviteStatus)) continue;
+      if (
+        !c ||
+        !str(c.id) ||
+        !str(c.email) ||
+        !STATUSES.includes(c.status as InviteStatus)
+      )
+        continue;
       contacts.push({
         id: c.id,
         name: str(c.name) ? c.name : '',
@@ -609,21 +723,26 @@ export function parseAccessState(raw: string | null): AccessState | null {
         registeredAt: strOrNull(c.registeredAt),
         activeSince: strOrNull(c.activeSince),
         blockedAt: strOrNull(c.blockedAt),
-        statusBeforeBlock: STATUSES.includes(c.statusBeforeBlock as InviteStatus)
+        statusBeforeBlock: STATUSES.includes(
+          c.statusBeforeBlock as InviteStatus,
+        )
           ? (c.statusBeforeBlock as InviteStatus)
           : null,
       });
     }
     const exceptions: Partial<PortalModuleFlags> = {};
     const rawExceptions = (value.exceptions ?? {}) as Record<string, unknown>;
-    for (const module of PORTAL_MODULES)
-      if (typeof rawExceptions[module] === 'boolean') exceptions[module] = rawExceptions[module] as boolean;
+    for (const mod of PORTAL_MODULES)
+      if (typeof rawExceptions[mod] === 'boolean')
+        exceptions[mod] = rawExceptions[mod] as boolean;
     companies.push({
       id: value.id,
       name: value.name,
       cnpj: str(value.cnpj) ? value.cnpj : '',
       kind: value.kind === 'saas' ? 'saas' : 'freitas',
-      wave: WAVE_NUMBERS.includes(value.wave as WaveNumber) ? (value.wave as WaveNumber) : null,
+      wave: WAVE_NUMBERS.includes(value.wave as WaveNumber)
+        ? (value.wave as WaveNumber)
+        : null,
       demo: value.demo === true,
       responsibleId: str(value.responsibleId) ? value.responsibleId : null,
       contacts,
@@ -632,9 +751,20 @@ export function parseAccessState(raw: string | null): AccessState | null {
   }
   const log = (d.log as Record<string, unknown>[]).filter(
     (e): e is AccessLogEntry & Record<string, unknown> =>
-      !!e && str(e.id) && str(e.at) && str(e.companyId) && str(e.what) && str(e.from) && str(e.to),
+      !!e &&
+      str(e.id) &&
+      str(e.at) &&
+      str(e.companyId) &&
+      str(e.what) &&
+      str(e.from) &&
+      str(e.to),
   ) as AccessLogEntry[];
-  return { schema: 1, companies, log, seq: typeof d.seq === 'number' ? d.seq : log.length };
+  return {
+    schema: 1,
+    companies,
+    log,
+    seq: typeof d.seq === 'number' ? d.seq : log.length,
+  };
 }
 
 export function parseViewingAs(raw: string | null): string | null {

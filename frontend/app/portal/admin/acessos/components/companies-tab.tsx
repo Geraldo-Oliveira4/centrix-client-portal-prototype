@@ -26,8 +26,20 @@ import {
   type InviteAction,
   type InviteStatus,
 } from '../../../_shared/demo/access-model';
-import { updateAccessState, useAccessState, useSetViewingAs, useViewingAs } from '../../../_shared/demo/use-access';
-import { CompanyFilterBar, DemoSeal, InviteStatusBadge, KindBadge, formatDate, formatDateTime } from './shared';
+import {
+  updateAccessState,
+  useAccessState,
+  useSetViewingAs,
+  useViewingAs,
+} from '../../../_shared/demo/use-access';
+import {
+  CompanyFilterBar,
+  DemoSeal,
+  InviteStatusBadge,
+  KindBadge,
+  formatDate,
+  formatDateTime,
+} from './shared';
 
 /** O que cada ação diz depois de feita. Toda ação de convite é SIMULADA. */
 const ACTION_TOAST: Partial<Record<InviteAction, string>> = {
@@ -66,7 +78,12 @@ function ContactRow({
         companies: state.companies.map((c) =>
           c.id !== target.id
             ? c
-            : { ...c, contacts: c.contacts.map((ct) => (ct.id === current.id ? result.contact : ct)) },
+            : {
+                ...c,
+                contacts: c.contacts.map((ct) =>
+                  ct.id === current.id ? result.contact : ct,
+                ),
+              },
         ),
       };
       return appendLog(next, {
@@ -78,7 +95,10 @@ function ContactRow({
         to: INVITE_STATUS_LABELS[result.to],
       });
     });
-    if (done) toast.info(ACTION_TOAST[action] ?? `${INVITE_ACTION_LABELS[action]} (simulado).`);
+    if (done)
+      toast.info(
+        ACTION_TOAST[action] ?? `${INVITE_ACTION_LABELS[action]} (simulado).`,
+      );
   };
 
   const makeResponsible = () => {
@@ -89,7 +109,9 @@ function ContactRow({
         ?.contacts.find((c) => c.id === company.responsibleId);
       const next = {
         ...state,
-        companies: state.companies.map((c) => (c.id === company.id ? { ...c, responsibleId: contact.id } : c)),
+        companies: state.companies.map((c) =>
+          c.id === company.id ? { ...c, responsibleId: contact.id } : c,
+        ),
       };
       return appendLog(next, {
         at,
@@ -127,7 +149,9 @@ function ContactRow({
               </span>
             )}
           </p>
-          <p className="portal-small break-all text-portal-neutral">{contact.email}</p>
+          <p className="portal-small break-all text-portal-neutral">
+            {contact.email}
+          </p>
           <p className="portal-small text-portal-neutral">{dateLine}</p>
         </div>
         <InviteStatusBadge status={status} />
@@ -138,16 +162,28 @@ function ContactRow({
             key={action}
             type="button"
             size="sm"
-            variant={action === 'enviar' || action === 'reenviar' ? 'default' : 'outline'}
+            variant={
+              action === 'enviar' || action === 'reenviar'
+                ? 'default'
+                : 'outline'
+            }
             className="min-h-9"
             onClick={() => run(action)}
           >
-            {(action === 'enviar' || action === 'reenviar') && <Mail className="mr-1.5 h-4 w-4" />}
+            {(action === 'enviar' || action === 'reenviar') && (
+              <Mail className="mr-1.5 h-4 w-4" />
+            )}
             {INVITE_ACTION_LABELS[action]}
           </Button>
         ))}
         {!responsible && (
-          <Button type="button" size="sm" variant="ghost" className="min-h-9" onClick={makeResponsible}>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="min-h-9"
+            onClick={makeResponsible}
+          >
             Tornar responsável
           </Button>
         )}
@@ -159,8 +195,10 @@ function ContactRow({
 function InvitePath() {
   return (
     <p className="portal-small text-portal-neutral">
-      Caminho do convite: {INVITE_MAIN_PATH.map((s) => INVITE_STATUS_LABELS[s]).join(' → ')}. Laterais:{' '}
-      {INVITE_STATUS_LABELS.expirado} (convite vence em 7 dias) e {INVITE_STATUS_LABELS.bloqueado}.
+      Caminho do convite:{' '}
+      {INVITE_MAIN_PATH.map((s) => INVITE_STATUS_LABELS[s]).join(' → ')}.
+      Laterais: {INVITE_STATUS_LABELS.expirado} (convite vence em 7 dias) e{' '}
+      {INVITE_STATUS_LABELS.bloqueado}.
     </p>
   );
 }
@@ -170,7 +208,9 @@ function CompanyCard({ company, now }: { company: AccessCompany; now: Date }) {
   const viewingAs = useViewingAs();
   const setViewingAs = useSetViewingAs();
   const summary = companyAccessSummary(company, now);
-  const responsible = company.contacts.find((c) => c.id === company.responsibleId);
+  const responsible = company.contacts.find(
+    (c) => c.id === company.responsibleId,
+  );
   const viewing = viewingAs === company.id;
 
   const setKind = (kind: ClientKind) => {
@@ -178,8 +218,20 @@ function CompanyCard({ company, now }: { company: AccessCompany; now: Date }) {
     const at = new Date().toISOString();
     updateAccessState((state) =>
       appendLog(
-        { ...state, companies: state.companies.map((c) => (c.id === company.id ? { ...c, kind } : c)) },
-        { at, companyId: company.id, companyName: company.name, what: 'Tipo de cliente', from: CLIENT_KIND_LABELS[company.kind], to: CLIENT_KIND_LABELS[kind] },
+        {
+          ...state,
+          companies: state.companies.map((c) =>
+            c.id === company.id ? { ...c, kind } : c,
+          ),
+        },
+        {
+          at,
+          companyId: company.id,
+          companyName: company.name,
+          what: 'Tipo de cliente',
+          from: CLIENT_KIND_LABELS[company.kind],
+          to: CLIENT_KIND_LABELS[kind],
+        },
       ),
     );
   };
@@ -188,14 +240,31 @@ function CompanyCard({ company, now }: { company: AccessCompany; now: Date }) {
     const at = new Date().toISOString();
     updateAccessState((state) =>
       appendLog(
-        { ...state, companies: state.companies.map((c) => (c.id === company.id ? { ...c, demo: !c.demo } : c)) },
-        { at, companyId: company.id, companyName: company.name, what: 'Conta de demonstração / interna', from: company.demo ? 'sim' : 'não', to: company.demo ? 'não' : 'sim' },
+        {
+          ...state,
+          companies: state.companies.map((c) =>
+            c.id === company.id ? { ...c, demo: !c.demo } : c,
+          ),
+        },
+        {
+          at,
+          companyId: company.id,
+          companyName: company.name,
+          what: 'Conta de demonstração / interna',
+          from: company.demo ? 'sim' : 'não',
+          to: company.demo ? 'não' : 'sim',
+        },
       ),
     );
   };
 
   return (
-    <article className={cn('portal-card p-4 sm:p-6', viewing && 'ring-2 ring-portal-info')}>
+    <article
+      className={cn(
+        'portal-card p-4 sm:p-6',
+        viewing && 'ring-2 ring-portal-info',
+      )}
+    >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 space-y-2">
           <h3 className="portal-h3">{company.name}</h3>
@@ -207,7 +276,8 @@ function CompanyCard({ company, now }: { company: AccessCompany; now: Date }) {
             {company.demo && <DemoSeal />}
           </div>
           <p className="portal-small text-portal-neutral">
-            {company.contacts.length} contato{company.contacts.length === 1 ? '' : 's'} · responsável:{' '}
+            {company.contacts.length} contato
+            {company.contacts.length === 1 ? '' : 's'} · responsável:{' '}
             {responsible ? responsible.name || responsible.email : 'a definir'}
             {company.cnpj ? ` · CNPJ fictício ${company.cnpj}` : ''}
           </p>
@@ -238,7 +308,11 @@ function CompanyCard({ company, now }: { company: AccessCompany; now: Date }) {
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
           >
-            {open ? <ChevronUp className="mr-1.5 h-5 w-5" /> : <ChevronDown className="mr-1.5 h-5 w-5" />}
+            {open ? (
+              <ChevronUp className="mr-1.5 h-5 w-5" />
+            ) : (
+              <ChevronDown className="mr-1.5 h-5 w-5" />
+            )}
             {open ? 'Fechar' : 'Contatos e convites'}
           </Button>
         </div>
@@ -247,7 +321,9 @@ function CompanyCard({ company, now }: { company: AccessCompany; now: Date }) {
       {open && (
         <div className="mt-4 space-y-4 border-t border-border pt-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="portal-small text-portal-neutral">Tipo de cliente:</span>
+            <span className="portal-small text-portal-neutral">
+              Tipo de cliente:
+            </span>
             {(Object.keys(CLIENT_KIND_LABELS) as ClientKind[]).map((kind) => (
               <Button
                 key={kind}
@@ -261,25 +337,40 @@ function CompanyCard({ company, now }: { company: AccessCompany; now: Date }) {
                 {CLIENT_KIND_LABELS[kind]}
               </Button>
             ))}
-            <Button type="button" size="sm" variant="ghost" className="min-h-9" onClick={toggleDemo}>
-              {company.demo ? 'Desmarcar demonstração' : 'Marcar como demonstração'}
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="min-h-9"
+              onClick={toggleDemo}
+            >
+              {company.demo
+                ? 'Desmarcar demonstração'
+                : 'Marcar como demonstração'}
             </Button>
           </div>
           {company.kind === 'saas' && (
             <p className="portal-small rounded-md bg-brand-indigo-100 px-3 py-2 text-brand-indigo">
-              SaaS puro: sem operação da Freitas nem integração Inova. O cliente informa os dados; nada vem
-              preenchido pela operação.
+              SaaS puro: sem operação da Freitas nem integração Inova. O cliente
+              informa os dados; nada vem preenchido pela operação.
             </p>
           )}
           <InvitePath />
           {company.contacts.length ? (
             <ul>
               {company.contacts.map((contact) => (
-                <ContactRow key={contact.id} company={company} contact={contact} now={now} />
+                <ContactRow
+                  key={contact.id}
+                  company={company}
+                  contact={contact}
+                  now={now}
+                />
               ))}
             </ul>
           ) : (
-            <p className="portal-body text-portal-neutral">Nenhum contato. Importe pela aba "Importar CSV".</p>
+            <p className="portal-body text-portal-neutral">
+              Nenhum contato. Importe pela aba “Importar CSV”.
+            </p>
           )}
         </div>
       )}

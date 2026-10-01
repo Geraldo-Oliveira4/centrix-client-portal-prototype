@@ -23,11 +23,18 @@ export function ViewingAsBanner() {
       <p className="portal-small flex items-center gap-2 text-portal-info">
         <Eye className="h-4 w-4 shrink-0" />
         <span>
-          Vendo como <span className="font-medium">{company.name}</span> ({CLIENT_KIND_LABELS[company.kind]}) —
-          simulado: módulos e tipo de cliente desta empresa, com os dados demo do portal.
+          Vendo como <span className="font-medium">{company.name}</span> (
+          {CLIENT_KIND_LABELS[company.kind]}) — simulado: módulos e tipo de
+          cliente desta empresa, com os dados demo do portal.
         </span>
       </p>
-      <Button type="button" size="sm" variant="outline" className="min-h-9" onClick={() => setViewingAs(null)}>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="min-h-9"
+        onClick={() => setViewingAs(null)}
+      >
         Voltar à visão normal
       </Button>
     </div>

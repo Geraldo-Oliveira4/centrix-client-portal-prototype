@@ -14,7 +14,11 @@ export function AccessSection() {
   const setViewingAs = useSetViewingAs();
   return (
     <div className="space-y-3">
-      <Button asChild variant="outline" className="min-h-11 w-full justify-start">
+      <Button
+        asChild
+        variant="outline"
+        className="min-h-11 w-full justify-start"
+      >
         <Link href="/portal/admin/acessos">
           <KeyRound className="mr-2 h-5 w-5" /> Abrir gestão de acessos
         </Link>
@@ -24,13 +28,19 @@ export function AccessSection() {
           <p className="portal-small text-portal-info">
             Vendo como {viewed.name} ({CLIENT_KIND_LABELS[viewed.kind]}).
           </p>
-          <Button type="button" size="sm" variant="outline" onClick={() => setViewingAs(null)}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setViewingAs(null)}
+          >
             Voltar à visão normal
           </Button>
         </div>
       ) : (
         <p className="portal-small text-portal-neutral">
-          Importação de contatos, convites, módulos por empresa e “ver como”. Tela da Freitas, simulada.
+          Importação de contatos, convites, módulos por empresa e “ver como”.
+          Tela da Freitas, simulada.
         </p>
       )}
     </div>

@@ -32,7 +32,11 @@ export function formatDateTime(iso: string | null): string {
 
 export function formatDate(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 // Estado do convite. Caminho principal em tons de progresso; os dois laterais
@@ -48,7 +52,12 @@ const STATUS_CLASS: Record<InviteStatus, string> = {
 
 export function InviteStatusBadge({ status }: { status: InviteStatus }) {
   return (
-    <span className={cn('portal-small inline-flex rounded-full px-2 py-0.5 font-medium', STATUS_CLASS[status])}>
+    <span
+      className={cn(
+        'portal-small inline-flex rounded-full px-2 py-0.5 font-medium',
+        STATUS_CLASS[status],
+      )}
+    >
       {INVITE_STATUS_LABELS[status]}
     </span>
   );
@@ -59,7 +68,9 @@ export function KindBadge({ kind }: { kind: ClientKind }) {
     <span
       className={cn(
         'portal-small inline-flex rounded-full border px-2 py-0.5',
-        kind === 'saas' ? 'border-brand-indigo/40 text-brand-indigo' : 'border-border text-portal-neutral',
+        kind === 'saas'
+          ? 'border-brand-indigo/40 text-brand-indigo'
+          : 'border-border text-portal-neutral',
       )}
     >
       {CLIENT_KIND_LABELS[kind]}
@@ -87,13 +98,24 @@ export function CompanyFilterBar({
   return (
     <div className="flex flex-wrap gap-4">
       <div className="space-y-1">
-        <Label htmlFor="filtro-onda" className="portal-small text-portal-neutral">
+        <Label
+          htmlFor="filtro-onda"
+          className="portal-small text-portal-neutral"
+        >
           Onda
         </Label>
         <Select
           value={value.wave === null ? ALL : String(value.wave)}
           onValueChange={(v) =>
-            onChange({ ...value, wave: v === ALL ? null : v === 'none' ? 'none' : (Number(v) as WaveNumber) })
+            onChange({
+              ...value,
+              wave:
+                v === ALL
+                  ? null
+                  : v === 'none'
+                    ? 'none'
+                    : (Number(v) as WaveNumber),
+            })
           }
         >
           <SelectTrigger id="filtro-onda" className="h-11 w-40">
@@ -111,33 +133,51 @@ export function CompanyFilterBar({
         </Select>
       </div>
       <div className="space-y-1">
-        <Label htmlFor="filtro-status" className="portal-small text-portal-neutral">
+        <Label
+          htmlFor="filtro-status"
+          className="portal-small text-portal-neutral"
+        >
           Status do convite
         </Label>
         <Select
           value={value.status ?? ALL}
-          onValueChange={(v) => onChange({ ...value, status: v === ALL ? null : (v as InviteStatus) })}
+          onValueChange={(v) =>
+            onChange({
+              ...value,
+              status: v === ALL ? null : (v as InviteStatus),
+            })
+          }
         >
           <SelectTrigger id="filtro-status" className="h-11 w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>Todos</SelectItem>
-            {(Object.keys(INVITE_STATUS_LABELS) as InviteStatus[]).map((status) => (
-              <SelectItem key={status} value={status}>
-                {INVITE_STATUS_LABELS[status]}
-              </SelectItem>
-            ))}
+            {(Object.keys(INVITE_STATUS_LABELS) as InviteStatus[]).map(
+              (status) => (
+                <SelectItem key={status} value={status}>
+                  {INVITE_STATUS_LABELS[status]}
+                </SelectItem>
+              ),
+            )}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1">
-        <Label htmlFor="filtro-demo" className="portal-small text-portal-neutral">
+        <Label
+          htmlFor="filtro-demo"
+          className="portal-small text-portal-neutral"
+        >
           Demonstração
         </Label>
         <Select
           value={value.demo ?? ALL}
-          onValueChange={(v) => onChange({ ...value, demo: v === ALL ? null : (v as 'only' | 'hide') })}
+          onValueChange={(v) =>
+            onChange({
+              ...value,
+              demo: v === ALL ? null : (v as 'only' | 'hide'),
+            })
+          }
         >
           <SelectTrigger id="filtro-demo" className="h-11 w-48">
             <SelectValue />

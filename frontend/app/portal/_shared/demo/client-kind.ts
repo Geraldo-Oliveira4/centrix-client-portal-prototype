@@ -13,7 +13,12 @@
 
 import type { ClientKind } from './access-model.ts';
 
-export type DataSource = 'voce' | 'sincronizado' | 'aguardando' | 'freitas' | 'nao_se_aplica';
+export type DataSource =
+  | 'voce'
+  | 'sincronizado'
+  | 'aguardando'
+  | 'freitas'
+  | 'nao_se_aplica';
 
 export const DATA_SOURCE_LABELS: Record<DataSource, string> = {
   voce: 'Informado por você',
@@ -38,25 +43,49 @@ export function quotationSources(kind: ClientKind): SourceLine[] {
   if (kind === 'freitas') {
     return [
       { what: 'Dados da carga', source: 'voce' },
-      { what: 'Rota e modal vindos do Radar', source: 'freitas', note: 'quando você chega pelo "Cotar agora"' },
-      { what: 'Documentos enviados', source: 'freitas', note: 'a Freitas lê e monta a cotação' },
+      {
+        what: 'Rota e modal vindos do Radar',
+        source: 'freitas',
+        note: 'quando você chega pelo "Cotar agora"',
+      },
+      {
+        what: 'Documentos enviados',
+        source: 'freitas',
+        note: 'a Freitas lê e monta a cotação',
+      },
     ];
   }
   return [
-    { what: 'Dados da carga, rota e modal', source: 'voce', note: 'nada vem preenchido' },
-    { what: 'Anexos', source: 'aguardando', note: 'ficam anexados; ninguém lê por você' },
+    {
+      what: 'Dados da carga, rota e modal',
+      source: 'voce',
+      note: 'nada vem preenchido',
+    },
+    {
+      what: 'Anexos',
+      source: 'aguardando',
+      note: 'ficam anexados; ninguém lê por você',
+    },
   ];
 }
 
 export function directCloseSources(kind: ClientKind): SourceLine[] {
   if (kind === 'freitas') {
     return [
-      { what: 'Rota e agente preferido', source: 'freitas', note: 'combinados com a Freitas' },
+      {
+        what: 'Rota e agente preferido',
+        source: 'freitas',
+        note: 'combinados com a Freitas',
+      },
       { what: 'Dados do embarque', source: 'voce' },
     ];
   }
   return [
-    { what: 'Rota e agente', source: 'voce', note: 'sem agente preferido combinado com a Freitas' },
+    {
+      what: 'Rota e agente',
+      source: 'voce',
+      note: 'sem agente preferido combinado com a Freitas',
+    },
     { what: 'Dados do embarque', source: 'voce' },
   ];
 }
@@ -64,12 +93,20 @@ export function directCloseSources(kind: ClientKind): SourceLine[] {
 export function poSources(kind: ClientKind): SourceLine[] {
   if (kind === 'freitas') {
     return [
-      { what: 'Dados do PO', source: 'freitas', note: 'lidos do documento; você confere' },
+      {
+        what: 'Dados do PO',
+        source: 'freitas',
+        note: 'lidos do documento; você confere',
+      },
       { what: 'Arquivo do PO', source: 'voce' },
     ];
   }
   return [
-    { what: 'Dados do PO', source: 'voce', note: 'sem leitura automática do documento' },
+    {
+      what: 'Dados do PO',
+      source: 'voce',
+      note: 'sem leitura automática do documento',
+    },
     { what: 'Arquivo do PO', source: 'aguardando' },
   ];
 }
@@ -77,14 +114,21 @@ export function poSources(kind: ClientKind): SourceLine[] {
 export function shipmentSources(kind: ClientKind): SourceLine[] {
   if (kind === 'freitas') {
     return [
-      { what: 'Etapas operacionais (prontidão, coleta, booking)', source: 'freitas' },
+      {
+        what: 'Etapas operacionais (prontidão, coleta, booking)',
+        source: 'freitas',
+      },
       { what: 'Rastreamento da companhia', source: 'sincronizado' },
       { what: 'Documentos que você envia', source: 'voce' },
     ];
   }
   return [
     { what: 'Dados do embarque', source: 'voce' },
-    { what: 'Rastreamento da companhia', source: 'sincronizado', note: 'vem do armador, não da Freitas' },
+    {
+      what: 'Rastreamento da companhia',
+      source: 'sincronizado',
+      note: 'vem do armador, não da Freitas',
+    },
     { what: 'Documentos enviados', source: 'aguardando' },
     {
       what: 'Etapas operadas pela Freitas (prontidão, coleta, booking)',

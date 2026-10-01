@@ -35,12 +35,23 @@ import {
   type CompanyFilter,
   type WaveNumber,
 } from '../../../_shared/demo/access-model';
-import { PORTAL_MODULES, PORTAL_MODULE_LABELS, type PortalModule } from '../../../_shared/demo/feature-flags';
-import { updateAccessState, useAccessState } from '../../../_shared/demo/use-access';
-import { setPortalModuleFlag, useGlobalModuleFlags } from '../../../_shared/demo/use-feature-flags';
+import {
+  PORTAL_MODULES,
+  PORTAL_MODULE_LABELS,
+  type PortalModule,
+} from '../../../_shared/demo/feature-flags';
+import {
+  updateAccessState,
+  useAccessState,
+} from '../../../_shared/demo/use-access';
+import {
+  setPortalModuleFlag,
+  useGlobalModuleFlags,
+} from '../../../_shared/demo/use-feature-flags';
 import { CompanyFilterBar, DemoSeal, KindBadge } from './shared';
 
-const list = (modules: PortalModule[]) => modules.map((m) => PORTAL_MODULE_LABELS[m]).join(', ');
+const list = (modules: PortalModule[]) =>
+  modules.map((m) => PORTAL_MODULE_LABELS[m]).join(', ');
 
 export function ModulesTab() {
   const state = useAccessState();
@@ -50,19 +61,33 @@ export function ModulesTab() {
   const [pendingWave, setPendingWave] = useState<WaveNumber | null>(null);
   const now = useMemo(() => new Date(), [state]); // eslint-disable-line react-hooks/exhaustive-deps
   const companies = filterCompanies(state.companies, filter, now);
-  const visibleSelected = selected.filter((id) => companies.some((c) => c.id === id));
+  const visibleSelected = selected.filter((id) =>
+    companies.some((c) => c.id === id),
+  );
   const preview =
-    pendingWave === null ? null : previewWave(state.companies, visibleSelected, global, pendingWave);
+    pendingWave === null
+      ? null
+      : previewWave(state.companies, visibleSelected, global, pendingWave);
 
-  const setCell = (company: AccessCompany, module: PortalModule, released: boolean) => {
+  const setCell = (
+    company: AccessCompany,
+    module: PortalModule,
+    released: boolean,
+  ) => {
     const at = new Date().toISOString();
     updateAccessState((s) => {
       const before = company.exceptions[module];
       const next = {
         ...s,
-        companies: s.companies.map((c) => (c.id === company.id ? setCompanyModule(c, global, module, released) : c)),
+        companies: s.companies.map((c) =>
+          c.id === company.id
+            ? setCompanyModule(c, global, module, released)
+            : c,
+        ),
       };
-      const after = next.companies.find((c) => c.id === company.id)!.exceptions[module];
+      const after = next.companies.find((c) => c.id === company.id)!.exceptions[
+        module
+      ];
       return appendLog(next, {
         at,
         companyId: company.id,
@@ -78,7 +103,12 @@ export function ModulesTab() {
     const at = new Date().toISOString();
     updateAccessState((s) =>
       appendLog(
-        { ...s, companies: s.companies.map((c) => (c.id === company.id ? clearCompanyModule(c, module) : c)) },
+        {
+          ...s,
+          companies: s.companies.map((c) =>
+            c.id === company.id ? clearCompanyModule(c, module) : c,
+          ),
+        },
         {
           at,
           companyId: company.id,
@@ -117,7 +147,9 @@ export function ModulesTab() {
         if (!company) continue;
         next = {
           ...next,
-          companies: next.companies.map((c) => (c.id === id ? applyWaveToCompany(c, global, wave) : c)),
+          companies: next.companies.map((c) =>
+            c.id === id ? applyWaveToCompany(c, global, wave) : c,
+          ),
         };
         next = appendLog(next, {
           at,
@@ -130,11 +162,14 @@ export function ModulesTab() {
       }
       return next;
     });
-    toast.success(`Onda ${wave} aplicada a ${visibleSelected.length} empresa(s).`);
+    toast.success(
+      `Onda ${wave} aplicada a ${visibleSelected.length} empresa(s).`,
+    );
     setPendingWave(null);
   };
 
-  const allChecked = companies.length > 0 && companies.every((c) => selected.includes(c.id));
+  const allChecked =
+    companies.length > 0 && companies.every((c) => selected.includes(c.id));
 
   return (
     <div className="space-y-6">
@@ -186,7 +221,9 @@ export function ModulesTab() {
               <td className="p-3" />
               <td className="p-3">
                 <p className="portal-body font-medium">Padrão global</p>
-                <p className="text-portal-neutral">Vale para toda empresa sem exceção</p>
+                <p className="text-portal-neutral">
+                  Vale para toda empresa sem exceção
+                </p>
               </td>
               {PORTAL_MODULES.map((module) => (
                 <td key={module} className="p-3 text-center">
@@ -201,14 +238,19 @@ export function ModulesTab() {
             {companies.map((company) => {
               const resolved = resolveCompanyFlags(global, company);
               return (
-                <tr key={company.id} className="border-b border-border align-top">
+                <tr
+                  key={company.id}
+                  className="border-b border-border align-top"
+                >
                   <td className="p-3">
                     <Checkbox
                       aria-label={`Selecionar ${company.name}`}
                       checked={selected.includes(company.id)}
                       onCheckedChange={(checked) =>
                         setSelected((prev) =>
-                          checked ? [...prev, company.id] : prev.filter((id) => id !== company.id),
+                          checked
+                            ? [...prev, company.id]
+                            : prev.filter((id) => id !== company.id),
                         )
                       }
                     />
@@ -218,7 +260,9 @@ export function ModulesTab() {
                     <div className="mt-1 flex flex-wrap gap-1">
                       <KindBadge kind={company.kind} />
                       <span className="text-portal-neutral">
-                        {company.wave === null ? 'Sem onda' : `Onda ${company.wave}`}
+                        {company.wave === null
+                          ? 'Sem onda'
+                          : `Onda ${company.wave}`}
                       </span>
                       {company.demo && <DemoSeal />}
                     </div>
@@ -230,18 +274,23 @@ export function ModulesTab() {
                         key={module}
                         className={cn(
                           'p-3 text-center',
-                          exception && 'bg-portal-warning/10 outline outline-1 -outline-offset-4 outline-portal-warning',
+                          exception &&
+                            'bg-portal-warning/10 outline outline-1 -outline-offset-4 outline-portal-warning',
                         )}
                       >
                         <div className="flex flex-col items-center gap-1">
                           <Switch
                             aria-label={`${company.name}: ${PORTAL_MODULE_LABELS[module]}`}
                             checked={resolved[module]}
-                            onCheckedChange={(checked) => setCell(company, module, checked)}
+                            onCheckedChange={(checked) =>
+                              setCell(company, module, checked)
+                            }
                           />
                           {exception ? (
                             <>
-                              <span className="font-medium text-portal-warning-ink">exceção</span>
+                              <span className="font-medium text-portal-warning-ink">
+                                exceção
+                              </span>
                               <button
                                 type="button"
                                 className="inline-flex items-center gap-1 text-brand-indigo underline underline-offset-2"
@@ -265,35 +314,50 @@ export function ModulesTab() {
         </table>
       </div>
       <p className="portal-small text-portal-neutral">
-        Célula marcada como “exceção” foge do padrão global para aquela empresa. Mudar o padrão global não
-        apaga exceções; uma exceção igual ao novo padrão deixa de aparecer como exceção.
+        Célula marcada como “exceção” foge do padrão global para aquela empresa.
+        Mudar o padrão global não apaga exceções; uma exceção igual ao novo
+        padrão deixa de aparecer como exceção.
       </p>
 
-      <AlertDialog open={pendingWave !== null} onOpenChange={(open) => !open && setPendingWave(null)}>
+      <AlertDialog
+        open={pendingWave !== null}
+        onOpenChange={(open) => !open && setPendingWave(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Aplicar onda {pendingWave} a {preview?.companies ?? 0} empresa(s)?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Aplicar onda {pendingWave} a {preview?.companies ?? 0} empresa(s)?
+            </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
                 {preview && preview.changing === 0 ? (
-                  <p>Nenhuma das empresas selecionadas muda de módulo: todas já estão nessa onda.</p>
+                  <p>
+                    Nenhuma das empresas selecionadas muda de módulo: todas já
+                    estão nessa onda.
+                  </p>
                 ) : (
                   <>
                     <p>{preview?.changing} empresa(s) mudam de módulo.</p>
-                    {preview && preview.turnOn.length > 0 && <p>Ligam: {list(preview.turnOn)}.</p>}
-                    {preview && preview.turnOff.length > 0 && <p>Desligam: {list(preview.turnOff)}.</p>}
+                    {preview && preview.turnOn.length > 0 && (
+                      <p>Ligam: {list(preview.turnOn)}.</p>
+                    )}
+                    {preview && preview.turnOff.length > 0 && (
+                      <p>Desligam: {list(preview.turnOff)}.</p>
+                    )}
                   </>
                 )}
                 <p>
-                  Simulado: a tela do cliente passa a esconder os módulos desligados. No produto real, o servidor
-                  recusaria as chamadas.
+                  Simulado: a tela do cliente passa a esconder os módulos
+                  desligados. No produto real, o servidor recusaria as chamadas.
                 </p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmWave}>Aplicar onda {pendingWave}</AlertDialogAction>
+            <AlertDialogAction onClick={confirmWave}>
+              Aplicar onda {pendingWave}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
