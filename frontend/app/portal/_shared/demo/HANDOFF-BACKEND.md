@@ -193,18 +193,23 @@ estabelecer.
   isso é explicitamente insuficiente.
 - Ligar e desligar **não exige deploy**.
 - Registro de quem mudou cada flag, quando, e de qual valor para qual.
-- A tela simulada que demonstra isso é `/portal/admin/acessos` (seção 10). Lá o
+- A tela simulada que demonstra isso é `/portal/admin/acessos` (seção 10), que
+  só existe nos deploys de Preview do protótipo. Lá o
   padrão global é o que o painel edita, a exceção vale por empresa e "ver como"
   usa a resolução das duas. **Tudo no `localStorage` deste navegador.**
 
 ## 10. Acessos, contatos e convites
 
-O que o protótipo simula em `/portal/admin/acessos` (só com o modo de
-demonstração ligado) e que a versão integrada precisa ter no servidor:
+**No produto real, tudo isto mora no Centrix interno, no modal de DNA do cliente
+(spec 03) — nunca no portal do cliente.** No protótipo, a tela simulada é
+`/portal/admin/acessos` e só existe em build com `NEXT_PUBLIC_PROTO_INTERNAL=1`
+(escopo Preview da Vercel); no domínio de produção ela é 404 e não está no
+bundle. Mesmo no preview, exige o modo de demonstração ligado.
+
+O que a versão integrada precisa ter no servidor:
 
 - **Empresa com N contatos e um responsável.** Contato é login; empresa é o
-  dono dos dados. O lugar real dessa tela é o Centrix interno (o modal de DNA,
-  segundo a spec 03), não o portal.
+  dono dos dados.
 - **Unicidade de e-mail GLOBAL** entre os pools de login (cliente e analista). O
   protótipo recusa na importação um e-mail que já seja contato de outra empresa
   ou login existente; o real precisa de constraint no banco, não só validação de
@@ -232,7 +237,10 @@ demonstração ligado) e que a versão integrada precisa ter no servidor:
 
 ## 11. Cliente SaaS puro
 
-Atributo novo da empresa: **tipo de cliente** = Cliente Freitas | SaaS puro. SaaS
+Atributo novo da empresa: **tipo de cliente** = Com operação Freitas | SaaS
+puro. No real é campo do cliente no Centrix interno (junto do DNA). No
+protótipo ele se liga pelo seletor "Tipo de cliente" do painel de Demonstração,
+que existe também em produção, ou, em preview, pelo "ver como". SaaS
 puro usa o Centrix sem a operação da Freitas e sem a integração Inova. Regra
 única do protótipo (`client-kind.ts`): **nada vem preenchido sozinho**.
 

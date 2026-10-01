@@ -44,8 +44,9 @@ pessoa.
 | `demo-sections.tsx` | **o registro de seções do painel** |
 | `demo-panel.tsx` | a aba e o Sheet. Renderiza `DEMO_SECTIONS` e nada mais |
 | `access-model.ts` · `access-csv.ts` | gestão de acessos simulada: convites, flags por empresa, onda em lote, registro e importação CSV. **Puros** |
-| `use-access.ts` | estado de acessos, "ver como" e o tipo de cliente que as telas obedecem |
-| `demo-section-access.tsx` · `viewing-as-banner.tsx` | a porta para `/portal/admin/acessos` e a faixa do "ver como" |
+| `use-access.ts` | estado de acessos e "ver como" (**interno**; só carregado em preview) |
+| `demo-section-access.tsx` · `viewing-as-banner.tsx` | a porta para `/portal/admin/acessos` e a faixa do "ver como" (**internos**, import dinâmico atrás de `NEXT_PUBLIC_PROTO_INTERNAL`) |
+| `client-profile.ts` · `use-client-profile.ts` | tipo de cliente do painel + retrato do "ver como"; **seguros para produção**. **Puro** + hook |
 | `client-kind.ts` · `data-source-strip.tsx` | Cliente Freitas x SaaS puro: a regra "nada vem preenchido" e a faixa de origem do dado. **Puro** + desenho |
 
 ### Cotação V2 (HITL)
@@ -145,15 +146,38 @@ precisa tolerar lixo: o valor no disco foi escrito por uma versão anterior dest
 código. `resetPrefix()` já vai apagar a chave nova, porque varre o prefixo em
 vez de manter uma lista.
 
-## Gestão de acessos e "ver como"
+## Tipo de cliente (existe em produção)
 
-`/portal/admin/acessos` é a tela da Freitas, simulada. Só abre com o painel
-ligado nesta aba; fora disso, 404. Nenhum menu linka para ela. As flags
-continuam com uma dona só: `usePortalModuleFlags` devolve o padrão global, ou a
-resolução da empresa em "ver como" (padrão + exceções), e as duas pontas que
-escondem módulo (sidebar e guard do layout) seguem isso sem mudar. O painel
-"Módulos liberados" edita o **padrão global** e avisa quando um "ver como" está
-ativo. **Não é controle de acesso.**
+Seção **"Tipo de cliente"** do painel: *Com operação Freitas* (padrão, o portal de
+sempre) ou *SaaS puro*. Com SaaS puro, Nova cotação, Fechamento direto e Embarque
+via PO não preenchem nada sozinhos e o detalhe do embarque mostra de onde vem
+cada dado. A regra mora em `client-kind.ts`; o seletor em `client-profile.ts` +
+`use-client-profile.ts` (store `client-kind`). **Não depende da gestão de
+acessos.**
+
+## Gestão de acessos — INTERNA, só em preview
+
+Conceito interno (Freitas/Ionix): `/portal/admin/acessos`, a seção "Gestão de
+acessos (interno)" do painel, o "ver como", o registro de alterações e a
+importação de CSV. Só existem em build com **`NEXT_PUBLIC_PROTO_INTERNAL=1`**
+(na Vercel, ligada só no escopo **Preview**). O padrão é desligado.
+
+- **Sem a variável** (produção): `/portal/admin/*` responde 404 no
+  `middleware.ts`, igual a uma URL que não existe; a seção do painel e a faixa
+  do "ver como" nem renderizam, e o código delas fica fora do bundle — a
+  condição é escrita inline (`process.env.NEXT_PUBLIC_PROTO_INTERNAL === '1'`)
+  em volta de cada `import()` dinâmico, e `next.config.mjs` sempre define a
+  variável (`'1'` ou `'0'`) para o compilador eliminar o ramo. Um retrato de
+  "ver como" que tenha ficado num navegador é ignorado.
+- **Com a variável** (preview): a rota ainda exige o modo de demonstração
+  ligado nesta aba; sem ele, 404.
+- **Ver como** grava um retrato pequeno da empresa (id, nome, tipo, exceções) no
+  store `viewing-as`; `usePortalModuleFlags` e `useClientKind` só leem esse
+  retrato, nunca o modelo da gestão de acessos. Enquanto ativo, ele manda sobre o
+  seletor "Tipo de cliente". O painel "Módulos liberados" edita o **padrão
+  global**.
+- **Não é controle de acesso.** No produto real esta tela mora no Centrix
+  interno (modal de DNA), não no portal.
 
 ## O que o reset apaga
 

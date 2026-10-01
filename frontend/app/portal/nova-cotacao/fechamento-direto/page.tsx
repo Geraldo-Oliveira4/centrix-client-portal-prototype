@@ -58,7 +58,7 @@ import {
 } from '@/app/portal/_shared/demo/direct-close';
 import { allowsAutoFill, directCloseSources } from '@/app/portal/_shared/demo/client-kind';
 import { DataSourceStrip } from '@/app/portal/_shared/demo/data-source-strip';
-import { useClientKind } from '@/app/portal/_shared/demo/use-access';
+import { useClientKind } from '@/app/portal/_shared/demo/use-client-profile';
 import {
   putDirectClose,
   readDirectCloseStore,

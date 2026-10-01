@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
 
-// /portal/admin é a camada INTERNA simulada (a Freitas), servida dentro do
-// portal só porque o protótipo não tem Centrix interno. Fora de busca e de
-// qualquer link do cliente; a página ainda exige o modo de demonstração.
+// /portal/admin é a camada INTERNA simulada (Freitas/Ionix). Só existe em build
+// com NEXT_PUBLIC_PROTO_INTERNAL=1; fora dele, a rota é 404. Sempre noindex.
 export const metadata: Metadata = {
-  title: 'Centrix · Gestão de acessos (simulada)',
+  // Fora do build interno o título não pode nomear a ferramenta: a rota é 404.
+  title:
+    process.env.NEXT_PUBLIC_PROTO_INTERNAL === '1'
+      ? 'Centrix · Gestão de acessos (simulada)'
+      : 'Centrix',
   robots: { index: false, follow: false },
 };
 

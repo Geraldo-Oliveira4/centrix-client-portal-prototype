@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { portalSession } from '@/lib/portal-session';
 import { PortalHeader } from './components/portal-header';
 import { PortalSidebar } from './components/portal-sidebar';
@@ -13,8 +14,18 @@ import { ModuleNotReleased } from './_shared/demo/module-not-released';
 import { isRouteReleased } from './_shared/demo/feature-flags';
 import { usePortalModuleFlags } from './_shared/demo/use-feature-flags';
 import { PortalV2AutoAdvance } from './_shared/demo/portal-v2-auto-advance';
-import { ViewingAsBanner } from './_shared/demo/viewing-as-banner';
+
 import { portalFont } from './portal-font';
+
+// "Ver como" é da gestão de acessos, INTERNA: só em build com
+// NEXT_PUBLIC_PROTO_INTERNAL=1. Condição inline para o import sair do bundle
+// de produção.
+const ViewingAsBanner =
+  process.env.NEXT_PUBLIC_PROTO_INTERNAL === '1'
+    ? dynamic(() =>
+        import('./_shared/demo/viewing-as-banner').then((m) => m.ViewingAsBanner),
+      )
+    : null;
 
 const PUBLIC_PATHS = [
   '/portal/login',
@@ -87,7 +98,7 @@ export default function PortalLayout({
           {/* pb-24: o botao flutuante "Ajuda" (44px + 16px da borda) nunca
               cobre o ultimo bloco da tela quando o cliente rola ate o fim. */}
           <div className="mx-auto w-full max-w-[1540px] px-4 pb-24 pt-6 md:px-8 md:pt-9">
-            <ViewingAsBanner />
+            {ViewingAsBanner && <ViewingAsBanner />}
             {isRouteReleased(pathname, flags) ? children : <ModuleNotReleased />}
           </div>
         </main>

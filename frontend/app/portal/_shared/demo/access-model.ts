@@ -12,6 +12,7 @@
 //     empresa; "ver como" usa a resolução das duas;
 //   - registro: toda mudança vira uma linha, mais recente primeiro.
 
+import type { ClientKind, ViewingAsSnapshot } from './client-profile.ts';
 import {
   PORTAL_MODULES,
   flagsForWave,
@@ -21,7 +22,6 @@ import {
 } from './feature-flags.ts';
 
 export const ACCESS_STORE_NAME = 'access-management';
-export const VIEWING_AS_STORE_NAME = 'viewing-as';
 
 /** Quem o protótipo diz que fez a alteração. Não há login da Freitas aqui. */
 export const ACCESS_ACTOR = 'Analista Freitas (simulado)';
@@ -36,12 +36,9 @@ export const RESERVED_LOGIN_EMAILS = [
   'analista@freitas-demo.example',
 ];
 
-export type ClientKind = 'freitas' | 'saas';
-
-export const CLIENT_KIND_LABELS: Record<ClientKind, string> = {
-  freitas: 'Cliente Freitas',
-  saas: 'SaaS puro',
-};
+// Tipo de cliente e rótulos moram em `client-profile.ts`, o módulo seguro para
+// produção; este (interno) só os reexporta.
+export { CLIENT_KIND_LABELS, type ClientKind } from './client-profile.ts';
 
 export type WaveNumber = 0 | 1 | 2 | 3;
 export const WAVE_NUMBERS: WaveNumber[] = [0, 1, 2, 3];
@@ -767,12 +764,12 @@ export function parseAccessState(raw: string | null): AccessState | null {
   };
 }
 
-export function parseViewingAs(raw: string | null): string | null {
-  if (raw == null) return null;
-  try {
-    const value = JSON.parse(raw);
-    return typeof value === 'string' && value ? value : null;
-  } catch {
-    return null;
-  }
+/** O retrato que o "ver como" grava: só o que as telas de produção leem. */
+export function viewingSnapshot(company: AccessCompany): ViewingAsSnapshot {
+  return {
+    id: company.id,
+    name: company.name,
+    kind: company.kind,
+    exceptions: { ...company.exceptions },
+  };
 }

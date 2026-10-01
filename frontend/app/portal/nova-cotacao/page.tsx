@@ -30,7 +30,7 @@ import {
 import { matchHistory } from '@/app/portal/_shared/history-match';
 import { allowsAutoFill, quotationSources } from '@/app/portal/_shared/demo/client-kind';
 import { DataSourceStrip } from '@/app/portal/_shared/demo/data-source-strip';
-import { useClientKind } from '@/app/portal/_shared/demo/use-access';
+import { useClientKind } from '@/app/portal/_shared/demo/use-client-profile';
 import { flattenQuotations } from '@/app/portal/inteligencia/lib/intel-helpers';
 import { useQuotationUploadFlow } from '@/hooks/use-quotation-upload-flow';
 import {

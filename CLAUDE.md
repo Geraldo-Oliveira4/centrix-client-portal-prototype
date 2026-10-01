@@ -18,6 +18,12 @@ Auditoria e Visão Geral carregam demonstrações locais em `frontend/public/pro
 via iframe; esses assets fazem parte da entrega. São dados ilustrativos, sem nova
 integração de backend. A API local `preview:api` serve apenas à revisão visual.
 
+**Ferramentas internas do protótipo** (gestão de acessos em
+`/portal/admin/acessos`, "ver como", importação de CSV) só existem em build com
+`NEXT_PUBLIC_PROTO_INTERNAL=1` — na Vercel, só no escopo Preview. O domínio de
+produção, que os clientes veem, é construído sem ela: rota 404 e código fora do
+bundle.
+
 ## O que é este projeto
 
 Réplica **standalone** do Portal do Cliente do Centrix (plataforma de

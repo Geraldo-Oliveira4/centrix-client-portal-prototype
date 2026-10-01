@@ -14,6 +14,7 @@
 
 import { resetOnboarding, useOnboarding } from '../use-onboarding';
 import { useState, type ComponentType } from 'react';
+import dynamic from 'next/dynamic';
 import { RotateCcw } from 'lucide-react';
 
 import {
@@ -44,7 +45,12 @@ import {
   MIN_FREITAS_DELAY_SECONDS,
   clampFreitasDelay,
 } from './freitas-simulation';
-import { useViewedCompany } from './use-access';
+import { CLIENT_KIND_LABELS, type ClientKind } from './client-profile';
+import {
+  setSelectedClientKind,
+  useSelectedClientKind,
+  useViewingSnapshot,
+} from './use-client-profile';
 import { resetDemoStore } from './use-demo-store';
 import {
   applyPortalWave,
@@ -55,7 +61,6 @@ import {
   setFreitasSimulation,
   useFreitasSimulation,
 } from './use-freitas-simulation';
-import { AccessSection } from './demo-section-access';
 import { CotacaoV2Section } from './demo-section-cotacao-v2';
 import { DirectCloseSection } from './demo-section-direct-close';
 import { EmbarquePoSection } from './demo-section-embarque-po';
@@ -69,11 +74,62 @@ export interface DemoSection {
   Content: ComponentType;
 }
 
+// Gestão de acessos: conceito INTERNO (Freitas/Ionix). Só existe em build com
+// NEXT_PUBLIC_PROTO_INTERNAL=1 (preview). A condição fica ESCRITA AQUI, inline,
+// para o compilador resolvê-la e deixar o import dinâmico fora do bundle de
+// produção — uma constante importada de outro módulo não seria dobrada.
+const AccessSection: ComponentType | null =
+  process.env.NEXT_PUBLIC_PROTO_INTERNAL === '1'
+    ? dynamic(() =>
+        import('./demo-section-access').then((m) => m.AccessSection),
+      )
+    : null;
+
+/**
+ * "Tipo de cliente" — existe também em produção. Liga o SaaS puro sem passar
+ * pela gestão de acessos: Nova cotação, Fechamento direto e Embarque via PO
+ * deixam de preencher qualquer coisa sozinhos, e o detalhe do embarque diz de
+ * onde vem cada dado.
+ */
+function ClientKindSection() {
+  const selected = useSelectedClientKind();
+  const viewing = useViewingSnapshot();
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Tipo de cliente">
+        {(Object.keys(CLIENT_KIND_LABELS) as ClientKind[]).map((kind) => (
+          <Button
+            key={kind}
+            type="button"
+            size="sm"
+            variant={selected === kind ? 'default' : 'outline'}
+            aria-pressed={selected === kind}
+            onClick={() => setSelectedClientKind(kind)}
+          >
+            {CLIENT_KIND_LABELS[kind]}
+          </Button>
+        ))}
+      </div>
+      <p className="portal-small text-portal-neutral">
+        SaaS puro: sem operação da Freitas por trás. Nova cotação, Fechamento
+        direto e Embarque via PO não preenchem nada sozinhos, e o detalhe do
+        embarque mostra de onde vem cada dado.
+      </p>
+      {viewing && (
+        <p className="portal-small rounded-md bg-portal-info/10 px-3 py-2 text-portal-info">
+          Enquanto o “ver como” {viewing.name} estiver ativo, vale o tipo dessa
+          empresa.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function ModulesSection() {
   // The panel edits the GLOBAL default. With "ver como" on, the portal obeys
   // the viewed company instead, and the note below says so.
   const flags = useGlobalModuleFlags();
-  const viewed = useViewedCompany();
+  const viewed = useViewingSnapshot();
   const current = matchingWave(flags);
 
   return (
@@ -275,6 +331,12 @@ export const DEMO_SECTIONS: DemoSection[] = [
     Content: ModulesSection,
   },
   {
+    id: 'client-kind',
+    title: 'Tipo de cliente',
+    description: 'Com operação Freitas ou SaaS puro.',
+    Content: ClientKindSection,
+  },
+  {
     id: 'freitas',
     title: 'Freitas simulada',
     description: 'O analista que responde do outro lado.',
@@ -308,12 +370,17 @@ export const DEMO_SECTIONS: DemoSection[] = [
     description: 'Tour e configuração inicial do primeiro login.',
     Content: OnboardingSection,
   },
-  {
-    id: 'acessos',
-    title: 'Gestão de acessos',
-    description: 'Empresas, convites, módulos por cliente e "ver como".',
-    Content: AccessSection,
-  },
+  ...(AccessSection
+    ? [
+        {
+          id: 'acessos',
+          title: 'Gestão de acessos (interno)',
+          description:
+            'Empresas, convites, módulos por cliente e "ver como". Só em preview.',
+          Content: AccessSection,
+        },
+      ]
+    : []),
   {
     id: 'reset',
     title: 'Reiniciar demonstração',

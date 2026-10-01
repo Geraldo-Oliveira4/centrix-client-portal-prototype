@@ -1,5 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Ferramentas INTERNAS do protótipo (gestão de acessos, "ver como", CSV):
+  // só com NEXT_PUBLIC_PROTO_INTERNAL=1 no build — na Vercel, só no escopo
+  // Preview. Sempre definida aqui ('1' ou '0') para o compilador substituir o
+  // valor e eliminar o código interno do bundle de produção. Padrão: DESLIGADO.
+  env: {
+    NEXT_PUBLIC_PROTO_INTERNAL:
+      process.env.NEXT_PUBLIC_PROTO_INTERNAL === '1' ? '1' : '0',
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },

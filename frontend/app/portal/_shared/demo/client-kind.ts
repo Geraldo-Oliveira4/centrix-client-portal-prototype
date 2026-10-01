@@ -11,7 +11,7 @@
 // puro. A revisão de entrada/saída continua como está (é lógica da Cotação V2,
 // que este prompt não toca) e a pergunta está em FRONTEIRA-OPERACIONAL.md.
 
-import type { ClientKind } from './access-model.ts';
+import type { ClientKind } from './client-profile.ts';
 
 export type DataSource =
   | 'voce'

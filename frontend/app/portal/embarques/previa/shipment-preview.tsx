@@ -46,7 +46,7 @@ import { LinkQuotationCard } from '../../_shared/demo/link-quotation-card';
 import { NoQuotationChip } from '../../_shared/demo/shipment-po-labels';
 import { allowsAutoFill, shipmentSources } from '../../_shared/demo/client-kind';
 import { DataSourceStrip } from '../../_shared/demo/data-source-strip';
-import { useClientKind } from '../../_shared/demo/use-access';
+import { useClientKind } from '../../_shared/demo/use-client-profile';
 
 type Panel =
   | { kind: 'item' | 'document' | 'alert' | 'milestone'; id: string }

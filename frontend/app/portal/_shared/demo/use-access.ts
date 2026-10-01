@@ -11,21 +11,21 @@ import { useCallback, useMemo } from 'react';
 
 import {
   ACCESS_STORE_NAME,
-  VIEWING_AS_STORE_NAME,
   appendLog,
   parseAccessState,
-  parseViewingAs,
   seedWithWaves,
+  viewingSnapshot,
   type AccessCompany,
   type AccessState,
-  type ClientKind,
 } from './access-model';
 import {
   DEFAULT_MODULE_FLAGS,
   MODULE_FLAGS_STORE_NAME,
   parseModuleFlags,
 } from './feature-flags';
+import { VIEWING_AS_STORE_NAME, parseViewingAs } from './client-profile';
 import { readDemoRaw } from './demo-store';
+import { useViewingSnapshot } from './use-client-profile';
 import { setDemoValue, useDemoValue } from './use-demo-store';
 import { useGlobalModuleFlags } from './use-feature-flags';
 
@@ -65,11 +65,21 @@ export function updateAccessState(
 ): AccessState {
   const next = fn(readAccessState());
   writeAccessState(next);
+  // O retrato do "ver como" acompanha a empresa: exceção ou tipo mudados aqui
+  // valem no portal sem precisar encerrar e reabrir o "ver como".
+  const viewing = parseViewingAs(readDemoRaw(storage(), VIEWING_AS_STORE_NAME));
+  if (viewing) {
+    const company = next.companies.find((c) => c.id === viewing.id);
+    setDemoValue(
+      VIEWING_AS_STORE_NAME,
+      company ? viewingSnapshot(company) : null,
+    );
+  }
   return next;
 }
 
 export function useViewingAs(): string | null {
-  return useDemoValue(VIEWING_AS_STORE_NAME, parseViewingAs);
+  return useViewingSnapshot()?.id ?? null;
 }
 
 /** A empresa em "ver como", quando há uma e ela ainda existe. */
@@ -81,14 +91,6 @@ export function useViewedCompany(): AccessCompany | null {
     const state = stored ?? seedWithWaves(DEFAULT_MODULE_FLAGS);
     return state.companies.find((company) => company.id === id) ?? null;
   }, [id, stored]);
-}
-
-/**
- * Tipo de cliente que as telas obedecem. Sem "ver como", o portal é o de
- * hoje: Cliente Freitas.
- */
-export function useClientKind(): ClientKind {
-  return useViewedCompany()?.kind ?? 'freitas';
 }
 
 /** Liga ou desliga o "ver como", e registra no log (RQ-8 pede trilha). */
@@ -110,7 +112,10 @@ export function useSetViewingAs(): (company: AccessCompany | null) => void {
           }),
         );
       }
-      setDemoValue(VIEWING_AS_STORE_NAME, company ? company.id : null);
+      setDemoValue(
+        VIEWING_AS_STORE_NAME,
+        company ? viewingSnapshot(company) : null,
+      );
     },
     [current],
   );

@@ -25,8 +25,8 @@ import {
 
 export const CSV_TEMPLATE_FULL = [
   'empresa,cnpj,tipo_cliente,onda,nome,email,responsavel,demo',
-  'Indústria Exemplo Ltda.,00.000.404/0001-04,Cliente Freitas,1,Gabriela Mota,gabriela.mota@industria-exemplo.example,sim,não',
-  'Indústria Exemplo Ltda.,00.000.404/0001-04,Cliente Freitas,1,Hugo Reis,hugo.reis@industria-exemplo.example,não,não',
+  'Indústria Exemplo Ltda.,00.000.404/0001-04,Com operação Freitas,1,Gabriela Mota,gabriela.mota@industria-exemplo.example,sim,não',
+  'Indústria Exemplo Ltda.,00.000.404/0001-04,Com operação Freitas,1,Hugo Reis,hugo.reis@industria-exemplo.example,não,não',
   'Comércio Modelo ME,00.000.505/0001-05,SaaS puro,0,Irene Castro,irene.castro@comercio-modelo.example,sim,não',
 ].join('\n');
 
@@ -118,7 +118,8 @@ const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 function parseKind(value: string): ClientKind | null | 'invalid' {
   const v = normalizeName(value);
   if (!v) return null;
-  if (['cliente freitas', 'freitas'].includes(v)) return 'freitas';
+  if (['com operacao freitas', 'cliente freitas', 'freitas'].includes(v))
+    return 'freitas';
   if (['saas puro', 'saas'].includes(v)) return 'saas';
   return 'invalid';
 }

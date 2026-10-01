@@ -163,9 +163,13 @@ Onda 2 ou superior.
 
 ---
 
-## 5b. Roteiro D — Gestão de acessos (~8 minutos)
+## 5b. Roteiro D — Gestão de acessos (~8 minutos) — INTERNO, só em preview
 
-Painel → **Gestão de acessos** → **Abrir gestão de acessos**. A faixa do topo diz
+**Só para apresentação interna (Freitas/Ionix), num deploy de Preview.** No
+domínio de produção, que os clientes veem, nada disto existe: a rota dá 404 e a
+seção do painel não aparece. Nunca apresente este roteiro a cliente.
+
+Painel → **Gestão de acessos (interno)** → **Abrir gestão de acessos**. A faixa do topo diz
 que a tela é da Freitas, simulada; o aviso amarelo diz que aqui a flag só esconde
 a tela. Leia os dois em voz alta.
 
@@ -185,10 +189,11 @@ a tela. Leia os dois em voz alta.
 Sem o modo de demonstração, `/portal/admin/acessos` dá o mesmo 404 de uma URL
 inexistente. O cliente não tem como chegar lá.
 
-## 5c. Roteiro E — Cliente SaaS puro (~6 minutos)
+## 5c. Roteiro E — Cliente SaaS puro (~6 minutos) — funciona em produção
 
-Na Gestão de acessos, **Módulos** → marque Têxtil Horizonte → **Onda 2** (para
-abrir embarques). **Empresas** → **Ver como** Têxtil Horizonte (SaaS puro).
+Painel → **Tipo de cliente** → **SaaS puro**. (Em preview dá também para chegar
+aqui pelo "ver como" de uma empresa SaaS puro; o seletor é o caminho para
+apresentar a cliente.)
 
 1. **Nova cotação**: a faixa "Você informa tudo" substitui qualquer
    pré-preenchimento; mesmo vindo do Radar, nada entra sozinho. A aba de
@@ -200,7 +205,7 @@ abrir embarques). **Empresas** → **Ver como** Têxtil Horizonte (SaaS puro).
 4. **Detalhe de um embarque**: a faixa mostra de onde vem cada bloco e que as
    etapas operadas pela Freitas não se aplicam.
 
-Volte à visão normal antes do próximo roteiro.
+Volte para **Com operação Freitas** antes do próximo roteiro.
 
 ## 5d. Roteiro F — Auditoria fora de ordem (~4 minutos)
 
@@ -272,6 +277,7 @@ começar.
   exceção "por cliente" da Gestão de acessos também, e nenhum endpoint recusa
   chamada de módulo desligado.
 - **Convites não enviam e-mail.** "Cadastrado" e "Ativo" são simulados por botão.
+- **A gestão de acessos é interna e só existe em preview** (`NEXT_PUBLIC_PROTO_INTERNAL=1`).
 - **"Ver como" usa os dados demo do portal**: muda módulos e tipo de cliente,
   não troca a carteira de cotações e embarques.
 - **O link público de cotação não está no protótipo** (risco listado no handoff).

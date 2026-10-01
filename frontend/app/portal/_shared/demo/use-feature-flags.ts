@@ -9,13 +9,7 @@
 
 import { useCallback, useMemo } from 'react';
 
-import {
-  ACCESS_STORE_NAME,
-  VIEWING_AS_STORE_NAME,
-  parseAccessState,
-  parseViewingAs,
-  resolveCompanyFlags,
-} from './access-model';
+import { effectiveFlags } from './client-profile';
 
 import {
   MODULE_FLAGS_STORE_NAME,
@@ -27,6 +21,7 @@ import {
   type PortalModuleFlags,
   type PortalWaveId,
 } from './feature-flags';
+import { useViewingSnapshot } from './use-client-profile';
 import { setDemoValue, useDemoValue } from './use-demo-store';
 
 /**
@@ -38,21 +33,15 @@ export function useGlobalModuleFlags(): PortalModuleFlags {
 }
 
 /**
- * What the screens obey. Normally the global default; while "ver como" is on,
- * the viewed company's resolution (default + its exceptions). One hook for
- * both, so the two existing consumers that hide a module — the sidebar filter
- * and the layout guard — follow "ver como" without a third mechanism.
- * The access store is read raw and only when a company is being viewed.
+ * What the screens obey. Normally the global default; while "ver como" is on
+ * (internal builds only), the viewed company's default + exceptions. One hook
+ * for both, so the two consumers that hide a module — the sidebar filter and
+ * the layout guard — follow "ver como" without a third mechanism.
  */
 export function usePortalModuleFlags(): PortalModuleFlags {
   const global = useGlobalModuleFlags();
-  const viewingAs = useDemoValue(VIEWING_AS_STORE_NAME, parseViewingAs);
-  const access = useDemoValue(ACCESS_STORE_NAME, parseAccessState);
-  return useMemo(() => {
-    if (!viewingAs || !access) return global;
-    const company = access.companies.find((item) => item.id === viewingAs);
-    return company ? resolveCompanyFlags(global, company) : global;
-  }, [global, viewingAs, access]);
+  const viewing = useViewingSnapshot();
+  return useMemo(() => effectiveFlags(global, viewing), [global, viewing]);
 }
 
 /**

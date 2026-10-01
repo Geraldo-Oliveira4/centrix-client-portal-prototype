@@ -52,7 +52,7 @@ import { indexQuotations, routePartsOf } from '../../inteligencia/lib/shipment-d
 import { flattenQuotations } from '../../inteligencia/lib/intel-helpers';
 import { allowsAutoFill, poSources } from '../../_shared/demo/client-kind';
 import { DataSourceStrip } from '../../_shared/demo/data-source-strip';
-import { useClientKind } from '../../_shared/demo/use-access';
+import { useClientKind } from '../../_shared/demo/use-client-profile';
 import { PoForm } from './po-form';
 
 type Step = 'upload' | 'form';

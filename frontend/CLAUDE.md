@@ -2471,11 +2471,11 @@ escala de urgência e padrão de insight documentados no `DESIGN.md` da raiz.
 
 | O quê | Onde | Regra que não pode afrouxar |
 |---|---|---|
-| Gestão de acessos simulada | `/portal/admin/acessos` + `_shared/demo/access-model.ts`, `access-csv.ts`, `use-access.ts` | Tela da Freitas simulada: só abre com o modo de demonstração ligado nesta aba (senão, o mesmo 404 de URL inexistente), `noindex`, sem link no portal; a porta é a seção "Gestão de acessos" do painel. Diz na tela que a flag real fica no servidor. **Não é controle de acesso** |
-| Flags efetivas | `use-feature-flags.ts` | `usePortalModuleFlags` = padrão global, ou padrão + exceções da empresa em "ver como". O painel edita o padrão (`useGlobalModuleFlags`). Sidebar e guard continuam as duas únicas pontas que escondem módulo |
+| Gestão de acessos simulada (**interna**) | `/portal/admin/acessos` + `_shared/demo/access-model.ts`, `access-csv.ts`, `use-access.ts` | Só existe com `NEXT_PUBLIC_PROTO_INTERNAL=1` no build (Vercel: escopo Preview). Sem ela: 404 no `middleware.ts`, seção do painel e faixa do "ver como" fora do bundle (condição inline em volta de cada `import()`; `next.config.mjs` sempre define a variável). Com ela, ainda exige o modo de demonstração. **Não é controle de acesso**; no real mora no Centrix interno (modal de DNA) |
+| Flags efetivas | `use-feature-flags.ts`, `client-profile.ts` | `usePortalModuleFlags` = padrão global, ou padrão + exceções do RETRATO do "ver como" (store `viewing-as`, lido só em build interno). Nada de produção importa `access-model`. O painel edita o padrão (`useGlobalModuleFlags`) |
 | Convite | `access-model.ts` | Não convidado → Convite enviado → Cadastrado → Ativo; Expirado (7 dias) e Bloqueado laterais. Nenhum e-mail sai; toda ação diz "simulado" |
 | E-mail único | `emailsInUse` | Global entre empresas e logins reservados (demo do portal, analista) |
-| Tipo de cliente | `client-kind.ts` + `DataSourceStrip` | SaaS puro: nada vem preenchido (Radar, leitura de documento/PO, agente preferido da rota). Nova cotação, Fechamento direto (`MANUAL_ROUTE_ID`), Embarque via PO e detalhe do embarque leem a mesma regra. Sem "ver como", o portal é Cliente Freitas, como antes |
+| Tipo de cliente | `client-kind.ts` + `DataSourceStrip`; seletor em `use-client-profile.ts` | Seção "Tipo de cliente" do painel (existe em produção): Com operação Freitas (padrão) ou SaaS puro. SaaS puro: nada vem preenchido (Radar, leitura de documento/PO, agente preferido da rota). Telas importam `useClientKind` de `use-client-profile`, nunca de `use-access`. "Ver como" ativo manda sobre o seletor |
 | Dados | seed em `access-model.ts` | Empresas e pessoas inventadas, domínio `.example` |
 
 Handoff para o backend: seções 8, 10, 11 e 12 de `_shared/demo/HANDOFF-BACKEND.md` (a 12 é o risco do link público de cotação, que **não** foi construído).
