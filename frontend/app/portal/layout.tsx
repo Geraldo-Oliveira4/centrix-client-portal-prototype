@@ -13,6 +13,7 @@ import { ModuleNotReleased } from './_shared/demo/module-not-released';
 import { isRouteReleased } from './_shared/demo/feature-flags';
 import { usePortalModuleFlags } from './_shared/demo/use-feature-flags';
 import { PortalV2AutoAdvance } from './_shared/demo/portal-v2-auto-advance';
+import { ViewingAsBanner } from './_shared/demo/viewing-as-banner';
 import { portalFont } from './portal-font';
 
 const PUBLIC_PATHS = [
@@ -86,6 +87,7 @@ export default function PortalLayout({
           {/* pb-24: o botao flutuante "Ajuda" (44px + 16px da borda) nunca
               cobre o ultimo bloco da tela quando o cliente rola ate o fim. */}
           <div className="mx-auto w-full max-w-[1540px] px-4 pb-24 pt-6 md:px-8 md:pt-9">
+            <ViewingAsBanner />
             {isRouteReleased(pathname, flags) ? children : <ModuleNotReleased />}
           </div>
         </main>

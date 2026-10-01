@@ -44,16 +44,18 @@ import {
   MIN_FREITAS_DELAY_SECONDS,
   clampFreitasDelay,
 } from './freitas-simulation';
+import { useViewedCompany } from './use-access';
 import { resetDemoStore } from './use-demo-store';
 import {
   applyPortalWave,
   setPortalModuleFlag,
-  usePortalModuleFlags,
+  useGlobalModuleFlags,
 } from './use-feature-flags';
 import {
   setFreitasSimulation,
   useFreitasSimulation,
 } from './use-freitas-simulation';
+import { AccessSection } from './demo-section-access';
 import { CotacaoV2Section } from './demo-section-cotacao-v2';
 import { DirectCloseSection } from './demo-section-direct-close';
 import { EmbarquePoSection } from './demo-section-embarque-po';
@@ -68,11 +70,20 @@ export interface DemoSection {
 }
 
 function ModulesSection() {
-  const flags = usePortalModuleFlags();
+  // The panel edits the GLOBAL default. With "ver como" on, the portal obeys
+  // the viewed company instead, and the note below says so.
+  const flags = useGlobalModuleFlags();
+  const viewed = useViewedCompany();
   const current = matchingWave(flags);
 
   return (
     <div className="space-y-4">
+      {viewed && (
+        <p className="portal-small rounded-md bg-portal-info/10 px-3 py-2 text-portal-info">
+          Você está vendo como {viewed.name}: o portal segue as exceções dela.
+          Estes controles mudam o padrão global.
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         {PORTAL_WAVE_PRESETS.map((wave) => (
           <Button
@@ -296,6 +307,12 @@ export const DEMO_SECTIONS: DemoSection[] = [
     title: 'Boas-vindas',
     description: 'Tour e configuração inicial do primeiro login.',
     Content: OnboardingSection,
+  },
+  {
+    id: 'acessos',
+    title: 'Gestão de acessos',
+    description: 'Empresas, convites, módulos por cliente e "ver como".',
+    Content: AccessSection,
   },
   {
     id: 'reset',
