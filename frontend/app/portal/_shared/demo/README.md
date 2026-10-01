@@ -43,6 +43,10 @@ pessoa.
 | `use-demo-panel.ts` | visibilidade do painel (`?demo`, `Ctrl+Shift+D`, sessão) |
 | `demo-sections.tsx` | **o registro de seções do painel** |
 | `demo-panel.tsx` | a aba e o Sheet. Renderiza `DEMO_SECTIONS` e nada mais |
+| `access-model.ts` · `access-csv.ts` | gestão de acessos simulada: convites, flags por empresa, onda em lote, registro e importação CSV. **Puros** |
+| `use-access.ts` | estado de acessos, "ver como" e o tipo de cliente que as telas obedecem |
+| `demo-section-access.tsx` · `viewing-as-banner.tsx` | a porta para `/portal/admin/acessos` e a faixa do "ver como" |
+| `client-kind.ts` · `data-source-strip.tsx` | Cliente Freitas x SaaS puro: a regra "nada vem preenchido" e a faixa de origem do dado. **Puro** + desenho |
 
 ### Cotação V2 (HITL)
 
@@ -140,6 +144,16 @@ valor)`. O `parse` precisa ser uma constante de módulo (é dependência do memo
 precisa tolerar lixo: o valor no disco foi escrito por uma versão anterior deste
 código. `resetPrefix()` já vai apagar a chave nova, porque varre o prefixo em
 vez de manter uma lista.
+
+## Gestão de acessos e "ver como"
+
+`/portal/admin/acessos` é a tela da Freitas, simulada. Só abre com o painel
+ligado nesta aba; fora disso, 404. Nenhum menu linka para ela. As flags
+continuam com uma dona só: `usePortalModuleFlags` devolve o padrão global, ou a
+resolução da empresa em "ver como" (padrão + exceções), e as duas pontas que
+escondem módulo (sidebar e guard do layout) seguem isso sem mudar. O painel
+"Módulos liberados" edita o **padrão global** e avisa quando um "ver como" está
+ativo. **Não é controle de acesso.**
 
 ## O que o reset apaga
 

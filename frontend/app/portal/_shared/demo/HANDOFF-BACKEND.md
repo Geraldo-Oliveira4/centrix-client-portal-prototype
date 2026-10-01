@@ -193,6 +193,76 @@ estabelecer.
   isso é explicitamente insuficiente.
 - Ligar e desligar **não exige deploy**.
 - Registro de quem mudou cada flag, quando, e de qual valor para qual.
+- A tela simulada que demonstra isso é `/portal/admin/acessos` (seção 10). Lá o
+  padrão global é o que o painel edita, a exceção vale por empresa e "ver como"
+  usa a resolução das duas. **Tudo no `localStorage` deste navegador.**
+
+## 10. Acessos, contatos e convites
+
+O que o protótipo simula em `/portal/admin/acessos` (só com o modo de
+demonstração ligado) e que a versão integrada precisa ter no servidor:
+
+- **Empresa com N contatos e um responsável.** Contato é login; empresa é o
+  dono dos dados. O lugar real dessa tela é o Centrix interno (o modal de DNA,
+  segundo a spec 03), não o portal.
+- **Unicidade de e-mail GLOBAL** entre os pools de login (cliente e analista). O
+  protótipo recusa na importação um e-mail que já seja contato de outra empresa
+  ou login existente; o real precisa de constraint no banco, não só validação de
+  tela.
+- **Convite com estados**, união da spec 03 com o Prompt 3: Não convidado ->
+  Convite enviado -> Cadastrado -> Ativo, com **Expirado** (convite venceu; o
+  protótipo assume 7 dias) e **Bloqueado** como laterais. Ações: enviar, reenviar,
+  revogar, bloquear, desbloquear. "Simular cadastro" e "Simular primeiro acesso"
+  existem só aqui: no real são eventos do Cognito, não botões. Desbloquear volta
+  ao estado anterior, exceto convite vencido, que volta a "Não convidado".
+- **Envio de convite é e-mail de verdade** no real; aqui nada sai do navegador e
+  a tela diz isso a cada ação.
+- **Importação em lote** (CSV). Aceita o formato curto da spec (`cliente,
+  e-mail, nome`) e o completo (`empresa, cnpj, tipo_cliente, onda, nome, email,
+  responsavel, demo`), valida linha a linha sem parar no primeiro erro, importa só
+  as válidas e devolve relatório. Importar NÃO convida.
+- **Conta de demonstração/interna** (RQ-9): marcada na empresa, com selo na
+  tela; no real precisa ficar fora de toda métrica de uso e de faturamento.
+- **"Ver como"** (RQ-8): no real é **somente leitura** e deixa trilha de quem viu
+  o quê e quando. No protótipo a navegação fica livre (as ações continuam locais)
+  e o início/fim do "ver como" entra no registro de alterações.
+- **Registro de alterações**: quem, quando, empresa, o quê, de -> para, mais
+  recente primeiro, filtrável por empresa. No real é tabela de auditoria
+  imutável, não estado do navegador.
+
+## 11. Cliente SaaS puro
+
+Atributo novo da empresa: **tipo de cliente** = Cliente Freitas | SaaS puro. SaaS
+puro usa o Centrix sem a operação da Freitas e sem a integração Inova. Regra
+única do protótipo (`client-kind.ts`): **nada vem preenchido sozinho**.
+
+| Tela | Cliente Freitas | SaaS puro |
+|---|---|---|
+| Nova cotação | aceita o pré-preenchimento do Radar; documentos enviados são lidos | sem pré-preenchimento; a aba de documentos explica que não há leitura |
+| Fechamento direto | rota e agente preferido vêm da tabela combinada com a Freitas | o cliente informa origem, destino e agente |
+| Embarque via PO | o PO é lido e o cliente confere | o PO é anexado "aguardando conferência"; campos vazios |
+| Detalhe do embarque | — | faixa de origem: informado por você, sincronizado (armador), aguardando conferência, não se aplica (etapas da Freitas) |
+
+Em aberto, para decisão de produto (detalhe em `FRONTEIRA-OPERACIONAL.md`, fora
+do git): **quem revisa** a cotação e o fechamento direto de um cliente SaaS
+puro. O protótipo mantém a revisão da Cotação V2 como está.
+
+## 12. Risco de segurança: link público de cotação
+
+**Não foi construído no protótipo, de propósito.** Existe hoje no Centrix (ARB-2051,
+`/proposta-cliente/[token]`) e precisa de revisão antes de virar porta de
+entrada de cliente SaaS:
+
+- o token vai na URL e vale **30 dias**; o modelo (`QuotationClientLink`) tem
+  `expires_at`, mas **não tem revogação** (`revoked_at`) nem rota para revogar;
+- **não é de uso único** — a spec 03 pede "token de uso único"; hoje quem tiver o
+  link (encaminhado, em histórico de e-mail, em log de proxy) vê a proposta até
+  expirar;
+- não há vínculo do token com um login nem trilha de acesso.
+
+Mínimo sugerido: revogação explícita, validade curta, uso único (ou troca por
+sessão autenticada no primeiro acesso), registro de acesso e invalidação quando
+o contato é bloqueado ou a cotação muda de estado.
 
 ## 9. O que ficou fora do protótipo, de propósito
 

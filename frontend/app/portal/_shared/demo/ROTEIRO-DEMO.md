@@ -163,7 +163,59 @@ Onda 2 ou superior.
 
 ---
 
-## 6. Autorresposta
+## 5b. Roteiro D — Gestão de acessos (~8 minutos)
+
+Painel → **Gestão de acessos** → **Abrir gestão de acessos**. A faixa do topo diz
+que a tela é da Freitas, simulada; o aviso amarelo diz que aqui a flag só esconde
+a tela. Leia os dois em voz alta.
+
+1. **Importar CSV** → "Usar exemplo com erros". Mostre as três linhas recusadas
+   (e-mail inválido, empresa vazia, e-mail que já é de outra empresa) e o
+   relatório copiável. **Importar** leva só as válidas, como "Não convidado".
+2. **Empresas** → Indústria Exemplo → Contatos e convites → **Enviar convite**
+   (diga: nenhum e-mail sai daqui) → Simular cadastro → Simular primeiro acesso.
+   O status anda pelo caminho Não convidado → Convite enviado → Cadastrado → Ativo.
+3. **Módulos** → marque a empresa → **Onda 0**. A confirmação diz quantas
+   empresas e quais módulos desligam. Aplique; as células viram "exceção".
+4. **Empresas** → **Ver como** Indústria Exemplo → vá para Início. A faixa azul
+   diz em quem você está; Meus Embarques sumiu do menu e a rota mostra a porta
+   fechada. **Voltar à visão normal**.
+5. **Registro**: tudo o que você fez, mais recente primeiro.
+
+Sem o modo de demonstração, `/portal/admin/acessos` dá o mesmo 404 de uma URL
+inexistente. O cliente não tem como chegar lá.
+
+## 5c. Roteiro E — Cliente SaaS puro (~6 minutos)
+
+Na Gestão de acessos, **Módulos** → marque Têxtil Horizonte → **Onda 2** (para
+abrir embarques). **Empresas** → **Ver como** Têxtil Horizonte (SaaS puro).
+
+1. **Nova cotação**: a faixa "Você informa tudo" substitui qualquer
+   pré-preenchimento; mesmo vindo do Radar, nada entra sozinho. A aba de
+   documentos explica que ninguém lê os arquivos.
+2. **Fechamento direto**: sem tabela de rotas da Freitas; o cliente digita
+   origem, destino e o agente dele.
+3. **Novo embarque via PO**: anexe um arquivo — ele fica "aguardando
+   conferência", sem leitura; o formulário abre vazio.
+4. **Detalhe de um embarque**: a faixa mostra de onde vem cada bloco e que as
+   etapas operadas pela Freitas não se aplicam.
+
+Volte à visão normal antes do próximo roteiro.
+
+## 5d. Roteiro F — Auditoria fora de ordem (~4 minutos)
+
+Auditoria → **Adicionar à auditoria** → "Usar embarque" (E-DEMO-02).
+
+1. Clique direto na etapa **4**: nada bloqueia; o painel diz o que falta e em
+   qual etapa. Cada etapa tem o próprio estado (não iniciada, em andamento,
+   pendente de documento, concluída, com divergência).
+2. Em "Fontes e próximos passos", **Rever documento** na Referência comercial:
+   abre a etapa 3 no documento, com a faixa "Voltar para a etapa 4".
+3. Saia (Voltar à Auditoria), volte, escolha outra cotação e clique na etapa 1:
+   o primeiro rascunho está em "Rascunhos em andamento", parado na etapa 4.
+   **Continuar** volta exatamente lá, com o que foi digitado.
+
+
 
 Seção **Freitas simulada**: ligue "A Freitas responde sozinha" e escolha o tempo
 (3 a 60 s, padrão 8).
@@ -216,6 +268,11 @@ começar.
   aberto: o protótipo assume corrido (`review-sla.ts`).
 - **A Visão por PO é só protótipo**, para validar aderência. A gestão por PO
   (PO dividido, linkagem linha a linha) é V2.
-- **As flags não são controle de acesso.** Elas moram neste navegador, não há
-  nada por cliente e nenhum endpoint recusa chamada de módulo desligado.
+- **As flags não são controle de acesso.** Elas moram neste navegador; a
+  exceção "por cliente" da Gestão de acessos também, e nenhum endpoint recusa
+  chamada de módulo desligado.
+- **Convites não enviam e-mail.** "Cadastrado" e "Ativo" são simulados por botão.
+- **"Ver como" usa os dados demo do portal**: muda módulos e tipo de cliente,
+  não troca a carteira de cotações e embarques.
+- **O link público de cotação não está no protótipo** (risco listado no handoff).
 - **Todos os dados são fictícios.**

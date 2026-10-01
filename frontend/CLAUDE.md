@@ -82,6 +82,8 @@ frontend/
 
 `/portal/auditoria` embeds the approved price/performance and four-step intake experience in `public/prototypes/centrix-auditoria`. Freight includes versioned rubrics and illustrative PTAX validation; performance has 23 controls. Context assistance uses an explicit demo parser, selective review and source history, not LLM/OCR. Quotes, shipments and history are demo catalogs with independent links; files are metadata only. Session state is isolated; no business API, real upload, email or credit. Host/child hashes synchronize, including deep links. Tests: `scripts/audit-checks/*.cjs`. Release scope: `app/portal/auditoria/PUBLICACAO.md`.
 
+**Entrada não linear (01/10/2026).** As quatro etapas da entrada são clicáveis em qualquer ordem (`#auditoria/entrada/<dim>/etapa-N`, opcional; as rotas antigas seguem iguais). `entry-steps.js` (puro, `scripts/audit-checks/entry-steps-checks.cjs` no `test:unit`) decide o estado de cada etapa — não iniciada, em andamento, pendente de documento, concluída, com divergência — e o que falta nela; a validação só roda ao registrar (`E.create`). Um rascunho por registro localizado (`intake.drafts`, sessionStorage como o resto do módulo), com `resumeStep` para trocar de vínculo sem perder a etapa. "Rever documento" (etapa 4 e detalhe) guarda `returnTo` e a faixa "Voltar" devolve à etapa/rolagem ou ao detalhe de origem. Fonte de dados e cálculo da conciliação não mudaram.
+
 ### Radar Beta — 13/09/2026
 
 `/portal/radar` is an independent menu module embedding `public/prototypes/centrix-radar`, with host/child hash synchronization and isolated CSS. Default `#radar/mercado` shows preferred-route cards, then `#radar/mercado/:id` opens price details. Adding a route lasts for the session only and does not change commercial preferences. Riscos, Parceiros and Abastecimento remain Beta. Contracting opportunities are evaluated within Mercado, not a separate tab. All prices, sources and needs are fictional; no API, alert engine, quotation mutation or Intelligence integration was added. Existing Intelligence screens remain unchanged. Release scope and checks: `app/portal/radar/PUBLICACAO.md`.
@@ -2464,3 +2466,16 @@ escala de urgência e padrão de insight documentados no `DESIGN.md` da raiz.
 | "Você já embarcou esta carga" | `_shared/history-match.ts` | Produto + origem + destino; a ação reaproveita "Cotar novamente" |
 | Tema nos iframes | `public/prototypes/_shared/theme-sync.{js,css}` | Ponte de protótipo: inversão de luminância com rotação de matiz. A versão integrada usa os tokens |
 | Rótulos em 2ª pessoa | `ManualForm clientFacing` | "Sua referência", "Quando você precisa da carga"; a tela do analista mantém a redação dela |
+
+## Gestão de acessos e cliente SaaS puro — 01/10/2026 (Prompt 3)
+
+| O quê | Onde | Regra que não pode afrouxar |
+|---|---|---|
+| Gestão de acessos simulada | `/portal/admin/acessos` + `_shared/demo/access-model.ts`, `access-csv.ts`, `use-access.ts` | Tela da Freitas simulada: só abre com o modo de demonstração ligado nesta aba (senão, o mesmo 404 de URL inexistente), `noindex`, sem link no portal; a porta é a seção "Gestão de acessos" do painel. Diz na tela que a flag real fica no servidor. **Não é controle de acesso** |
+| Flags efetivas | `use-feature-flags.ts` | `usePortalModuleFlags` = padrão global, ou padrão + exceções da empresa em "ver como". O painel edita o padrão (`useGlobalModuleFlags`). Sidebar e guard continuam as duas únicas pontas que escondem módulo |
+| Convite | `access-model.ts` | Não convidado → Convite enviado → Cadastrado → Ativo; Expirado (7 dias) e Bloqueado laterais. Nenhum e-mail sai; toda ação diz "simulado" |
+| E-mail único | `emailsInUse` | Global entre empresas e logins reservados (demo do portal, analista) |
+| Tipo de cliente | `client-kind.ts` + `DataSourceStrip` | SaaS puro: nada vem preenchido (Radar, leitura de documento/PO, agente preferido da rota). Nova cotação, Fechamento direto (`MANUAL_ROUTE_ID`), Embarque via PO e detalhe do embarque leem a mesma regra. Sem "ver como", o portal é Cliente Freitas, como antes |
+| Dados | seed em `access-model.ts` | Empresas e pessoas inventadas, domínio `.example` |
+
+Handoff para o backend: seções 8, 10, 11 e 12 de `_shared/demo/HANDOFF-BACKEND.md` (a 12 é o risco do link público de cotação, que **não** foi construído).
