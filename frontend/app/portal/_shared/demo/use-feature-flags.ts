@@ -7,7 +7,15 @@
 // render, and a provider would add a tree that the sidebar, the layout guard
 // and the panel would each have to sit inside.
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+
+import {
+  ACCESS_STORE_NAME,
+  VIEWING_AS_STORE_NAME,
+  parseAccessState,
+  parseViewingAs,
+  resolveCompanyFlags,
+} from './access-model';
 
 import {
   MODULE_FLAGS_STORE_NAME,
@@ -21,9 +29,30 @@ import {
 } from './feature-flags';
 import { setDemoValue, useDemoValue } from './use-demo-store';
 
-/** Every module's current state. Defaults to all released. */
-export function usePortalModuleFlags(): PortalModuleFlags {
+/**
+ * The GLOBAL default: what the panel's "Módulos liberados" edits. It is also
+ * the first row of the access matrix (/portal/admin/acessos).
+ */
+export function useGlobalModuleFlags(): PortalModuleFlags {
   return useDemoValue(MODULE_FLAGS_STORE_NAME, parseModuleFlags);
+}
+
+/**
+ * What the screens obey. Normally the global default; while "ver como" is on,
+ * the viewed company's resolution (default + its exceptions). One hook for
+ * both, so the two existing consumers that hide a module — the sidebar filter
+ * and the layout guard — follow "ver como" without a third mechanism.
+ * The access store is read raw and only when a company is being viewed.
+ */
+export function usePortalModuleFlags(): PortalModuleFlags {
+  const global = useGlobalModuleFlags();
+  const viewingAs = useDemoValue(VIEWING_AS_STORE_NAME, parseViewingAs);
+  const access = useDemoValue(ACCESS_STORE_NAME, parseAccessState);
+  return useMemo(() => {
+    if (!viewingAs || !access) return global;
+    const company = access.companies.find((item) => item.id === viewingAs);
+    return company ? resolveCompanyFlags(global, company) : global;
+  }, [global, viewingAs, access]);
 }
 
 /**
