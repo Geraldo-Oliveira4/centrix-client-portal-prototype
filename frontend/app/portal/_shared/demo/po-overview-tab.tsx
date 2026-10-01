@@ -42,6 +42,8 @@ import { MODAL_LABELS } from '@/types/quotation';
 
 import { flattenQuotations } from '../../inteligencia/lib/intel-helpers';
 import { SectionHeading } from '../page-header';
+import { ProvenanceBadge } from '../provenance-badge';
+import { buildPoOverviewExample } from './po-overview-examples';
 import {
   PO_BUCKET_LABELS,
   PO_BUCKET_ORDER,
@@ -738,6 +740,15 @@ export function PoOverviewTab({
   const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
   // Um relógio por montagem: a faixa, os chips e o "hoje" do eixo concordam.
   const [now] = useState(() => new Date());
+  // "Seus pedidos" ou o EXEMPLO com datas relativas a hoje (nunca envelhece,
+  // nunca se mistura aos pedidos do cliente). No Preview abre no exemplo, para
+  // a linha do tempo aparecer cheia; em produção abre nos pedidos do cliente,
+  // com o exemplo a um clique.
+  const [source, setSource] = useState<'seus' | 'exemplo'>(
+    process.env.NEXT_PUBLIC_PROTO_INTERNAL === '1' ? 'exemplo' : 'seus',
+  );
+  const example = useMemo(() => buildPoOverviewExample(now), [now]);
+  const isExample = source === 'exemplo';
 
   const readyByQuotation = useMemo(() => {
     const map = new Map<string, string | null>();
@@ -748,26 +759,37 @@ export function PoOverviewTab({
 
   const groups = useMemo(
     () =>
-      groupShipmentsByPo(shipments, {
-        // O rótulo do estado vem da MESMA fonte que a carteira usa: a etapa de
-        // revisão quando ela existe, o estado operacional quando não.
-        stateLabel: (shipment) =>
-          shipment.review_status && shipment.review_status.stage !== 'active'
-            ? PO_STAGE_LABELS[shipment.review_status.stage]
-            : (ESTADO_LABELS[shipment.estado] ?? shipment.estado),
-        readyDate: (shipment) =>
-          shipment.quotation_id
-            ? (readyByQuotation.get(shipment.quotation_id) ?? null)
-            : null,
-        items: (shipment) =>
-          (poStore[shipment.id]?.data.items ?? []).map((item) => ({
-            partNumber: item.partNumber,
-            description: item.description,
-            quantity: item.quantity,
-          })),
-      }),
-    [shipments, readyByQuotation, poStore],
+      isExample
+        ? groupShipmentsByPo(example.shipments, {
+            stateLabel: (shipment) =>
+              ESTADO_LABELS[shipment.estado] ?? shipment.estado,
+            readyDate: (shipment) => example.readyDates[shipment.id] ?? null,
+            items: (shipment) => example.items[shipment.id] ?? [],
+          })
+        : groupShipmentsByPo(shipments, {
+            // O rótulo do estado vem da MESMA fonte que a carteira usa: a etapa de
+            // revisão quando ela existe, o estado operacional quando não.
+            stateLabel: (shipment) =>
+              shipment.review_status &&
+              shipment.review_status.stage !== 'active'
+                ? PO_STAGE_LABELS[shipment.review_status.stage]
+                : (ESTADO_LABELS[shipment.estado] ?? shipment.estado),
+            readyDate: (shipment) =>
+              shipment.quotation_id
+                ? (readyByQuotation.get(shipment.quotation_id) ?? null)
+                : null,
+            items: (shipment) =>
+              (poStore[shipment.id]?.data.items ?? []).map((item) => ({
+                partNumber: item.partNumber,
+                description: item.description,
+                quantity: item.quantity,
+              })),
+          }),
+    [isExample, example, shipments, readyByQuotation, poStore],
   );
+  const hasMockTracking =
+    !isExample &&
+    groups.some((g) => g.shipments.some((s) => s.trackingIsMock && s.eta));
 
   const rows: Row[] = useMemo(
     () => groups.map((group) => ({ group, status: poGroupStatus(group, now) })),
@@ -821,6 +843,13 @@ export function PoOverviewTab({
           Quando um embarque tiver o número do seu PO, ele aparece aqui agrupado
           pelo pedido, com a chegada prevista de cada carga.
         </p>
+        <button
+          type="button"
+          onClick={() => setSource('exemplo')}
+          className="portal-small mt-3 font-medium text-brand-indigo underline underline-offset-4"
+        >
+          Ver como fica, com um exemplo
+        </button>
       </div>
     );
   }
@@ -831,43 +860,105 @@ export function PoOverviewTab({
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <SectionHeading
-          title="Seus pedidos"
+          title={isExample ? 'Pedidos de exemplo' : 'Seus pedidos'}
           hint={
             split > 0
               ? `${split} ${split === 1 ? 'PO dividido' : 'POs divididos'} em mais de um embarque`
               : 'cada PO com os embarques que nasceram dele'
           }
         />
-        <div
-          role="radiogroup"
-          aria-label="Forma de ver"
-          className="inline-flex rounded-lg border border-border bg-card p-0.5"
-        >
-          {(
-            [
-              ['timeline', 'Linha do tempo', GanttChartSquare],
-              ['lista', 'Lista', List],
-            ] as const
-          ).map(([value, label, Icon]) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={view === value}
-              onClick={() => setView(value)}
-              className={cn(
-                'portal-small inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                view === value
-                  ? 'bg-brand-indigo-100 text-brand-indigo'
-                  : 'text-portal-neutral hover:text-foreground',
-              )}
-            >
-              <Icon className="h-4 w-4" aria-hidden="true" />
-              {label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            role="radiogroup"
+            aria-label="Quais pedidos"
+            className="inline-flex rounded-lg border border-border bg-card p-0.5"
+          >
+            {(
+              [
+                ['seus', 'Seus pedidos'],
+                ['exemplo', 'Exemplo'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={source === value}
+                onClick={() => {
+                  setSource(value);
+                  setFilter(null);
+                  setOpenKeys(new Set());
+                }}
+                className={cn(
+                  'portal-small inline-flex min-h-9 items-center rounded-md px-3 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  source === value
+                    ? 'bg-brand-indigo-100 text-brand-indigo'
+                    : 'text-portal-neutral hover:text-foreground',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div
+            role="radiogroup"
+            aria-label="Forma de ver"
+            className="inline-flex rounded-lg border border-border bg-card p-0.5"
+          >
+            {(
+              [
+                ['timeline', 'Linha do tempo', GanttChartSquare],
+                ['lista', 'Lista', List],
+              ] as const
+            ).map(([value, label, Icon]) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={view === value}
+                onClick={() => setView(value)}
+                className={cn(
+                  'portal-small inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  view === value
+                    ? 'bg-brand-indigo-100 text-brand-indigo'
+                    : 'text-portal-neutral hover:text-foreground',
+                )}
+              >
+                <Icon className="h-4 w-4" aria-hidden="true" />
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
+      {isExample && (
+        <div
+          role="note"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-brand-indigo-800/40 bg-brand-indigo-100 px-4 py-3"
+        >
+          <p className="portal-body text-foreground">
+            <span className="font-medium">Exemplo.</span> Pedidos fictícios, com
+            datas calculadas a partir de hoje — mostra como a tela fica com
+            pedidos em andamento. Nada aqui é seu nem vem da companhia marítima.
+          </p>
+          <button
+            type="button"
+            onClick={() => setSource('seus')}
+            className="portal-small font-medium text-brand-indigo underline underline-offset-4"
+          >
+            Ver os seus pedidos
+          </button>
+        </div>
+      )}
+
+      {hasMockTracking && (
+        <p className="portal-small flex flex-wrap items-center gap-2 text-portal-neutral">
+          <ProvenanceBadge provenance="preview" />
+          Algumas datas de chegada são de rastreamento de demonstração — não vêm
+          da companhia marítima.
+        </p>
+      )}
 
       <SummaryChips
         counts={counts}

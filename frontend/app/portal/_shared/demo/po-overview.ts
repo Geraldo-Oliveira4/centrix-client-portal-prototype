@@ -49,6 +49,12 @@ export interface PoOverviewShipment {
   riskReason: string | null;
   /** SKUs, quando o embarque nasceu de um PO com itens. */
   items: PoOverviewItem[];
+  /**
+   * As datas de rastreamento são de DEMONSTRAÇÃO (`tracking.is_mock`). Toda
+   * tela que mostra uma data dessas tem de dizer isso (CLAUDE.md, contrato do
+   * `tracking_is_mock`).
+   */
+  trackingIsMock: boolean;
 }
 
 export interface PoOverviewItem {
@@ -157,6 +163,7 @@ export function groupShipmentsByPo(
       arrived,
       riskReason: riskOf(shipment, arrived),
       items: resolvers.items?.(shipment) ?? [],
+      trackingIsMock: tracking?.is_mock === true,
     };
 
     const existing = groups.get(key);

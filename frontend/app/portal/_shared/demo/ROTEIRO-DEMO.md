@@ -200,8 +200,14 @@ B. "PO dividido em 3 embarques" (cenário do painel) é só Preview.
      abra um PO para ver os embarques, a etapa em mini-passos e os SKUs.
    - **Lista**: a mesma informação sem eixo. No celular, cada PO vira um cartão
      com mini barra de progresso.
-   - No Preview, "PO dividido em 3 embarques" (painel) mostra um pedido com
-     três parciais. *Ponto:* nenhuma data é estimada aqui.
+   - **"Seus pedidos | Exemplo"**: o Exemplo é um conjunto fictício com datas
+     calculadas a partir de HOJE (chegadas em 3, 12 e 40 dias, um PO dividido
+     em 2 embarques, um em risco, um sem previsão, um já entregue). Ele nunca
+     envelhece e nunca se mistura aos pedidos do cliente. No Preview a aba abre
+     nele; em produção abre nos pedidos do cliente, com o Exemplo a um clique.
+     *Diga:* "isto é um exemplo; os seus pedidos estão no botão ao lado".
+   - Datas de rastreamento de demonstração (`is_mock`) nos pedidos do cliente
+     aparecem com o selo "Pré-visualização" e a frase que diz isso.
    - Com **SaaS puro**, a tela é a mesma, sem citar a Freitas.
 
 ---

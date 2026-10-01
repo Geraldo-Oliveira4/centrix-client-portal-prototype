@@ -298,7 +298,9 @@ o contato é bloqueado ou a cotação muda de estado.
   cotação de origem (`data_prontidao`, hoje vazia no seed), partida reportada
   pela companhia (marco `OCEAN_TRANSIT` datado) e chegada prevista. Para a
   versão real: a prontidão precisa ser campo do embarque/PO editável pelo
-  cliente, e é dela que o ETA deve sair.
+  cliente, e é dela que o ETA deve sair. O "Exemplo" da aba
+  (`po-overview-examples.ts`) é fictício, gerado no navegador com datas
+  relativas a hoje — não existe no backend e não deve existir.
 - **Mapa e insights de rota das boas-vindas.** O prazo típico, a tendência e a
   frase do cartão de rota são um EXEMPLO fictício (`routeExample`, sempre com a
   etiqueta "exemplo"). No produto real dependem do **data lake** de frete; o
