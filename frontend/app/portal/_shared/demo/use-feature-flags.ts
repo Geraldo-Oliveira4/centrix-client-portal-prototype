@@ -12,6 +12,7 @@ import { useCallback, useMemo } from 'react';
 import { effectiveFlags } from './client-profile';
 
 import {
+  DEFAULT_MODULE_FLAGS,
   MODULE_FLAGS_STORE_NAME,
   flagsForWave,
   isRouteReleased,
@@ -29,7 +30,14 @@ import { setDemoValue, useDemoValue } from './use-demo-store';
  * the first row of the access matrix (/portal/admin/acessos).
  */
 export function useGlobalModuleFlags(): PortalModuleFlags {
-  return useDemoValue(MODULE_FLAGS_STORE_NAME, parseModuleFlags);
+  const stored = useDemoValue(MODULE_FLAGS_STORE_NAME, parseModuleFlags);
+  // Produção não tem a seção "Módulos liberados" no painel: todos os módulos
+  // do protótipo ficam visíveis, e o que estiver guardado no navegador (de uma
+  // onda aplicada num preview, por exemplo) é ignorado — sem a seção, ninguém
+  // conseguiria desfazê-lo.
+  return process.env.NEXT_PUBLIC_PROTO_INTERNAL === '1'
+    ? stored
+    : DEFAULT_MODULE_FLAGS;
 }
 
 /**

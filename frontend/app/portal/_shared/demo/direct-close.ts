@@ -322,6 +322,27 @@ export function approveDirectClose(
   };
 }
 
+/**
+ * "A Freitas responde sozinha" para o fechamento direto: só a revisão de
+ * entrada avança, e só para APROVADO. Devolver continua sendo sempre manual,
+ * como na cotação — uma demonstração em que a Freitas recusa sozinha diria uma
+ * coisa falsa sobre o produto. O relógio é `stageEnteredAt`, então sobrevive a
+ * recarregar a página.
+ */
+export function msUntilDirectCloseAutoAdvance(
+  request: DirectCloseRequest,
+  delaySeconds: number,
+  now: number,
+): number | null {
+  if (request.stage !== 'entry_review') return null;
+  const enteredAt = Date.parse(request.stageEnteredAt);
+  const delayMs = delaySeconds * 1000;
+  if (!Number.isFinite(enteredAt)) return 0;
+  const elapsed = now - enteredAt;
+  if (elapsed < 0) return delayMs;
+  return Math.max(0, delayMs - elapsed);
+}
+
 const STAGES: DirectCloseStage[] = ['entry_review', 'returned', 'approved'];
 const FORM_KEYS = Object.keys(
   EMPTY_DIRECT_CLOSE_FORM,

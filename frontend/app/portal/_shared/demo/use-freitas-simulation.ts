@@ -2,6 +2,7 @@
 
 import {
   FREITAS_SIMULATION_STORE_NAME,
+  PRODUCTION_FREITAS_SIMULATION,
   parseFreitasSimulation,
   type FreitasSimulation,
 } from './freitas-simulation';
@@ -10,12 +11,16 @@ import { setDemoValue, useDemoValue } from './use-demo-store';
 /**
  * The simulated analyst's settings.
  *
- * Nothing in the portal acts on them yet — the automatic reply arrives with the
- * Cotação V2 and PO journeys. The hook exists now so those prompts read the
- * setting instead of inventing a second place to keep it.
+ * Read by the automatic reply (`use-v2-auto-advance.ts`) for the quotation,
+ * direct close and PO journeys.
  */
 export function useFreitasSimulation(): FreitasSimulation {
-  return useDemoValue(FREITAS_SIMULATION_STORE_NAME, parseFreitasSimulation);
+  const stored = useDemoValue(FREITAS_SIMULATION_STORE_NAME, parseFreitasSimulation);
+  // Produção não tem a seção "Freitas simulada" no painel: a Freitas responde
+  // sozinha, sempre (ver PRODUCTION_FREITAS_SIMULATION).
+  return process.env.NEXT_PUBLIC_PROTO_INTERNAL === '1'
+    ? stored
+    : PRODUCTION_FREITAS_SIMULATION;
 }
 
 export function setFreitasSimulation(value: FreitasSimulation): void {

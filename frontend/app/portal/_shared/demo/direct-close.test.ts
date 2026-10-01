@@ -5,6 +5,7 @@ import {
   DIRECT_CLOSE_ROUTES,
   EMPTY_MANUAL_ROUTE,
   MANUAL_ROUTE_ID,
+  msUntilDirectCloseAutoAdvance,
   requestRouteLabel,
   EMPTY_DIRECT_CLOSE_FORM,
   approveDirectClose,
@@ -135,4 +136,15 @@ test('SaaS puro: rota e agente informados pelo cliente, sem tabela da Freitas', 
   assert.deepEqual(parsed[request.id].manualRoute, { origin: 'Ningbo', destination: 'Itajaí' });
   const returned = returnDirectClose(request, 'Ajuste DEMO', '2026-10-01T13:00:00Z');
   assert.equal(resubmitDirectClose(returned, form, '2026-10-01T14:00:00Z').stage, 'entry_review');
+});
+
+test('autorresposta do fechamento direto: só a revisão de entrada, só para aprovado', () => {
+  const at = '2026-10-01T12:00:00.000Z';
+  const t0 = Date.parse(at);
+  const form = { ...EMPTY_DIRECT_CLOSE_FORM, routeId: DIRECT_CLOSE_ROUTES[0].id, product: 'P', clientReference: 'PO-1', incoterm: 'FOB', readyDate: '2026-10-20', cargo: '1 x 20' };
+  const request = submitDirectClose({}, form, at)!;
+  assert.equal(msUntilDirectCloseAutoAdvance(request, 8, t0 + 3000), 5000);
+  assert.equal(msUntilDirectCloseAutoAdvance(request, 8, t0 + 9000), 0);
+  assert.equal(msUntilDirectCloseAutoAdvance(approveDirectClose(request, at), 8, t0), null);
+  assert.equal(msUntilDirectCloseAutoAdvance(returnDirectClose(request, 'x', at), 8, t0), null);
 });

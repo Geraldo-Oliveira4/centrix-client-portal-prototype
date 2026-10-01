@@ -255,6 +255,15 @@ Em aberto, para decisão de produto (detalhe em `FRONTEIRA-OPERACIONAL.md`, fora
 do git): **quem revisa** a cotação e o fechamento direto de um cliente SaaS
 puro. O protótipo mantém a revisão da Cotação V2 como está.
 
+## 11b. O que o protótipo de produção simula sozinho
+
+O domínio de produção do protótipo não mostra nenhuma ferramenta da Freitas: a
+revisão de entrada e de saída da cotação, a validação do PO e a aprovação do
+fechamento direto acontecem **sozinhas, em ~8 s por etapa**, sempre aprovando.
+Isso é só para a jornada do cliente não parar numa demonstração. **No produto
+real essas etapas são trabalho de um analista no Centrix interno**, com o prazo
+de 1 hora (seção 2), e podem devolver. Nada no portal real deve avançar sozinho.
+
 ## 12. Risco de segurança: link público de cotação
 
 **Não foi construído no protótipo, de propósito.** Existe hoje no Centrix (ARB-2051,

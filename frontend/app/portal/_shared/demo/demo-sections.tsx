@@ -28,23 +28,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 
-import {
-  ALWAYS_ON_PORTAL_AREAS,
-  PORTAL_MODULES,
-  PORTAL_MODULE_DESCRIPTIONS,
-  PORTAL_MODULE_LABELS,
-  PORTAL_WAVE_PRESETS,
-  matchingWave,
-} from './feature-flags';
-import {
-  MAX_FREITAS_DELAY_SECONDS,
-  MIN_FREITAS_DELAY_SECONDS,
-  clampFreitasDelay,
-} from './freitas-simulation';
 import { CLIENT_KIND_LABELS, type ClientKind } from './client-profile';
 import {
   setSelectedClientKind,
@@ -52,18 +36,6 @@ import {
   useViewingSnapshot,
 } from './use-client-profile';
 import { resetDemoStore } from './use-demo-store';
-import {
-  applyPortalWave,
-  setPortalModuleFlag,
-  useGlobalModuleFlags,
-} from './use-feature-flags';
-import {
-  setFreitasSimulation,
-  useFreitasSimulation,
-} from './use-freitas-simulation';
-import { CotacaoV2Section } from './demo-section-cotacao-v2';
-import { DirectCloseSection } from './demo-section-direct-close';
-import { EmbarquePoSection } from './demo-section-embarque-po';
 
 export interface DemoSection {
   /** Stable key. Also the anchor a later prompt can point at. */
@@ -74,16 +46,72 @@ export interface DemoSection {
   Content: ComponentType;
 }
 
-// Gestão de acessos: conceito INTERNO (Freitas/Ionix). Só existe em build com
-// NEXT_PUBLIC_PROTO_INTERNAL=1 (preview). A condição fica ESCRITA AQUI, inline,
-// para o compilador resolvê-la e deixar o import dinâmico fora do bundle de
-// produção — uma constante importada de outro módulo não seria dobrada.
-const AccessSection: ComponentType | null =
+// SEÇÕES INTERNAS (Freitas/Ionix). Só existem em build com
+// NEXT_PUBLIC_PROTO_INTERNAL=1 (preview): ondas de módulos, Freitas simulada,
+// as mesas de revisão da Cotação V2, do Embarque via PO e do Fechamento direto,
+// e a gestão de acessos. A condição fica ESCRITA AQUI, inline, em volta de cada
+// `import()`, para o compilador resolvê-la e deixar esse código fora do bundle
+// de produção — uma constante importada de outro módulo não seria dobrada.
+// Em produção ficam só "Tipo de cliente", "Boas-vindas" e "Reiniciar".
+const INTERNAL_SECTIONS: DemoSection[] =
   process.env.NEXT_PUBLIC_PROTO_INTERNAL === '1'
-    ? dynamic(() =>
-        import('./demo-section-access').then((m) => m.AccessSection),
-      )
-    : null;
+    ? [
+        {
+          id: 'modules',
+          title: 'Módulos liberados',
+          description: 'O que esta empresa enxerga no portal.',
+          Content: dynamic(() =>
+            import('./demo-sections-internal').then((m) => m.ModulesSection),
+          ),
+        },
+        {
+          id: 'freitas',
+          title: 'Freitas simulada',
+          description: 'O analista que responde do outro lado.',
+          Content: dynamic(() =>
+            import('./demo-sections-internal').then((m) => m.FreitasSection),
+          ),
+        },
+        {
+          id: 'cotacao-v2',
+          title: 'Cotação V2',
+          description: 'A revisão da Freitas: de entrada (Inbox) e de saída.',
+          Content: dynamic(() =>
+            import('./demo-section-cotacao-v2').then((m) => m.CotacaoV2Section),
+          ),
+        },
+        {
+          id: 'embarque-po',
+          title: 'Embarque via PO',
+          description: 'A revisão da Freitas na abertura do embarque.',
+          Content: dynamic(() =>
+            import('./demo-section-embarque-po').then(
+              (m) => m.EmbarquePoSection,
+            ),
+          ),
+        },
+        {
+          id: 'fechamento-direto',
+          title: 'Fechamento direto',
+          description:
+            'Pedidos com o agente preferido da rota, na revisão de entrada.',
+          Content: dynamic(() =>
+            import('./demo-section-direct-close').then(
+              (m) => m.DirectCloseSection,
+            ),
+          ),
+        },
+        {
+          id: 'acessos',
+          title: 'Gestão de acessos (interno)',
+          description:
+            'Empresas, convites, módulos por cliente e "ver como". Só em preview.',
+          Content: dynamic(() =>
+            import('./demo-section-access').then((m) => m.AccessSection),
+          ),
+        },
+      ]
+    : [];
 
 /**
  * "Tipo de cliente" — existe também em produção. Liga o SaaS puro sem passar
@@ -125,151 +153,14 @@ function ClientKindSection() {
   );
 }
 
-function ModulesSection() {
-  // The panel edits the GLOBAL default. With "ver como" on, the portal obeys
-  // the viewed company instead, and the note below says so.
-  const flags = useGlobalModuleFlags();
-  const viewed = useViewingSnapshot();
-  const current = matchingWave(flags);
-
-  return (
-    <div className="space-y-4">
-      {viewed && (
-        <p className="portal-small rounded-md bg-portal-info/10 px-3 py-2 text-portal-info">
-          Você está vendo como {viewed.name}: o portal segue as exceções dela.
-          Estes controles mudam o padrão global.
-        </p>
-      )}
-      <div className="flex flex-wrap gap-2">
-        {PORTAL_WAVE_PRESETS.map((wave) => (
-          <Button
-            key={wave.id}
-            type="button"
-            size="sm"
-            variant={current === wave.id ? 'default' : 'outline'}
-            onClick={() => applyPortalWave(wave.id)}
-            title={wave.description}
-          >
-            {wave.label}
-          </Button>
-        ))}
-      </div>
-
-      <ul className="space-y-3">
-        {PORTAL_MODULES.map((module) => (
-          <li key={module} className="flex items-start justify-between gap-3">
-            <div className="min-w-0 space-y-0.5">
-              <Label
-                htmlFor={`demo-module-${module}`}
-                className="portal-body font-medium text-foreground"
-              >
-                {PORTAL_MODULE_LABELS[module]}
-              </Label>
-              <p className="portal-small text-portal-neutral">
-                {PORTAL_MODULE_DESCRIPTIONS[module]}
-              </p>
-            </div>
-            <Switch
-              id={`demo-module-${module}`}
-              checked={flags[module]}
-              onCheckedChange={(checked) =>
-                setPortalModuleFlag(flags, module, checked)
-              }
-              aria-label={PORTAL_MODULE_LABELS[module]}
-            />
-          </li>
-        ))}
-      </ul>
-
-      {/* Says why three menu items have no switch, instead of leaving whoever
-          is presenting to discover it by looking for them. */}
-      <p className="portal-small text-portal-neutral">
-        Sempre liberados, sem chave: {ALWAYS_ON_PORTAL_AREAS.join(', ')}.
-      </p>
-    </div>
-  );
-}
-
-function FreitasSection() {
-  const simulation = useFreitasSimulation();
-  // The field is held as text while it is being typed: clamping on every
-  // keystroke makes "1" jump to "3" before the client can type "12".
-  const [draft, setDraft] = useState<string | null>(null);
-  const shown = draft ?? String(simulation.delaySeconds);
-
-  const commit = () => {
-    const parsed = Number.parseInt(shown, 10);
-    setFreitasSimulation({
-      ...simulation,
-      delaySeconds: Number.isNaN(parsed)
-        ? simulation.delaySeconds
-        : clampFreitasDelay(parsed),
-    });
-    setDraft(null);
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-0.5">
-          <Label
-            htmlFor="demo-freitas-auto"
-            className="portal-body font-medium text-foreground"
-          >
-            A Freitas responde sozinha
-          </Label>
-          <p className="portal-small text-portal-neutral">
-            O analista simulado responde sem ninguém clicar.
-          </p>
-        </div>
-        <Switch
-          id="demo-freitas-auto"
-          checked={simulation.autoRespond}
-          onCheckedChange={(checked) =>
-            setFreitasSimulation({ ...simulation, autoRespond: checked })
-          }
-          aria-label="A Freitas responde sozinha"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="demo-freitas-delay" className="portal-small">
-          Tempo de resposta (segundos)
-        </Label>
-        <Input
-          id="demo-freitas-delay"
-          type="number"
-          inputMode="numeric"
-          min={MIN_FREITAS_DELAY_SECONDS}
-          max={MAX_FREITAS_DELAY_SECONDS}
-          value={shown}
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={commit}
-          className="w-28"
-        />
-        <p className="portal-small text-portal-neutral">
-          Entre {MIN_FREITAS_DELAY_SECONDS} e {MAX_FREITAS_DELAY_SECONDS}{' '}
-          segundos.
-        </p>
-      </div>
-
-      {/* The honest part: the setting is saved, nothing reads it yet. */}
-      <p className="portal-small text-portal-neutral">
-        A escolha fica salva. A resposta automática ainda não está ligada a
-        nenhuma tela.
-      </p>
-    </div>
-  );
-}
-
 function ResetSection() {
   const [confirming, setConfirming] = useState(false);
 
   return (
     <div className="space-y-3">
       <p className="portal-small text-portal-neutral">
-        Apaga os módulos liberados, a Freitas simulada e o que os próximos
-        controles guardarem. Cotações, embarques e o seu login não são tocados.
+        Apaga o que a demonstração guardou neste navegador e volta ao estado
+        inicial. O seu login e o que está no servidor não são tocados.
       </p>
       <Button
         type="button"
@@ -286,9 +177,8 @@ function ResetSection() {
           <AlertDialogHeader>
             <AlertDialogTitle>Reiniciar a demonstração?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tudo o que este painel guardou volta ao estado inicial: todos os
-              módulos liberados e a Freitas simulada desligada. Não há como
-              desfazer.
+              Tudo o que a demonstração guardou neste navegador volta ao estado
+              inicial. Não há como desfazer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -325,62 +215,19 @@ function OnboardingSection() {
 
 export const DEMO_SECTIONS: DemoSection[] = [
   {
-    id: 'modules',
-    title: 'Módulos liberados',
-    description: 'O que esta empresa enxerga no portal.',
-    Content: ModulesSection,
-  },
-  {
     id: 'client-kind',
     title: 'Tipo de cliente',
     description: 'Com operação Freitas ou SaaS puro.',
     Content: ClientKindSection,
   },
-  {
-    id: 'freitas',
-    title: 'Freitas simulada',
-    description: 'O analista que responde do outro lado.',
-    Content: FreitasSection,
-  },
-  {
-    id: 'cotacao-v2',
-    title: 'Cotação V2',
-    description: 'A revisão da Freitas: de entrada (Inbox) e de saída.',
-    Content: CotacaoV2Section,
-  },
-  {
-    id: 'embarque-po',
-    title: 'Embarque via PO',
-    description: 'A revisão da Freitas na abertura do embarque.',
-    Content: EmbarquePoSection,
-  },
-  // Acrescentada depois das seções existentes; "Reiniciar" continua sendo a
-  // última, porque é a ação que encerra uma apresentação.
-  {
-    id: 'fechamento-direto',
-    title: 'Fechamento direto',
-    description:
-      'Pedidos com o agente preferido da rota, na revisão de entrada.',
-    Content: DirectCloseSection,
-  },
-  // Acrescentada antes de "Reiniciar demonstracao", que continua a ultima.
+  ...INTERNAL_SECTIONS,
   {
     id: 'onboarding',
     title: 'Boas-vindas',
     description: 'Tour e configuração inicial do primeiro login.',
     Content: OnboardingSection,
   },
-  ...(AccessSection
-    ? [
-        {
-          id: 'acessos',
-          title: 'Gestão de acessos (interno)',
-          description:
-            'Empresas, convites, módulos por cliente e "ver como". Só em preview.',
-          Content: AccessSection,
-        },
-      ]
-    : []),
+  // "Reiniciar" continua sendo a última: é a ação que encerra uma apresentação.
   {
     id: 'reset',
     title: 'Reiniciar demonstração',
