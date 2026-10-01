@@ -25,7 +25,16 @@ const D = (() => {
     ['nord','hamburgo','gamma','2026-06-10',0,0,0,'direto','correta','completo','integra','conforme'],
     ['nord','hamburgo','gamma','2026-07-05',0,2,1,'direto','correta','completo','integra','conforme'],
     ['nord','hamburgo','gamma','2026-07-24',1,0,0,'direto','corrigida','completo',null,'nao-auditada'],
-    ['nord','hamburgo','gamma','2026-08-15',0,0,0,'direto',null,null,null,'nao-auditada']
+    ['nord','hamburgo','gamma','2026-08-15',0,0,0,'direto',null,null,null,'nao-auditada'],
+    // 01/10/2026: quatro operações a mais (DEMO-013..016) para o Resumo ficar
+    // MISTO no mês de referência (julho × junho): prontidão melhora, chegada ao
+    // porto fica estável (+3 p.p.) e entrega final piora. Com 3 e 5 operações
+    // por mês nenhuma taxa de chegada ficava a menos de 7 p.p. da outra; com 5 e
+    // 7 fica. As 12 operações anteriores não mudaram.
+    ['east','ningbo','alpha','2026-06-25',0,0,0,'direto','correta','completo','integra','conforme'],
+    ['nord','hamburgo','gamma','2026-06-28',2,0,0,'direto','correta','completo','integra','conforme'],
+    ['east','ningbo','alpha','2026-07-15',0,0,2,'direto','correta','completo','integra','conforme'],
+    ['nord','hamburgo','gamma','2026-07-12',0,0,0,'direto','correta','completo','integra','nao-auditada']
   ];
   const operations = rows.map((x,i) => {
     const [supplier,route,agent,readyPlan,readyDelay,transitExtra,portExtra,variant,docs,receipt,condition,audit] = x;

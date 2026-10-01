@@ -82,3 +82,4 @@ details.more>summary{cursor:pointer;padding:14px 20px;color:var(--indigo);font-w
    conclusao em negrito no fim. */
 .metric.insight .summary,.conclusion-card .summary{display:block;font-size:14px;line-height:1.5;color:var(--muted);text-align:left}
 .metric.insight .summary strong,.conclusion-card .summary strong{color:var(--ink);font-weight:600}
+.conclusion-card .note-line{font-size:12px;line-height:1.5;color:var(--muted)}
