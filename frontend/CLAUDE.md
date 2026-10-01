@@ -2448,9 +2448,9 @@ dados fictícios (`data.js`) e nenhuma ligação a backend ou Metabase.
 | O quê | Onde | Regra que não pode afrouxar |
 |---|---|---|
 | Quatro blocos | `app.js` `overview` + `moduleNav` | Uma barra de âncoras só; nenhuma sub-aba. Detalhe abre em "Ver detalhes" no bloco ou na gaveta; fichas empilham seções |
-| Conclusão calculada | `insights.js` (`conclude`, `stageInsight`, `supplierInsight`, `agentInsight`, `routeInsight`, `localInsight`), testado em `insights.test.cjs` | Métrica + variação + conclusão; a conclusão sai da variação. Sem base comparável: "Sem variação relevante no período." — nunca inventar direção |
+| Conclusão calculada | `insights.js` (`conclude`, `stageInsight`, `supplierInsight`, `agentInsight`, `routeInsight`, `localInsight`), testado em `insights.test.cjs` | Todo card tem frase completa (`summary`): métrica + variação + conclusão; a conclusão sai da variação. Todos comparam o MESMO par de meses (`referencePair`: último mês fechado × anterior). Sem base comparável: "Sem variação relevante no período." Abaixo de 8 operações a frase diz a amostra e a conclusão é linguagem de dado |
 | Agentes | `agentInsight` | Fala de CONCENTRAÇÃO de contratações, não de nota/pontualidade do agente (decisão pendente com o Orsi) |
-| Hierarquia e cor | `style.css` (fim) | Um destaque por bloco (`.featured`); piora em âmbar, melhora em verde, ambos discretos; vermelho só para ação do cliente |
+| Hierarquia e cor | `style.css` (fim) | Um destaque por bloco (`.featured`); piora em âmbar, melhora em verde, ambos discretos; vermelho só para ação do cliente. Vale também fora do iframe: `InsightLine`, `price-trend.tsx` (alta em âmbar, atenção neutra), `radar/page.tsx`, `price-alerts.ts` |
 | Uso interno escondido | `flags.js` (`CLIENT_FLAGS`) | `assistants` (bloco Assistentes, Skill/prompt/MCP) e `dataHelp` ("Dados a confirmar", notas Inova/ShipsGo, seção do relatório) desligados; código preservado |
 | Radar Beta | `centrix-radar/app.js` (`RADAR_REVIEW_TOOLS`) | Seletor de cobertura, "Cenários para revisão" e "Fontes e dados necessários" escondidos pela classe `.client-view`; código e handlers preservados |
 

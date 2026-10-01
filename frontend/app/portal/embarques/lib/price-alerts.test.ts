@@ -67,7 +67,7 @@ test('a oportunidade é verde e a alta é vermelha, como no card do Radar', () =
     observedAt: OBSERVED_AT,
   });
   assert.equal(oportunidade.tone, 'success');
-  assert.equal(alta.tone, 'danger');
+  assert.equal(alta.tone, 'warning');
 });
 
 test('título e texto saem do MESMO alerta que o card do Radar imprime', () => {

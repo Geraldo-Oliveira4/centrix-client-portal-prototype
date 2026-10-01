@@ -19,16 +19,21 @@ import type { PriceAlert, PriceAlertType, PriceRadarRoute } from '../lib/price-r
  * tendência. Isso vem pronto de `price-radar.ts`.
  */
 
+// Desde 01/10/2026 a classificação de preço não usa vermelho: preço alto é
+// leitura de mercado, não ação pendente do cliente (vermelho é da escala de
+// `_shared/urgency.ts`). Os três níveis continuam distintos: oportunidade em
+// verde, alta em âmbar e "atenção" — que por definição é oscilação dentro do
+// normal — em neutro.
 export const PRICE_ALERT_CLASS: Record<PriceAlertType, string> = {
   oportunidade: 'border-portal-success/30 bg-portal-success/10 text-portal-success',
-  atencao: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning-ink',
-  alta: 'border-portal-danger/30 bg-portal-danger/10 text-portal-danger',
+  atencao: 'border-border bg-muted text-portal-neutral',
+  alta: 'border-portal-warning/30 bg-portal-warning/10 text-portal-warning-ink',
 };
 
 const ALERT_DOT: Record<PriceAlertType, string> = {
   oportunidade: 'bg-portal-success',
-  atencao: 'bg-portal-warning',
-  alta: 'bg-portal-danger',
+  atencao: 'bg-portal-neutral',
+  alta: 'bg-portal-warning',
 };
 
 /** O chip com o rótulo do alerta, na cor do semáforo. */
@@ -79,7 +84,7 @@ export function PriceTrendLine({
       <TrendingUp
         className={cn(
           'h-4 w-4 shrink-0',
-          flat ? '' : rising ? 'text-portal-danger' : 'text-portal-success',
+          flat ? '' : rising ? 'text-portal-warning-ink' : 'text-portal-success',
           !rising && !flat && 'rotate-180',
         )}
       />
@@ -90,7 +95,7 @@ export function PriceTrendLine({
           <span
             className={cn(
               'font-medium',
-              rising ? 'text-portal-danger' : 'text-portal-success',
+              rising ? 'text-portal-warning-ink' : 'text-portal-success',
             )}
           >
             {rising ? 'Subiu' : 'Caiu'} {Math.abs(route.trendPct)}%

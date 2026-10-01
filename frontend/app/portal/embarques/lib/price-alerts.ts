@@ -54,10 +54,11 @@ export const ALERTABLE_PRICE_TYPES = ['oportunidade', 'alta'] as const;
 export const MAX_PER_PRICE_TYPE = 1;
 
 const TONE = {
-  // Verde e vermelho como no card do Radar: preço abaixo da média é bom para
-  // quem compra frete, acima é ruim. Não é o semáforo de saúde do embarque.
+  // Verde e âmbar como no card do Radar: preço abaixo da média é bom para quem
+  // compra frete, acima é ruim — mas não é ação pendente do cliente, então não
+  // é vermelho (escala de `_shared/urgency.ts`). Não é o semáforo do embarque.
   oportunidade: 'success',
-  alta: 'danger',
+  alta: 'warning',
 } as const;
 
 export interface PriceAlertInput {

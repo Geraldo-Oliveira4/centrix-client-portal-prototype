@@ -57,8 +57,8 @@ import {
 /** Faixa superior do card, na cor do alerta — a leitura de longe. */
 const ALERT_RAIL: Record<PriceAlertType, string> = {
   oportunidade: 'bg-portal-success',
-  atencao: 'bg-portal-warning',
-  alta: 'bg-portal-danger',
+  atencao: 'bg-border',
+  alta: 'bg-portal-warning',
 };
 
 function formatMoney(value: number, currency: 'USD'): string {
@@ -87,13 +87,13 @@ function VariationLine({ route }: { route: PriceRadarRoute }) {
       <Icon
         className={cn(
           'h-4 w-4 shrink-0',
-          below ? 'text-portal-success' : route.variationPct > 0 ? 'text-portal-danger' : '',
+          below ? 'text-portal-success' : route.variationPct > 0 ? 'text-portal-warning-ink' : '',
         )}
       />
       <span
         className={cn(
           'font-medium',
-          below ? 'text-portal-success' : route.variationPct > 0 ? 'text-portal-danger' : 'text-foreground',
+          below ? 'text-portal-success' : route.variationPct > 0 ? 'text-portal-warning-ink' : 'text-foreground',
         )}
       >
         {Math.abs(route.variationPct)}% {below ? 'abaixo' : 'acima'}

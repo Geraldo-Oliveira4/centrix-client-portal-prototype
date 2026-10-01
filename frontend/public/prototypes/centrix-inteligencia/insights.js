@@ -90,53 +90,90 @@
     freight: (v) => `Você contratou ${money(v)} de frete internacional no período.`,
   };
 
+  // ---------------------------------------------------------------------------
+  // MÊS DE REFERÊNCIA ÚNICO (01/10/2026). Todos os cards comparam o MESMO par
+  // de meses: o último mês FECHADO do fixture contra o anterior. "Fechado" é a
+  // coorte (mês do compromisso de prontidão) em que toda operação já tem entrega
+  // final confirmada — agosto ainda tem carga em trânsito, e compará-lo deixaria
+  // chegada e entrega com 1 ou 2 operações. Sai dos dados, não é mês chumbado.
+  // ---------------------------------------------------------------------------
+
+  /** [mês anterior, mês de referência] do fixture inteiro, ou null. */
+  function referencePair(D) {
+    const all = D.operations;
+    const closed = cohorts(all).filter((m) => all.filter((o) => monthOf(o) === m).every((o) => o.final));
+    if (!closed.length) return null;
+    const ref = closed[closed.length - 1];
+    const months = cohorts(all);
+    const prev = months[months.indexOf(ref) - 1];
+    return prev ? [prev, ref] : null;
+  }
+
+  // Abaixo de 8 operações a frase diz o tamanho da amostra e troca afirmação
+  // absoluta por linguagem de dado ("é a rota com maior desvio médio no
+  // período", não "é a que mais trava a sua operação").
+  const SMALL_SAMPLE = 8;
+  /** "Ningbo → Itajaí, em 5 operações:" — a amostra vem antes do número. */
+  const sampleLead = (name, n) => (n < SMALL_SAMPLE ? `${name}, em ${n} ${n === 1 ? 'operação' : 'operações'}:` : `${name}:`);
+
+  const NO_CHANGE = 'Sem variação relevante no período.';
+
+  /** A frase da variação, sempre dizendo QUAIS meses foram comparados. */
+  function variationSentence(change, pair, base, monthly = true, subject = '') {
+    if (!monthly) return 'Sem comparação mensal para este indicador.';
+    if (!pair) return 'Sem mês fechado para comparar.';
+    const [prev, ref] = pair.map((m) => MONTHS[m]);
+    if (!change) return `Sem base suficiente para comparar ${ref} com ${prev}${base != null ? ` (${base} em ${ref})` : ''}.`;
+    return `Em ${ref}, ${subject ? `${subject} ficou ` : ''}${change.text}.`;
+  }
+
   /** Tudo o que um card precisa dizer sobre uma métrica. */
   function card(D, key, ops) {
     const m = D.metrics[key];
     const kind = m.amount ? 'pct' : 'pp';
     const value = valueOf(D, key, ops);
     if (value == null) {
-      return { value: null, sentence: 'Sem base suficiente neste recorte para ler esta métrica.', detail: '', variation: null, latest: null, worst: null };
+      const sentence = 'Sem base suficiente neste recorte para ler esta métrica.';
+      return { value: null, sentence, detail: '', variation: null, latest: null, worst: null, conclusion: NO_CHANGE, summary: sentence };
     }
-    const pair = comparablePair(D, key, ops);
+    const pair = referencePair(D);
     let latest = null;
     let change = null;
+    let refBase = null;
     if (pair) {
       const [prev, cur] = pair;
-      const curOps = ops.filter((o) => o.readyPlan.slice(5, 7) === cur);
+      const curOps = ops.filter((o) => monthOf(o) === cur);
+      const prevOps = ops.filter((o) => monthOf(o) === prev);
       const a = D.metric(key, curOps);
-      const curValue = valueOf(D, key, curOps);
-      const prevValue = valueOf(D, key, ops.filter((o) => o.readyPlan.slice(5, 7) === prev));
-      latest = { month: MONTHS[cur], value: curValue, good: a.good, base: a.eligible.length };
-      change = variation(curValue, prevValue, kind, HIGHER_IS_BETTER[key] ?? null, MONTHS[prev]);
+      refBase = a.eligible.length;
+      if (refBase >= MIN_BASE && D.metric(key, prevOps).eligible.length >= MIN_BASE) {
+        const curValue = valueOf(D, key, curOps);
+        latest = { month: MONTHS[cur], value: curValue, good: a.good, base: refBase };
+        change = variation(curValue, valueOf(D, key, prevOps), kind, HIGHER_IS_BETTER[key] ?? null, MONTHS[prev]);
+      }
     }
     const shown = (v) => (kind === 'pp' ? `${v}%` : money(v));
     const lead = (LEAD[key] || ((v) => `${m.label}: ${shown(v)}.`))(value);
-    // A variacao vai no SELO (seta + cor + texto); a frase interpreta e a
-    // linha de base mostra de onde a variacao saiu. Repetir a variacao na frase
-    // diria a mesma coisa duas vezes no mesmo card.
+    const cap = (t) => t[0].toUpperCase() + t.slice(1);
     const detail =
       latest && change
         ? kind === 'pp'
-          ? `${latest.month[0].toUpperCase()}${latest.month.slice(1)}: ${latest.good} de ${latest.base} no prazo (${latest.value}%).`
-          : `${latest.month[0].toUpperCase()}${latest.month.slice(1)}: ${shown(latest.value)}.`
-        : 'Sem dois meses com base suficiente para comparar neste recorte.';
+          ? `${cap(latest.month)}: ${latest.good} de ${latest.base} no prazo (${latest.value}%).`
+          : `${cap(latest.month)}: ${shown(latest.value)} em ${latest.base} operações.`
+        : variationSentence(null, pair, refBase);
     const worst = kind === 'pp' ? worstRoute(D, key, ops, value) : null;
     const sentence = worst ? `${lead} ${worst.text}` : lead;
     const conclusion = conclude(key, change);
-    const summary = `${shown(value)}${kind === 'pp' ? ' no prazo' : ' contratados'}, ${change ? change.text : 'sem comparação mensal'}. ${conclusion}`;
+    const metricText = kind === 'pp' ? `${shown(value)} no prazo no período` : `${shown(value)} de frete contratado no período`;
+    const subject = kind === 'pp' ? 'a taxa no prazo' : 'o frete contratado';
+    const summary = `${metricText}. ${variationSentence(change, pair, refBase, true, subject)} ${conclusion}`;
     return { value, sentence, detail, variation: change, latest, worst, conclusion, summary };
   }
 
   // ---------------------------------------------------------------------------
-  // CONCLUSÃO (Prompt Inteligência em blocos, 01/10/2026). Pedido do Vinicius:
-  // todo card diz a conclusão, não só o dado — métrica + variação + conclusão.
-  // A conclusão SAI DA VARIAÇÃO calculada acima, nunca é texto fixo: se a
-  // variação muda de sinal, a frase muda junto. Sem variação comparável, a frase
-  // é NO_CHANGE — o fixture não sustenta afirmar melhora nem piora.
+  // CONCLUSÃO. Todo card diz métrica + variação + conclusão; a conclusão SAI
+  // DA VARIAÇÃO, nunca é texto fixo. Sem variação comparável: NO_CHANGE.
   // ---------------------------------------------------------------------------
-
-  const NO_CHANGE = 'Sem variação relevante no período.';
 
   const SUBJECT = {
     ready: 'A prontidão dos seus fornecedores',
@@ -161,6 +198,12 @@
   const monthOf = (o) => o.readyPlan.slice(5, 7);
   const oneDecimal = (n) => (Math.round(n * 10) / 10).toLocaleString('pt-BR');
 
+  /** Monta o objeto de um card de conclusão, com a frase completa. */
+  function insight(fields) {
+    const { metric, variation: change, conclusion, pair, refBase, monthly = true, subject = '' } = fields;
+    return { ...fields, summary: `${metric} ${variationSentence(change, pair, refBase, monthly, subject)} ${conclusion}` };
+  }
+
   /** Desvios de um trecho: quantos estouraram o previsto e por quanto. */
   function stageStats(D, stage, ops) {
     const done = ops.filter((o) => o[stage.from] && o[stage.to]);
@@ -175,12 +218,19 @@
     };
   }
 
-  /**
-   * Prazos e etapas: o trecho que mais estoura o previsto, e por quanto.
-   * Variação = participação de estouros no último mês com base contra o
-   * anterior (mesmas coortes do resto do módulo). Menos estouro é melhor.
-   */
+  /** Variação de uma taxa no par de referência, ou null sem base mínima. */
+  function pairChange(rateOf, ops, pair, higherIsBetter) {
+    if (!pair) return { change: null, refBase: null };
+    const [prev, cur] = pair;
+    const a = rateOf(ops.filter((o) => monthOf(o) === cur));
+    const b = rateOf(ops.filter((o) => monthOf(o) === prev));
+    if (a.base < MIN_BASE || b.base < MIN_BASE) return { change: null, refBase: a.base };
+    return { change: variation(a.rate, b.rate, 'pp', higherIsBetter, MONTHS[prev]), refBase: a.base };
+  }
+
+  /** Prazos e etapas: o trecho que mais estoura o previsto, e por quanto. */
   function stageInsight(D, ops) {
+    const pair = referencePair(D);
     let worst = null;
     for (const stage of D.stages) {
       const st = stageStats(D, stage, ops);
@@ -188,36 +238,30 @@
       if (!worst || st.rate > worst.rate || (st.rate === worst.rate && st.avgExtra > worst.avgExtra)) worst = { stage, ...st };
     }
     if (!worst) {
-      return { title: 'Prazos e etapas', value: null, metric: 'Nenhum trecho passou do previsto neste recorte.', variation: null, conclusion: NO_CHANGE, relevant: false };
+      return insight({ title: 'Prazos e etapas', value: null, metric: 'Nenhum trecho passou do previsto neste recorte.', variation: null, conclusion: NO_CHANGE, relevant: false, pair });
     }
-    const months = cohorts(ops).filter((m) => stageStats(D, worst.stage, ops.filter((o) => monthOf(o) === m)).base >= MIN_BASE);
-    let change = null;
-    if (months.length >= 2) {
-      const [prev, cur] = months.slice(-2);
-      const a = stageStats(D, worst.stage, ops.filter((o) => monthOf(o) === cur)).rate;
-      const b = stageStats(D, worst.stage, ops.filter((o) => monthOf(o) === prev)).rate;
-      change = variation(a, b, 'pp', false, MONTHS[prev]);
-    }
+    // Menos estouro é melhor: higherIsBetter = false.
+    const { change, refBase } = pairChange((g) => stageStats(D, worst.stage, g), ops, pair, false);
     const others = D.stages.filter((s) => s !== worst.stage && stageStats(D, s, ops).over > 0);
-    const conclusion = others.length
-      ? `É o trecho que mais atrasa; ${others.map((s) => s.label.toLowerCase()).join(' e ')} também passou do previsto.`
-      : 'É o único trecho que passou do previsto; os demais ficaram dentro do prazo.';
-    return {
+    const conclusion =
+      `É o trecho com mais embarques acima do previsto no período` +
+      (others.length ? `; ${others.map((s) => s.label.toLowerCase()).join(' e ')} também passou do previsto.` : '; os demais ficaram dentro do prazo.');
+    return insight({
       title: worst.stage.label,
       value: worst.rate,
-      metric: `${worst.over} de ${worst.base} embarques passaram do previsto, em média +${oneDecimal(worst.avgExtra)} dias.`,
+      metric: `${worst.stage.label}: ${worst.over} de ${worst.base} embarques passaram do previsto, em média +${oneDecimal(worst.avgExtra)} dias.`,
       variation: change,
       conclusion,
       relevant: true,
-    };
+      pair,
+      refBase,
+      subject: 'a parcela acima do previsto',
+    });
   }
 
-  /**
-   * Fornecedores: quem piorou. Só afirma piora com variação mensal comparável
-   * (mesma base mínima dos cards); sem ela, NO_CHANGE — duas amostras pequenas
-   * com 4 pontos de diferença não são uma conclusão.
-   */
+  /** Fornecedores: quem piorou, no par de referência; sem base, NO_CHANGE. */
   function supplierInsight(D, ops) {
+    const pair = referencePair(D);
     const rows = D.companies
       .map((c) => {
         const own = ops.filter((o) => o.supplier === c.id);
@@ -226,64 +270,56 @@
       })
       .filter((r) => r.base);
     if (!rows.length) {
-      return { title: 'Fornecedores', value: null, metric: 'Sem confirmação de prontidão neste recorte.', variation: null, conclusion: NO_CHANGE, relevant: false };
+      return insight({ title: 'Prontidão por fornecedor', value: null, metric: 'Sem confirmação de prontidão neste recorte.', variation: null, conclusion: NO_CHANGE, relevant: false, pair });
     }
-    const metric = rows.map((r) => `${r.company.name} ${r.rate}% (${r.good} de ${r.base})`).join(' · ');
+    const list = rows.map((r) => `${r.company.name} ${r.rate}% (${r.good} de ${r.base} operações)`).join(', ');
     const worse = rows.filter((r) => r.change && r.change.tone === 'bad').sort((x, y) => x.change.delta - y.change.delta)[0];
     const better = rows.filter((r) => r.change && r.change.tone === 'good').sort((x, y) => y.change.delta - x.change.delta)[0];
     const pick = worse || better;
-    return {
+    return insight({
       title: 'Prontidão por fornecedor',
       value: pick ? pick.rate : null,
-      metric: `Prontidão no prazo: ${metric}.`,
+      metric: `Prontidão no prazo no período: ${list}.`,
       variation: pick ? pick.change : null,
-      conclusion: worse
-        ? `${worse.company.name} piorou e merece conversa na próxima revisão.`
-        : better
-          ? `${better.company.name} está melhorando.`
-          : NO_CHANGE,
+      conclusion: worse ? `${worse.company.name} foi o fornecedor que mais caiu no período.` : better ? `${better.company.name} foi o fornecedor que mais subiu no período.` : NO_CHANGE,
       relevant: !!pick,
-    };
+      pair,
+    });
   }
 
   /**
-   * Agentes: CONCENTRAÇÃO de contratações, não nota de agente. Avaliar o
-   * desempenho de cada agente é decisão pendente com o Orsi; esta frase diz só
-   * o quanto do frete depende de um parceiro.
+   * Agentes: CONCENTRAÇÃO de contratações, não nota de agente (avaliar o
+   * desempenho de cada agente é decisão pendente com o Orsi).
    */
   function agentInsight(D, ops) {
+    const pair = referencePair(D);
     if (!ops.length) {
-      return { title: 'Agentes de carga', value: null, metric: 'Sem contratações neste recorte.', variation: null, conclusion: NO_CHANGE, relevant: false };
+      return insight({ title: 'Contratações por agente', value: null, metric: 'Sem contratações neste recorte.', variation: null, conclusion: NO_CHANGE, relevant: false, pair });
     }
     const counts = D.agents.map((a) => ({ agent: a, n: ops.filter((o) => o.agent === a.id).length })).filter((x) => x.n).sort((a, b) => b.n - a.n);
     const top = counts[0];
     const share = Math.round((top.n / ops.length) * 100);
-    const shareOf = (subset) => (subset.length ? Math.round((subset.filter((o) => o.agent === top.agent.id).length / subset.length) * 100) : null);
-    const months = cohorts(ops).filter((m) => ops.filter((o) => monthOf(o) === m).length >= MIN_BASE);
-    let change = null;
-    if (months.length >= 2) {
-      const [prev, cur] = months.slice(-2);
-      change = variation(shareOf(ops.filter((o) => monthOf(o) === cur)), shareOf(ops.filter((o) => monthOf(o) === prev)), 'pp', null, MONTHS[prev]);
-    }
-    return {
+    const shareOf = (g) => ({ base: g.length, rate: g.length ? Math.round((g.filter((o) => o.agent === top.agent.id).length / g.length) * 100) : null });
+    const { change, refBase } = pairChange(shareOf, ops, pair, null);
+    return insight({
       title: 'Contratações por agente',
       value: share,
-      metric: `${top.agent.name} concentrou ${top.n} de ${ops.length} contratações (${share}%).`,
+      metric: `${ops.length < SMALL_SAMPLE ? `Em ${ops.length} contratações, ` : ''}${top.agent.name} concentrou ${top.n} de ${ops.length} contratações (${share}%).`,
       variation: change,
-      conclusion:
-        share >= 50
-          ? 'Metade ou mais do seu frete depende de um único agente.'
-          : `Contratações distribuídas entre ${counts.length} agentes.`,
+      conclusion: share >= 50 ? 'Metade ou mais das contratações do período ficou com um único agente.' : `As contratações do período se dividiram entre ${counts.length} agentes.`,
       relevant: share >= 50,
-    };
+      pair,
+      refBase,
+      subject: `a participação da ${top.agent.name}`,
+    });
   }
 
   /**
-   * Rotas: a que mais trava — maior desvio médio (em dias) da chegada ao porto
-   * sobre o 1º ETA, entre rotas com pelo menos 2 chegadas. Menos de 1 dia de
-   * média não é trava: NO_CHANGE.
+   * Rotas: a de maior desvio médio (dias) da chegada ao porto sobre o 1º ETA,
+   * entre rotas com pelo menos 2 chegadas. Menos de 1 dia de média: NO_CHANGE.
    */
   function routeInsight(D, ops) {
+    const pair = referencePair(D);
     let worst = null;
     for (const r of D.routes) {
       const own = ops.filter((o) => o.route === r.id && o.arrive);
@@ -291,30 +327,34 @@
       const devs = own.map((o) => Math.max(0, D.days(o.arrivePlan, o.arrive)));
       const avg = devs.reduce((n, d) => n + d, 0) / devs.length;
       const a = D.metric('port', ops.filter((o) => o.route === r.id));
-      if (!worst || avg > worst.avg) worst = { route: r, avg, peak: Math.max(...devs), good: a.good, base: a.eligible.length, rate: a.rate };
+      if (!worst || avg > worst.avg) worst = { route: r, avg, peak: Math.max(...devs), good: a.good, base: a.eligible.length, rate: a.rate, n: own.length };
     }
     if (!worst || worst.avg < 1) {
-      return { title: 'Rotas', value: null, metric: 'Nenhuma rota com desvio médio de chegada acima de 1 dia.', variation: null, conclusion: NO_CHANGE, relevant: false };
+      return insight({ title: 'Rotas', value: null, metric: 'Nenhuma rota com desvio médio de chegada acima de 1 dia.', variation: null, conclusion: NO_CHANGE, relevant: false, pair });
     }
     const name = `${D.locations[worst.route.from].name} → ${D.locations[worst.route.to].name}`;
     const routeOps = ops.filter((o) => o.route === worst.route.id);
-    return {
+    const { change, refBase } = pairChange((g) => { const a = D.metric('port', g); return { base: a.eligible.length, rate: a.rate }; }, routeOps, pair, true);
+    return insight({
       title: name,
       value: worst.rate,
-      metric: `${worst.good} de ${worst.base} chegadas ao porto no prazo; desvio médio de +${oneDecimal(worst.avg)} dias sobre o 1º ETA, pico de +${worst.peak}.`,
-      variation: card(D, 'port', routeOps).variation,
-      conclusion: 'É a rota que mais trava a sua operação.',
+      metric: `${sampleLead(name, worst.n)} ${worst.good} de ${worst.base} chegadas ao porto no prazo e desvio médio de +${oneDecimal(worst.avg)} dias sobre o 1º ETA, pico de +${worst.peak}.`,
+      variation: change,
+      conclusion: 'É a rota com maior desvio médio de chegada no período.',
       relevant: true,
-    };
+      pair,
+      refBase,
+      subject: 'a chegada no prazo nesta rota',
+    });
   }
 
   /**
-   * Locais: onde a carga mais espera entre a chegada ao porto e o gate out
+   * Locais: onde a carga fica mais tempo entre a chegada e o gate out
    * (previsto: 3 dias), entre portos com pelo menos 2 passagens completas.
-   * Excesso médio abaixo de 1 dia: NO_CHANGE.
    */
   const PORT_PLAN_DAYS = 3;
   function localInsight(D, ops) {
+    const pair = referencePair(D);
     let worst = null;
     for (const id of new Set(D.routes.map((r) => r.to))) {
       const done = ops.filter((o) => D.routes.find((r) => r.id === o.route).to === id && o.arrive && o.gate);
@@ -325,24 +365,26 @@
       if (!worst || avg > worst.avg) worst = { id, avg, over, base: done.length };
     }
     if (!worst) {
-      return { title: 'Locais', value: null, metric: 'Sem passagens completas suficientes nos portos de destino.', variation: null, conclusion: NO_CHANGE, relevant: false };
+      return insight({ title: 'Locais', value: null, metric: 'Sem passagens completas suficientes nos portos de destino.', variation: null, conclusion: NO_CHANGE, relevant: false, pair, monthly: false });
     }
     const name = D.locations[worst.id].name;
     const relevant = worst.avg - PORT_PLAN_DAYS >= 1;
-    return {
+    return insight({
       title: name,
       value: null,
-      metric: `${name}: média de ${oneDecimal(worst.avg)} dias entre a chegada e o gate out (previsto ${PORT_PLAN_DAYS}); ${worst.over} de ${worst.base} passagens acima.`,
+      metric: `${sampleLead(name, worst.base)} média de ${oneDecimal(worst.avg)} dias entre a chegada e o gate out (previsto ${PORT_PLAN_DAYS}); ${worst.over} de ${worst.base} passagens acima.`,
       variation: null,
-      conclusion: relevant ? `${name} é onde a sua carga mais espera.` : NO_CHANGE,
+      monthly: false,
+      conclusion: relevant ? `${name} é o porto com maior permanência média no período.` : NO_CHANGE,
       relevant,
-    };
+      pair,
+    });
   }
 
   const Insights = {
-    variation, cohorts, comparablePair, worstRoute, card, conclude,
+    variation, cohorts, comparablePair, referencePair, worstRoute, card, conclude,
     stageInsight, supplierInsight, agentInsight, routeInsight, localInsight,
-    HIGHER_IS_BETTER, MIN_BASE, NO_CHANGE,
+    HIGHER_IS_BETTER, MIN_BASE, NO_CHANGE, SMALL_SAMPLE,
   };
   if (typeof module !== 'undefined') module.exports = Insights;
   else root.Insights = Insights;

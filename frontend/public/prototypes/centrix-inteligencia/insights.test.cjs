@@ -32,14 +32,28 @@ test('o número do card é o mesmo D.metric de sempre', () => {
   assert.equal(Insights.card(D, 'freight', ops).value, D.metric('freight', ops).total);
 });
 
-test('a variação é a do gráfico de evolução: último par de meses com base', () => {
+test('a variação compara o mês de referência (último mês fechado) com o anterior', () => {
   const ops = D.operations;
-  const [prev, cur] = Insights.comparablePair(D, 'ready', ops);
+  const [prev, cur] = Insights.referencePair(D);
+  // Fechado = toda operação da coorte já tem entrega final.
+  assert.ok(ops.filter((o) => o.readyPlan.slice(5, 7) === cur).every((o) => o.final));
+  const later = ops.filter((o) => o.readyPlan.slice(5, 7) > cur);
+  assert.ok(!later.length || later.some((o) => !o.final), 'nenhum mês depois dele está fechado');
   const rate = (m) => D.metric('ready', ops.filter((o) => o.readyPlan.slice(5, 7) === m)).rate;
   const card = Insights.card(D, 'ready', ops);
   assert.equal(card.latest.value, rate(cur));
   assert.equal(card.variation.delta, rate(cur) - rate(prev));
-  assert.match(card.sentence, new RegExp(`${card.value}%`));
+  assert.match(card.summary, new RegExp(`${card.value}%`));
+});
+
+test('os quatro cards do Resumo usam o MESMO mês de referência', () => {
+  const [prev, cur] = Insights.referencePair(D);
+  const months = { '06': 'junho', '07': 'julho', '08': 'agosto' };
+  for (const key of ['ready', 'port', 'final', 'freight']) {
+    const c = Insights.card(D, key, D.operations);
+    assert.ok(c.summary.includes(`Em ${months[cur]},`) || c.summary.includes(`comparar ${months[cur]} com ${months[prev]}`), key);
+    if (c.variation) assert.ok(c.variation.text.endsWith(months[prev]), key);
+  }
 });
 
 test('todas as frases em linguagem do cliente, sem "undefined"', () => {
@@ -69,13 +83,15 @@ test('recorte vazio diz que falta base, sem número', () => {
 
 test('mês com menos de 3 elegíveis não entra na comparação', () => {
   const ops = D.operations;
-  const pair = Insights.comparablePair(D, 'port', ops);
-  for (const m of pair) {
-    const n = D.metric('port', ops.filter((o) => o.readyPlan.slice(5, 7) === m)).eligible.length;
-    assert.ok(n >= Insights.MIN_BASE, m);
+  const [, cur] = Insights.referencePair(D);
+  const thin = ops.filter((o) => o.readyPlan.slice(5, 7) !== cur || o.supplier === 'nord');
+  const c = Insights.card(D, 'port', thin);
+  const base = D.metric('port', thin.filter((o) => o.readyPlan.slice(5, 7) === cur)).eligible.length;
+  if (base < Insights.MIN_BASE) {
+    assert.equal(c.variation, null);
+    assert.match(c.summary, /Sem base suficiente para comparar/);
   }
-  const card = Insights.card(D, 'port', ops);
-  assert.match(card.detail, /de \d+ no prazo/);
+  assert.match(Insights.card(D, 'port', ops).detail, /de \d+ no prazo/);
 });
 
 // --- Conclusões (Inteligência em blocos, 01/10/2026) -----------------------
@@ -98,7 +114,8 @@ test('os quatro cards do Resumo: métrica + variação + conclusão no resumo', 
     const c = Insights.card(D, key, D.operations);
     assert.ok(c.conclusion && !/undefined|NaN/.test(c.summary), key);
     if (c.variation) assert.ok(c.summary.includes(c.variation.text), key);
-    else assert.ok(c.summary.includes('sem comparação'), key);
+    else assert.match(c.summary, /Sem base suficiente/, key);
+    assert.ok(c.summary.endsWith(c.conclusion), key);
   }
 });
 
@@ -109,7 +126,8 @@ test('prazos: o trecho que mais estoura, com a conta conferível', () => {
   const done = ops.filter((o) => o[stage.from] && o[stage.to]);
   const over = done.filter((o) => D.days(o[stage.from], o[stage.to]) > stage.plan(o));
   assert.equal(s.value, Math.round((over.length / done.length) * 100));
-  assert.ok(s.metric.startsWith(`${over.length} de ${done.length}`));
+  assert.ok(s.metric.startsWith(`${stage.label}: ${over.length} de ${done.length}`));
+  assert.ok(s.summary.startsWith(s.metric) && s.summary.endsWith(s.conclusion));
   for (const other of D.stages) {
     const d = ops.filter((o) => o[other.from] && o[other.to]);
     const n = d.filter((o) => D.days(o[other.from], o[other.to]) > other.plan(o)).length;
@@ -145,4 +163,25 @@ test('locais: só afirma espera quando o excesso médio passa de 1 dia', () => {
   const avg = Number(l.metric.match(/média de ([\d,]+) dias/)[1].replace(',', '.'));
   assert.equal(l.relevant, avg - 3 >= 1);
   if (!l.relevant) assert.equal(l.conclusion, Insights.NO_CHANGE);
+});
+
+test('amostra pequena: tamanho na frase e linguagem de dado', () => {
+  const r = Insights.routeInsight(D, D.operations);
+  assert.match(r.metric, /, em \d+ operações:/);
+  assert.doesNotMatch(`${r.summary}`, /trava|sua operação/);
+  assert.match(r.conclusion, /maior desvio médio/);
+  // Com 8 ou mais, a frase não precisa anunciar a amostra.
+  const l = Insights.localInsight(D, D.operations);
+  const n = Number(l.metric.match(/de (\d+) passagens/)[1]);
+  assert.equal(/, em \d+ operações:/.test(l.metric), n < Insights.SMALL_SAMPLE);
+});
+
+test('todo card de conclusão tem frase completa: métrica, variação e conclusão', () => {
+  for (const f of ['stageInsight', 'supplierInsight', 'agentInsight', 'routeInsight', 'localInsight']) {
+    const x = Insights[f](D, D.operations);
+    assert.ok(x.summary.startsWith(x.metric), f);
+    assert.ok(x.summary.endsWith(x.conclusion), f);
+    assert.ok(x.summary.length > x.metric.length + x.conclusion.length + 10, f);
+    assert.ok(!/undefined|NaN/.test(x.summary), f);
+  }
 });

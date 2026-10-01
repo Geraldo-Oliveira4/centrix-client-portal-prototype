@@ -10,9 +10,11 @@ import { cn } from '@/lib/utils';
 
 import type { InsightTone, Variation } from './insight';
 
+// Piora é ÂMBAR discreto, não vermelho (01/10/2026): vermelho fica para ação
+// do cliente, na escala de `urgency.ts`, e uma variação de KPI não é uma.
 const TONE: Record<InsightTone, string> = {
   good: 'bg-portal-success/10 text-portal-success-ink',
-  bad: 'bg-portal-danger/10 text-portal-danger-ink',
+  bad: 'bg-portal-warning/10 text-portal-warning-ink',
   neutral: 'bg-muted text-portal-neutral',
 };
 

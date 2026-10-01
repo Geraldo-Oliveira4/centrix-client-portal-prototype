@@ -39,13 +39,13 @@ body:has(dialog[open]){overflow:hidden}
 details.more{background:white;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 details.more>summary{cursor:pointer;padding:14px 20px;color:var(--indigo);font-weight:600;font-size:14px;min-height:44px}
 /* Card com insight: numero + selo de variacao (seta, cor e texto) + frase.
-   Cores = tokens do portal: success-ink #136B42, danger-ink #B42F2F, neutral
+   Cores = tokens do portal: success-ink #136B42, warning-ink (ambar), neutral
    #686A9A, todos AA sobre branco. */
 .metric.insight{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
 .metric.insight b{margin:4px 0 0}
 .variation{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:2px 7px;border-radius:4px}
 .variation.good{color:#136b42;background:#e8f5ee}
-.variation.bad{color:#b42f2f;background:#fbeeee}
+.variation.bad{color:var(--amber);background:#fdf3e1}
 .variation.neutral{color:#686a9a;background:#f1f1f7}
 .insight-text{font-size:14px;line-height:1.5;color:var(--ink)}
 @media(max-width:900px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric:nth-child(2n){border-right:0}.metric{border-bottom:1px solid var(--line)}}
@@ -56,7 +56,6 @@ details.more>summary{cursor:pointer;padding:14px 20px;color:var(--indigo);font-w
    Cor so onde ha decisao: melhora em verde e piora em ambar, ambos discretos;
    vermelho fica para acao do cliente (escala de _shared/urgency.ts), e nada
    nesta tela pede acao. */
-.variation.bad{color:var(--amber);background:#fdf3e1}
 .variation.neutral{font-weight:500}
 .metric.insight .conclusion{font-size:15px;line-height:1.45;font-weight:600;color:var(--ink)}
 .metric.insight small{color:var(--muted)}
@@ -78,3 +77,8 @@ details.more>summary{cursor:pointer;padding:14px 20px;color:var(--indigo);font-w
   .conclusion-card{padding:16px}
   .metric-shell.featured .metric b{font-size:30px!important}
 }
+
+/* Frase completa do card (01/10/2026): metrica + variacao em tom normal, a
+   conclusao em negrito no fim. */
+.metric.insight .summary,.conclusion-card .summary{display:block;font-size:14px;line-height:1.5;color:var(--muted);text-align:left}
+.metric.insight .summary strong,.conclusion-card .summary strong{color:var(--ink);font-weight:600}
