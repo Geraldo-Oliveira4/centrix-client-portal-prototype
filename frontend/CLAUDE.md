@@ -82,6 +82,8 @@ frontend/
 
 `/portal/auditoria` embeds the approved price/performance and four-step intake experience in `public/prototypes/centrix-auditoria`. Freight includes versioned rubrics and illustrative PTAX validation; performance has 23 controls. Context assistance uses an explicit demo parser, selective review and source history, not LLM/OCR. Quotes, shipments and history are demo catalogs with independent links; files are metadata only. Session state is isolated; no business API, real upload, email or credit. Host/child hashes synchronize, including deep links. Tests: `scripts/audit-checks/*.cjs`. Release scope: `app/portal/auditoria/PUBLICACAO.md`.
 
+**Entrada não linear (01/10/2026).** As quatro etapas da entrada são clicáveis em qualquer ordem (`#auditoria/entrada/<dim>/etapa-N`, opcional; as rotas antigas seguem iguais). `entry-steps.js` (puro, `scripts/audit-checks/entry-steps-checks.cjs` no `test:unit`) decide o estado de cada etapa — não iniciada, em andamento, pendente de documento, concluída, com divergência — e o que falta nela; a validação só roda ao registrar (`E.create`). Um rascunho por registro localizado (`intake.drafts`, sessionStorage como o resto do módulo), com `resumeStep` para trocar de vínculo sem perder a etapa. "Rever documento" (etapa 4 e detalhe) guarda `returnTo` e a faixa "Voltar" devolve à etapa/rolagem ou ao detalhe de origem. Fonte de dados e cálculo da conciliação não mudaram.
+
 ### Radar Beta — 13/09/2026
 
 `/portal/radar` is an independent menu module embedding `public/prototypes/centrix-radar`, with host/child hash synchronization and isolated CSS. Default `#radar/mercado` shows preferred-route cards, then `#radar/mercado/:id` opens price details. Adding a route lasts for the session only and does not change commercial preferences. Riscos, Parceiros and Abastecimento remain Beta. Contracting opportunities are evaluated within Mercado, not a separate tab. All prices, sources and needs are fictional; no API, alert engine, quotation mutation or Intelligence integration was added. Existing Intelligence screens remain unchanged. Release scope and checks: `app/portal/radar/PUBLICACAO.md`.
@@ -2464,3 +2466,19 @@ escala de urgência e padrão de insight documentados no `DESIGN.md` da raiz.
 | "Você já embarcou esta carga" | `_shared/history-match.ts` | Produto + origem + destino; a ação reaproveita "Cotar novamente" |
 | Tema nos iframes | `public/prototypes/_shared/theme-sync.{js,css}` | Ponte de protótipo: inversão de luminância com rotação de matiz. A versão integrada usa os tokens |
 | Rótulos em 2ª pessoa | `ManualForm clientFacing` | "Sua referência", "Quando você precisa da carga"; a tela do analista mantém a redação dela |
+
+## Painel de produção e cliente SaaS puro — 01/10/2026 (Prompt 3)
+
+A gestão de acessos (empresas, convites, CSV, módulos por empresa, registro,
+"ver como") é ferramenta INTERNA e **não está neste repositório principal**: o
+protótipo dela fica na branch `feat/proto-interno-acessos` (fora da `main`), e a
+especificação, na seção 10 de `_shared/demo/HANDOFF-BACKEND.md`. Não a traga de
+volta para o portal externo.
+
+| O quê | Onde | Regra que não pode afrouxar |
+|---|---|---|
+| Painel em produção | `demo-sections.tsx`, `demo-sections-internal.tsx`, `demo-panel.tsx` | Sem `NEXT_PUBLIC_PROTO_INTERNAL=1`: título "Painel de demonstração" e só Tipo de cliente, Boas-vindas e Reiniciar. Ondas, Freitas simulada e as mesas de revisão (Cotação V2, PO, Fechamento direto) são import dinâmico com condição inline, fora do bundle. Para nada travar, em produção os módulos são fixos (todos) e a Freitas responde sozinha (8 s, `PRODUCTION_FREITAS_SIMULATION`), incluindo o fechamento direto |
+| Variável `NEXT_PUBLIC_PROTO_INTERNAL` | `next.config.mjs` | Sempre definida (`'1'` ou `'0'`) para o compilador eliminar o ramo interno. `'1'` só no escopo Preview da Vercel; padrão desligado |
+| Tipo de cliente | `client-kind.ts` + `DataSourceStrip`; seletor em `client-profile.ts` + `use-client-profile.ts` | Seção "Tipo de cliente" do painel (existe em produção): Com operação Freitas (padrão) ou SaaS puro. SaaS puro: nada vem preenchido (Radar, leitura de documento/PO, agente preferido da rota) em Nova cotação, Fechamento direto (`MANUAL_ROUTE_ID`) e Embarque via PO; o detalhe do embarque diz de onde vem cada dado |
+
+Handoff para o backend: seções 8, 10, 11, 11b e 12 de `_shared/demo/HANDOFF-BACKEND.md` (a 12 é o risco do link público de cotação, que **não** foi construído).

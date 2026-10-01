@@ -77,7 +77,11 @@ export function DemoPanel() {
       >
         <SheetHeader className="shrink-0 pr-8 text-left">
           <SheetTitle className="portal-h3">
-            Painel de demonstração · simulação da Freitas
+            {/* Em produção o painel não mostra nada da simulação da Freitas,
+                então o título também não fala dela. */}
+            {process.env.NEXT_PUBLIC_PROTO_INTERNAL === '1'
+              ? 'Painel de demonstração · simulação da Freitas'
+              : 'Painel de demonstração'}
           </SheetTitle>
           <SheetDescription className="portal-small">
             Controles de quem apresenta. Valem só neste navegador e não mudam

@@ -44,7 +44,9 @@ import {
   DIRECT_CLOSE_STAGE_DESCRIPTIONS,
   DIRECT_CLOSE_STAGE_LABELS,
   EMPTY_DIRECT_CLOSE_FORM,
+  EMPTY_MANUAL_ROUTE,
   directCloseIssues,
+  requestRouteLabel,
   quoteNormallyHref,
   resubmitDirectClose,
   routeLabel,
@@ -52,7 +54,11 @@ import {
   type DirectCloseForm,
   type DirectCloseRequest,
   type DirectCloseStage,
+  type ManualDirectCloseRoute,
 } from '@/app/portal/_shared/demo/direct-close';
+import { allowsAutoFill, directCloseSources } from '@/app/portal/_shared/demo/client-kind';
+import { DataSourceStrip } from '@/app/portal/_shared/demo/data-source-strip';
+import { useClientKind } from '@/app/portal/_shared/demo/use-client-profile';
 import {
   putDirectClose,
   readDirectCloseStore,
@@ -109,10 +115,17 @@ export default function FechamentoDiretoPage() {
   /** Set while correcting a returned request: the send becomes a resend. */
   const [correcting, setCorrecting] = useState<DirectCloseRequest | null>(null);
   const [sent, setSent] = useState<DirectCloseRequest | null>(null);
+  // SaaS puro (Prompt 3): não há rota combinada com a Freitas nem agente
+  // preferido para preencher; o cliente informa rota e agente. Um pedido
+  // manual em correção continua manual, qualquer que seja o tipo agora.
+  const clientKind = useClientKind();
+  const saas = !allowsAutoFill(clientKind);
+  const [manual, setManual] = useState<ManualDirectCloseRoute>(EMPTY_MANUAL_ROUTE);
+  const manualOrNull = saas || correcting?.manualRoute ? manual : null;
 
   const route =
     DIRECT_CLOSE_ROUTES.find((item) => item.id === form.routeId) ?? null;
-  const issues = directCloseIssues(form);
+  const issues = directCloseIssues(form, DIRECT_CLOSE_ROUTES, manualOrNull);
   const requests = useMemo(
     () =>
       Object.values(store).sort((a, b) =>
@@ -132,21 +145,94 @@ export default function FechamentoDiretoPage() {
       );
       setSent(readDirectCloseStore()[correcting.id] ?? null);
     } else {
-      const request = submitDirectClose(readDirectCloseStore(), form, at);
+      const request = submitDirectClose(
+        readDirectCloseStore(),
+        form,
+        at,
+        DIRECT_CLOSE_ROUTES,
+        manualOrNull,
+      );
       if (!request) return;
       putDirectClose(request);
       setSent(request);
     }
     setCorrecting(null);
     setForm(EMPTY_DIRECT_CLOSE_FORM);
+    setManual(EMPTY_MANUAL_ROUTE);
   };
 
   const startCorrection = (request: DirectCloseRequest) => {
     setSent(null);
     setCorrecting(request);
     setForm(request.form);
+    if (request.manualRoute)
+      setManual({ ...request.manualRoute, agent: request.agent });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const shipmentFields = (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field id="fd-produto" label="Mercadoria">
+                      <Input
+                        id="fd-produto"
+                        value={form.product}
+                        onChange={(e) => set({ product: e.target.value })}
+                        placeholder="Ex.: Peças de reposição"
+                      />
+                    </Field>
+                    <Field id="fd-ref" label="Referência do cliente">
+                      <Input
+                        id="fd-ref"
+                        value={form.clientReference}
+                        onChange={(e) =>
+                          set({ clientReference: e.target.value })
+                        }
+                        placeholder="Ex.: PO-12345"
+                      />
+                    </Field>
+                    <Field id="fd-incoterm" label="Incoterm">
+                      <Combobox
+                        value={form.incoterm}
+                        onValueChange={(incoterm) => set({ incoterm })}
+                        options={INCOTERM_OPTIONS}
+                        placeholder="Selecionar..."
+                        searchPlaceholder="Buscar incoterm..."
+                      />
+                    </Field>
+                    <Field id="fd-prontidao" label="Prontidão da carga">
+                      <Input
+                        id="fd-prontidao"
+                        type="date"
+                        value={form.readyDate}
+                        onChange={(e) => set({ readyDate: e.target.value })}
+                      />
+                    </Field>
+                    <div className="sm:col-span-2">
+                      <Field id="fd-carga" label="Carga">
+                        <Input
+                          id="fd-carga"
+                          value={form.cargo}
+                          onChange={(e) => set({ cargo: e.target.value })}
+                          placeholder="Ex.: 1 × 40’ HC, 12.000 kg"
+                        />
+                      </Field>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Field id="fd-obs" label="Observações" optional>
+                        <Textarea
+                          id="fd-obs"
+                          value={form.observations}
+                          onChange={(e) =>
+                            set({ observations: e.target.value })
+                          }
+                          rows={3}
+                          className="resize-none"
+                          placeholder="O que o agente precisa saber sobre este embarque"
+                        />
+                      </Field>
+                    </div>
+                  </div>
+  );
 
   return (
     <div className="space-y-8">
@@ -157,8 +243,12 @@ export default function FechamentoDiretoPage() {
         <ArrowLeft className="h-4 w-4" /> Nova cotação
       </Link>
       <PagePortalHeader
-        title="Fechar direto com agente preferido"
-        subtitle="Para rotas em que você já embarca com o mesmo agente: sem cotação. A Freitas revisa o pedido e envia a instrução ao agente."
+        title={saas ? 'Fechar direto com o seu agente' : 'Fechar direto com agente preferido'}
+        subtitle={
+          saas
+            ? 'Para rotas em que você já embarca com o mesmo agente: sem cotação. Você informa a rota e o agente.'
+            : 'Para rotas em que você já embarca com o mesmo agente: sem cotação. A Freitas revisa o pedido e envia a instrução ao agente.'
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
@@ -204,6 +294,47 @@ export default function FechamentoDiretoPage() {
                 </div>
               )}
 
+              {manualOrNull ? (
+                <>
+                  <DataSourceStrip
+                    title="Você informa a rota e o agente"
+                    lines={directCloseSources('saas')}
+                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field id="fd-origem" label="Origem">
+                      <Input
+                        id="fd-origem"
+                        value={manual.origin}
+                        onChange={(e) => setManual((m) => ({ ...m, origin: e.target.value }))}
+                        placeholder="Ex.: Ningbo"
+                        disabled={!!correcting}
+                      />
+                    </Field>
+                    <Field id="fd-destino" label="Destino">
+                      <Input
+                        id="fd-destino"
+                        value={manual.destination}
+                        onChange={(e) => setManual((m) => ({ ...m, destination: e.target.value }))}
+                        placeholder="Ex.: Itajaí"
+                        disabled={!!correcting}
+                      />
+                    </Field>
+                    <div className="sm:col-span-2">
+                      <Field id="fd-agente" label="Agente com quem você embarca">
+                        <Input
+                          id="fd-agente"
+                          value={manual.agent}
+                          onChange={(e) => setManual((m) => ({ ...m, agent: e.target.value }))}
+                          placeholder="Nome do agente"
+                          disabled={!!correcting}
+                        />
+                      </Field>
+                    </div>
+                  </div>
+                  {shipmentFields}
+                </>
+              ) : (
+              <>
               <Field id="fd-rota" label="Rota">
                 <Select
                   value={form.routeId}
@@ -269,67 +400,7 @@ export default function FechamentoDiretoPage() {
                     </div>
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field id="fd-produto" label="Mercadoria">
-                      <Input
-                        id="fd-produto"
-                        value={form.product}
-                        onChange={(e) => set({ product: e.target.value })}
-                        placeholder="Ex.: Peças de reposição"
-                      />
-                    </Field>
-                    <Field id="fd-ref" label="Referência do cliente">
-                      <Input
-                        id="fd-ref"
-                        value={form.clientReference}
-                        onChange={(e) =>
-                          set({ clientReference: e.target.value })
-                        }
-                        placeholder="Ex.: PO-12345"
-                      />
-                    </Field>
-                    <Field id="fd-incoterm" label="Incoterm">
-                      <Combobox
-                        value={form.incoterm}
-                        onValueChange={(incoterm) => set({ incoterm })}
-                        options={INCOTERM_OPTIONS}
-                        placeholder="Selecionar..."
-                        searchPlaceholder="Buscar incoterm..."
-                      />
-                    </Field>
-                    <Field id="fd-prontidao" label="Prontidão da carga">
-                      <Input
-                        id="fd-prontidao"
-                        type="date"
-                        value={form.readyDate}
-                        onChange={(e) => set({ readyDate: e.target.value })}
-                      />
-                    </Field>
-                    <div className="sm:col-span-2">
-                      <Field id="fd-carga" label="Carga">
-                        <Input
-                          id="fd-carga"
-                          value={form.cargo}
-                          onChange={(e) => set({ cargo: e.target.value })}
-                          placeholder="Ex.: 1 × 40’ HC, 12.000 kg"
-                        />
-                      </Field>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <Field id="fd-obs" label="Observações" optional>
-                        <Textarea
-                          id="fd-obs"
-                          value={form.observations}
-                          onChange={(e) =>
-                            set({ observations: e.target.value })
-                          }
-                          rows={3}
-                          className="resize-none"
-                          placeholder="O que o agente precisa saber sobre este embarque"
-                        />
-                      </Field>
-                    </div>
-                  </div>
+                  {shipmentFields}
                 </>
               ) : (
                 <p className="portal-small text-portal-neutral">
@@ -337,10 +408,12 @@ export default function FechamentoDiretoPage() {
                   dados do embarque.
                 </p>
               )}
+              </>
+              )}
 
-              {!(route && !route.preferredAgent) && (
+              {(manualOrNull || !(route && !route.preferredAgent)) && (
                 <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
-                  {route && issues.length > 0 && (
+                  {(route || manualOrNull) && issues.length > 0 && (
                     <p className="portal-small text-portal-neutral">
                       {issues.length === 1 ? 'Falta' : 'Faltam'}:{' '}
                       {issues.map((issue) => issue.label).join(', ')}
@@ -352,6 +425,7 @@ export default function FechamentoDiretoPage() {
                       onClick={() => {
                         setCorrecting(null);
                         setForm(EMPTY_DIRECT_CLOSE_FORM);
+                        setManual(EMPTY_MANUAL_ROUTE);
                       }}
                     >
                       Desistir da correção
@@ -374,9 +448,6 @@ export default function FechamentoDiretoPage() {
               </h2>
               <ul className="space-y-2">
                 {requests.map((request) => {
-                  const itemRoute = DIRECT_CLOSE_ROUTES.find(
-                    (item) => item.id === request.routeId,
-                  );
                   return (
                     <li
                       key={request.id}
@@ -390,7 +461,7 @@ export default function FechamentoDiretoPage() {
                           <StageBadge stage={request.stage} />
                         </div>
                         <p className="portal-small text-portal-neutral">
-                          {itemRoute ? routeLabel(itemRoute) : 'Rota'} ·{' '}
+                          {requestRouteLabel(request)} ·{' '}
                           {request.agent} · PO {request.form.clientReference}
                         </p>
                         <p className="portal-small text-foreground/80">

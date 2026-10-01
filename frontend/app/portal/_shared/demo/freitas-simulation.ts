@@ -52,6 +52,19 @@ export const DEFAULT_FREITAS_SIMULATION: FreitasSimulation = {
 };
 
 /** Clamps into the window, rounding to whole seconds. */
+/**
+ * Em PRODUÇÃO (build sem NEXT_PUBLIC_PROTO_INTERNAL) o painel não tem a seção
+ * "Freitas simulada", então nada pode depender dela: a Freitas responde
+ * sozinha, sempre, e o que estiver guardado no navegador é ignorado. Sem isso,
+ * uma cotação, um fechamento direto ou um PO enviados pelo cliente ficariam
+ * "em revisão" para sempre. Em preview vale o padrão de sempre (desligado,
+ * ligado pelo painel).
+ */
+export const PRODUCTION_FREITAS_SIMULATION: FreitasSimulation = {
+  autoRespond: true,
+  delaySeconds: DEFAULT_FREITAS_DELAY_SECONDS,
+};
+
 export function clampFreitasDelay(value: number): number {
   if (!Number.isFinite(value)) return DEFAULT_FREITAS_DELAY_SECONDS;
   const whole = Math.round(value);

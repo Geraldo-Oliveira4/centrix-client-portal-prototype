@@ -44,6 +44,9 @@ import {
 import s from './shipment-preview.module.css';
 import { LinkQuotationCard } from '../../_shared/demo/link-quotation-card';
 import { NoQuotationChip } from '../../_shared/demo/shipment-po-labels';
+import { allowsAutoFill, shipmentSources } from '../../_shared/demo/client-kind';
+import { DataSourceStrip } from '../../_shared/demo/data-source-strip';
+import { useClientKind } from '../../_shared/demo/use-client-profile';
 
 type Panel =
   | { kind: 'item' | 'document' | 'alert' | 'milestone'; id: string }
@@ -68,6 +71,10 @@ export default function ShipmentPreview({
   const [ready, setReady] = useState(false);
   const [showSources, setShowSources] = useState(false);
   const [tab, setTab] = useState('cargo');
+  // SaaS puro (Prompt 3): a tela diz de onde vem cada bloco — o que você
+  // informou, o que sincroniza do armador e o que depende de uma operação da
+  // Freitas que esta conta não tem.
+  const clientKind = useClientKind();
   const [panel, setPanel] = useState<Panel>(null);
   const [query, setQuery] = useState('');
   const [supplier, setSupplier] = useState('all');
@@ -295,6 +302,14 @@ export default function ShipmentPreview({
           </div>
         </details>
       </div>
+
+      {!allowsAutoFill(clientKind) && (
+        <DataSourceStrip
+          className="mb-4"
+          title="De onde vêm os dados deste embarque"
+          lines={shipmentSources(clientKind)}
+        />
+      )}
 
       <div className={s.breadcrumb}>
         <Link href="/portal/embarques">

@@ -7,6 +7,22 @@ tela: ela é simulada no painel.
 Tudo roda no navegador. Não há backend das jornadas V2, não há envio de e-mail,
 não há integração.
 
+### Produção x Preview — leia antes de escolher o roteiro
+
+| | Produção (domínio que os clientes veem) | Preview (`NEXT_PUBLIC_PROTO_INTERNAL=1`) |
+|---|---|---|
+| Painel | "Painel de demonstração": **Tipo de cliente**, **Boas-vindas**, **Reiniciar demonstração** | tudo: + Módulos liberados, Freitas simulada, Cotação V2, Embarque via PO, Fechamento direto |
+| Módulos | **fixos: todos visíveis** (ondas guardadas no navegador são ignoradas) | o painel escolhe (padrão: todos) |
+| Freitas | **responde sozinha, sempre**, 8 s por etapa | o painel liga/desliga (padrão: desligada, para conduzir no clique) |
+| Roteiros | **A, B e C em modo "anda sozinho"** (abaixo), **D** e **E** | todos |
+| Só em Preview | — | ondas (§2), cenários carregados, devolver/liberar/validar no clique |
+
+**Em produção, nunca dependa do painel para a jornada andar.** Envie a cotação,
+o fechamento direto ou o PO como cliente e espere: em ~8 s cada etapa da
+revisão da Freitas avança sozinha (cotação: entrada → propostas → saída →
+liberada, ~25 s; fechamento direto e PO: ~8 s). A Freitas automática nunca
+devolve — devolução só existe no Preview, pelo painel.
+
 ---
 
 ## 1. Antes de começar
@@ -21,13 +37,15 @@ testando o portal não pode encontrá-lo por engano):
 | `Ctrl+Shift+D` | alterna |
 
 Ligado, aparece a aba **Demonstração** no canto inferior esquerdo (o direito é o botão "Ajuda" do cliente). Ela abre o
-Sheet "Painel de demonstração · simulação da Freitas".
+Sheet "Painel de demonstração" (no Preview, "Painel de demonstração · simulação
+da Freitas").
 
 A escolha vive em `sessionStorage`: sobrevive à navegação e **morre ao fechar a
 aba**. Se você fechar o navegador entre uma apresentação e outra, precisa de
 `?demo=1` de novo.
 
-**Preparar o estado** (1 minuto, antes da plateia entrar):
+**Preparar o estado — só no Preview** (1 minuto, antes da plateia entrar; em
+produção não há o que preparar):
 
 1. Abra o painel, seção **Módulos liberados** → botão **Tudo liberado**.
 2. Seção **Cotação V2** → **Carregar cenários de demonstração**.
@@ -38,7 +56,7 @@ aba**. Se você fechar o navegador entre uma apresentação e outra, precisa de
 
 ---
 
-## 2. As ondas, e o que cada uma mostra
+## 2. As ondas, e o que cada uma mostra — só Preview
 
 Seção **Módulos liberados** do painel. Cada botão aplica uma onda inteira.
 
@@ -60,6 +78,11 @@ intactos, porque é uma porta fechada dentro do portal, não uma sessão perdida
 ---
 
 ## 3. Roteiro A — Cotação V2 (~12 minutos)
+
+**Preview** (conduzido no clique, com cenários e devolução). **Em produção**,
+use o modo "anda sozinho": crie uma cotação, mostre o cartão "Em revisão", fale
+por ~25 s e abra a comparação liberada; aprove. Os passos de devolver, liberar
+seletivamente e hardblock na saída são só Preview.
 
 Onda 1 ou superior. Prazo de cada revisão: **1 hora** (Orsi, 29/09/2026).
 
@@ -118,6 +141,10 @@ Onda 1 ou superior. Prazo de cada revisão: **1 hora** (Orsi, 29/09/2026).
 
 ## 4. Roteiro B — Novo embarque via PO (~10 minutos)
 
+**Em produção**: abrir, preencher, enviar e mostrar o embarque ficando ativo
+sozinho em ~8 s. Devolução com campos marcados, falha de leitura, "selo ou aba"
+e cenários carregados são só Preview.
+
 Onda 2 ou superior.
 
 1. **Central de trabalho → "Abrir novo embarque"** (ao lado de "Perguntar ao
@@ -152,6 +179,9 @@ Onda 2 ou superior.
 
 ## 5. Roteiro C — Vincular cotação e Visão por PO (~4 minutos)
 
+O vínculo funciona em produção com um embarque que você mesmo criou no Roteiro
+B. "PO dividido em 3 embarques" (cenário do painel) é só Preview.
+
 1. **Vincular cotação.** Abra um embarque ativo aberto por PO: chip "Sem cotação
    vinculada" e o card "Cotação vinculada". O modal busca por número, referência
    do PO ou cliente e lista só cotações aprovadas. Ao vincular, o embarque
@@ -163,7 +193,36 @@ Onda 2 ou superior.
 
 ---
 
-## 6. Autorresposta
+## 5b. Roteiro D — Cliente SaaS puro (~6 minutos) — produção e Preview
+
+Painel → **Tipo de cliente** → **SaaS puro**.
+
+1. **Nova cotação**: a faixa "Você informa tudo" substitui qualquer
+   pré-preenchimento; mesmo vindo do Radar, nada entra sozinho. A aba de
+   documentos explica que ninguém lê os arquivos.
+2. **Fechamento direto**: sem tabela de rotas da Freitas; o cliente digita
+   origem, destino e o agente dele.
+3. **Novo embarque via PO**: anexe um arquivo — ele fica "aguardando
+   conferência", sem leitura; o formulário abre vazio.
+4. **Detalhe de um embarque**: a faixa mostra de onde vem cada bloco e que as
+   etapas operadas pela Freitas não se aplicam.
+
+Volte para **Com operação Freitas** antes do próximo roteiro.
+
+## 5c. Roteiro E — Auditoria fora de ordem (~4 minutos) — produção e Preview
+
+Auditoria → **Adicionar à auditoria** → "Usar embarque" (E-DEMO-02).
+
+1. Clique direto na etapa **4**: nada bloqueia; o painel diz o que falta e em
+   qual etapa. Cada etapa tem o próprio estado (não iniciada, em andamento,
+   pendente de documento, concluída, com divergência).
+2. Em "Fontes e próximos passos", **Rever documento** na Referência comercial:
+   abre a etapa 3 no documento, com a faixa "Voltar para a etapa 4".
+3. Saia (Voltar à Auditoria), volte, escolha outra cotação e clique na etapa 1:
+   o primeiro rascunho está em "Rascunhos em andamento", parado na etapa 4.
+   **Continuar** volta exatamente lá, com o que foi digitado.
+
+
 
 Seção **Freitas simulada**: ligue "A Freitas responde sozinha" e escolha o tempo
 (3 a 60 s, padrão 8).
@@ -216,6 +275,8 @@ começar.
   aberto: o protótipo assume corrido (`review-sla.ts`).
 - **A Visão por PO é só protótipo**, para validar aderência. A gestão por PO
   (PO dividido, linkagem linha a linha) é V2.
-- **As flags não são controle de acesso.** Elas moram neste navegador, não há
-  nada por cliente e nenhum endpoint recusa chamada de módulo desligado.
+- **As flags não são controle de acesso.** Elas moram neste navegador e nenhum
+  endpoint recusa chamada de módulo desligado.
+- **A gestão de acessos não está neste protótipo**: é ferramenta interna; o protótipo dela está na branch `feat/proto-interno-acessos`.
+- **O link público de cotação não está no protótipo** (risco listado no handoff).
 - **Todos os dados são fictícios.**

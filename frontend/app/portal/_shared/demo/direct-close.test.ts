@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 
 import {
   DIRECT_CLOSE_ROUTES,
+  EMPTY_MANUAL_ROUTE,
+  MANUAL_ROUTE_ID,
+  msUntilDirectCloseAutoAdvance,
+  requestRouteLabel,
   EMPTY_DIRECT_CLOSE_FORM,
   approveDirectClose,
   directCloseIssues,
@@ -109,4 +113,38 @@ test('dado gravado por outra versão é descartado, não consertado', () => {
   });
   assert.deepEqual(Object.keys(parseDirectCloseStore(raw)), [request.id]);
   assert.deepEqual(parseDirectCloseStore('{quebrado'), {});
+});
+
+test('SaaS puro: rota e agente informados pelo cliente, sem tabela da Freitas', () => {
+  const form = {
+    ...EMPTY_DIRECT_CLOSE_FORM,
+    product: 'Tecidos',
+    clientReference: 'PO-DEMO-77',
+    incoterm: 'FOB',
+    readyDate: '2026-10-20',
+    cargo: '1 x 20 DC',
+  };
+  const empty = directCloseIssues(form, DIRECT_CLOSE_ROUTES, EMPTY_MANUAL_ROUTE);
+  assert.deepEqual(empty.map((i) => i.label), ['Origem', 'Destino', 'Agente']);
+  const manual = { origin: 'Ningbo', destination: 'Itajaí', agent: 'Agente Próprio DEMO' };
+  assert.deepEqual(directCloseIssues(form, DIRECT_CLOSE_ROUTES, manual), []);
+  const request = submitDirectClose({}, form, '2026-10-01T12:00:00Z', DIRECT_CLOSE_ROUTES, manual)!;
+  assert.equal(request.routeId, MANUAL_ROUTE_ID);
+  assert.equal(request.agent, 'Agente Próprio DEMO');
+  assert.equal(requestRouteLabel(request), 'Ningbo → Itajaí');
+  const parsed = parseDirectCloseStore(JSON.stringify({ [request.id]: request }));
+  assert.deepEqual(parsed[request.id].manualRoute, { origin: 'Ningbo', destination: 'Itajaí' });
+  const returned = returnDirectClose(request, 'Ajuste DEMO', '2026-10-01T13:00:00Z');
+  assert.equal(resubmitDirectClose(returned, form, '2026-10-01T14:00:00Z').stage, 'entry_review');
+});
+
+test('autorresposta do fechamento direto: só a revisão de entrada, só para aprovado', () => {
+  const at = '2026-10-01T12:00:00.000Z';
+  const t0 = Date.parse(at);
+  const form = { ...EMPTY_DIRECT_CLOSE_FORM, routeId: DIRECT_CLOSE_ROUTES[0].id, product: 'P', clientReference: 'PO-1', incoterm: 'FOB', readyDate: '2026-10-20', cargo: '1 x 20' };
+  const request = submitDirectClose({}, form, at)!;
+  assert.equal(msUntilDirectCloseAutoAdvance(request, 8, t0 + 3000), 5000);
+  assert.equal(msUntilDirectCloseAutoAdvance(request, 8, t0 + 9000), 0);
+  assert.equal(msUntilDirectCloseAutoAdvance(approveDirectClose(request, at), 8, t0), null);
+  assert.equal(msUntilDirectCloseAutoAdvance(returnDirectClose(request, 'x', at), 8, t0), null);
 });

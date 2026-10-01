@@ -43,6 +43,8 @@ pessoa.
 | `use-demo-panel.ts` | visibilidade do painel (`?demo`, `Ctrl+Shift+D`, sessão) |
 | `demo-sections.tsx` | **o registro de seções do painel** |
 | `demo-panel.tsx` | a aba e o Sheet. Renderiza `DEMO_SECTIONS` e nada mais |
+| `client-profile.ts` · `use-client-profile.ts` | o tipo de cliente escolhido no painel (store `client-kind`). **Puro** + hook |
+| `client-kind.ts` · `data-source-strip.tsx` | Cliente Freitas x SaaS puro: a regra "nada vem preenchido" e a faixa de origem do dado. **Puro** + desenho |
 
 ### Cotação V2 (HITL)
 
@@ -140,6 +142,45 @@ valor)`. O `parse` precisa ser uma constante de módulo (é dependência do memo
 precisa tolerar lixo: o valor no disco foi escrito por uma versão anterior deste
 código. `resetPrefix()` já vai apagar a chave nova, porque varre o prefixo em
 vez de manter uma lista.
+
+## Produção x Preview
+
+Em produção (build sem `NEXT_PUBLIC_PROTO_INTERNAL=1`) o painel se chama
+"Painel de demonstração" e tem **três** seções: Tipo de cliente, Boas-vindas e
+Reiniciar demonstração. Tudo o que é conceito interno (Freitas/Ionix) só existe
+em Preview e fica fora do bundle de produção: Módulos liberados (ondas), Freitas
+simulada, as mesas de revisão da Cotação V2, do Embarque via PO e do Fechamento
+direto (`demo-sections-internal.tsx` + os três `demo-section-*.tsx`). A condição é inline em volta de cada `import()` dinâmico em
+`demo-sections.tsx`.
+
+Sem essas seções, o cliente não pode travar. Por isso, **só em produção**:
+
+- **Módulos fixos, todos visíveis** (`usePortalModuleFlags` devolve
+  `DEFAULT_MODULE_FLAGS` e ignora o que estiver guardado no navegador). Em
+  Preview o padrão também é tudo ligado, e o painel muda.
+- **A Freitas responde sozinha, sempre, 8 s por etapa**
+  (`PRODUCTION_FREITAS_SIMULATION`; `useFreitasSimulation` ignora o store). Em
+  Preview o padrão continua desligado, ligado pelo painel.
+- **O fechamento direto entrou na autorresposta** (`msUntilDirectCloseAutoAdvance`,
+  no mesmo temporizador de `use-v2-auto-advance.ts`): revisão de entrada →
+  instrução enviada. Antes ele só andava pelo clique no painel.
+- A autorresposta nunca devolve; devolução é só Preview.
+
+## Tipo de cliente (existe em produção)
+
+Seção **"Tipo de cliente"** do painel: *Com operação Freitas* (padrão, o portal de
+sempre) ou *SaaS puro*. Com SaaS puro, Nova cotação, Fechamento direto e Embarque
+via PO não preenchem nada sozinhos e o detalhe do embarque mostra de onde vem
+cada dado. A regra mora em `client-kind.ts`; o seletor em `client-profile.ts` +
+`use-client-profile.ts` (store `client-kind`).
+
+## Gestão de acessos — fora deste protótipo
+
+A gestão de acessos (empresas, convites, importação de CSV, módulos por
+empresa, registro de alterações e "ver como") é ferramenta INTERNA da
+Freitas/Ionix e não faz parte do portal externo. O protótipo dela está preservado
+na branch `feat/proto-interno-acessos` (a Vercel gera um preview da branch); a
+especificação para a versão integrada está na seção 10 do `HANDOFF-BACKEND.md`.
 
 ## O que o reset apaga
 

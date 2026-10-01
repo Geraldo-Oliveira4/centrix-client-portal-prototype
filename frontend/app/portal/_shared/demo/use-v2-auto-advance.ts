@@ -24,6 +24,12 @@ import {
   applyAutoAdvance,
   msUntilAutoAdvance,
 } from './quotation-review';
+import { approveDirectClose, msUntilDirectCloseAutoAdvance } from './direct-close';
+import {
+  readDirectCloseStore,
+  updateDirectClose,
+  useDirectCloseStore,
+} from './use-direct-close';
 import { useFreitasSimulation } from './use-freitas-simulation';
 import { usePortalModuleFlags } from './use-feature-flags';
 import {
@@ -72,6 +78,9 @@ export function useV2AutoAdvance(
   // dois temporizadores acordariam com milissegundos de diferenca para escrever
   // no mesmo prefixo.
   const poStore = useShipmentPoStore();
+  // Fechamento direto no mesmo temporizador (01/10/2026): em produção o painel
+  // não tem a seção que aprovava o pedido, e sem isto ele ficaria parado.
+  const directCloseStore = useDirectCloseStore();
 
   const enabled =
     (flags.cotacaoV2 || flags.embarqueViaPo) && simulation.autoRespond;
@@ -89,8 +98,23 @@ export function useV2AutoAdvance(
       // scheduled it, and the panel may have moved a card in the meantime.
       const current = quotationsEnabled ? readQuotationReviewStore() : {};
       const currentPo = shipmentsEnabled ? readShipmentPoStore() : {};
+      const currentDirect = quotationsEnabled ? readDirectCloseStore() : {};
       const now = Date.now();
       let nextDelay: number | null = null;
+
+      for (const [requestId, request] of Object.entries(currentDirect)) {
+        const remaining = msUntilDirectCloseAutoAdvance(request, delaySeconds, now);
+        if (remaining == null) continue;
+        if (remaining <= 0) {
+          updateDirectClose(requestId, (entry) =>
+            approveDirectClose(entry, new Date().toISOString()),
+          );
+          nextDelay = 50;
+          continue;
+        }
+        nextDelay =
+          nextDelay == null ? remaining : Math.min(nextDelay, remaining);
+      }
 
       for (const [shipmentId, review] of Object.entries(currentPo)) {
         if (!PO_AUTO_ADVANCE_STAGES.includes(review.stage)) continue;
@@ -156,5 +180,6 @@ export function useV2AutoAdvance(
     blocked,
     store,
     poStore,
+    directCloseStore,
   ]);
 }
