@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { LoaderComponent, ErrorComponent } from '@arboria-tech/arboria-ui';
 import { toast } from 'react-toastify';
 
 import { Button } from '@/components/ui';
+import { cn } from '@/lib/utils';
 import { useMyQuotations } from '@/hooks/use-portal-quotations';
 import { useMyShipments } from '@/hooks/use-portal-shipments';
 import {
@@ -24,7 +25,10 @@ import { rankByUrgency, summarizeAttention } from '../_shared/urgency';
 import { HomeShortcuts } from './components/home-shortcuts';
 import { HomeCustomizeDialog } from './components/customize-dialog';
 import { HomeOnboardingDialog } from './components/onboarding-dialog';
-import { useOnboarding } from '../_shared/use-onboarding';
+import { updateOnboarding, useOnboarding } from '../_shared/use-onboarding';
+import { orderCardsForProfile } from '../_shared/onboarding';
+import { FirstStepsCard } from './components/first-steps-card';
+import { HomeReadyBanner } from './components/home-ready-banner';
 import { relocateBucketsV2 } from '../_shared/demo/quotation-review';
 import { useQuotationReviewStore } from '../_shared/demo/use-quotation-review';
 import {
@@ -33,6 +37,7 @@ import {
 } from '../_shared/demo/home-card-modules';
 import { usePortalModuleFlags } from '../_shared/demo/use-feature-flags';
 import {
+  PORTAL_HOME_CARD_THEME,
   cardsForThemes,
   knownThemes,
   layoutRows,
@@ -108,10 +113,24 @@ export default function PortalHomePage() {
   const onboarding = useOnboarding();
   const rawReviews = useQuotationReviewStore();
   const v2Reviews = flags.cotacaoV2 ? rawReviews : {};
+  // A ORDEM dos cards segue o papel escolhido nas boas-vindas (Prompt 4):
+  // financeiro vê custos primeiro, gestor vê o mapa. Sem papel, a de sempre.
   const cards = useMemo(
-    () => releasedHomeCards(chosenCards, flags),
-    [chosenCards, flags],
+    () =>
+      orderCardsForProfile(
+        releasedHomeCards(chosenCards, flags),
+        PORTAL_HOME_CARD_THEME,
+        onboarding.persona,
+        onboarding.priority,
+      ),
+    [chosenCards, flags, onboarding.persona, onboarding.priority],
   );
+  // Revelação: na primeira montagem depois das boas-vindas os cards entram em
+  // sequência. `revealing` fica ligado só nesta visita.
+  const [revealing, setRevealing] = useState(false);
+  useEffect(() => {
+    if (onboarding.revealPending) setRevealing(true);
+  }, [onboarding.revealPending]);
   const hiddenByModule = useMemo(
     () => homeCardsHiddenByModule(chosenCards, flags),
     [chosenCards, flags],
@@ -261,6 +280,22 @@ export default function PortalHomePage() {
         </div>
       )}
 
+      {!needsOnboarding && onboarding.revealPending && (
+        <HomeReadyBanner
+          onboarding={onboarding}
+          onDismiss={() => updateOnboarding({ revealPending: false })}
+        />
+      )}
+
+      {!needsOnboarding && onboarding.setupDone && (
+        <div
+          className={revealing ? 'home-reveal' : undefined}
+          style={revealing ? { ['--reveal-index' as string]: 1 } : undefined}
+        >
+          <FirstStepsCard />
+        </div>
+      )}
+
       {/* MEIO — os cards dos temas escolhidos, filtrados pelos habilitados.
           `layoutRows` agrupa em fileiras de uma ou duas colunas (e e quem
           impede uma metade orfa de deixar meia tela vazia ao lado); o registro
@@ -297,13 +332,19 @@ export default function PortalHomePage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {layoutRows(cards).map((row) => (
+          {layoutRows(cards).map((row, rowIndex) => (
             <div
               key={row.join('+')}
-              className={
+              className={cn(
                 row.length === 2
                   ? 'grid grid-cols-1 gap-6 lg:grid-cols-2'
-                  : 'grid grid-cols-1 gap-6'
+                  : 'grid grid-cols-1 gap-6',
+                revealing && 'home-reveal',
+              )}
+              style={
+                revealing
+                  ? { ['--reveal-index' as string]: rowIndex + 2 }
+                  : undefined
               }
             >
               {row.map((card) => {

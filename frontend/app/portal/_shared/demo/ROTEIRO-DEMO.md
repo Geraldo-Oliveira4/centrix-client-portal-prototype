@@ -14,7 +14,7 @@ não há integração.
 | Painel | "Painel de demonstração": **Tipo de cliente**, **Boas-vindas**, **Reiniciar demonstração** | tudo: + Módulos liberados, Freitas simulada, Cotação V2, Embarque via PO, Fechamento direto |
 | Módulos | **fixos: todos visíveis** (ondas guardadas no navegador são ignoradas) | o painel escolhe (padrão: todos) |
 | Freitas | **responde sozinha, sempre**, 8 s por etapa | o painel liga/desliga (padrão: desligada, para conduzir no clique) |
-| Roteiros | **A, B e C em modo "anda sozinho"** (abaixo), **D** e **E** | todos |
+| Roteiros | **A, B e C em modo "anda sozinho"** (abaixo), **D**, **E** e **F** | todos |
 | Só em Preview | — | ondas (§2), cenários carregados, devolver/liberar/validar no clique |
 
 **Em produção, nunca dependa do painel para a jornada andar.** Envie a cotação,
@@ -186,12 +186,48 @@ B. "PO dividido em 3 embarques" (cenário do painel) é só Preview.
    vinculada" e o card "Cotação vinculada". O modal busca por número, referência
    do PO ou cliente e lista só cotações aprovadas. Ao vincular, o embarque
    mantém o mesmo ID e o chip some.
-2. **Visão por PO** (aba em Meus Embarques). Carregue "PO dividido em 3
-   embarques" no painel: um pedido com três parciais, cada uma num estágio, e a
-   régua com a chegada prevista de cada carga. *Ponto:* só as datas que já
-   existem entram na régua; carga sem previsão aparece na lista e fora dela.
+2. **Visão por PO** (aba em Meus Embarques) — funciona em produção.
+   - A faixa de resumo responde de cara: POs ativos, chegam em 7 dias, em risco
+     e sem previsão. Cada chip **filtra** a tela; clicar de novo desfaz.
+   - **Linha do tempo** (padrão): o eixo é o MESMO para todos os POs, com
+     "Hoje" marcado; uma barra por embarque, com prontidão → embarque →
+     chegada prevista só onde a data existe, e um trilho pontilhado de hoje até
+     a chegada. Passe o mouse ou o Tab numa barra: as datas aparecem.
+   - **"Informe a data de prontidão"**: onde não há previsão, a barra tracejada
+     convida a agir (leva ao detalhe do embarque). *Ponto:* é dessa data que sai
+     o ETA.
+   - Grupos por quando chega (esta semana, este mês, depois, sem previsão);
+     abra um PO para ver os embarques, a etapa em mini-passos e os SKUs.
+   - **Lista**: a mesma informação sem eixo. No celular, cada PO vira um cartão
+     com mini barra de progresso.
+   - No Preview, "PO dividido em 3 embarques" (painel) mostra um pedido com
+     três parciais. *Ponto:* nenhuma data é estimada aqui.
+   - Com **SaaS puro**, a tela é a mesma, sem citar a Freitas.
 
 ---
+
+## 5a. Roteiro F — Boas-vindas "uau" (~2 minutos) — produção e Preview
+
+Para mostrar o primeiro acesso: painel → **Boas-vindas** → **Reiniciar
+onboarding** (reinicia também o checklist "Primeiros passos"). Feche o painel e
+recarregue o Início.
+
+1. **Tour** de 6 passos (ou "Pular tour").
+2. **Bem-vindo, {empresa}**: a saudação com o nome da empresa. "Pular" fica no
+   canto em todas as telas, e Esc também pula.
+3. **O que mais importa?** Custo, prazo ou visibilidade, em cartões.
+4. **Rotas principais**: escolha origem e destino no mapa ou nos botões; o arco
+   se desenha e aparece um cartão da rota com prazo típico e tendência —
+   **sempre com a etiqueta "exemplo"**. *Diga:* no produto, isso vem dos dados
+   reais de frete (data lake); aqui é um exemplo fictício.
+5. **Seu papel**: Comex, Compras, Financeiro ou Gestor. Ele ordena a Home.
+6. **Montar minha Home**: os cards entram em sequência, com "Sua Home está
+   pronta", as rotas escolhidas e o porquê da ordem. Logo abaixo, **Primeiros
+   passos** (abrir a 1ª cotação, configurar alertas, convidar um colega — tudo
+   simulado), com anel de progresso e uma comemoração discreta no fim.
+
+Fechar o navegador no meio retoma na mesma tela. Quem prefere menos movimento
+(`prefers-reduced-motion`) vê tudo sem animação.
 
 ## 5b. Roteiro D — Cliente SaaS puro (~6 minutos) — produção e Preview
 
