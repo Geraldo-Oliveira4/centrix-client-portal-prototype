@@ -109,6 +109,21 @@ export const EMPTY_DIRECT_CLOSE_FORM: DirectCloseForm = {
   observations: '',
 };
 
+/**
+ * SaaS puro (Prompt 3): sem tabela da Freitas, o cliente INFORMA a rota e o
+ * agente. Nada é preenchido pela rota. O pedido guarda o que foi informado
+ * (`manualRoute`), e `routeId` vira `MANUAL_ROUTE_ID`.
+ */
+export const MANUAL_ROUTE_ID = 'manual';
+
+export interface ManualDirectCloseRoute {
+  origin: string;
+  destination: string;
+  agent: string;
+}
+
+export const EMPTY_MANUAL_ROUTE: ManualDirectCloseRoute = { origin: '', destination: '', agent: '' };
+
 export interface DirectCloseIssue {
   field: keyof DirectCloseForm;
   label: string;
@@ -123,10 +138,19 @@ export interface DirectCloseIssue {
 export function directCloseIssues(
   form: DirectCloseForm,
   routes: DirectCloseRoute[] = DIRECT_CLOSE_ROUTES,
+  manual: ManualDirectCloseRoute | null = null,
 ): DirectCloseIssue[] {
   const issues: DirectCloseIssue[] = [];
   const route = routes.find((item) => item.id === form.routeId);
-  if (!route) {
+  if (manual) {
+    const fields: [keyof ManualDirectCloseRoute, string, string][] = [
+      ['origin', 'Origem', 'Informe a origem.'],
+      ['destination', 'Destino', 'Informe o destino.'],
+      ['agent', 'Agente', 'Informe o agente com quem você embarca.'],
+    ];
+    for (const [key, label, reason] of fields)
+      if (!manual[key].trim()) issues.push({ field: 'routeId', label, reason });
+  } else if (!route) {
     issues.push({ field: 'routeId', label: 'Rota', reason: 'Escolha a rota.' });
   } else if (!route.preferredAgent) {
     issues.push({
@@ -184,6 +208,8 @@ export interface DirectCloseRequest {
   routeId: string;
   /** Snapshot of the agent at the time of the request. */
   agent: string;
+  /** Only for SaaS-pure requests: route and agent as the client typed them. */
+  manualRoute?: { origin: string; destination: string };
   form: DirectCloseForm;
   stage: DirectCloseStage;
   stageEnteredAt: string;
@@ -215,10 +241,24 @@ export function submitDirectClose(
   form: DirectCloseForm,
   at: string,
   routes: DirectCloseRoute[] = DIRECT_CLOSE_ROUTES,
+  manual: ManualDirectCloseRoute | null = null,
 ): DirectCloseRequest | null {
-  if (directCloseIssues(form, routes).length) return null;
-  const route = routes.find((item) => item.id === form.routeId)!;
+  if (directCloseIssues(form, routes, manual).length) return null;
   const reference = nextDirectCloseReference(store);
+  if (manual) {
+    return {
+      id: `fd:${reference}`,
+      reference,
+      routeId: MANUAL_ROUTE_ID,
+      agent: manual.agent.trim(),
+      manualRoute: { origin: manual.origin.trim(), destination: manual.destination.trim() },
+      form: { ...form, routeId: MANUAL_ROUTE_ID },
+      stage: 'entry_review',
+      stageEnteredAt: at,
+      history: [{ kind: 'submitted', at }],
+    };
+  }
+  const route = routes.find((item) => item.id === form.routeId)!;
   return {
     id: `fd:${reference}`,
     reference,
@@ -256,7 +296,8 @@ export function resubmitDirectClose(
   routes: DirectCloseRoute[] = DIRECT_CLOSE_ROUTES,
 ): DirectCloseRequest {
   if (request.stage !== 'returned') return request;
-  if (directCloseIssues(form, routes).length) return request;
+  const manual = request.manualRoute ? { ...request.manualRoute, agent: request.agent } : null;
+  if (directCloseIssues(form, routes, manual).length) return request;
   const { returnReason: _dropped, ...rest } = request;
   return {
     ...rest,
@@ -338,10 +379,27 @@ export function parseDirectCloseStore(raw: string | null): DirectCloseStore {
       stage: entry.stage as DirectCloseStage,
       stageEnteredAt: entry.stageEnteredAt,
       history,
+      ...(isManualRoute(entry.manualRoute) ? { manualRoute: entry.manualRoute } : {}),
       ...(typeof entry.returnReason === 'string' && entry.returnReason
         ? { returnReason: entry.returnReason }
         : {}),
     };
   }
   return out;
+}
+
+function isManualRoute(value: unknown): value is { origin: string; destination: string } {
+  if (value == null || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  return typeof v.origin === 'string' && typeof v.destination === 'string';
+}
+
+/** The route as the request names it: from the table, or as the client typed it. */
+export function requestRouteLabel(
+  request: DirectCloseRequest,
+  routes: DirectCloseRoute[] = DIRECT_CLOSE_ROUTES,
+): string {
+  if (request.manualRoute) return `${request.manualRoute.origin} → ${request.manualRoute.destination}`;
+  const route = routes.find((item) => item.id === request.routeId);
+  return route ? routeLabel(route) : 'Rota não encontrada';
 }

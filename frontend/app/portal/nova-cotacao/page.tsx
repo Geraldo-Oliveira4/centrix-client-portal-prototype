@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowRight,
   CheckCircle2,
+  FileText,
   Handshake,
   History,
   Loader2,
@@ -27,6 +28,9 @@ import {
   useMyQuotations,
 } from '@/hooks/use-portal-quotations';
 import { matchHistory } from '@/app/portal/_shared/history-match';
+import { allowsAutoFill, quotationSources } from '@/app/portal/_shared/demo/client-kind';
+import { DataSourceStrip } from '@/app/portal/_shared/demo/data-source-strip';
+import { useClientKind } from '@/app/portal/_shared/demo/use-access';
 import { flattenQuotations } from '@/app/portal/inteligencia/lib/intel-helpers';
 import { useQuotationUploadFlow } from '@/hooks/use-quotation-upload-flow';
 import {
@@ -125,6 +129,10 @@ function PortalNovaCotacaoContent() {
   // vai para a fila de revisao da Freitas, e a tela de sucesso com o
   // `RfqDispatchCard` deixa de existir. Com a flag desligada nada abaixo muda.
   const v2 = usePortalModuleReleased('cotacaoV2');
+  // SaaS puro (Prompt 3): nada entra preenchido — nem a rota do Radar, nem a
+  // leitura de documentos. A regra mora em `client-kind.ts`.
+  const clientKind = useClientKind();
+  const autoFill = allowsAutoFill(clientKind);
   const [phase, setPhase] = useState<PagePhase>('idle');
   const [createdQuotation, setCreatedQuotation] = useState<Quotation | null>(null);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
@@ -293,7 +301,14 @@ function PortalNovaCotacaoContent() {
       {/* De onde veio o pré-preenchimento. Sem esta linha, campos já
           preenchidos numa tela de criação leem como resíduo de um rascunho
           antigo — e o cliente apaga o que estava certo. */}
-      {routeLabel && (
+      {!autoFill && (
+        <DataSourceStrip
+          title="Você informa tudo nesta solicitação"
+          lines={quotationSources(clientKind)}
+        />
+      )}
+
+      {autoFill && routeLabel && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-indigo-800/30 bg-brand-indigo-100 px-4 py-3">
           <Radar className="h-6 w-6 shrink-0 text-brand-indigo" />
           <p className="portal-body text-foreground/80">
@@ -319,8 +334,9 @@ function PortalNovaCotacaoContent() {
                 Já embarca sempre com o mesmo agente nesta rota?
               </span>
               <span className="portal-small block text-portal-neutral">
-                Feche direto com o agente preferido da rota, sem cotar. A
-                Freitas revisa antes de instruir o agente.
+                {autoFill
+                  ? 'Feche direto com o agente preferido da rota, sem cotar. A Freitas revisa antes de instruir o agente.'
+                  : 'Registre o pedido direto com o seu agente, informando rota e agente, sem cotar.'}
               </span>
             </span>
           </span>
@@ -371,13 +387,16 @@ function PortalNovaCotacaoContent() {
             </div>
           )}
           <ManualForm
+            // Remonta se o tipo de cliente mudar depois da hidratação: o
+            // formulário lê `initialValues` uma vez, no mount.
+            key={clientKind}
             clientId={null}
             onQuotationCreated={handleManualCreated}
             disabled={phase === 'submitting'}
             attachmentFiles={attachmentFiles}
             onAttachmentFilesChange={setAttachmentFiles}
             createFn={createWithOrigin}
-            initialValues={prefill}
+            initialValues={autoFill ? prefill : undefined}
             exporterId={exporter?.id ?? null}
             submitLabel={v2 ? 'Enviar para a Freitas' : undefined}
             hardblocks={v2 ? hardblocks : undefined}
@@ -395,6 +414,18 @@ function PortalNovaCotacaoContent() {
         </TabsContent>
 
         <TabsContent value="upload" className="mt-4">
+          {!autoFill ? (
+            <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed border-border p-6">
+              <FileText className="h-6 w-6 text-portal-neutral" />
+              <h2 className="portal-h3">Sem leitura automática de documentos</h2>
+              <p className="portal-body max-w-2xl text-portal-neutral">
+                Na sua conta ninguém lê os documentos para montar a cotação: não
+                há operação da Freitas nem integração por trás. Preencha os
+                dados na aba “Preencher manualmente” e anexe os arquivos lá —
+                eles ficam anexados, aguardando conferência.
+              </p>
+            </div>
+          ) : (
           <div className="space-y-4">
             <p className="portal-small text-portal-neutral">
               Envie o que você já tem do processo — BL ou AWB, Invoice, Packing
@@ -428,6 +459,7 @@ function PortalNovaCotacaoContent() {
               </Button>
             </div>
           </div>
+          )}
         </TabsContent>
       </Tabs>
 

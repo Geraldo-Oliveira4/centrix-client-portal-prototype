@@ -50,6 +50,9 @@ import {
 import { usePoReadFailure } from '../../_shared/demo/po-review-view';
 import { indexQuotations, routePartsOf } from '../../inteligencia/lib/shipment-dimensions';
 import { flattenQuotations } from '../../inteligencia/lib/intel-helpers';
+import { allowsAutoFill, poSources } from '../../_shared/demo/client-kind';
+import { DataSourceStrip } from '../../_shared/demo/data-source-strip';
+import { useClientKind } from '../../_shared/demo/use-access';
 import { PoForm } from './po-form';
 
 type Step = 'upload' | 'form';
@@ -124,6 +127,10 @@ function PortalNovoEmbarqueContent() {
   // para não dizer "lemos o arquivo" sobre um documento que ela não leu.
   const [readFailed, setReadFailed] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // SaaS puro (Prompt 3): o PO é ANEXADO, não lido. Ninguém extrai os dados
+  // por você; o arquivo fica aguardando conferência e os campos vêm vazios.
+  const clientKind = useClientKind();
+  const saas = !allowsAutoFill(clientKind);
 
   // Retomar um rascunho (ou editar um embarque em análise) abre direto o
   // formulário, com o que já estava preenchido.
@@ -226,6 +233,12 @@ function PortalNovoEmbarqueContent() {
     );
   };
 
+  const attachWithoutReading = (file: File) => {
+    setDraft(createDraft(newReference(), 'po', new Date().toISOString(), {}, file.name));
+    setPreview(null);
+    setReadFailed(false);
+  };
+
   const goManual = () => {
     setDraft(createDraft(newReference(), 'manual', new Date().toISOString()));
     setPreview(null);
@@ -265,7 +278,11 @@ function PortalNovoEmbarqueContent() {
         title="Novo embarque a partir de um PO"
         subtitle={
           step === 'upload'
-            ? 'Anexe o PO. Lemos o documento e você só confere os dados.'
+            ? saas
+              ? 'Anexe o PO e preencha os dados do embarque. O arquivo fica anexado, aguardando conferência.'
+              : 'Anexe o PO. Lemos o documento e você só confere os dados.'
+            : saas && draft?.attachmentName
+              ? `${draft.attachmentName} anexado, aguardando conferência. Preencha os dados abaixo: nada foi lido do arquivo.`
             : readFailed && draft?.attachmentName
               ? `Não conseguimos ler o ${draft.attachmentName}. Ele ficou anexado — preencha os dados abaixo.`
               : draft?.attachmentName
@@ -284,7 +301,10 @@ function PortalNovoEmbarqueContent() {
               onFilesChange={(next) => {
                 setFiles(next);
                 const file = next[next.length - 1];
-                if (file) startReading(file);
+                if (file) {
+                  if (saas) attachWithoutReading(file);
+                  else startReading(file);
+                }
               }}
               msgUploadProgress={0}
               isUploading={reading}
@@ -303,9 +323,15 @@ function PortalNovoEmbarqueContent() {
                     {files[files.length - 1].name}
                   </p>
                   <span className="portal-small text-portal-neutral">
-                    {reading ? 'Lendo o documento…' : 'Leitura concluída'}
+                    {saas
+                      ? 'Anexado · aguardando conferência'
+                      : reading
+                        ? 'Lendo o documento…'
+                        : 'Leitura concluída'}
                   </span>
                 </div>
+                {!saas && (
+                <>
                 <div
                   className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted"
                   role="progressbar"
@@ -334,6 +360,8 @@ function PortalNovoEmbarqueContent() {
                     </li>
                   ))}
                 </ul>
+                </>
+                )}
               </section>
             )}
 
@@ -368,6 +396,9 @@ function PortalNovoEmbarqueContent() {
           </div>
 
           <div className="space-y-4">
+            {saas ? (
+              <DataSourceStrip title="De onde vêm os dados" lines={poSources(clientKind)} />
+            ) : (
             <section className="portal-card p-5">
               <h2 className="portal-h3">O que lemos do PO</h2>
               <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5">
@@ -381,6 +412,7 @@ function PortalNovoEmbarqueContent() {
                 Você corrige o que estiver errado na próxima etapa.
               </p>
             </section>
+            )}
 
             <div className="flex gap-2.5 rounded-lg border border-brand-indigo-800/30 bg-brand-indigo-100 px-4 py-3">
               <Info className="mt-0.5 h-5 w-5 shrink-0 text-brand-indigo" />
@@ -401,6 +433,10 @@ function PortalNovoEmbarqueContent() {
           </div>
         </div>
       ) : draft ? (
+        <>
+        {saas && (
+          <DataSourceStrip title="Você informa os dados do PO" lines={poSources(clientKind)} />
+        )}
         <PoForm
           review={draft}
           preview={preview}
@@ -408,6 +444,7 @@ function PortalNovoEmbarqueContent() {
           onSaveDraft={(data) => persist(data, false)}
           onSubmit={(data) => persist(data, true)}
         />
+        </>
       ) : (
         <LoaderComponent />
       )}
