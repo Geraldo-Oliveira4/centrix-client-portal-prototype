@@ -27,10 +27,10 @@ function returnCard(p){
    relevantes". Espelha o UpdatesFeed do portal (app/portal/_shared/updates-feed.tsx):
    sem "Já vi", sem contador, sem CTA de tarefa; cada linha leva ao contexto.
    O que pede ação continua em "Fazer agora" e em "Onde intervir". */
-function updatesFeed(list,{max=5,description=''}={}){
+function updatesFeed(list,{max=5,description='',seal=''}={}){
   const sorted=[...list].sort((a,b)=>b.e.time.localeCompare(a.e.time)),shown=sorted.slice(0,max);
   const item=({p,e})=>`<li><button class="update-row" data-cmd="detail" data-id="${p.id}"><i class="update-dot" aria-hidden="true"></i><span><strong>${esc(e.title)}</strong><small>${[e.time,p.po,esc(p.supplier)].join(' · ')}${e.before?` · ${e.before} → ${e.after}`:''}</small></span>${icon('chevron')}</button></li>`;
-  return `<section class="op-panel updates-feed" aria-labelledby="updates-title"><div class="op-panel-heading"><div><h3 id="updates-title">Atualizações</h3>${description?`<p class="small muted">${description}</p>`:''}</div></div>${shown.length?`<ul class="update-list">${shown.map(item).join('')}</ul>`:'<p class="op-caption">Nenhuma atualização recente neste escopo.</p>'}${sorted.length>shown.length?`<p class="op-panel-note">Mostrando as ${shown.length} mais recentes de ${sorted.length}.</p>`:''}</section>`;
+  return `<section class="op-panel updates-feed" aria-labelledby="updates-title"><div class="op-panel-heading"><div><h3 id="updates-title">Atualizações</h3>${seal?`<div class="seal-line">${seal}</div>`:''}${description?`<p class="small muted">${description}</p>`:''}</div></div>${shown.length?`<ul class="update-list">${shown.map(item).join('')}</ul>`:'<p class="op-caption">Nenhuma atualização recente neste escopo.</p>'}${sorted.length>shown.length?`<p class="op-panel-note">Mostrando as ${shown.length} mais recentes de ${sorted.length}.</p>`:''}</section>`;
 }
 function renderDay(){
   const ts=tasks(),ws=waits(),late=ts.filter(p=>due(p)==='overdue'),today=ts.filter(p=>due(p)==='today');

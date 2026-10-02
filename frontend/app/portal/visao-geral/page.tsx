@@ -1,10 +1,25 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMyShipments } from '@/hooks/use-portal-shipments';
 import { NewShipmentDialog } from '../_shared/demo/new-shipment-dialog';
 import { usePortalModuleReleased } from '../_shared/demo/use-feature-flags';
+import { useShipmentsWithPo } from '../_shared/demo/use-shipment-po-review';
+import { useShipmentIndicators } from '../embarques/components/shipment-indicator-strip';
+import {
+  SHIPMENT_INDICATOR_KEYS,
+  SHIPMENT_INDICATOR_LABELS,
+} from '../embarques/lib/shipment-indicators';
 
-/** Approved UX demonstration. It uses illustrative sources, never client API data. */
+/**
+ * Approved UX demonstration. The scenario inside the iframe is illustrative.
+ *
+ * EXCEÇÃO (02/10/2026): os cinco indicadores de embarque são REAIS. A página
+ * calcula com a MESMA fonte de /portal/home e Embarques (`useShipmentIndicators`
+ * sobre `useShipmentsWithPo`) e entrega ao iframe, que os mostra numa linha só
+ * de leitura no topo da Operação. O resto da Operação é o cenário fictício e
+ * leva o selo "Exemplo ilustrativo".
+ */
 export default function VisaoGeralPage() {
   const frame = useRef<HTMLIFrameElement>(null);
   const [source, setSource] = useState<string | null>(null);
@@ -13,10 +28,28 @@ export default function VisaoGeralPage() {
   const poReleased = usePortalModuleReleased('embarqueViaPo');
   const [choiceOpen, setChoiceOpen] = useState(false);
 
+  const { shipments, isLoading, isError } = useMyShipments();
+  const portfolio = useShipmentsWithPo(shipments);
+  const [now] = useState(() => new Date());
+  const { indicators } = useShipmentIndicators(portfolio, now);
+  // Objeto simples (sem Set) para atravessar para o realm do iframe.
+  const portalIndicators = useMemo(
+    () =>
+      isLoading || isError
+        ? null
+        : SHIPMENT_INDICATOR_KEYS.map((key) => ({
+            key,
+            label: SHIPMENT_INDICATOR_LABELS[key],
+            count: indicators[key].size,
+            href: `/portal/embarques?tab=lista&indicador=${key}`,
+          })),
+    [indicators, isLoading, isError],
+  );
+
   useEffect(() => {
     const hash = /^#(dia|operacao)$/.test(window.location.hash)
       ? window.location.hash : '#dia';
-    setSource('/prototypes/centrix-visao-geral/index.html?v=20261002-foco-2' + hash);
+    setSource('/prototypes/centrix-visao-geral/index.html?v=20261002-foco-3' + hash);
   }, []);
 
   useEffect(() => {
@@ -47,6 +80,17 @@ export default function VisaoGeralPage() {
         button.addEventListener('click', openChoice);
       }
 
+      // Os indicadores reais entram por propriedade da janela do iframe (mesma
+      // origem) + um evento para a Operação redesenhar.
+      const pushIndicators = () => {
+        (child as unknown as { portalIndicators: unknown }).portalIndicators =
+          portalIndicators;
+        child.dispatchEvent(
+          new (child as unknown as typeof globalThis).Event('portal-indicators'),
+        );
+      };
+      pushIndicators();
+
       disconnect = () => {
         child.removeEventListener('hashchange', syncHash);
         button?.removeEventListener('click', openChoice);
@@ -58,7 +102,7 @@ export default function VisaoGeralPage() {
     // depois de um refresh.
     if (iframe.contentDocument?.readyState === 'complete') loaded();
     return () => { iframe.removeEventListener('load', loaded); disconnect(); };
-  }, [source, poReleased]);
+  }, [source, poReleased, portalIndicators]);
 
   return (
     <div className="space-y-4">

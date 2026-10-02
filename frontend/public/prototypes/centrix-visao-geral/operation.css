@@ -19,3 +19,20 @@
 .op-split button:hover{color:#fff}
 .op-split b{font-weight:600;color:#fff}
 .op-priority-mark.neutral{background:#f1f2f7;color:#626a80}
+/* Indicadores REAIS (vindos do portal) x cenario ilustrativo (02/10/2026). */
+.real-indicators{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:22px}
+.real-indicators-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.real-indicators-head .eyebrow{font-size:10px;letter-spacing:1.2px;margin:0}
+.real-indicators-head small{color:var(--muted);font-size:11px}
+.real-indicators-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.real-indicator{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--ink)}
+.real-indicator:hover{border-color:#a9acc6;background:#faf9fc}
+.real-indicator span{flex:1;min-width:0}
+.real-indicator strong{font:20px NewBlack,Source,sans-serif;font-variant-numeric:tabular-nums}
+.real-indicator .icon{width:12px;height:12px;color:var(--muted)}
+.real-indicator.is-action{background:#fffaf0;border-color:#ecd9ae}
+.example-seal{display:inline-block;margin-left:8px;padding:1px 7px;border:1px dashed #9b98b8;border-radius:4px;font-size:10px;letter-spacing:.2px;text-transform:none;color:#5a5880;background:#f6f5fb;vertical-align:middle}
+.op-overview .example-seal{border-color:#ffffff55;color:#e4e2ef;background:transparent}
+.seal-line{margin-top:6px}
+@media(max-width:1100px){.real-indicators-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.real-indicators-list{grid-template-columns:1fr 1fr}}

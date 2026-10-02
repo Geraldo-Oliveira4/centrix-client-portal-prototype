@@ -152,6 +152,10 @@ test('as quatro telas consomem a fonte única, e as fontes paralelas sumiram', (
   assert.match(read('home/page.tsx'), /useShipmentIndicators\(/);
   assert.match(read('home/page.tsx'), /useShipmentsWithPo\(/, 'Home usa a mesma carteira de Embarques');
   assert.match(read('_shared/demo/po-overview-tab.tsx'), /useShipmentIndicators\(/);
+  // A Central entrega os MESMOS indicadores ao iframe da Operação.
+  assert.match(read('visao-geral/page.tsx'), /useShipmentIndicators\(/);
+  assert.match(read('visao-geral/page.tsx'), /useShipmentsWithPo\(/);
+  assert.match(read('visao-geral/page.tsx'), /SHIPMENT_INDICATOR_LABELS\[key\]/);
   assert.doesNotMatch(read('_shared/demo/po-overview.ts'), /PO_FILTER_LABELS|matchesPoFilter/);
   assert.doesNotMatch(read('embarques/components/shipment-map-workspace.tsx'), /panorama-summary|missingEta/);
   assert.doesNotMatch(read('home/components/home-banner.tsx'), /import[^;]*(countBySemaforo|SemaforoChips)/);

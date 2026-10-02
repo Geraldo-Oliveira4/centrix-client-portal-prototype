@@ -10,6 +10,7 @@ function scenario(){
     const processes=INITIAL_PROCESSES;
     const state={profile:'Mariana',opScope:'all',eventReviews:[],drafts:{},read:[],owner:'all',workModule:'all',workKind:'all',flag:'all',search:''};
     const dayDiff=(a,b)=>Math.round((new Date(a+'T12:00:00-03:00')-new Date(b+'T12:00:00-03:00'))/86400000);
+    var window={};
     const icon=()=>'',esc=v=>String(v??''),empty=t=>'<div class="empty">'+t+'</div>',dateLabel=d=>d||'Sem previsão';
     const tasks=()=>processes.filter(p=>p.action&&p.action.owner===state.profile),waits=()=>processes.filter(p=>p.waiting&&p.owner===state.profile);
     const due=p=>!p.action?.deadline?'later':new Date(p.action.deadline)<NOW?'overdue':p.action.deadline.startsWith('2026-09-10')?'today':'later';
@@ -74,4 +75,25 @@ test('o feed ordena do mais recente e não mostra contador nem ação',()=>{
   assert.deepEqual(titles,['Carga aguarda confirmação financeira','Chegada ao porto mudou em 3 dias']);
   assert.match(html,/Mostrando as 2 mais recentes de 4/);
   assert.doesNotMatch(html,/class="count"/);
+});
+
+test('Operação: linha de indicadores REAIS só com dados do portal, cada um levando a Embarques filtrado',()=>{
+  const run=scenario();
+  assert.doesNotMatch(run('renderOperation()'),/real-indicators/);
+  run(`window.portalIndicators=[{key:'action',label:'Precisam de você',count:3,href:'/portal/embarques?tab=lista&indicador=action'},{key:'delayed',label:'Com chegada atrasada',count:3,href:'/portal/embarques?tab=lista&indicador=delayed'}]`);
+  const html=run('renderOperation()');
+  assert.match(html,/DADOS REAIS/);
+  assert.match(html,/href="\/portal\/embarques\?tab=lista&(amp;)?indicador=action" target="_top"[^>]*><span>Precisam de você<\/span><strong>3<\/strong>/);
+  assert.match(html,/indicador=delayed/);
+});
+test('Operação: barra, Onde intervir e Atualizações levam o selo "Exemplo ilustrativo"',()=>{
+  const html=scenario()('renderOperation()');
+  assert.ok((html.match(/Exemplo ilustrativo<\/span>/g)||[]).length>=4);
+});
+test('nenhum rótulo padrão de indicador aparece no cenário fictício',()=>{
+  const {readFileSync}=require('node:fs');
+  const root=resolve(__dirname,'../../../../public/prototypes/centrix-visao-geral');
+  const code=['data.js','work.js','operation.js','app.js','index.html'].map(f=>readFileSync(resolve(root,f),'utf8').replace(/\/\/.*$/gm,'').replace(/\/\*[\s\S]*?\*\//g,'')).join('\n');
+  for(const label of ['Precisam de você','Com chegada atrasada','Chegam nos próximos 7 dias','Sem previsão','Com exceção'])
+    assert.equal(code.includes(label),false,label);
 });
