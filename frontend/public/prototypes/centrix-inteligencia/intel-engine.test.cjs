@@ -7,8 +7,8 @@ const L = require('./intel-layout.js');
 const ids = (ops) => ops.map((o) => o.id).sort();
 const f = (q) => E.readFilters(new URLSearchParams(q));
 
-test('fixture: ~40 embarques de março a setembro com os seis campos dos filtros', () => {
-  assert.equal(D.operations.length, 40);
+test('fixture: ~60 embarques de março a setembro com os seis campos dos filtros', () => {
+  assert.equal(D.operations.length, 60);
   assert.equal(D.operations[0].readyPlan.slice(0, 7), '2026-03');
   assert.equal(D.operations.at(-1).readyPlan.slice(0, 7), '2026-09');
   for (const o of D.operations) {
@@ -16,12 +16,14 @@ test('fixture: ~40 embarques de março a setembro com os seis campos dos filtros
     assert.ok(o.items.length >= 1 && o.items.every((i) => D.skus[i.sku]));
   }
   const count = (fn) => new Set(D.operations.flatMap(fn)).size;
-  assert.ok(count((o) => [o.supplier]) >= 3);
-  assert.equal(count((o) => [o.agent]), 3);
-  assert.equal(count((o) => [o.route]), 4);
-  assert.equal(count((o) => [o.incoterm]), 3);
-  assert.equal(count((o) => [o.country]), 3);
-  assert.ok(count((o) => o.items.map((i) => i.sku)) >= 6);
+  assert.equal(count((o) => [o.supplier]), 5);
+  assert.equal(count((o) => [o.agent]), 4);
+  assert.equal(count((o) => [o.route]), 5);
+  assert.deepEqual([...new Set(D.operations.map((o) => o.incoterm))].sort(), ['CIF', 'EXW', 'FOB']);
+  assert.deepEqual([...new Set(D.operations.map((o) => o.country))].sort(), ['Alemanha', 'China', 'EUA', 'Itália']);
+  const skus = count((o) => o.items.map((i) => i.sku));
+  assert.ok(skus >= 8 && skus <= 10);
+  for (const name of ['Eastbridge Components', 'Yangtze Polymers', 'Nordwerk Industrial', 'Liguria Valvole']) assert.ok(D.companies.some((c) => c.name === name), name);
 });
 
 test('opções saem dos dados, com contagem, e não de lista fixa', () => {
@@ -115,4 +117,71 @@ test('layout: padrão tudo visível em Completa; alternar, restaurar e descartar
   const mem = { v: null, getItem() { return this.v; }, setItem(k, v) { this.v = v; } };
   L.save(mem, s);
   assert.deepEqual(L.load(mem), s);
+});
+
+const RANGE = { start: '2026-06-16', end: '2026-09-13' };
+const PERIOD = () => E.inRange(D.operations, RANGE);
+
+test('opções do dropdown: lista e contagem da base INTEIRA, nunca somem', () => {
+  const opts = E.filterOptions(D, D.operations, PERIOD(), f('exp=hud'), 'rota');
+  assert.equal(opts.length, 5, 'as cinco rotas continuam na lista');
+  const sh = opts.find((o) => o.value === 'shanghai');
+  assert.equal(sh.count, D.operations.filter((o) => o.route === 'shanghai').length);
+  assert.equal(sh.label, 'Shanghai → Santos');
+});
+
+test('opção com 0 no período + outros filtros fica desabilitada (mas marcada nunca)', () => {
+  const opts = E.filterOptions(D, D.operations, PERIOD(), f('exp=hud'), 'rota');
+  assert.equal(opts.find((o) => o.value === 'shanghai').disabled, true);
+  assert.equal(opts.find((o) => o.value === 'shanghai').available, 0);
+  assert.equal(opts.find((o) => o.value === 'newyork').disabled, false);
+  const marked = E.filterOptions(D, D.operations, PERIOD(), f('exp=hud&rota=shanghai'), 'rota');
+  assert.equal(marked.find((o) => o.value === 'shanghai').disabled, false, 'marcada continua desmarcável');
+  // O próprio filtro não se restringe: com Exportador=hud, as outras opções de Exportador seguem disponíveis.
+  assert.ok(E.filterOptions(D, D.operations, PERIOD(), f('exp=hud'), 'exp').every((o) => !o.disabled));
+});
+
+test('combinações: dois filtros deixam base útil, três chegam à amostra pequena', () => {
+  const n = (q) => E.applyFilters(PERIOD(), f(q)).length;
+  assert.ok(n('rota=shanghai&inc=FOB') >= 5);
+  assert.ok(n('pais=China&inc=FOB') >= 5);
+  const three = E.applyFilters(PERIOD(), f('exp=hud&inc=EXW&sku=HP-520'));
+  assert.ok(three.length > 0 && three.length < E.MIN_SAMPLE);
+  assert.equal(E.kpi(D, 'count', three, []).small, true);
+});
+
+test('resumo da visão', () => {
+  assert.equal(E.viewSummary(D, f('rota=shanghai&inc=FOB'), 'Este ano', 14), 'Rota Shanghai → Santos · FOB · Este ano · 14 embarques');
+  assert.equal(E.viewSummary(D, f('exp=east,yang'), 'Últimos 90 dias', 1), 'Exportador: Eastbridge Components, Yangtze Polymers · Últimos 90 dias · 1 embarque');
+});
+
+test('visão salva: captura e restaura período, filtros, modo e blocos', () => {
+  const keys = E.FILTERS.map((x) => x.key);
+  const params = new URLSearchParams('period=custom&start=2026-04-01&end=2026-06-30&exp=east&inc=FOB&variant=direto');
+  const state = L.setVisible(L.setMode(L.defaults(), 'objetiva'), 'objetiva', 'q_frete', false);
+  const v = L.captureView('  Eastbridge FOB ', params, state, keys, 'v1');
+  assert.equal(v.name, 'Eastbridge FOB');
+  assert.equal(new URLSearchParams(v.query).get('variant'), null, 'só período e filtros globais');
+  const r = L.restoreView(JSON.parse(JSON.stringify(v)));
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(r.query)), { period: 'custom', start: '2026-04-01', end: '2026-06-30', exp: 'east', inc: 'FOB' });
+  assert.equal(r.layout.mode, 'objetiva');
+  assert.deepEqual(r.layout.hidden.objetiva, ['q_frete']);
+  assert.equal(L.isActiveView(v, new URLSearchParams(r.query), r.layout, keys), true);
+  assert.equal(L.isActiveView(v, new URLSearchParams(r.query + '&ag=beta'), r.layout, keys), false);
+  let list = [v, L.captureView('Outra', new URLSearchParams(''), L.defaults(), keys, 'v2')];
+  list = L.renameView(list, 'v1', 'Nova');
+  assert.equal(list[0].name, 'Nova');
+  assert.equal(L.renameView(list, 'v1', '  ')[0].name, 'Nova', 'nome vazio não apaga');
+  assert.deepEqual(L.deleteView(list, 'v1').map((x) => x.id), ['v2']);
+  const mem = { v: null, getItem() { return this.v; }, setItem(k, val) { this.v = val; } };
+  L.saveViews(mem, list);
+  assert.deepEqual(L.loadViews(mem), list);
+});
+
+test('Preparar relatório: atalho de conversa por estado do filtro', () => {
+  assert.deepEqual(E.reportContext(f('')), { exporter: null, plannedRouteAgent: false, hint: true });
+  assert.deepEqual(E.reportContext(f('exp=east')), { exporter: 'east', plannedRouteAgent: false, hint: false });
+  assert.deepEqual(E.reportContext(f('exp=east,yang')), { exporter: null, plannedRouteAgent: false, hint: true }, 'dois exportadores = nenhum');
+  assert.deepEqual(E.reportContext(f('ag=beta')), { exporter: null, plannedRouteAgent: true, hint: false });
+  assert.deepEqual(E.reportContext(f('rota=shanghai&exp=nord')), { exporter: 'nord', plannedRouteAgent: true, hint: false });
 });

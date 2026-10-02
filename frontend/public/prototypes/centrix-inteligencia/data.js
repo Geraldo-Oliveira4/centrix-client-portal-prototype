@@ -3,26 +3,28 @@
 const D = (() => {
   const cutoff = '2026-09-13';
   // FIXTURE FICTÍCIA (02/10/2026, Inteligência personalizável). Repo público:
-  // nenhum nome real. 40 embarques de março a setembro de 2026, com os seis
+  // nenhum nome real. 60 embarques de março a setembro de 2026, com os seis
   // campos dos filtros (exportador, agente, rota, incoterm, país de origem e SKU
   // por ITEM) e variedade suficiente para os filtros mudarem o relatório.
   const companies = [
     {id:'east',name:'Eastbridge Components',legal:'Eastbridge Components Ltd.',country:'China',city:'Ningbo',roles:['Exportador','Exportador'],contact:'Lin Chen',notes:'Confirmar prontidão antes da coleta.'},
     {id:'yang',name:'Yangtze Polymers',legal:'Yangtze Polymers Co.',country:'China',city:'Shanghai',roles:['Exportador'],contact:'Wei Zhang',notes:'Resinas e filmes técnicos; lotes mensais.'},
     {id:'nord',name:'Nordwerk Industrial',legal:'Nordwerk Industrial GmbH',country:'Alemanha',city:'Hamburgo',roles:['Importador','Exportador','Exportador'],contact:'Anna Weber',notes:'Peças e retorno de componentes para manutenção.'},
-    {id:'lig',name:'Liguria Valvole',legal:'Liguria Valvole S.r.l.',country:'Itália',city:'Gênova',roles:['Exportador'],contact:'Marco Rossi',notes:'Válvulas sob encomenda; prontidão sensível.'}
+    {id:'lig',name:'Liguria Valvole',legal:'Liguria Valvole S.r.l.',country:'Itália',city:'Gênova',roles:['Exportador'],contact:'Marco Rossi',notes:'Válvulas sob encomenda; prontidão sensível.'},
+    {id:'hud',name:'Hudson Precision',legal:'Hudson Precision Inc.',country:'EUA',city:'Nova York',roles:['Exportador'],contact:'Emily Carter',notes:'Sensores e atuadores; lotes pequenos e frequentes.'}
   ];
-  const agents = [{id:'alpha',name:'Alpha Logistics',initial:'AL',contact:'Camila Santos',preferred:true},{id:'beta',name:'Beta Cargo',initial:'BC',contact:'Ricardo Lima',preferred:false},{id:'gamma',name:'Gamma Freight',initial:'GF',contact:'Juliana Alves',preferred:false}];
+  const agents = [{id:'alpha',name:'Alpha Logistics',initial:'AL',contact:'Camila Santos',preferred:true},{id:'beta',name:'Beta Cargo',initial:'BC',contact:'Ricardo Lima',preferred:false},{id:'gamma',name:'Gamma Freight',initial:'GF',contact:'Juliana Alves',preferred:false},{id:'delta',name:'Delta Shipping',initial:'DS',contact:'Paula Reis',preferred:false}];
   const locations = {
-    ningbo:{name:'Ningbo',code:'CNNGB',type:'Porto',country:'China'},shanghai:{name:'Shanghai',code:'CNSHA',type:'Porto',country:'China'},itajai:{name:'Itajaí',code:'BRITJ',type:'Porto',country:'Brasil'},santos:{name:'Santos',code:'BRSSZ',type:'Porto',country:'Brasil'},hamburgo:{name:'Hamburgo',code:'DEHAM',type:'Porto',country:'Alemanha'},genova:{name:'Gênova',code:'ITGOA',type:'Porto',country:'Itália'},
+    ningbo:{name:'Ningbo',code:'CNNGB',type:'Porto',country:'China'},shanghai:{name:'Shanghai',code:'CNSHA',type:'Porto',country:'China'},itajai:{name:'Itajaí',code:'BRITJ',type:'Porto',country:'Brasil'},santos:{name:'Santos',code:'BRSSZ',type:'Porto',country:'Brasil'},hamburgo:{name:'Hamburgo',code:'DEHAM',type:'Porto',country:'Alemanha'},genova:{name:'Gênova',code:'ITGOA',type:'Porto',country:'Itália'},newyork:{name:'Nova York',code:'USNYC',type:'Porto',country:'EUA'},
     singapore:{name:'Singapura',code:'SGSIN',type:'Porto de conexão',country:'Singapura',extension:true},'east-factory':{name:'Eastbridge · unidade Ningbo',code:'',type:'Coleta / entrega',country:'China'},nordsite:{name:'Nordwerk · Hamburgo',code:'DEMO-COLETA-NORD',type:'Local de coleta',country:'Alemanha',extension:true},'aurora-factory':{name:'Aurora · unidade Joinville',code:'',type:'Coleta / entrega',country:'Brasil'}
   };
-  const routes = [{id:'ningbo',from:'ningbo',to:'itajai',collection:'east-factory',final:'aurora-factory',mode:'Marítimo',equipment:'FCL · 40 HC',preferred:true,agent:'alpha'},{id:'shanghai',from:'shanghai',to:'santos',collection:null,final:'aurora-factory',mode:'Marítimo',equipment:'FCL · 40 HC',preferred:false,agent:'beta'},{id:'hamburgo',from:'hamburgo',to:'itajai',collection:'nordsite',final:'aurora-factory',mode:'Marítimo',equipment:'LCL',preferred:true,agent:'gamma'},{id:'genova',from:'genova',to:'santos',collection:null,final:'aurora-factory',mode:'Marítimo',equipment:'FCL · 20 DC',preferred:false,agent:'alpha'}];
+  const routes = [{id:'ningbo',from:'ningbo',to:'itajai',collection:'east-factory',final:'aurora-factory',mode:'Marítimo',equipment:'FCL · 40 HC',preferred:true,agent:'alpha'},{id:'shanghai',from:'shanghai',to:'santos',collection:null,final:'aurora-factory',mode:'Marítimo',equipment:'FCL · 40 HC',preferred:false,agent:'beta'},{id:'hamburgo',from:'hamburgo',to:'itajai',collection:'nordsite',final:'aurora-factory',mode:'Marítimo',equipment:'LCL',preferred:true,agent:'gamma'},{id:'genova',from:'genova',to:'santos',collection:null,final:'aurora-factory',mode:'Marítimo',equipment:'FCL · 20 DC',preferred:false,agent:'alpha'},{id:'newyork',from:'newyork',to:'santos',collection:null,final:'aurora-factory',mode:'Marítimo',equipment:'FCL · 20 DC',preferred:false,agent:'delta'}];
   const skus = {
     'EC-240':{desc:'Conectores industriais',exporter:'east'},'EC-310':{desc:'Chicotes elétricos',exporter:'east'},
     'YP-115':{desc:'Resina PP granulada',exporter:'yang'},'YP-220':{desc:'Filme técnico',exporter:'yang'},
     'NW-610':{desc:'Peças de reposição',exporter:'nord'},'NW-720':{desc:'Rolamentos',exporter:'nord'},
-    'LG-050':{desc:'Válvulas de controle',exporter:'lig'}
+    'LG-050':{desc:'Válvulas de controle',exporter:'lig'},'LG-060':{desc:'Válvulas esfera',exporter:'lig'},
+    'HP-410':{desc:'Sensores de precisão',exporter:'hud'},'HP-520':{desc:'Atuadores lineares',exporter:'hud'}
   };
   const add = (date,n) => new Date(Date.parse(date+'T12:00:00Z')+n*86400000).toISOString().slice(0,10);
   const days = (a,b) => a && b ? Math.round((Date.parse(b)-Date.parse(a))/86400000) : null;
@@ -33,23 +35,23 @@ const D = (() => {
   // ~8% a partir de julho.
   const plan = [
     ['east','ningbo','alpha','FOB',['EC-240']],['yang','shanghai','beta','FOB',['YP-115']],['nord','hamburgo','gamma','EXW',['NW-610']],['lig','genova','alpha','CIF',['LG-050']],
-    ['east','shanghai','beta','FOB',['EC-310','EC-240']],['yang','shanghai','beta','CIF',['YP-115','YP-220']],['east','ningbo','alpha','FOB',['EC-240','EC-310']],['nord','hamburgo','gamma','FOB',['NW-610','NW-720']],
-    ['lig','genova','gamma','CIF',['LG-050']],['yang','shanghai','alpha','FOB',['YP-220']]
+    ['hud','newyork','delta','FOB',['HP-410']],['east','shanghai','beta','FOB',['EC-310','EC-240']],['yang','shanghai','delta','CIF',['YP-115','YP-220']],['nord','hamburgo','delta','FOB',['NW-610','NW-720']],
+    ['lig','genova','gamma','CIF',['LG-060']],['hud','newyork','alpha','EXW',['HP-520','HP-410']],['east','ningbo','gamma','FOB',['EC-310']],['yang','shanghai','alpha','FOB',['YP-220']]
   ];
-  const transitPlans = {ningbo:32,shanghai:34,hamburgo:22,genova:26};
-  const baseFreight = {ningbo:3200,shanghai:3400,hamburgo:1800,genova:2600};
+  const transitPlans = {ningbo:32,shanghai:34,hamburgo:22,genova:26,newyork:18};
+  const baseFreight = {ningbo:3200,shanghai:3400,hamburgo:1800,genova:2600,newyork:2200};
   const condition = ['integra','integra','integra','avaria','integra','integra','integra','integra'];
-  const operations = Array.from({length:40},(_,i)=>{
+  const operations = Array.from({length:60},(_,i)=>{
     const [supplier,route,agent,incoterm,itemSkus] = plan[i%plan.length];
-    const readyPlan = add('2026-03-02',Math.round(i*4.75));
+    const readyPlan = add('2026-03-02',Math.round(i*3.15));
     const month = Number(readyPlan.slice(5,7));
     const h = (i*37+11)%17;
     const readyDelay = i%13===7 ? null
       : supplier==='east' ? (month<=5 ? (h%3?2:0) : month<=7 ? (h%4===0?1:0) : 0)
       : supplier==='yang' ? (h%4===0?2:0)
-      : supplier==='lig' ? (h%5===0?4:0) : (h%7===0?1:0);
-    const transitExtra = agent==='beta' ? (month>=7 ? 3+h%3 : h%4===0?2:0) : agent==='gamma' ? (h%6===0?2:0) : (h%9===0?1:0);
-    const portExtra = route==='shanghai'||route==='genova' ? (month===8 ? 2+h%2 : h%8===0?1:0) : 0;
+      : supplier==='lig' ? (h%5===0?4:0) : supplier==='hud' ? (h%5===1?3:0) : (h%7===0?1:0);
+    const transitExtra = agent==='beta' ? (month>=7 ? 3+h%3 : h%4===0?2:0) : agent==='gamma' ? (h%6===0?2:0) : agent==='delta' ? (h%7===0?1:0) : (h%9===0?1:0);
+    const portExtra = route==='shanghai'||route==='genova' ? (month===8 ? 2+h%2 : h%8===0?1:0) : route==='newyork' ? (month>=8?1:0) : 0;
     const variant = route==='ningbo' && i%3===0 ? 'conexao' : 'direto';
     const transitPlan = transitPlans[route];
     const actualReady = add(readyPlan,readyDelay||0), collect=add(actualReady,2), depart=add(collect,4), arrive=add(depart,transitPlan+transitExtra),gate=add(arrive,3+portExtra), final=add(gate,2);
@@ -61,8 +63,8 @@ const D = (() => {
     const audit = i%12===0 ? 'divergencia' : i%7===3 ? 'inconclusiva' : i%6===5 ? 'nao-auditada' : 'conforme';
     const freight = Math.round(baseFreight[route]*(month>=7?1.08:1)+(i%3)*60);
     const freeTime = {agreed:21,granted:agent==='beta'&&month>=7?14:21};
-    const bookingHours = agent==='beta' ? (month>=7?60:30) : agent==='gamma' ? 36 : 20;
-    return {id:'DEMO-'+num,po:'PO '+(4521+i),sku:items[0].sku,cargo:items[0].desc,items,incoterm,country:companies.find(c=>c.id===supplier).country,supplier,route,agent,variant,readyPlan,ready:readyDelay===null?null:known(actualReady),collect:known(collect),depart:known(depart),arrive:known(arrive),gate:known(gate),final:known(final),collectPlan:add(readyPlan,2),departPlan:add(readyPlan,6),arrivePlan:add(readyPlan,6+transitPlan),finalPlan:add(readyPlan,11+transitPlan),arriveForecast:arrive,finalForecast:final,transitPlan,docs,ordered:items[0].qty,received:known(final)&&receipt?(receipt==='parcial'?Math.round(items[0].qty*0.95):items[0].qty):null,condition:known(final)?condition[i%condition.length]:null,freight,cargoValue:i%10===3?null:({east:24000,yang:18000,nord:42000,lig:36000})[supplier],audit:known(arrive)?audit:'nao-auditada',extra:audit==='divergencia'?195:null,responseHours:bookingHours,freeTime,connectionIn:variant==='conexao'?known(add(depart,7)):null,connectionOut:variant==='conexao'?known(add(depart,10)):null};
+    const bookingHours = agent==='beta' ? (month>=7?60:30) : agent==='gamma' ? 36 : agent==='delta' ? 24 : 20;
+    return {id:'DEMO-'+num,po:'PO '+(4521+i),sku:items[0].sku,cargo:items[0].desc,items,incoterm,country:companies.find(c=>c.id===supplier).country,supplier,route,agent,variant,readyPlan,ready:readyDelay===null?null:known(actualReady),collect:known(collect),depart:known(depart),arrive:known(arrive),gate:known(gate),final:known(final),collectPlan:add(readyPlan,2),departPlan:add(readyPlan,6),arrivePlan:add(readyPlan,6+transitPlan),finalPlan:add(readyPlan,11+transitPlan),arriveForecast:arrive,finalForecast:final,transitPlan,docs,ordered:items[0].qty,received:known(final)&&receipt?(receipt==='parcial'?Math.round(items[0].qty*0.95):items[0].qty):null,condition:known(final)?condition[i%condition.length]:null,freight,cargoValue:i%10===3?null:({east:24000,yang:18000,nord:42000,lig:36000,hud:30000})[supplier],audit:known(arrive)?audit:'nao-auditada',extra:audit==='divergencia'?195:null,responseHours:bookingHours,freeTime,connectionIn:variant==='conexao'?known(add(depart,7)):null,connectionOut:variant==='conexao'?known(add(depart,10)):null};
   });
   const metrics = {
     ready:{label:'Prontidão no prazo',source:'Compromisso da PO + confirmação do exportador',definition:'Prontidão realizada até o compromisso original, em dias corridos. Não mede transporte.',eligible:o=>!!o.ready,ok:o=>o.ready<=o.readyPlan,value:o=>`${o.readyPlan} → ${o.ready||'sem confirmação'}`},

@@ -12,6 +12,9 @@ const IE = window.IntelEngine, IL = window.IntelLayout;
 let intelLayout = (() => { try { return IL.load(localStorage); } catch { return IL.defaults(); } })();
 let openFilterKey = null;          // dropdown de filtro aberto, preservado entre renders
 let customizeDraft = null;          // rascunho do "Personalizar" até Salvar
+let intelViews = (() => { try { return IL.loadViews(localStorage); } catch { return []; } })();
+const FILTER_KEYS = IE.FILTERS.map(f => f.key);
+function saveViews(next) { intelViews = next; try { IL.saveViews(localStorage, intelViews); } catch {} }
 
 function saveIntelLayout(next) { intelLayout = IL.normalize(next); try { IL.save(localStorage, intelLayout); } catch {} }
 
@@ -117,9 +120,10 @@ function globalFilterChips() {
 function filterBar(s) {
   const chips = IE.FILTERS.flatMap(f => (s.gf[f.key] || []).map(v => `<button class="filter-chip" data-action="gfilter-remove" data-key="${f.key}" data-value="${esc(v)}" aria-label="Remover filtro ${esc(f.label)}: ${esc(f.name(D, v))}">${esc(f.label)}: ${esc(f.name(D, v))} ×</button>`));
   const dropdown = f => {
-    const sel = s.gf[f.key] || [], opts = IE.options(D, s.all, f.key);
-    for (const v of sel) if (!opts.some(o => o.value === v)) opts.push({ value: v, count: 0, label: f.name(D, v) });
-    return `<details class="fsel" data-fkey="${f.key}" ${openFilterKey === f.key ? 'open' : ''}><summary>${f.label}${sel.length ? ` <b>${sel.length}</b>` : ''}</summary><div class="fsel-menu" role="group" aria-label="${f.label}">${opts.length ? opts.map(o => `<label><input type="checkbox" data-gfilter="${f.key}" value="${esc(o.value)}" ${sel.includes(o.value) ? 'checked' : ''}> <span>${esc(o.label)}</span><small>${o.count}</small></label>`).join('') : '<small>Sem opções no período.</small>'}</div></details>`;
+    // Lista e contagem da base INTEIRA (todos os períodos); desabilitada quando não
+    // sobra embarque no período + outros filtros. Opção nunca some.
+    const sel = s.gf[f.key] || [], opts = IE.filterOptions(D, D.operations, s.all, s.gf, f.key);
+    return `<details class="fsel" data-fkey="${f.key}" ${openFilterKey === f.key ? 'open' : ''}><summary>${f.label}${sel.length ? ` <b>${sel.length}</b>` : ''}</summary><div class="fsel-menu" role="group" aria-label="${f.label}"><p class="fsel-hint">Entre parênteses, embarques em toda a base.</p>${opts.map(o => `<label class="${o.disabled ? 'is-disabled' : ''}" title="${o.available} no recorte atual"><input type="checkbox" data-gfilter="${f.key}" value="${esc(o.value)}" ${o.selected ? 'checked' : ''} ${o.disabled ? 'disabled' : ''}> <span>${esc(o.label)} (${o.count})</span>${o.disabled ? '<small>0 no recorte</small>' : ''}</label>`).join('')}</div></details>`;
   };
   return `<section class="filterbar" aria-label="Filtros do relatório"><div class="filter-row">${IE.FILTERS.map(dropdown).join('')}<span class="fcount" aria-live="polite"><b>${s.cur.length}</b> de ${s.all.length} embarques</span></div>${chips.length ? `<div class="filter-chips">${chips.join('')}<button class="text-button" data-action="gfilter-clear">Limpar filtros</button></div>` : ''}${(s.gf.sku || []).length ? '<p class="note-small">Filtro de SKU: entra o embarque que contém o SKU; frete e prazos continuam sendo do embarque inteiro.</p>' : ''}</section>`;
 }
@@ -134,7 +138,7 @@ function modeSwitch() {
 /* --------------------------------------------------------------- página --- */
 function intelOverview() {
   const s = intelScope(), mode = intelLayout.mode, visible = new Set(IL.visibleBlocks(intelLayout));
-  let html = `<div class="heading"><div><h1 tabindex="-1">Inteligência</h1><p>${mode === 'completa' ? 'O retrato completo da sua operação: prazos, frete, parceiros e rotas.' : 'As quatro perguntas da sua operação, respondidas em uma linha cada.'}</p></div><div class="actions">${modeSwitch()}<button class="button secondary" data-action="intel-customize">Personalizar</button>${link('relatorios', 'Preparar relatório', {}, 'button secondary')}</div></div>`;
+  let html = `<div class="heading"><div><h1 tabindex="-1">Inteligência</h1><p>${mode === 'completa' ? 'O retrato completo da sua operação: prazos, frete, parceiros e rotas.' : 'As quatro perguntas da sua operação, respondidas em uma linha cada.'}</p></div><div class="actions">${viewChips()}${modeSwitch()}<button class="button secondary" data-action="intel-customize">Personalizar</button><button class="button secondary" data-action="intel-report">Preparar relatório</button></div></div>`;
   html += periodBar() + filterBar(s);
   html += `<p class="comparison-caption">${s.range.valid ? IE.comparisonCaption(s.range) : ''}${s.cur.length && s.cur.length < IE.MIN_SAMPLE ? ' ' + smallTag(s.cur.length) + ' Com menos de 3 embarques as variações não são mostradas.' : ''}</p>`;
   if (mode === 'completa' && s.cur.length) {
@@ -160,6 +164,44 @@ function intelOverview() {
     if (qs.length) html += `<div class="questions">${qs.map(([id, t, v, target]) => questionBlock(id, t, v, target)).join('')}</div>`;
   }
   return html;
+}
+
+/* ------------------------------------------------------- visões salvas --- */
+function viewChips() {
+  if (!intelViews.length) return '';
+  return `<div class="views" role="group" aria-label="Minhas visões">${intelViews.map(v => { const on = IL.isActiveView(v, params, intelLayout, FILTER_KEYS); return `<span class="view-chip ${on ? 'active' : ''}"><button data-action="view-open" data-id="${esc(v.id)}" ${on ? 'aria-current="true"' : ''}>${esc(v.name)}</button><details class="view-menu"><summary aria-label="Opções da visão ${esc(v.name)}">⋯</summary><div class="view-menu-body"><label>Nome<input data-view-name="${esc(v.id)}" value="${esc(v.name)}" maxlength="60"></label><button class="button secondary" data-action="view-rename" data-id="${esc(v.id)}">Renomear</button><button class="text-button" data-action="view-delete" data-id="${esc(v.id)}">Excluir</button></div></details></span>`; }).join('')}</div>`;
+}
+function openView(id) {
+  const v = intelViews.find(x => x.id === id); if (!v) return;
+  const r = IL.restoreView(v); saveIntelLayout(r.layout);
+  const next = 'executivo' + (r.query ? '?' + r.query : '');
+  if (location.hash.slice(1) === next) render(); else location.hash = next;
+}
+
+/* ---------------------------------------------------- preparar relatório --- */
+const PREVIEW = '<span class="preview-tag">Prévia</span>';
+function shareLink() {
+  try { return top.location.origin + top.location.pathname + location.hash; } catch { return location.href; }
+}
+function openReportPanel(emailDone) {
+  const s = intelScope(), ctx = IE.reportContext(s.gf);
+  const summary = IE.viewSummary(D, s.gf, periodNames[params.get('period') || 'days90'] || 'Personalizado', s.cur.length) + ` · Leitura ${intelLayout.mode === 'completa' ? 'completa' : 'objetiva'}`;
+  const talk = [
+    ctx.exporter ? `<a class="button" href="${esc(url('relatorios/revisao', { supplier: ctx.exporter }))}">Preparar revisão com ${esc(company(ctx.exporter).name)}</a><p class="muted small">Abre Relatórios › Revisão de exportador com este período e estes filtros.</p>` : '',
+    ctx.plannedRouteAgent ? `<div class="planned"><div><b>Revisão de rota ou agente</b> <span class="pill">Planejado</span></div><p class="muted small">Comparáveis, desvios e pauta com o parceiro. Ainda sem geração nesta prévia.</p><button class="button secondary" disabled>Preparar revisão</button></div>` : '',
+    ctx.hint ? '<p class="muted">Filtre por um exportador para preparar uma revisão.</p>' : '',
+  ].join('');
+  const email = emailDone
+    ? `<div class="success" role="status"><b>Agendado (simulação)</b><p>Envio ${esc(emailDone.freq)} para ${esc(emailDone.to.join(', '))}. Nada foi enviado nesta prévia.</p></div>`
+    : `<form id="report-email" class="report-form" novalidate><label>Frequência<select id="report-freq"><option value="semanal">Semanal</option><option value="mensal">Mensal</option></select></label><label>Destinatários<input id="report-to" type="text" placeholder="nome@empresa.com, outro@empresa.com" aria-describedby="report-to-error" required></label><p id="report-to-error" class="form-error" role="alert"></p><button class="button" type="submit">Agendar envio</button></form>`;
+  openDrawer('Preparar relatório', esc(summary), `<p class="muted">A visão atual — período, filtros, modo e blocos — é o relatório.</p>
+    <section class="report-section" aria-labelledby="rs-1"><h3 id="rs-1">Salvar como minha visão</h3><form id="view-form" class="report-form"><label>Nome da visão<input id="view-name" type="text" maxlength="60" required placeholder="Ex.: Shanghai FOB"></label><button class="button" type="submit">Salvar</button></form><p class="muted small">Aparece como atalho no topo da Inteligência e restaura período, filtros, modo e blocos.</p></section>
+    <section class="report-section" aria-labelledby="rs-2"><h3 id="rs-2">Levar para uma conversa</h3>${talk}<p class="small">${link('relatorios', 'Ver todos os relatórios')}</p></section>
+    <section class="report-section" aria-labelledby="rs-3"><h3 id="rs-3">Receber e compartilhar</h3>
+      <div class="share-item"><div><b>Enviar por e-mail</b> ${PREVIEW}</div>${email}</div>
+      <div class="share-item"><div><b>Copiar link</b></div><p class="muted small">O link abre esta mesma visão, com período e filtros.</p><button class="button secondary" data-action="report-copy">Copiar link</button><input id="report-link" class="link-field" readonly value="${esc(shareLink())}" aria-label="Link desta visão"></div>
+      <div class="share-item"><div><b>Baixar PDF</b> ${PREVIEW}</div><button class="button secondary" data-action="report-pdf">Baixar PDF</button></div>
+    </section>`);
 }
 
 /* --------------------------------------------------------- personalizar --- */
@@ -188,6 +230,17 @@ document.addEventListener('click', e => {
   else if (a === 'gfilter-remove') { const gf = IE.readFilters(params); gf[b.dataset.key] = gf[b.dataset.key].filter(v => v !== b.dataset.value); setGlobalFilters(gf); }
   else if (a === 'gfilter-clear') { openFilterKey = null; setGlobalFilters({}); }
   else if (a === 'intel-jump') { e.preventDefault(); jumpTo(id); }
+  else if (a === 'intel-report') openReportPanel();
+  else if (a === 'view-open') openView(id);
+  else if (a === 'view-rename') { const input = document.querySelector(`[data-view-name="${CSS.escape(id)}"]`); saveViews(IL.renameView(intelViews, id, input && input.value)); render(); toast('Visão renomeada.'); }
+  else if (a === 'view-delete') { saveViews(IL.deleteView(intelViews, id)); render(); toast('Visão excluída.'); }
+  else if (a === 'report-copy') {
+    const link = shareLink(), field = document.getElementById('report-link');
+    const done = () => toast('Link copiado.');
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, () => { field.select(); toast('Selecione e copie o link no campo.'); });
+    else { field.select(); toast('Selecione e copie o link no campo.'); }
+  }
+  else if (a === 'report-pdf') toast('Disponível na versão final.');
   else if (a === 'intel-details') {
     // "Ver detalhes" leva à seção da Completa. Se o cliente a escondeu, ela volta
     // a aparecer: o pedido explícito vence a escolha anterior, e o toast diz isso.
@@ -211,4 +264,24 @@ document.addEventListener('toggle', e => {
   if (d.open) { openFilterKey = d.dataset.fkey; document.querySelectorAll('details.fsel[open]').forEach(x => { if (x !== d) x.open = false; }); }
   else if (openFilterKey === d.dataset.fkey) openFilterKey = null;
 }, true);
+// Clique fora fecha o dropdown de filtro aberto (e abrir um painel também).
+document.addEventListener('click', e => {
+  if (e.target.closest('details.fsel')) return;
+  document.querySelectorAll('details.fsel[open]').forEach(d => { d.open = false; });
+  openFilterKey = null;
+}, true);
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && openFilterKey) { const d = document.querySelector('details.fsel[open]'); if (d) { d.open = false; d.querySelector('summary').focus(); } } });
+
+document.addEventListener('submit', e => {
+  if (e.target.id === 'view-form') {
+    e.preventDefault(); const name = document.getElementById('view-name').value.trim();
+    if (!name) { document.getElementById('view-name').focus(); return; }
+    saveViews([...intelViews, IL.captureView(name, params, intelLayout, FILTER_KEYS)]); closeDrawer(); render(); toast('Visão salva.');
+  } else if (e.target.id === 'report-email') {
+    e.preventDefault();
+    const to = document.getElementById('report-to').value.split(/[,;\s]+/).filter(Boolean), bad = to.filter(x => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x));
+    const err = document.getElementById('report-to-error');
+    if (!to.length || bad.length) { err.textContent = to.length ? `E-mail inválido: ${bad.join(', ')}` : 'Informe ao menos um destinatário.'; document.getElementById('report-to').focus(); return; }
+    openReportPanel({ freq: document.getElementById('report-freq').value, to });
+  }
+});

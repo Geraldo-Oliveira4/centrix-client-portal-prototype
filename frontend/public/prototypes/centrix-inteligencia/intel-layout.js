@@ -63,7 +63,36 @@
     try { storage.setItem(STORE_KEY, JSON.stringify(normalize(state))); return true; } catch { return false; }
   }
 
-  const api = { MODES, BLOCKS, STORE_KEY, defaults, normalize, visibleBlocks, setVisible, setMode, reset, load, save };
+  // VISÕES SALVAS ("Preparar relatório" › Salvar como minha visão). Uma visão
+  // é o recorte inteiro: período, filtros, modo e blocos visíveis. Guardada pelo
+  // MESMO mecanismo do Personalizar (store de demonstração, por usuário).
+  const VIEWS_KEY = 'centrix-proto-v2:intelligence-views';
+  const PERIOD_KEYS = ['period', 'start', 'end'];
+  /** Captura a visão atual. `filterKeys` vem do motor (IntelEngine.FILTERS). */
+  function captureView(name, params, state, filterKeys, id) {
+    const q = new URLSearchParams();
+    for (const k of [...PERIOD_KEYS, ...filterKeys]) { const v = params.get(k); if (v) q.set(k, v); }
+    const n = normalize(state);
+    return { id: id || 'v' + Date.now().toString(36), name: String(name || '').trim() || 'Minha visão', query: q.toString(), mode: n.mode, hidden: n.hidden };
+  }
+  /** O que restaurar: a query (vai para a URL como qualquer filtro) e o layout. */
+  function restoreView(view) {
+    return { query: view.query || '', layout: normalize({ mode: view.mode, hidden: view.hidden }) };
+  }
+  /** A visão está aplicada agora? (para destacar o chip) */
+  function isActiveView(view, params, state, filterKeys) {
+    const cur = captureView('', params, state, filterKeys, view.id);
+    const sort = (q) => [...new URLSearchParams(q).entries()].sort().join('&');
+    return sort(cur.query) === sort(view.query) && cur.mode === view.mode && JSON.stringify(cur.hidden) === JSON.stringify(normalize(view).hidden);
+  }
+  function loadViews(storage) {
+    try { const v = JSON.parse(storage.getItem(VIEWS_KEY) || '[]'); return Array.isArray(v) ? v.filter((x) => x && x.id && x.name) : []; } catch { return []; }
+  }
+  function saveViews(storage, views) { try { storage.setItem(VIEWS_KEY, JSON.stringify(views)); return true; } catch { return false; } }
+  function renameView(views, id, name) { const n = String(name || '').trim(); return n ? views.map((v) => (v.id === id ? { ...v, name: n } : v)) : views; }
+  function deleteView(views, id) { return views.filter((v) => v.id !== id); }
+
+  const api = { MODES, BLOCKS, STORE_KEY, VIEWS_KEY, defaults, normalize, visibleBlocks, setVisible, setMode, reset, load, save, captureView, restoreView, isActiveView, loadViews, saveViews, renameView, deleteView };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelLayout = api;
 })(typeof window !== 'undefined' ? window : globalThis);

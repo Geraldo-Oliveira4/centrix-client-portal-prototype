@@ -2441,7 +2441,10 @@ Supersedes the four-block page ("Inteligência em blocos") and the Performance s
 
 | O quê | Onde | Regra que não pode afrouxar |
 |---|---|---|
-| Fixture | `data.js` | 40 embarques fictícios (mar–set/2026), 4 exportadores, 3 agentes, 4 rotas, 3 incoterms, 3 países, 7 SKUs por ITEM. Mesma API `D` de antes; nenhum nome real |
+| Fixture | `data.js` | 60 embarques fictícios (mar–set/2026): 5 exportadores, 4 agentes, 5 rotas, 3 incoterms (FOB/CIF/EXW), 4 países (China, Alemanha, Itália, EUA), 10 SKUs por ITEM. Só a Inteligência lê este arquivo (Embarques, Central e `shipment-indicators` não). Mesma API `D` de antes; nenhum nome real |
+| Opções de filtro | `filterOptions` em `intel-engine.js` | Lista e contagem da base INTEIRA; desabilitada (nunca some) quando não sobra embarque no período + outros filtros; marcada nunca desabilita |
+| Visões salvas | `captureView`/`restoreView`/`isActiveView` em `intel-layout.js`, chave `centrix-proto-v2:intelligence-views` | Visão = período + filtros + modo + blocos; abrir uma visão escreve na hash como qualquer filtro |
+| Preparar relatório | `openReportPanel` em `intel-page.js`, `reportContext`/`viewSummary` no motor | Painel modal (`<dialog>`): salvar visão; revisão de exportador só com UM exportador (a página de Relatórios só recebe período/filtros); rota/agente = Planejado; e-mail e PDF simulados com selo "Prévia"; Copiar link é real |
 | Motor | `intel-engine.js` (puro) + `intel-engine.test.cjs` | Filtros OU/E, opções dos dados, SKU por item, base única = período anterior de mesma duração, amostra < 3 sem variação, séries mensais calculadas. Nenhum número digitado na tela |
 | Layout | `intel-layout.js` (puro) | Modos Completa/Objetiva e blocos ocultos em `centrix-proto-v2:intelligence-layout` (prefixo do store de demonstração: "Reiniciar" do painel limpa) |
 | Página | `intel-page.js` | Só desenha; usa os helpers de `app.js` em tempo de chamada. Filtros na hash (`#executivo?exp=east,nord&sku=EC-240`), que o host espelha na URL do portal |

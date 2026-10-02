@@ -68,6 +68,45 @@
       .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
   }
 
+  /**
+   * Opções de um filtro para o dropdown. A LISTA e a contagem saem da base INTEIRA
+   * (todos os períodos), então uma opção nunca some quando o recorte muda. Ela só
+   * fica DESABILITADA quando não sobra embarque nela dentro do período e dos
+   * OUTROS filtros ativos — a não ser que já esteja marcada (precisa dar para
+   * desmarcar).
+   */
+  function filterOptions(D, allOps, periodOps, filters, key) {
+    const others = { ...filters, [key]: [] };
+    const reachable = applyFilters(periodOps, others);
+    const f = BY_KEY[key];
+    const selected = filters[key] || [];
+    return options(D, allOps, key).map((o) => {
+      const available = reachable.filter((op) => f.values(op).includes(o.value)).length;
+      return { ...o, available, selected: selected.includes(o.value), disabled: available === 0 && !selected.includes(o.value) };
+    });
+  }
+
+  /** "Rota Shanghai → Santos · FOB · Últimos 90 dias · 14 embarques". */
+  function viewSummary(D, filters, periodLabel, n) {
+    const parts = FILTERS.filter((f) => (filters[f.key] || []).length).map((f) => {
+      const names = filters[f.key].map((v) => f.name(D, v));
+      if (f.key === 'inc') return names.join(', ');
+      return names.length === 1 ? `${f.label} ${names[0]}` : `${f.label}: ${names.join(', ')}`;
+    });
+    return [...parts, periodLabel, `${n} ${n === 1 ? 'embarque' : 'embarques'}`].join(' · ');
+  }
+
+  /**
+   * "Levar para uma conversa": qual atalho o painel oferece. Revisão de
+   * exportador existe (Relatórios); de rota ou agente ainda é Planejado.
+   */
+  function reportContext(filters) {
+    const exp = filters.exp || [];
+    const exporter = exp.length === 1 ? exp[0] : null;
+    const plannedRouteAgent = (filters.ag || []).length > 0 || (filters.rota || []).length > 0;
+    return { exporter, plannedRouteAgent, hint: !exporter && !plannedRouteAgent };
+  }
+
   // ------------------------------------------------------------ período ---
   const toDay = (iso) => Math.floor(Date.parse(iso + 'T12:00:00Z') / DAY);
   const fromDay = (n) => new Date(n * DAY + 12 * 3600000).toISOString().slice(0, 10);
@@ -195,7 +234,7 @@
     });
   }
 
-  const api = { FILTERS, MIN_SAMPLE, readFilters, writeFilters, activeCount, matches, applyFilters, options, previousRange, inRange, comparisonCaption, kpi, monthly, funnel, stageDelays, ranking, questions, commitments, valueOf };
+  const api = { FILTERS, MIN_SAMPLE, readFilters, writeFilters, activeCount, matches, applyFilters, options, filterOptions, viewSummary, reportContext, previousRange, inRange, comparisonCaption, kpi, monthly, funnel, stageDelays, ranking, questions, commitments, valueOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelEngine = api;
 })(typeof window !== 'undefined' ? window : globalThis);
