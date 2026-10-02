@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Map as MapIcon, List, Bell, Hourglass, Package, Plus } from 'lucide-react';
+import { Map as MapIcon, List, Hourglass, Package, Plus } from 'lucide-react';
 import { ErrorComponent, LoaderComponent } from '@arboria-tech/arboria-ui';
 
 import { Button } from '@/components/ui/button';
@@ -23,16 +23,24 @@ import { countShipmentsInPoReview } from '../_shared/demo/shipment-po-merge';
 import { flattenQuotations } from '../inteligencia/lib/intel-helpers';
 
 import { ShipmentMapWorkspace } from './components/shipment-map-workspace';
-import { ShipmentAlertsPreview } from './components/shipment-alerts-preview';
+import { ShipmentUpdatesFeed } from './components/shipment-updates-feed';
 import { ShipmentListTab } from './components/shipment-list-tab';
 
 import {
   SHIPMENT_FILTERS,
   type ShipmentFilterKey,
 } from './lib/shipment-filters';
+import { isShipmentListRecorte } from './lib/shipment-indicators';
 
-// Navegação do panorama da carteira ao detalhe e às ocorrências.
-const TABS = ['mapa', 'lista', 'analise', 'pos', 'alertas'] as const;
+// Navegação do panorama da carteira ao detalhe.
+//
+// A aba "Alertas" SAIU em 02/10/2026 (feedback do Orsi: "quanto menos to-do
+// list, melhor"). `?tab=alertas` continua chegando por link salvo e é
+// redirecionado para a lista com o recorte equivalente ("Minha ação" =
+// "Precisam de você"); os outros dois filtros úteis dela viraram recortes da
+// lista (`?indicador=delayed`, `?indicador=documentos`). O que era leitura virou
+// o feed "Atualizações", no Panorama.
+const TABS = ['mapa', 'lista', 'analise', 'pos'] as const;
 type ShipmentTab = (typeof TABS)[number];
 
 const isShipmentTab = (value: string | null): value is ShipmentTab =>
@@ -65,18 +73,45 @@ function PortalEmbarquesContent() {
   // Lista tab and expands its search field.
   const tabParam = searchParams.get('tab');
   const buscaParam = searchParams.get('busca');
-  // `?filtro=` semeia o chip do Mapa. É o que faz "Ver no mapa" do farol da Home
-  // chegar com o recorte JÁ aplicado em vez de despejar a carteira inteira e
-  // pedir mais um clique. Valor desconhecido vira null — um filtro que ninguém
-  // reconhece não pode esvaziar a tela, mesma regra de `filterShipments`.
+  // `?filtro=` semeia o recorte do Panorama (links salvos do antigo farol da
+  // Home). "atraso" e "excecao" tinham regra própria e agora abrem os
+  // INDICADORES equivalentes da fonte única, para o Panorama nunca mostrar um
+  // "Com atraso" que discorde de "Com chegada atrasada". Valor desconhecido vira
+  // null — um filtro que ninguém reconhece não pode esvaziar a tela.
   const filtroParam = searchParams.get('filtro');
-  const initialMapFilter = isShipmentFilterKey(filtroParam) ? filtroParam : null;
+  const initialMapIndicator =
+    filtroParam === 'atraso'
+      ? ('delayed' as const)
+      : filtroParam === 'excecao'
+        ? ('exception' as const)
+        : null;
+  const initialMapFilter =
+    !initialMapIndicator && isShipmentFilterKey(filtroParam) ? filtroParam : null;
   const [tab, setTab] = useState<ShipmentTab>(
-    isShipmentTab(tabParam) ? tabParam : 'mapa',
+    isShipmentTab(tabParam)
+      ? tabParam
+      : tabParam === 'alertas' || searchParams.get('indicador')
+        ? 'lista'
+        : 'mapa',
   );
   const [searchOpen, setSearchOpen] = useState(buscaParam === '1');
+  // `?indicador=` abre a lista já recortada (deep links da Home e da antiga
+  // aba Alertas). Chave desconhecida vira null: não pode esvaziar a tela.
+  const indicadorParam = searchParams.get('indicador');
+  const initialRecorte = isShipmentListRecorte(indicadorParam)
+    ? indicadorParam
+    : tabParam === 'alertas'
+      ? 'action'
+      : null;
 
   useEffect(() => {
+    if (tabParam === 'alertas') {
+      setTab('lista');
+      router.replace('/portal/embarques?tab=lista&indicador=action', {
+        scroll: false,
+      });
+      return;
+    }
     if (isShipmentTab(tabParam)) setTab(tabParam);
     if (buscaParam !== '1') return;
     setSearchOpen(true);
@@ -88,7 +123,7 @@ function PortalEmbarquesContent() {
   // The existing shipment list uses its originating quotation context.
   const { data: quotationsData } = useMyQuotations();
 
-  if (isError && tab !== 'alertas') return <ErrorComponent />;
+  if (isError) return <ErrorComponent />;
 
   const subtitle = isLoading
     ? undefined
@@ -117,13 +152,13 @@ function PortalEmbarquesContent() {
         }
       />
 
-      {isLoading && tab !== 'alertas' ? (
+      {isLoading ? (
         <div className="space-y-3">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
         </div>
-      ) : shipments.length === 0 && tab !== 'alertas' ? (
+      ) : shipments.length === 0 ? (
         <div className="space-y-4 rounded-xl border border-dashed border-border bg-muted/20 p-10 text-center">
           <div className="space-y-1">
             <p className="portal-h3">
@@ -191,10 +226,6 @@ function PortalEmbarquesContent() {
                 Visão por PO
               </TabsTrigger>
             )}
-            <TabsTrigger value="alertas" className="gap-1.5 data-[state=active]:border-brand-indigo-800">
-              <Bell className="h-4 w-4" />
-              Alertas
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="lista" className="space-y-4">
@@ -207,6 +238,7 @@ function PortalEmbarquesContent() {
               isLoading={false}
               searchOpen={searchOpen}
               onSearchOpenChange={setSearchOpen}
+              initialRecorte={initialRecorte}
             />
           </TabsContent>
 
@@ -222,10 +254,6 @@ function PortalEmbarquesContent() {
             </TabsContent>
           )}
 
-          <TabsContent value="alertas" className="space-y-4">
-            <ShipmentAlertsPreview />
-          </TabsContent>
-
           {/* Mapa amplo, resumo contextual e a mesma carteira priorizada. */}
           <TabsContent value="mapa" className="space-y-4">
             <p className="portal-small text-portal-neutral">
@@ -234,7 +262,11 @@ function PortalEmbarquesContent() {
             <ShipmentMapWorkspace
               shipments={shipments}
               initialFilter={initialMapFilter}
+              initialIndicator={initialMapIndicator}
             />
+            {/* O feed de leitura que substituiu a aba Alertas. Mesmo
+                componente das Atualizações da Central (Operação). */}
+            <ShipmentUpdatesFeed shipments={shipments} />
           </TabsContent>
         </Tabs>
       )}

@@ -3,11 +3,9 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  AlertTriangle,
   ArrowRight,
-  CalendarDays,
   ChevronRight,
-  Clock3,
+  FileText,
   Hourglass,
   SlidersHorizontal,
 } from 'lucide-react';
@@ -69,9 +67,13 @@ import {
   buildShipmentOverview,
   compareShipmentOverview,
   hasArrived,
-  SHIPMENT_OVERVIEW_LABELS,
-  type ShipmentOverviewKey,
 } from '../lib/shipment-overview';
+import {
+  SHIPMENT_LIST_RECORTE_LABELS,
+  shipmentsWithPendingDocuments,
+  type ShipmentListRecorte,
+} from '../lib/shipment-indicators';
+import { ShipmentIndicatorStrip } from './shipment-indicator-strip';
 
 const normalize = (value: string) =>
   value
@@ -80,23 +82,6 @@ const normalize = (value: string) =>
     .trim()
     .toUpperCase()
     .replace(/\s+/g, '');
-const METRICS = [
-  {
-    key: 'action' as const,
-    icon: AlertTriangle,
-    description: 'Embarques com ações pendentes',
-  },
-  {
-    key: 'delayed' as const,
-    icon: Clock3,
-    description: 'Previsão posterior à chegada original',
-  },
-  {
-    key: 'upcoming' as const,
-    icon: CalendarDays,
-    description: 'No porto ou aeroporto de destino',
-  },
-];
 const ROW_GRID =
   'lg:grid lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1.1fr)_minmax(0,.85fr)_minmax(0,1fr)] lg:gap-6';
 
@@ -304,19 +289,27 @@ export function ShipmentListTab({
   isLoading,
   searchOpen,
   onSearchOpenChange,
+  initialRecorte = null,
 }: {
   shipments: PortalShipmentWithReview[];
   quotations: PortalQuotation[];
   isLoading: boolean;
   searchOpen: boolean;
   onSearchOpenChange: (open: boolean) => void;
+  /**
+   * Recorte vindo de `?indicador=` — os deep links da Home e os que antes
+   * apontavam para a aba Alertas (removida em 02/10/2026) chegam por aqui.
+   */
+  initialRecorte?: ShipmentListRecorte | null;
 }) {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<SemaforoTone | 'all'>('all');
   const [origin, setOrigin] = useState('all');
   const [originQuery, setOriginQuery] = useState('');
   const [period, setPeriod] = useState('all');
-  const [metric, setMetric] = useState<ShipmentOverviewKey | null>(null);
+  const [metric, setMetric] = useState<ShipmentListRecorte | null>(
+    initialRecorte,
+  );
   const [urgentOnly, setUrgentOnly] = useState(false);
   // EMBARQUE VIA PO (Tela 7). `reviewOnly` e um recorte a parte dos `METRICS`:
   // "em analise" nao e um estado operacional do embarque, e sim uma etapa antes
@@ -329,13 +322,25 @@ export function ShipmentListTab({
     () => new Map(shipments.map((s) => [s.id, routePartsOf(s, byQuotation)])),
     [shipments, byQuotation],
   );
-  // One shared pipeline with Home and shipment detail. Count shipments, not tasks.
-  const now = new Date();
-  const { groups, actionsByShipment } = buildShipmentOverview(
-    shipments,
-    collectHomeActions({ shipments, buckets: {}, realSteps: REAL_STEPS, now }),
-    now,
+  // One shared pipeline with Home and shipment detail. Count shipments, not
+  // tasks. Os grupos SÃO os indicadores da fonte única (shipment-indicators.ts).
+  const [now] = useState(() => new Date());
+  const actionList = useMemo(
+    () =>
+      collectHomeActions({ shipments, buckets: {}, realSteps: REAL_STEPS, now }),
+    [shipments, now],
   );
+  const { groups, actionsByShipment } = useMemo(
+    () => buildShipmentOverview(shipments, actionList, now),
+    [shipments, actionList, now],
+  );
+  // "Pendências documentais", o filtro útil que veio da antiga aba Alertas.
+  const withDocuments = useMemo(
+    () => shipmentsWithPendingDocuments(actionList),
+    [actionList],
+  );
+  const inRecorte = (key: ShipmentListRecorte, id: string) =>
+    key === 'documentos' ? withDocuments.has(id) : groups[key].has(id);
   const origins = Array.from(
     new Set(Array.from(routes.values()).map((r) => r.origin)),
   ).sort();
@@ -356,16 +361,16 @@ export function ShipmentListTab({
     setMetric(null);
     setUrgentOnly(false);
   };
-  const selectMetric = (key: ShipmentOverviewKey) => {
+  const selectMetric = (key: ShipmentListRecorte | null) => {
     clearFilters();
-    setMetric(metric === key ? null : key);
+    setMetric(key == null || metric === key ? null : key);
   };
   const cutoff =
     period === 'all' ? null : now.getTime() - Number(period) * 86_400_000;
   const filtered = shipments
     .filter((s) => {
       if (reviewOnly && !hidesRoute(s)) return false;
-      if (metric && !groups[metric].has(s.id)) return false;
+      if (metric && !inRecorte(metric, s.id)) return false;
       if (urgentOnly && !s.carga_urgente) return false;
       if (status !== 'all' && ESTADO_SEMAFORO[s.estado] !== status)
         return false;
@@ -382,58 +387,25 @@ export function ShipmentListTab({
         ).includes(term)
       );
     })
-    .sort((a, b) => compareShipmentOverview(a, b, groups, now, metric));
+    .sort((a, b) =>
+      compareShipmentOverview(
+        a,
+        b,
+        groups,
+        now,
+        metric === 'documentos' ? null : metric,
+      ),
+    );
   const hasFilters =
     !!metric || !!query || urgentOnly || reviewOnly || activeFilters > 0;
 
   return (
     <div className="space-y-5">
-      <div
-        className={cn(
-          'grid overflow-hidden rounded-xl border border-border bg-card',
-          inReviewCount > 0 ? 'md:grid-cols-4' : 'md:grid-cols-3',
-        )}
-        aria-label="Resumo dos embarques"
+      <ShipmentIndicatorStrip
+        indicators={groups}
+        active={metric === 'documentos' ? null : metric}
+        onSelect={selectMetric}
       >
-        {METRICS.map(({ key, icon: Icon, description }) => (
-          <button
-            key={key}
-            type="button"
-            aria-pressed={metric === key}
-            onClick={() => selectMetric(key)}
-            className={cn(
-              'group relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 min-w-0 border-b border-border px-5 py-4 md:block md:py-5 text-left transition-colors last:border-b-0 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-brand-indigo md:border-b-0 md:border-r md:last:border-r-0',
-              metric === key
-                ? 'bg-brand-indigo-100 border-b-2 border-b-brand-indigo'
-                : key === 'action' && groups.action.size > 0
-                  ? 'bg-brand-orange/5 hover:bg-brand-orange/10'
-                  : 'hover:bg-muted/50',
-            )}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="portal-body font-medium text-foreground">
-                {SHIPMENT_OVERVIEW_LABELS[key]}
-              </span>
-              <Icon
-                className={cn(
-                  'hidden h-4 w-4 shrink-0 md:block',
-                  key === 'action'
-                    ? 'text-portal-warning-ink'
-                    : 'text-portal-neutral',
-                )}
-              />
-            </div>
-            <div className="col-start-2 row-start-1 row-span-2 flex items-center justify-between self-center md:mt-2 md:items-end">
-              <span className="text-4xl font-semibold tabular-nums tracking-tight text-brand-indigo">
-                {groups[key].size}
-              </span>
-              <ArrowRight className="mb-1 hidden h-4 w-4 text-portal-neutral transition-transform group-hover:translate-x-1 md:block" />
-            </div>
-            <p className="portal-small col-start-1 mt-1 text-portal-neutral md:mt-2">
-              {description}
-            </p>
-          </button>
-        ))}
         {/* O quarto indicador so existe quando ha algo em analise: um "0 em
             analise pela Freitas" permanente seria uma coluna morta na tela de
             todo cliente que nunca abriu um embarque por PO. */}
@@ -447,30 +419,27 @@ export function ShipmentListTab({
               setReviewOnly(next);
             }}
             className={cn(
-              'group relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 min-w-0 border-b border-border px-5 py-4 md:block md:py-5 text-left transition-colors last:border-b-0 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-brand-indigo md:border-b-0 md:border-r md:last:border-r-0',
+              'group relative min-w-0 border-b border-r border-border px-4 py-3 text-left transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-brand-indigo',
               reviewOnly
-                ? 'bg-brand-indigo-100 border-b-2 border-b-brand-indigo'
+                ? 'bg-brand-indigo-100 shadow-[inset_0_-2px_0] shadow-brand-indigo'
                 : 'hover:bg-muted/50',
             )}
           >
-            <div className="flex items-center justify-between gap-2">
-              <span className="portal-body font-medium text-foreground">
+            <span className="flex items-start justify-between gap-2">
+              <span className="portal-small font-medium text-foreground">
                 Em análise pela Freitas
               </span>
-              <Hourglass className="hidden h-4 w-4 shrink-0 text-portal-warning-ink md:block" />
-            </div>
-            <div className="col-start-2 row-start-1 row-span-2 flex items-center justify-between self-center md:mt-2 md:items-end">
-              <span className="text-4xl font-semibold tabular-nums tracking-tight text-brand-indigo">
+              <Hourglass className="mt-0.5 h-4 w-4 shrink-0 text-portal-neutral" />
+            </span>
+            <span className="mt-1 flex items-end justify-between">
+              <span className="text-3xl font-semibold tabular-nums tracking-tight text-brand-indigo">
                 {inReviewCount}
               </span>
-              <ArrowRight className="mb-1 hidden h-4 w-4 text-portal-neutral transition-transform group-hover:translate-x-1 md:block" />
-            </div>
-            <p className="portal-small col-start-1 mt-1 text-portal-neutral md:mt-2">
-              Abertos por PO, aguardando a revisão
-            </p>
+              <ArrowRight className="mb-1 h-4 w-4 text-portal-neutral transition-transform group-hover:translate-x-1" />
+            </span>
           </button>
         )}
-      </div>
+      </ShipmentIndicatorStrip>
       <p className="portal-small !mt-2 text-portal-neutral">
         Um embarque pode aparecer em mais de um indicador. Próximos 7 dias
         incluem hoje.
@@ -484,11 +453,33 @@ export function ShipmentListTab({
             className="portal-body font-medium text-foreground"
             aria-live="polite"
           >
-            {metric ? SHIPMENT_OVERVIEW_LABELS[metric] : 'Todos os embarques'}
+            {metric ? SHIPMENT_LIST_RECORTE_LABELS[metric] : 'Todos os embarques'}
             <span className="ml-2 font-normal text-portal-neutral">
               {filtered.length}
             </span>
           </p>
+          {/* Recorte herdado da aba Alertas. Não é indicador (não entra na
+              faixa nem na Home); é um atalho da lista, lido da mesma fila de
+              ações que alimenta "Precisam de você". */}
+          {withDocuments.size > 0 && (
+            <button
+              type="button"
+              aria-pressed={metric === 'documentos'}
+              onClick={() => selectMetric('documentos')}
+              className={cn(
+                'portal-small inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                metric === 'documentos'
+                  ? 'border-brand-indigo-800 bg-brand-indigo-100 text-brand-indigo'
+                  : 'border-border text-portal-neutral hover:bg-muted/50',
+              )}
+            >
+              <FileText className="h-4 w-4" aria-hidden="true" />
+              {SHIPMENT_LIST_RECORTE_LABELS.documentos}
+              <span className="tabular-nums text-foreground">
+                {withDocuments.size}
+              </span>
+            </button>
+          )}
           {hasFilters && (
             <button
               type="button"

@@ -183,7 +183,7 @@ A composição segue a regra 75/15/10. Cerca de 75% de cada peça é estrutural 
 
 ## Urgency scale (Portal do Cliente)
 
-One scale for Home, Central de trabalho, Minhas Cotações, Meus Embarques and the shipment alerts. The question it answers is "do I need to act, and by when?", never "which stage is this in". Stage is information, written as text; urgency is what moves up the screen and gets colour. The rule lives in one pure module, `frontend/app/portal/_shared/urgency.ts`, and is drawn by `UrgencyBadge` (`_shared/urgency-badge.tsx`).
+One scale for Home, Central de trabalho, Minhas Cotações and Meus Embarques. The question it answers is "do I need to act, and by when?", never "which stage is this in". Stage is information, written as text; urgency is what moves up the screen and gets colour. The rule lives in one pure module, `frontend/app/portal/_shared/urgency.ts`, and is drawn by `UrgencyBadge` (`_shared/urgency-badge.tsx`).
 
 | Level | When | Visual |
 |---|---|---|
@@ -208,3 +208,31 @@ Every headline number carries its reading. A number alone ("73%") answers nothin
 - **Tone follows direction and meaning, not sign.** Good = `success-ink` on a 10% plate, bad = `danger-ink`, neutral = `portal-neutral` on `muted`. When neither side is better (freight contracted) the arrow shows without colour; commercial KPIs (savings) never go red.
 - **One source.** The variation is computed from the same data the screen already draws (in Inteligência, the monthly cohorts of the evolution chart), never from a second, invented baseline. A month with fewer than 3 eligible shipments does not enter the comparison.
 - **Code:** `frontend/app/portal/_shared/insight.ts` + `InsightLine` in React; `public/prototypes/centrix-inteligencia/insights.js` mirrors the same rule for the iframe.
+
+## Focus (Portal do Cliente, 02/10/2026)
+
+"The less to-do list, the better; the client needs to focus" (Victor Orsi). A business decision that outranks technical preference.
+
+- **No parallel to-do list.** Actions live in exactly two places: "Fazer agora" (Central › Meu dia) and the module where the action happens. Never add a list, tab or card that re-lists the same pending items (the Alertas tab was removed for this reason). A count that repeats the section right below it is noise: remove it.
+- **Waiting is secondary.** What depends on a third party ("Aguardando retorno") starts collapsed.
+- **Reading is not work.** Updates go in the read-only "Atualizações" feed (`_shared/updates-feed.tsx`; mirrored in the Central iframe): no "seen" state, no counter, no task CTA, colour only for a running cost. Each row only links to its context.
+- **One summary layer per screen.** A dark summary bar and cards below it must not repeat the same numbers; the Operação overview is one bar + "Onde intervir" (max. 4) + Atualizações.
+- **Management, not tables, for case pipelines.** Auditoria › Preço do frete is a three-column Kanban (aguardando fatura · para análise · sob ajuste). Read-only reports (service performance) belong in Inteligência, without dispute CTAs.
+
+## One source for shipment indicators
+
+`frontend/app/portal/embarques/lib/shipment-indicators.ts` defines the five shipment indicators once; Panorama, the shipment list, Visão por PO and the Home banner all draw `ShipmentIndicatorStrip` from it, with the same labels and the same numbers (locked by `shipment-indicators.test.ts`).
+
+| Label | Definition |
+|---|---|
+| Precisam de você | Shipments with at least one pending client action (booking or document), from the same action queue as the shipment detail. |
+| Com chegada atrasada | Not arrived yet, and the carrier's current ETA is later than its first ETA (`delayRiskFromTracking`, delta > 0 days). |
+| Chegam nos próximos 7 dias | Not arrived yet, with a forecast, arriving at destination between today and the next 6 days. |
+| Sem previsão | Not arrived yet and the carrier has no ETA (no tracking, `INCOMPLETE`, or no current date). Never counted as late. |
+| Com exceção | Shipments postponed (`postergado`) or with a divergent booking (`booking_divergente`). |
+
+- The unit is always the **shipment**. Grouped views (by PO) keep the shipment count and filter the groups that contain at least one shipment in the indicator.
+- Indicators overlap and do not sum to the portfolio; screens say so.
+- Only "Precisam de você" takes the attention tone, and only when non-zero: it is the one indicator that asks the client to act. The other four are information.
+- A new screen that shows any of these numbers consumes this module; it never writes its own predicate.
+

@@ -10,6 +10,11 @@ function scenario(){
     const processes=INITIAL_PROCESSES;
     const state={profile:'Mariana',opScope:'all',eventReviews:[],drafts:{},read:[],owner:'all',workModule:'all',workKind:'all',flag:'all',search:''};
     const dayDiff=(a,b)=>Math.round((new Date(a+'T12:00:00-03:00')-new Date(b+'T12:00:00-03:00'))/86400000);
+    var window={};
+    const icon=()=>'',esc=v=>String(v??''),empty=t=>'<div class="empty">'+t+'</div>',dateLabel=d=>d||'Sem previsão';
+    const tasks=()=>processes.filter(p=>p.action&&p.action.owner===state.profile),waits=()=>processes.filter(p=>p.waiting&&p.owner===state.profile);
+    const due=p=>!p.action?.deadline?'later':new Date(p.action.deadline)<NOW?'overdue':p.action.deadline.startsWith('2026-09-10')?'today':'later';
+    const dueLabel=()=>'',person=n=>n;
   `+readFileSync(resolve(root,'work.js'),'utf8')+readFileSync(resolve(root,'operation.js'),'utf8'),context);
   return code=>vm.runInContext(code,context);
 }
@@ -24,20 +29,10 @@ test('panorama includes quiet records and counts lots separately from POs',()=>{
 test('solo scope changes portfolio and dependencies without changing personal work state',()=>{
   const run=scenario();run("state.opScope='mine';");
   assert.equal(run('operationRecords().every(p=>p.owner===state.profile)'),true);
-  assert.equal(run('operationGroups().team'),false);
-  assert.equal(run('operationGroups().groups.reduce((n,g)=>n+g.items.length,0)'),2);
   assert.equal(run('workItems().length'),9);
   assert.equal(run('filteredWork().every(w=>w.p.owner===state.profile)'),true);
   run("state.opExecutor='Financeiro da Aurora';");
   assert.equal(run('filteredWork().length'),1);
-});
-test('agenda omits past, realized and undated commitments and distinguishes predictions',()=>{
-  const run=scenario();
-  assert.equal(run("operationAgenda().some(e=>e.p.actual&&e.type==='Previsão registrada')"),false);
-  assert.equal(run("operationAgenda().some(e=>e.p.id==='PR-26028'&&e.type==='Prazo de decisão')"),false);
-  assert.equal(run("operationAgenda().some(e=>e.p.id==='PR-26018'&&e.type==='Previsão registrada')"),true);
-  assert.equal(run("operationAgenda().some(e=>e.p.id==='PR-26006')"),false);
-  assert.equal(run("operationAgenda().every(e=>e.date>='2026-09-10'&&e.date<='2026-09-17')"),true);
 });
 test('multiple tasks in a record do not inflate portfolio and unknown data is not quiet',()=>{
   const run=scenario();run("processes[0].stale=true;processes[2].stale=true;processes[0].action={title:'Complemento',owner:'Mariana'};");
@@ -49,4 +44,56 @@ test('arrival review leaves the changed-arrival portfolio signal visible',()=>{
   const run=scenario();run("state.eventReviews.push(changeKey(processes.find(p=>p.id==='PR-26018')));");
   assert.equal(run('operationWork().length'),8);
   assert.equal(run('operationRecords().filter(p=>p.risk).length'),1);
+});
+
+// Foco (Orsi, 02/10/2026): menos blocos, nenhuma lista de tarefas paralela.
+test('Operação: uma camada de resumo, Onde intervir (máx. 4) e Atualizações; sem No horizonte nem frentes',()=>{
+  const run=scenario();
+  const html=run('renderOperation()');
+  assert.equal((html.match(/class="op-overview"/g)||[]).length,1);
+  assert.doesNotMatch(html,/No horizonte|op-fronts|op-distribution/);
+  assert.match(html,/Onde intervir/);
+  assert.ok((html.match(/class="op-priority"/g)||[]).length<=4);
+  assert.match(html,/id="updates-title">Atualizações</);
+  assert.doesNotMatch(html,/Já vi/);
+});
+test('Meu dia: frase + Fazer agora; sem cards de resumo, sem Mudanças relevantes; retornos recolhidos',()=>{
+  const run=scenario();
+  const html=run('renderDay()');
+  // A frase e a lista contam a MESMA coisa.
+  const sentence=Number(html.match(/<strong>(\d+)<\/strong> itens? para fazer agora/)[1]);
+  assert.equal(sentence,(html.match(/class="task-row/g)||[]).length);
+  assert.match(html,/1 com prazo vencido.*2 vencem hoje.*1 sem vencimento hoje/);
+  assert.match(html,/<h2>Fazer agora<\/h2>/);
+  assert.doesNotMatch(html,/class="metrics"|Prazo vencido<\/span>|Mudanças relevantes/);
+  assert.match(html,/<details class="surface waiting" id="waiting-list" >/);
+});
+test('o feed ordena do mais recente e não mostra contador nem ação',()=>{
+  const run=scenario();
+  const html=run("updatesFeed(processes.flatMap(p=>p.events.map(e=>({p,e}))),{max:2})");
+  const titles=[...html.matchAll(/<strong>([^<]+)<\/strong>/g)].map(m=>m[1]);
+  assert.deepEqual(titles,['Carga aguarda confirmação financeira','Chegada ao porto mudou em 3 dias']);
+  assert.match(html,/Mostrando as 2 mais recentes de 4/);
+  assert.doesNotMatch(html,/class="count"/);
+});
+
+test('Operação: linha de indicadores REAIS só com dados do portal, cada um levando a Embarques filtrado',()=>{
+  const run=scenario();
+  assert.doesNotMatch(run('renderOperation()'),/real-indicators/);
+  run(`window.portalIndicators=[{key:'action',label:'Precisam de você',count:3,href:'/portal/embarques?tab=lista&indicador=action'},{key:'delayed',label:'Com chegada atrasada',count:3,href:'/portal/embarques?tab=lista&indicador=delayed'}]`);
+  const html=run('renderOperation()');
+  assert.match(html,/DADOS REAIS/);
+  assert.match(html,/href="\/portal\/embarques\?tab=lista&(amp;)?indicador=action" target="_top"[^>]*><span>Precisam de você<\/span><strong>3<\/strong>/);
+  assert.match(html,/indicador=delayed/);
+});
+test('Operação: barra, Onde intervir e Atualizações levam o selo "Exemplo ilustrativo"',()=>{
+  const html=scenario()('renderOperation()');
+  assert.ok((html.match(/Exemplo ilustrativo<\/span>/g)||[]).length>=4);
+});
+test('nenhum rótulo padrão de indicador aparece no cenário fictício',()=>{
+  const {readFileSync}=require('node:fs');
+  const root=resolve(__dirname,'../../../../public/prototypes/centrix-visao-geral');
+  const code=['data.js','work.js','operation.js','app.js','index.html'].map(f=>readFileSync(resolve(root,f),'utf8').replace(/\/\/.*$/gm,'').replace(/\/\*[\s\S]*?\*\//g,'')).join('\n');
+  for(const label of ['Precisam de você','Com chegada atrasada','Chegam nos próximos 7 dias','Sem previsão','Com exceção'])
+    assert.equal(code.includes(label),false,label);
 });

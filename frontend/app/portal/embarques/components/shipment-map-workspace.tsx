@@ -43,10 +43,9 @@ import {
 } from '../../_shared/urgency';
 import { UrgencyBadge } from '../../_shared/urgency-badge';
 import { ShipmentMapCanvas } from './shipment-map-canvas';
-import { buildPanoramaSummary, type PanoramaScope } from '../lib/panorama-summary';
+import { ShipmentIndicatorStrip } from './shipment-indicator-strip';
 import styles from './shipment-map-workspace.module.css';
 
-const METRICS: ShipmentOverviewKey[] = ['action', 'delayed', 'upcoming'];
 const normalize = (value: string) =>
   value
     .normalize('NFD')
@@ -58,9 +57,11 @@ const detailHref = (id: string) =>
 export function ShipmentMapWorkspace({
   shipments,
   initialFilter,
+  initialIndicator = null,
 }: {
   shipments: PortalShipment[];
   initialFilter?: ShipmentFilterKey | null;
+  initialIndicator?: ShipmentOverviewKey | null;
 }) {
   const { data } = useMyQuotations();
   const quotations = useMemo(
@@ -68,8 +69,9 @@ export function ShipmentMapWorkspace({
     [data],
   );
   const [now] = useState(() => new Date());
-  const [metric, setMetric] = useState<ShipmentOverviewKey | null>(null);
-  const [summaryScope, setSummaryScope] = useState<PanoramaScope | null>(null);
+  const [metric, setMetric] = useState<ShipmentOverviewKey | null>(
+    initialIndicator,
+  );
   const [legacyFilter, setLegacyFilter] = useState(initialFilter ?? null);
   const [query, setQuery] = useState('');
   const [selection, setSelection] = useState<string[]>([]);
@@ -129,13 +131,12 @@ export function ShipmentMapWorkspace({
           ).includes(normalize(query.trim())),
       );
   }, [shipments, rows, legacyFilter, query]);
-  const summary = useMemo(() => buildPanoramaSummary(summaryBase.map(row => row.shipment), now), [summaryBase, now]);
   const visible = useMemo(() => summaryBase
-      .filter(row => (!metric || groups[metric].has(row.shipment.id)) && (!summaryScope || summary[summaryScope].has(row.shipment.id)))
+      .filter(row => !metric || groups[metric].has(row.shipment.id))
       .sort((a, b) =>
         compareShipmentOverview(a.shipment, b.shipment, groups, now, metric),
       )
-  , [summaryBase, metric, groups, now, summaryScope, summary]);
+  , [summaryBase, metric, groups, now]);
   const selected = visible.find((row) => row.shipment.id === selectedId);
   const selectedRows = visible.filter((row) =>
     selection.includes(row.shipment.id),
@@ -149,7 +150,7 @@ export function ShipmentMapWorkspace({
           groups.action.has(row.shipment.id) ||
           groups.delayed.has(row.shipment.id) ||
           row.shipment.carga_urgente ||
-          ['postergado', 'booking_divergente'].includes(row.shipment.estado),
+          groups.exception.has(row.shipment.id),
       })),
     [visible, groups],
   );
@@ -207,7 +208,6 @@ export function ShipmentMapWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selection.join('|'), selectedId]);
   function changeFilter(next: ShipmentOverviewKey | null) {
-    setSummaryScope(null);
     setMetric(next);
     setLegacyFilter(null);
     clearSelection();
@@ -236,56 +236,45 @@ export function ShipmentMapWorkspace({
 
   return (
     <div className={styles.workspace}>
-      <div className={styles.panoramaSummary} role="group" aria-label="Indicadores do Panorama">
-        {([
-          ['active', 'Embarques em andamento', 'Inclui pré-embarque e transporte', 'Carteira em acompanhamento'],
-          ['arrivals', 'Chegadas nos próximos 7 dias', 'Ao porto ou aeroporto de destino', `${summary.missingEta.size} sem previsão disponível · hoje + 6 dias`],
-          // "Com excecao", nao "Precisam de atencao": este card conta EXCECOES
-          // (postergado, booking divergente), e a frase "precisa da sua
-          // atencao" e da escala de urgencia, que conta outra coisa. A mesma
-          // frase com dois numeros foi o problema 2 do inventario de UX.
-          ['attention', 'Com exceção registrada', 'Postergados ou com booking divergente', 'Cobertura parcial: documentos e decisões ainda não disponíveis'],
-        ] as const).map(([key, label, description, coverage]) => (
-          <button key={key} type="button"
-            className={`${styles.panoramaCard} ${key === 'attention' && summary.attention.size ? styles.panoramaWarning : ''} ${summaryScope === key ? styles.panoramaSelected : ''}`}
-            aria-pressed={summaryScope === key}
-            onClick={() => { setMetric(null); setSummaryScope(summaryScope === key ? null : key); clearSelection(); }}>
-            <span className={styles.panoramaLabel}>{label}</span>
-            <strong>{summary[key].size}</strong>
-            <span>{description}</span>
-            <small>{coverage}{summary.isDemo ? ' · Demonstrativo' : ''}</small>
-          </button>
-        ))}
-      </div>
-      <div className={styles.filters} aria-label="Recortes da carteira">
-        <button
-          className={`${styles.chip} ${!metric && !legacyFilter && !summaryScope ? styles.active : ''}`}
-          aria-pressed={!metric && !legacyFilter && !summaryScope}
-          onClick={() => changeFilter(null)}
-        >
-          Todos <b>{shipments.length}</b>
-        </button>
-        {METRICS.map((key) => (
+      {/* Os MESMOS indicadores, com os mesmos rótulos e números, da lista, da
+          Visão por PO e da Home (`lib/shipment-indicators.ts`). Contam a
+          carteira inteira; a busca e o recorte do mapa só mudam o que o mapa
+          desenha. */}
+      <ShipmentIndicatorStrip
+        indicators={groups}
+        active={metric}
+        onSelect={(key) => {
+          changeFilter(key);
+        }}
+      />
+      <p className="portal-small text-portal-neutral">
+        Um embarque pode aparecer em mais de um indicador. Próximos 7 dias
+        incluem hoje; chegada é ao porto ou aeroporto de destino.
+        {shipments.some((s) => s.tracking?.is_mock) &&
+          ' Rastreamento em pré-visualização.'}
+      </p>
+      {/* Sem chip solto "Todos": a faixa acima já é o filtro. Esta linha só
+          aparece com um recorte ativo, para dizer qual é e como voltar. */}
+      {(metric || legacyFilter) && (
+        <p className="portal-small flex flex-wrap items-center gap-2 text-portal-neutral" aria-live="polite">
+          <span>
+            Mostrando{' '}
+            <strong className="font-medium text-foreground">
+              {metric
+                ? SHIPMENT_OVERVIEW_LABELS[metric]
+                : SHIPMENT_FILTERS.find((f) => f.key === legacyFilter)?.label}
+            </strong>{' '}
+            · {visible.length} de {shipments.length} embarques
+          </span>
           <button
-            key={key}
-            className={`${styles.chip} ${metric === key ? styles.active : ''}`}
-            aria-pressed={metric === key}
-            onClick={() => changeFilter(metric === key ? null : key)}
-          >
-            {SHIPMENT_OVERVIEW_LABELS[key]} <b>{groups[key].size}</b>
-          </button>
-        ))}
-        {legacyFilter && (
-          <button
-            className={`${styles.chip} ${styles.active}`}
+            type="button"
             onClick={() => changeFilter(null)}
+            className="min-h-9 font-medium text-brand-indigo underline underline-offset-4"
           >
-            {SHIPMENT_FILTERS.find((f) => f.key === legacyFilter)?.label}{' '}
-            <X size={12} />
+            Ver todos
           </button>
-        )}
-        <span className={styles.overlap}>Recortes podem se sobrepor</span>
-      </div>
+        </p>
+      )}
       <section
         ref={mapSection}
         className={styles.mapSection}

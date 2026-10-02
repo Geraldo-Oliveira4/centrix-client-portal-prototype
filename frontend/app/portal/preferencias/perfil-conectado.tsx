@@ -108,20 +108,20 @@ export default function PortalPreferenciasPage() {
         subtitle="Como você quer ser avisado e como sua operação costuma funcionar."
       />
 
-      {/* Bloco 1 — Notificações. Real: é a mesma preferência da aba Alertas. */}
+      {/* Bloco 1 — Notificações. Real: é a mesma preferência do feed Atualizações de Meus Embarques. */}
       <section className="portal-card space-y-4 p-6">
         <SectionHeading
           title="Notificações"
           icon={<Bell className="h-6 w-6" />}
-          hint="mesmas opções da aba Alertas"
+          hint="mesmas opções do feed Atualizações"
         />
         <p className="portal-body max-w-3xl text-portal-neutral">
-          Escolha o que aparece no seu feed de alertas. É a mesma configuração de{' '}
+          Escolha o que aparece no feed de Atualizações de{' '}
           <Link
-            href="/portal/embarques?tab=alertas"
+            href="/portal/embarques?tab=mapa"
             className="font-medium text-brand-indigo hover:underline"
           >
-            Meus Embarques · Alertas
+            Meus Embarques
           </Link>
           : mudar aqui muda lá.
         </p>

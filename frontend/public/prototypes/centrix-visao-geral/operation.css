@@ -13,3 +13,26 @@
 @media(max-width:760px){.op-heading{display:block;margin-top:5px}.op-heading h2{font-size:23px}.op-scope{margin-top:17px;width:100%}.op-scope button{flex:1}.op-overview{display:block}.op-volume{border:0;border-bottom:1px solid #ffffff18;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}.op-volume strong{font-size:40px}.op-volume small{font-size:10px;text-align:right;max-width:76px}.op-signals{grid-template-columns:1fr 1fr;padding:8px}.op-signal{padding:12px}.op-signal strong{font-size:29px}.op-fronts{grid-template-columns:1fr;gap:10px}.op-front{padding:17px 18px}.op-front-volume{flex-direction:row;align-items:baseline;margin:14px 0}.op-front-volume strong{font-size:32px}.op-front-pending,.op-front-quiet{padding:5px 0}.op-middle{grid-template-columns:1fr}.op-caption{font-size:10px;margin-bottom:18px}.op-panel-heading h3{font-size:17px}.op-distribution .op-panel-heading{flex-wrap:wrap}.op-legend{width:100%;gap:7px}.op-legend .op-dot:first-child{margin-left:0}.op-person{grid-template-columns:minmax(0,1fr) 23px 12px;gap:9px;padding:12px 0}.op-person>span:first-child{grid-column:1}.op-person-track{grid-column:1;grid-row:auto;height:10px}.op-person b{grid-column:2;grid-row:auto}.op-person>.icon{grid-column:3}.op-detail>summary{padding:17px;font-size:14px}.op-detail summary small{display:block;margin:5px 0 0 23px}.op-detail-body{padding:14px 8px}.op-detail-body .toolbar{padding:0 6px}.op-agenda{padding:0 17px}.op-bars{padding:0 17px 14px}.op-panel-note{padding:12px 17px}}
 
 .op-priority-mark.late{background:#f5edf0;color:var(--op-red)}
+/* Foco (02/10/2026): a distribuição por frente mora DENTRO da faixa escura. */
+.op-split{display:flex;flex-wrap:wrap;gap:4px 12px;margin:12px 0 0;font-size:12px}
+.op-split button{color:#e4e2ef;padding:2px 0;text-decoration:underline;text-decoration-color:#ffffff40;text-underline-offset:3px}
+.op-split button:hover{color:#fff}
+.op-split b{font-weight:600;color:#fff}
+.op-priority-mark.neutral{background:#f1f2f7;color:#626a80}
+/* Indicadores REAIS (vindos do portal) x cenario ilustrativo (02/10/2026). */
+.real-indicators{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:22px}
+.real-indicators-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.real-indicators-head .eyebrow{font-size:10px;letter-spacing:1.2px;margin:0}
+.real-indicators-head small{color:var(--muted);font-size:11px}
+.real-indicators-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.real-indicator{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--ink)}
+.real-indicator:hover{border-color:#a9acc6;background:#faf9fc}
+.real-indicator span{flex:1;min-width:0}
+.real-indicator strong{font:20px NewBlack,Source,sans-serif;font-variant-numeric:tabular-nums}
+.real-indicator .icon{width:12px;height:12px;color:var(--muted)}
+.real-indicator.is-action{background:#fffaf0;border-color:#ecd9ae}
+.example-seal{display:inline-block;margin-left:8px;padding:1px 7px;border:1px dashed #9b98b8;border-radius:4px;font-size:10px;letter-spacing:.2px;text-transform:none;color:#5a5880;background:#f6f5fb;vertical-align:middle}
+.op-overview .example-seal{border-color:#ffffff55;color:#e4e2ef;background:transparent}
+.seal-line{margin-top:6px}
+@media(max-width:1100px){.real-indicators-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.real-indicators-list{grid-template-columns:1fr 1fr}}

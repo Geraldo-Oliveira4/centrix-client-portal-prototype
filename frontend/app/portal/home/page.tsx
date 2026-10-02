@@ -14,7 +14,6 @@ import {
   saveMyHomeLayout,
   useMyHomeLayout,
 } from '@/hooks/use-portal-home-layout';
-import { countBySemaforo } from '@/types/portal-shipment';
 
 import { SectionHeading } from '../_shared/page-header';
 import { HOME_LAYOUT_CARD_COMPONENTS } from './components/card-registry';
@@ -37,6 +36,8 @@ import {
   releasedHomeCards,
 } from '../_shared/demo/home-card-modules';
 import { usePortalModuleFlags } from '../_shared/demo/use-feature-flags';
+import { useShipmentsWithPo } from '../_shared/demo/use-shipment-po-review';
+import { useShipmentIndicators } from '../embarques/components/shipment-indicator-strip';
 import {
   PORTAL_HOME_CARD_THEME,
   cardsForThemes,
@@ -137,10 +138,13 @@ export default function PortalHomePage() {
     [chosenCards, flags],
   );
 
-  // O FAROL do banner. A fonte e a MESMA do "Visao do todo" do Mapa e do card
-  // "Situacao dos embarques": `countBySemaforo` sobre os embarques do cliente.
-  // Nao ha aritmetica nova nesta tela.
-  const counts = useMemo(() => countBySemaforo(shipments), [shipments]);
+  // OS INDICADORES do banner (02/10/2026, substituem o farol). Fonte unica:
+  // `useShipmentIndicators` sobre a MESMA carteira de Meus Embarques
+  // (`useShipmentsWithPo`, como la), entao "Precisam de voce", "Sem previsao" e
+  // os outros tres dao aqui o mesmo numero do Panorama, da lista e da Visao por
+  // PO. Ha teste travando (`shipment-indicators.test.ts`).
+  const portfolio = useShipmentsWithPo(shipments);
+  const { indicators } = useShipmentIndicators(portfolio, now);
 
   // "O QUE EXIGE SUA ATENCAO HOJE" (30/09/2026). A frase do banner contava
   // EXCECOES de embarque (o farol), enquanto Embarques dizia "precisa de voce"
@@ -219,7 +223,7 @@ export default function PortalHomePage() {
       {/* TOPO — identico a 1b, mesmo componente e mesma frase. */}
       <HomeBanner
         now={now}
-        counts={counts}
+        indicators={indicators}
         detail={
           attention.total > 0
             ? [

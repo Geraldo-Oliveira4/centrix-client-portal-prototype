@@ -54,7 +54,7 @@ test('equal or missing dates have deterministic reference ordering', () => {
   const { groups } = buildShipmentOverview(data, [], now);
   assert.deepEqual(data.sort((a,b) => compareShipmentOverview(a,b,groups,now)).map(s=>s.id), ['A','Z']);
 });
-test('counts each shipment once and allows overlap between all three indicators', () => {
+test('counts each shipment once and allows overlap between indicators', () => {
   const s = ship('one');
   const { groups } = buildShipmentOverview(
     [s],
@@ -69,7 +69,7 @@ test('counts each shipment once and allows overlap between all three indicators'
     Object.fromEntries(
       Object.entries(groups).map(([k, v]) => [k, Array.from(v)]),
     ),
-    { action: ['one'], delayed: ['one'], upcoming: ['one'] },
+    { action: ['one'], delayed: ['one'], upcoming: ['one'], no_forecast: [], exception: [] },
   );
 });
 test('seven calendar days includes today and day six, excluding yesterday and day seven', () => {

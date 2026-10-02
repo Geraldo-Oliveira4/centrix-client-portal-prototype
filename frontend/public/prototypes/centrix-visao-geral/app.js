@@ -4,7 +4,7 @@ function icon(n){return `<svg class="icon" aria-hidden="true" viewBox="0 0 24 24
 document.querySelectorAll('[data-icon]').forEach(el=>el.insertAdjacentHTML('afterbegin',icon(el.dataset.icon)));
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(n);
-function dateLabel(d){if(!d)return 'Sem previsão';return new Date(d.slice(0,10)+'T12:00:00-03:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short',timeZone:'America/Sao_Paulo'}).replace('.','');}
+function dateLabel(d){if(!d)return 'Previsão não informada';return new Date(d.slice(0,10)+'T12:00:00-03:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short',timeZone:'America/Sao_Paulo'}).replace('.','');}
 const dayDiff=(a,b)=>Math.round((new Date(a+'T12:00:00-03:00')-new Date(b+'T12:00:00-03:00'))/86400000);
 const age=p=>Math.max(0,dayDiff('2026-09-10',p.since));
 const defaults={profile:'Mariana',mode:'board',owner:'all',flag:'all',stage:'all',search:'',myFilter:'all',scope:'mine',done:[],results:{},followups:{},watched:[],reviewed:[],updated:false,read:[],workModule:'all',workKind:'all',drafts:{},eventReviews:[],opScope:'all',opExecutor:'all',opQueue:false};
@@ -52,5 +52,9 @@ document.addEventListener('input',e=>{if(e.target.id==='search'){const pos=e.tar
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#drawer').hidden)closeDrawer();if(e.key==='Tab'&&!$('#drawer').hidden){const focusable=[...$('#drawer').querySelectorAll('button,a[href],input,select,[tabindex="0"]')].filter(el=>!el.disabled);const first=focusable[0],last=focusable.at(-1);if(e.shiftKey&&document.activeElement===first){last?.focus();e.preventDefault();}else if(!e.shiftKey&&document.activeElement===last){first?.focus();e.preventDefault();}}});
 $('#backdrop').addEventListener('click',closeDrawer);$('#simulate').addEventListener('click',()=>{if(state.updated)return;pendingUpdate=true;$('#simulate').disabled=true;$('#update-banner').hidden=false;$('#update-banner').innerHTML=`<span><strong>Uma nova informação chegou.</strong> O agente revisou a chegada do lote 1 do PO 1782.</span><button class="button small-btn" data-cmd="applyupdate">Aplicar atualização</button>`;notify('A atualização aguarda sua leitura. A lista não mudou de posição.');});
 $('#reset').addEventListener('click',()=>{drawerProcess=null;showDrawer('Reiniciar demonstração','Dados locais desta prévia','<div class="reset-confirm"><p>Restaurar ações, acompanhamentos, filtros e atualizações do cenário inicial?</p><button class="button primary" data-cmd="confirmreset">Restaurar cenário</button> <button class="button" data-cmd="close">Cancelar</button></div>');});
+// "Aguardando retorno" fica recolhido por padrao; a escolha de abrir e lembrada.
+document.addEventListener('toggle',e=>{if(e.target.id==='waiting-list'&&e.target.isConnected){state.waitingOpen=e.target.open;save();}},true);
 window.addEventListener('hashchange',()=>{closeDrawer();render();});
+// Indicadores reais entregues pela pagina da Central (ver portalIndicatorsRow).
+window.addEventListener('portal-indicators',()=>{if(tab==='operacao')render();});
 render();

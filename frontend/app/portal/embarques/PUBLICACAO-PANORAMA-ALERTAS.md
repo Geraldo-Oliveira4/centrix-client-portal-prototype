@@ -22,3 +22,7 @@ Público: https://centrix-client-portal-prototype.vercel.app/portal/embarques?ta
 Build remoto aprovado; candidata HTTP 200; domínio conferido pelo ID após promoção. Cinco rotas públicas HTTP 200: Panorama, Alertas, conteúdo incorporado, rascunho de Cotação e Configurações. Navegador público confirmou o feed revisado e os três cards: 15/4/2 e quatro sem ETA na base pública demonstrativa (distinta da fixture local 15/4/1). Revisão local conferiu filtro documental, abertura de embarque e de cotação e visual responsivo. Comparação com ebab8e7 confirmou os demais módulos sem alterações de código. Sem novo backend, envio externo ou integração homologada.
 
 Commit salvo no checkout local centrix-panorama-alerts-release, branch codex/panorama-alertas-publicacao. Esta rodada publicou diretamente no Vercel; não houve push/PR/merge no GitHub. Para próximos deploys, incorporar esta fonte; rollback: dpl_J2UnFSmUxgYAgyXWNkWvR9hbo67H.
+
+## Atualização 02/10/2026 — aba Alertas removida
+
+Por decisão do Orsi (foco, "menos to-do list"), a aba Alertas e o iframe `public/prototypes/centrix-alertas` saíram. `?tab=alertas` redireciona para a lista com "Precisam de você"; Pendências documentais e Atrasos são recortes da lista. Os três cards do Panorama (e `lib/panorama-summary.*`) deram lugar à faixa única de indicadores (`lib/shipment-indicators.ts`). Ver a seção "Foco" do `frontend/CLAUDE.md`.
