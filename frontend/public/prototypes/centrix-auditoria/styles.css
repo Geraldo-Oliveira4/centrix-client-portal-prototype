@@ -57,3 +57,25 @@ html{scroll-behavior:auto}body{font-size:15px}main{max-width:1520px;margin:auto;
 .entry-return{position:sticky;top:0;z-index:5;box-shadow:0 2px 6px rgba(26,28,49,.08)}
 .entry-missing-group{display:flex;align-items:baseline;gap:12px;margin-top:10px;font-size:13px;color:var(--muted);font-weight:600}
 .entry-source{scroll-margin-top:84px}@media(max-width:700px){.entry-source{scroll-margin-top:120px}}
+/* Kanban de Preço do frete (02/10/2026): três colunas de gestão visual. */
+.kanban{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+.kanban-col{background:#eceef5;border:1px solid var(--border);border-radius:10px;padding:14px}
+.kanban-col>header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.kanban-col>header h2{font-size:16px;line-height:1.35}
+.kanban-col>p{font-size:12px;margin:6px 0 12px}
+.kanban-count{min-width:24px;height:24px;display:inline-grid;place-items:center;border-radius:6px;background:#fff;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.kanban-col ul,.kanban-clean ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.kanban-card{display:grid;gap:4px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:13px 14px;color:var(--text)}
+.kanban-card:hover{text-decoration:none;border-color:#a9acc6}
+.kanban-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.kanban-card-top strong{color:var(--indigo)}
+.kanban-card small{color:var(--muted);font-size:12px}
+.kanban-card-ref{font-size:13px}
+.kanban-card-diff{display:flex;justify-content:space-between;align-items:baseline;gap:8px;border-top:1px solid #eef0f6;padding-top:8px;margin-top:4px}
+.kanban-card-diff b{font-variant-numeric:tabular-nums;font-size:14px;text-align:right}
+.kanban-card-note{line-height:1.45}
+.kanban-empty{font-size:13px;padding:14px 4px}
+.kanban-clean{margin-top:18px}
+.kanban-clean>summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0 12px}
+.moved-note{background:var(--blue-bg);color:var(--text);border-radius:8px;padding:11px 14px;margin:0 0 16px;font-size:14px}
+@media(max-width:1000px){.kanban{grid-template-columns:1fr}}

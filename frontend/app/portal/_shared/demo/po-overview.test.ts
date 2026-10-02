@@ -19,13 +19,11 @@ import {
   shortDayLabel,
   etaPositions,
   groupShipmentsByPo,
-  matchesPoFilter,
   poGroupStatus,
   poTimelineAxis,
   shipmentBarPoints,
   shipmentProgress,
   splitPoCount,
-  summarizePoGroups,
 } from './po-overview.ts';
 import type { PortalShipmentWithReview } from './shipment-po-merge.ts';
 
@@ -249,7 +247,6 @@ test('previsão vencida vai para "Atrasados", nunca para "Chega esta semana"', (
   const [g] = groupShipmentsByPo([ship('x', 'EMB-X', 'PO-X', '2026-09-05')], RESOLVERS);
   const st = poGroupStatus(g, NOW);
   assert.equal(st.bucket, 'atrasado');
-  assert.equal(matchesPoFilter(st, 'sete_dias'), false);
   assert.equal(st.atRisk, true);
 });
 
@@ -292,22 +289,6 @@ test('risco: atraso da companhia (>3 dias), exceção e previsão vencida; aten�
   assert.deepEqual(risk, { 'PO-A': true, 'PO-B': false, 'PO-C': true, 'PO-D': true });
   const d = poGroupStatus(groups.find((g) => g.po === 'PO-D')!, NOW);
   assert.ok(d.riskReasons.includes('Previsão de chegada vencida'));
-});
-
-test('chips: contagem e filtro usam a MESMA regra', () => {
-  const groups = groupShipmentsByPo(
-    [
-      ship('a', 'EMB-A', 'PO-A', '2026-10-05'),
-      ship('a2', 'EMB-A2', 'PO-A', null),
-      ship('b', 'EMB-B', 'PO-B', '2026-11-20'),
-    ],
-    RESOLVERS,
-  );
-  const statuses = groups.map((g) => poGroupStatus(g, NOW));
-  const summary = summarizePoGroups(statuses);
-  assert.deepEqual(summary, { ativos: 2, sete_dias: 1, risco: 0, sem_previsao: 1 });
-  for (const key of ['ativos', 'sete_dias', 'risco', 'sem_previsao'] as const)
-    assert.equal(statuses.filter((st) => matchesPoFilter(st, key)).length, summary[key]);
 });
 
 test('barra: só os pontos com data, na ordem prontidão -> embarque -> chegada', () => {

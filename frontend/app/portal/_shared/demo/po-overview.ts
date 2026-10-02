@@ -326,37 +326,10 @@ export function poGroupStatus(group: PoOverviewGroup, now: Date): PoGroupStatus 
   };
 }
 
-export type PoFilter = 'ativos' | 'sete_dias' | 'risco' | 'sem_previsao';
-
-export const PO_FILTER_LABELS: Record<PoFilter, string> = {
-  ativos: 'POs ativos',
-  sete_dias: 'Chegam em 7 dias',
-  risco: 'Em risco',
-  sem_previsao: 'Sem previsão',
-};
-
-export function matchesPoFilter(status: PoGroupStatus, filter: PoFilter): boolean {
-  switch (filter) {
-    case 'ativos':
-      return !status.allArrived;
-    case 'sete_dias':
-      return status.daysToNext != null && status.daysToNext >= 0 && status.daysToNext <= PO_SOON_DAYS;
-    case 'risco':
-      return status.atRisk;
-    case 'sem_previsao':
-      return status.withoutForecast > 0;
-  }
-}
-
-export function summarizePoGroups(
-  statuses: PoGroupStatus[],
-): Record<PoFilter, number> {
-  const out = { ativos: 0, sete_dias: 0, risco: 0, sem_previsao: 0 };
-  for (const status of statuses)
-    for (const key of Object.keys(out) as PoFilter[])
-      if (matchesPoFilter(status, key)) out[key]++;
-  return out;
-}
+// Os chips de pedido (POs ativos / Chegam em 7 dias / Em risco / Sem previsão)
+// SAÍRAM em 02/10/2026: contavam pedidos com regras próprias e discordavam do
+// Panorama. O resumo da aba é a fonte única de Meus Embarques
+// (`embarques/lib/shipment-indicators.ts`).
 
 /** Janela máxima do eixo em volta de hoje, para nenhuma linha virar um risco. */
 export const PO_AXIS_PAST_DAYS = 60;

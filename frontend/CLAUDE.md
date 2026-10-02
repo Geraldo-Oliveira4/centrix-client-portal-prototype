@@ -795,6 +795,8 @@ touch Meus Embarques:
   marker at the arc apex + a legend entry that appears only when some shipment
   is INCOMPLETE).
 
+> **A aba Alertas foi REMOVIDA em 02/10/2026** (seção "Foco — feedback do Orsi" no fim deste arquivo). O texto abaixo vale para a FONTE (`lib/shipment-alerts.ts`), que hoje alimenta o feed Atualizações do Panorama.
+
 **Aba Alertas — cinco tipos, e dois deles não são como os outros.** O feed é
 ilustrativo (`lib/shipment-alerts.ts`, selo `preview` no topo da aba), montado
 sobre os embarques que o cliente já tem. Três tipos são informativos
@@ -867,7 +869,7 @@ preço a mentir o nome do próprio assunto. O link mora numa faixa abaixo do cor
 do item porque `<a>` dentro de `<button>` é HTML inválido; clicar no corpo
 continua marcando como lida.
 
-**Ordem das abas: [Lista][Alertas][Mapa]**, com Lista como padrão. É prioridade
+**(Histórico — hoje as abas são Panorama · Embarques · [Em análise] · [Visão por PO].) Ordem das abas: [Lista][Alertas][Mapa]**, com Lista como padrão. É prioridade
 de uso: Lista é a tela do dia a dia e Alertas é o que exige ação. O deep link
 `?tab=lista&busca=1` do header continua valendo; `TABS` em `embarques/page.tsx`
 é quem define ordem e padrão.
@@ -2036,6 +2038,8 @@ hoje"; economia é pergunta de Inteligência, que já tem duas telas para ela.
 `SavingsCard` e `illustrative-kpis` continuam no repositório e em uso lá — o que
 saiu foi o consumo nesta tela.
 
+**Atualização 02/10/2026: o farol SAIU do banner.** No lugar dele, os cinco indicadores da fonte única (`embarques/lib/shipment-indicators.ts`), só leitura; `_shared/semaforo-chips.tsx` foi apagado. O parágrafo abaixo é histórico.
+
 **O farol mudou de LUGAR, não de conta.** As três contagens continuam saindo de
 `countBySemaforo` + `SEMAFORO_LABELS` (a mesma fonte do "Visão do todo" da aba
 Mapa); o que mudou é que elas são chips no canto superior direito do bloco navy,
@@ -2109,7 +2113,7 @@ duas, e a Home pediria um documento que o embarque mostra como entregue.
 ### Central de trabalho (`/portal/visao-geral/`) — Meu dia e Operação
 
 Nome aprovado por Vinicius em 13/09; URL preservada. A página incorpora a demonstração em `public/prototypes/centrix-visao-geral` com o layout/menu original.
-Meu dia reúne ações, retornos com compromisso/último contato explícitos e mudanças relevantes; atualizações informativas/já vistas ficam recolhidas. Operação abre com panorama visual da carteira por frente, intervenções, agenda de compromissos/previsões e distribuição de trabalho. `operation.js` deriva o panorama dos mesmos registros e pendências de `work.js`; a fila fica recolhida e abre filtrada pelos indicadores. Minha carteira recorta pelo responsável do registro e mostra dependências dos retornos; múltiplos responsáveis mostram distribuição por pessoa. Registros/lotes não são pedidos únicos; falta de pendência não confirma normalidade; marcos realizados não entram como previsões futuras. `lib/work-queue.test.cjs` e `lib/operation-panorama.test.cjs` verificam contagem, agenda, recortes e limites de estado.
+**Desde 02/10/2026 (Foco, fim deste arquivo): Meu dia = frase + "Fazer agora" + "Aguardando retorno" recolhido; Operação = faixa escura única + "Onde intervir" (máx. 4) + feed Atualizações + fila recolhida. O texto a seguir é histórico.** Meu dia reúne ações, retornos com compromisso/último contato explícitos e mudanças relevantes; atualizações informativas/já vistas ficam recolhidas. Operação abre com panorama visual da carteira por frente, intervenções, agenda de compromissos/previsões e distribuição de trabalho. `operation.js` deriva o panorama dos mesmos registros e pendências de `work.js`; a fila fica recolhida e abre filtrada pelos indicadores. Minha carteira recorta pelo responsável do registro e mostra dependências dos retornos; múltiplos responsáveis mostram distribuição por pessoa. Registros/lotes não são pedidos únicos; falta de pendência não confirma normalidade; marcos realizados não entram como previsões futuras. `lib/work-queue.test.cjs` e `lib/operation-panorama.test.cjs` verificam contagem, agenda, recortes e limites de estado.
 Solicitar atualização prepara rascunho local revisável. Salvar não envia, não registra contato e não encerra espera. Campos sem fonte permanecem não informados; ausência de prazo nunca significa atraso. Leitura e revisão de impacto têm efeitos distintos; revisão vale para a previsão específica, e nova data reabre a revisão. Nenhum endpoint/Inova/ShipsGo integrado nesta demo.
 A implementação anterior de `lib/control-tower.ts` e seus testes continuam disponíveis, mas não alimentam esta página demonstrativa. Demais módulos preservados.
 
@@ -2503,3 +2507,20 @@ Handoff para o backend: seções 8, 10, 11, 11b e 12 de `_shared/demo/HANDOFF-BA
 | Contagem dos números | `home/lib/count-up.ts` (puro) + `count-up-on-reveal.tsx` | Anima o texto já renderizado e termina SEMPRE no texto original; zero e ano não contam; desligado com `prefers-reduced-motion` |
 | Mini tour | `TOUR_STEPS` em `onboarding.ts`, `onboarding-flow.tsx` | No máximo 3 paradas (menu, Central, Ajuda), DEPOIS das boas-vindas e opcional; espera a revelação e não abre na Nova cotação |
 | Primeiros passos | `first-steps-card.tsx`, `use-first-steps.ts` (`justDone`, `acknowledgeFirstStep`) | No topo da Home; botão do próximo passo; barra fina com 2 de 3 (`firstStepsCompact`) |
+
+## Foco — feedback do Orsi, 02/10/2026 (branch `feat/proto-ux-orsi-foco`)
+
+Princípio: "quanto menos to-do list, melhor; o cliente precisa focar". Decisão de
+negócio, prevalece sobre preferência técnica. Regras novas também no `DESIGN.md`
+da raiz ("Focus" e "One source for shipment indicators").
+
+| O quê | Onde | Regra que não pode afrouxar |
+|---|---|---|
+| Fonte única de indicadores de embarque | `embarques/lib/shipment-indicators.ts` + `components/shipment-indicator-strip.tsx` (`ShipmentIndicatorStrip`, `useShipmentIndicators`) | Cinco indicadores, rótulos fixos: Precisam de você · Com chegada atrasada · Chegam nos próximos 7 dias · Sem previsão · Com exceção. Contam EMBARQUES sobre a carteira de `useShipmentsWithPo`. Panorama, lista, Visão por PO e banner da Home desenham a MESMA faixa; `shipment-indicators.test.ts` trava números e consumo. `panorama-summary.ts` e os chips de PO (`PO_FILTER_LABELS`) foram apagados — não recrie predicado paralelo |
+| Aba Alertas removida | `embarques/page.tsx` | `?tab=alertas` redireciona para `?tab=lista&indicador=action`. Filtros úteis viraram recortes da lista: `?indicador=action` (Minha ação), `delayed` (Atrasos), `documentos` (Pendências documentais). `?filtro=atraso/excecao` abre os indicadores equivalentes no Panorama. Iframe `centrix-alertas` e componentes mortos que linkavam a aba foram apagados; `lib/price-alerts` e `lib/shipment-alerts` ficam |
+| Feed "Atualizações" | `_shared/updates-feed.tsx` (React, Panorama de Embarques via `shipment-updates-feed.tsx`) e `updatesFeed` em `centrix-visao-geral/work.js` (Operação) | Só leitura: sem "Já vi", sem contador, sem CTA. Cor só para custo correndo (demurrage). Corte declarado. As duas implementações têm a mesma anatomia — mudou uma, mude a outra |
+| Central — Meu dia | `centrix-visao-geral/work.js::renderDay` | Frase + "Fazer agora". Sem cards de resumo. "Aguardando retorno" recolhido (`state.waitingOpen`). Prazo ausente = pílula neutra |
+| Central — Operação | `centrix-visao-geral/operation.js::renderOperation` | Uma camada de resumo (faixa escura com a divisão por frente embutida), "Onde intervir" (máx. 4), Atualizações; fila recolhida só como destino dos atalhos. Sem "No horizonte" (chegadas = indicador do Panorama) nem distribuição por pessoa. Testes em `visao-geral/lib/*.test.cjs` |
+| Auditoria — Preço do frete em Kanban | `centrix-auditoria/model.js` (`FREIGHT_COLUMNS`, `freightColumn`) + `app.js::freightBoard` | Colunas: "Com chegada confirmada, aguardando fatura" (fatura/referência ausente) · "Para análise" (caso pronto, ou fatura com controle a completar) · "Sob ajuste" (fixture `adjustment` em 0010 ou rascunho de contestação exportado). "Sem divergência" sai do quadro (linha recolhida). Testado em `scripts/audit-checks/checks.cjs` |
+| Performance fora da Auditoria | `centrix-inteligencia/app.js::serviceCommitments` (aba "Compromissos do serviço" do bloco Performance) | Relatório somente leitura, mesma fonte (`centrix-auditoria/{freight,performance,model}.js` carregados no index), sem CTA de contestação e sem link para o caso. Links antigos `#auditoria/performance` caem em Preço do frete com aviso |
+

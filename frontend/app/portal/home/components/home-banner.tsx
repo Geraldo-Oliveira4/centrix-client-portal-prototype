@@ -3,16 +3,16 @@
 import type { ReactNode } from 'react';
 
 import { useMyClient } from '@/hooks/use-portal-quotations';
-import type { SemaforoCounts } from '@/types/portal-shipment';
 
-import { SemaforoChips } from '../../_shared/semaforo-chips';
+import { ShipmentIndicatorStrip } from '../../embarques/components/shipment-indicator-strip';
+import type { ShipmentIndicators } from '../../embarques/lib/shipment-indicators';
 
 /**
  * Banner navy da Home. Desenho validado com o Victor Orsi no Claude Design.
  *
  * BANNER INFORMATIVO PURO, sem nenhuma funcao de navegacao. Ele diz tres coisas
- * e para: quem esta logado, quantos embarques precisam de atencao hoje, e o
- * farol. Uma versao anterior levava uma fileira de abas no rodape e chegou a
+ * e para: quem esta logado, quantos itens exigem atencao hoje, e os cinco
+ * indicadores dos embarques (so leitura). Uma versao anterior levava uma fileira de abas no rodape e chegou a
  * substituir a sidebar nesta rota; as duas ideias sairam em 03/09/2026.
  *
  * NAVEGACAO VIVE SO NA SIDEBAR. E a razao de nao existir link nenhum aqui, nem
@@ -28,9 +28,9 @@ import { SemaforoChips } from '../../_shared/semaforo-chips';
  *      aqui. Laranja (`primary`, #F59C27) e a unica cor de acao da Home desde a
  *      migracao de marca v1.0, e ela aparece uma vez so: no CTA do card "Sua
  *      acao mais urgente".
- *   2. As bolinhas do farol continuam no semaforo, que e ESTADO. Sobre o navy
- *      elas seguem legiveis sem retoque — os tres hexes sao saturados o
- *      bastante — e por isso nao ha uma segunda paleta aqui.
+ *   2. Nos indicadores, so "Precisam de voce" ganha cor (o tom de atencao,
+ *      `portal-warning`, que le a 5.7:1 sobre o navy), e so quando ha algo: e
+ *      o unico que pede acao do cliente. Os outros quatro sao informacao.
  *
  * NO TEMA ESCURO O BANNER TROCA DE SUPERFICIE, e nao e concessao: o canvas da
  * pagina passa a ser o PROPRIO Navy Profundo, entao um banner `bg-brand-navy`
@@ -44,9 +44,11 @@ import { SemaforoChips } from '../../_shared/semaforo-chips';
  * escuro o navy deixa de ser o banner e passa a ser a tela inteira, que e a
  * proporcao 75/15/10 do guia aplicada a um layout escuro.
  *
- * O BANNER NAO CONTA NADA. `counts` chega pronto, do `countBySemaforo` de
- * sempre, que e a mesma fonte do "Visao do todo" do Mapa e do farol da Visao
- * Geral — e e isso que impede as tres telas de discordarem.
+ * O BANNER NAO CONTA NADA. `indicators` chega pronto, da fonte unica de
+ * indicadores de embarque (`embarques/lib/shipment-indicators.ts`), a mesma do
+ * Panorama, da lista e da Visao por PO — e e isso que impede as telas de
+ * discordarem. Ate 02/10/2026 aqui ficava o farol (`countBySemaforo`), um
+ * terceiro vocabulario para a mesma pergunta; ele saiu a pedido do Orsi.
  *
  * Full-bleed (as margens negativas cancelam o padding de `portal/layout.tsx`)
  * porque ele e uma FAIXA no topo da area de conteudo, nao um card sobre o
@@ -64,14 +66,14 @@ function greetingFor(now: Date): string {
 export function HomeBanner({
   headline,
   detail,
-  counts,
+  indicators,
   now,
 }: {
   /** A frase dominante da tela, em branco sobre o navy. */
   headline: ReactNode;
   /** Uma linha de interpretacao sob a frase (como o numero se compoe). */
   detail?: ReactNode;
-  counts: SemaforoCounts;
+  indicators: ShipmentIndicators;
   /** O mesmo `now` do resto da tela — uma leitura de relogio por render. */
   now: Date;
 }) {
@@ -79,8 +81,8 @@ export function HomeBanner({
 
   return (
     <div className="-mx-6 -mt-6 border-b border-transparent bg-brand-navy px-6 py-8 dark:border-white/[.28] dark:bg-card md:-mx-8 md:-mt-8 md:px-8">
-      {/* Boas-vindas a esquerda, farol no canto superior direito. */}
-      <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
+      {/* Boas-vindas em cima, indicadores dos embarques logo abaixo. */}
+      <div className="space-y-4">
         <div className="space-y-1">
           <p className="portal-small font-medium uppercase tracking-wide text-white/60">
             {greetingFor(now)}
@@ -92,7 +94,7 @@ export function HomeBanner({
             <p className="portal-body text-white/80">{detail}</p>
           ) : null}
         </div>
-        <SemaforoChips counts={counts} variant="navy" className="shrink-0" />
+        <ShipmentIndicatorStrip indicators={indicators} variant="navy" />
       </div>
     </div>
   );

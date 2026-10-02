@@ -47,7 +47,6 @@ import { buildPoOverviewExample } from './po-overview-examples';
 import {
   PO_BUCKET_LABELS,
   PO_BUCKET_ORDER,
-  PO_FILTER_LABELS,
   PO_POINT_LABELS,
   PO_STEP_ESTADOS,
   axisPercent,
@@ -55,14 +54,12 @@ import {
   isBeforeAxis,
   shortDayLabel,
   groupShipmentsByPo,
-  matchesPoFilter,
   poGroupStatus,
   poTimelineAxis,
   shipmentBarPoints,
   shipmentProgress,
   splitPoCount,
   type PoBucket,
-  type PoFilter,
   type PoGroupStatus,
   type PoOverviewGroup,
   type PoOverviewShipment,
@@ -72,6 +69,14 @@ import { PO_STAGE_LABELS } from './shipment-po-review';
 import type { PortalShipmentWithReview } from './shipment-po-merge';
 import { useClientKind } from './use-client-profile';
 import { useShipmentPoStore } from './use-shipment-po-review';
+import {
+  ShipmentIndicatorStrip,
+  useShipmentIndicators,
+} from '../../embarques/components/shipment-indicator-strip';
+import {
+  SHIPMENT_INDICATOR_LABELS,
+  type ShipmentIndicatorKey,
+} from '../../embarques/lib/shipment-indicators';
 
 type View = 'timeline' | 'lista';
 
@@ -94,80 +99,13 @@ function nextArrivalText(status: PoGroupStatus): string {
 }
 
 // ---------------------------------------------------------------- resumo --
-
-/**
- * As cores seguem a escala de urgência (`_shared/urgency.ts`): só tem cor o que
- * pede ação do CLIENTE. "Sem previsão" pede (informar a prontidão destrava o
- * ETA) e é atenção. "Em risco" é informação — o cliente não resolve atraso de
- * armador — e por isso fica neutro, marcado pelo ícone, nunca vermelho.
- */
-const FILTER_STYLE: Record<PoFilter, string> = {
-  ativos: 'text-foreground',
-  sete_dias: 'text-portal-info',
-  risco: 'text-foreground',
-  sem_previsao: 'text-portal-warning-ink',
-};
-
-function SummaryChips({
-  counts,
-  active,
-  onToggle,
-}: {
-  counts: Record<PoFilter, number>;
-  active: PoFilter | null;
-  onToggle: (filter: PoFilter) => void;
-}) {
-  return (
-    <div
-      className="grid grid-cols-2 gap-2 lg:grid-cols-4"
-      role="group"
-      aria-label="Filtrar pedidos"
-    >
-      {(Object.keys(PO_FILTER_LABELS) as PoFilter[]).map((filter) => {
-        const pressed = active === filter;
-        return (
-          <button
-            key={filter}
-            type="button"
-            aria-pressed={pressed}
-            onClick={() => onToggle(filter)}
-            className={cn(
-              'flex min-h-11 items-center justify-between gap-2 rounded-lg border bg-card px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              pressed
-                ? 'border-brand-indigo-800 ring-1 ring-brand-indigo-800'
-                : 'border-border hover:bg-muted/40',
-              filter === 'sem_previsao' &&
-                counts.sem_previsao > 0 &&
-                !pressed &&
-                'border-portal-warning/50',
-            )}
-          >
-            <span className="portal-small flex items-center gap-1.5 text-portal-neutral">
-              {filter === 'risco' && counts.risco > 0 && (
-                <AlertTriangle
-                  className="h-4 w-4 text-portal-warning-ink"
-                  aria-hidden="true"
-                />
-              )}
-              {filter === 'sem_previsao' && counts.sem_previsao > 0 && (
-                <CalendarClock
-                  className="h-4 w-4 text-portal-warning-ink"
-                  aria-hidden="true"
-                />
-              )}
-              {PO_FILTER_LABELS[filter]}
-            </span>
-            <span
-              className={cn('portal-h2 tabular-nums', FILTER_STYLE[filter])}
-            >
-              {counts[filter]}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+//
+// O resumo desta aba É a faixa de indicadores de Meus Embarques
+// (`ShipmentIndicatorStrip` + `lib/shipment-indicators.ts`), com os mesmos
+// rótulos e os mesmos números do Panorama, da lista e da Home. Até 02/10/2026
+// ela tinha chips próprios que contavam PEDIDOS ("Sem previsão 3" aqui, "5 sem
+// previsão" no Panorama); agora o número conta embarques e o recorte mostra os
+// pedidos que têm ao menos um embarque no indicador.
 
 // ----------------------------------------------------------- linha do tempo --
 
@@ -944,7 +882,7 @@ export function PoOverviewTab({
   const { data: quotationsData } = useMyQuotations();
   const poStore = useShipmentPoStore();
   const [view, setView] = useState<View>('timeline');
-  const [filter, setFilter] = useState<PoFilter | null>(null);
+  const [filter, setFilter] = useState<ShipmentIndicatorKey | null>(null);
   const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
   // Um relógio por montagem: a faixa, os chips e o "hoje" do eixo concordam.
   const [now] = useState(() => new Date());
@@ -1003,20 +941,16 @@ export function PoOverviewTab({
     () => groups.map((group) => ({ group, status: poGroupStatus(group, now) })),
     [groups, now],
   );
-  const counts = useMemo(() => {
-    const out = {
-      ativos: 0,
-      sete_dias: 0,
-      risco: 0,
-      sem_previsao: 0,
-    } as Record<PoFilter, number>;
-    for (const row of rows)
-      for (const key of Object.keys(out) as PoFilter[])
-        if (matchesPoFilter(row.status, key)) out[key]++;
-    return out;
-  }, [rows]);
+  // Os indicadores contam os embarques da MESMA carteira que as outras abas
+  // recebem (no exemplo, os embarques fictícios do exemplo).
+  const { indicators } = useShipmentIndicators(
+    isExample ? example.shipments : shipments,
+    now,
+  );
   const visible = filter
-    ? rows.filter((row) => matchesPoFilter(row.status, filter))
+    ? rows.filter((row) =>
+        row.group.shipments.some((s) => indicators[filter].has(s.id)),
+      )
     : rows;
   const axis = useMemo(() => poTimelineAxis(groups, now), [groups, now]);
   const buckets: [PoBucket, Row[]][] = PO_BUCKET_ORDER.map(
@@ -1168,29 +1102,25 @@ export function PoOverviewTab({
         </p>
       )}
 
-      <SummaryChips
-        counts={counts}
+      <ShipmentIndicatorStrip
+        indicators={indicators}
         active={filter}
-        onToggle={(next) =>
-          setFilter((current) => (current === next ? null : next))
-        }
+        onSelect={setFilter}
       />
 
       <p className="portal-small text-portal-neutral">
-        Uma visão por pedido, em avaliação. As datas são as que já existem —
-        prontidão, embarque e chegada prevista; nenhuma é estimada aqui.
+        Os números contam embarques; ao escolher um indicador, a lista mostra
+        os pedidos com ao menos um embarque nele. Uma visão por pedido, em
+        avaliação: as datas são as que já existem — prontidão, embarque e
+        chegada prevista; nenhuma é estimada aqui.
       </p>
 
       {visible.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
           <p className="portal-h3">
-            {filter === 'risco'
-              ? 'Nenhum pedido em risco agora — bom sinal.'
-              : filter === 'sem_previsao'
-                ? 'Todos os pedidos têm previsão de chegada.'
-                : filter === 'sete_dias'
-                  ? 'Nenhuma chegada prevista nos próximos 7 dias.'
-                  : 'Nenhum pedido ativo — tudo já chegou.'}
+            {filter
+              ? `Nenhum pedido com embarque em “${SHIPMENT_INDICATOR_LABELS[filter]}”.`
+              : 'Nenhum pedido ativo — tudo já chegou.'}
           </p>
           <button
             type="button"

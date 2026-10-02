@@ -570,7 +570,9 @@ export const FIRST_STEPS = [
   {
     id: 'alertas',
     label: 'Configurar os seus alertas',
-    href: '/portal/embarques?tab=alertas',
+    // Configurações > Alertas. A aba Alertas de Meus Embarques saiu em
+    // 02/10/2026; a escolha do que acompanhar mora em Configurações.
+    href: '/portal/preferencias#alertas',
   },
   { id: 'colega', label: 'Convidar um colega', href: null },
 ] as const;
