@@ -138,7 +138,7 @@ function modeSwitch() {
 /* --------------------------------------------------------------- página --- */
 function intelOverview() {
   const s = intelScope(), mode = intelLayout.mode, visible = new Set(IL.visibleBlocks(intelLayout));
-  let html = `<div class="heading"><div><h1 tabindex="-1">Inteligência</h1><p>${mode === 'completa' ? 'O retrato completo da sua operação: prazos, frete, parceiros e rotas.' : 'As quatro perguntas da sua operação, respondidas em uma linha cada.'}</p></div><div class="actions">${viewChips()}${modeSwitch()}<button class="button secondary" data-action="intel-customize">Personalizar</button><button class="button secondary" data-action="intel-report">Preparar relatório</button></div></div>`;
+  let html = `<div class="heading"><div><h1 tabindex="-1">Inteligência</h1><p>${mode === 'completa' ? 'O retrato completo da sua operação: prazos, frete, parceiros e rotas.' : 'As quatro perguntas da sua operação, respondidas em uma linha cada.'}</p></div><div class="actions intel-actions">${modeSwitch()}<button class="button secondary" data-action="intel-customize">Personalizar</button><button class="button secondary" data-action="intel-report">Preparar relatório</button></div></div>${viewChips()}`;
   html += periodBar() + filterBar(s);
   html += `<p class="comparison-caption">${s.range.valid ? IE.comparisonCaption(s.range) : ''}${s.cur.length && s.cur.length < IE.MIN_SAMPLE ? ' ' + smallTag(s.cur.length) + ' Com menos de 3 embarques as variações não são mostradas.' : ''}</p>`;
   if (mode === 'completa' && s.cur.length) {
@@ -169,7 +169,8 @@ function intelOverview() {
 /* ------------------------------------------------------- visões salvas --- */
 function viewChips() {
   if (!intelViews.length) return '';
-  return `<div class="views" role="group" aria-label="Minhas visões">${intelViews.map(v => { const on = IL.isActiveView(v, params, intelLayout, FILTER_KEYS); return `<span class="view-chip ${on ? 'active' : ''}"><button data-action="view-open" data-id="${esc(v.id)}" ${on ? 'aria-current="true"' : ''}>${esc(v.name)}</button><details class="view-menu"><summary aria-label="Opções da visão ${esc(v.name)}">⋯</summary><div class="view-menu-body"><label>Nome<input data-view-name="${esc(v.id)}" value="${esc(v.name)}" maxlength="60"></label><button class="button secondary" data-action="view-rename" data-id="${esc(v.id)}">Renomear</button><button class="text-button" data-action="view-delete" data-id="${esc(v.id)}">Excluir</button></div></details></span>`; }).join('')}</div>`;
+  // Linha própria, logo abaixo do título e acima dos filtros (some sem visões).
+  return `<div class="views views-row" role="group" aria-label="Minhas visões"><span class="views-label">Minhas visões</span>${intelViews.map(v => { const on = IL.isActiveView(v, params, intelLayout, FILTER_KEYS); return `<span class="view-chip ${on ? 'active' : ''}"><button data-action="view-open" data-id="${esc(v.id)}" ${on ? 'aria-current="true"' : ''}>${esc(v.name)}</button><details class="view-menu"><summary aria-label="Opções da visão ${esc(v.name)}">⋯</summary><div class="view-menu-body"><label>Nome<input data-view-name="${esc(v.id)}" value="${esc(v.name)}" maxlength="60"></label><button class="button secondary" data-action="view-rename" data-id="${esc(v.id)}">Renomear</button><button class="text-button" data-action="view-delete" data-id="${esc(v.id)}">Excluir</button></div></details></span>`; }).join('')}</div>`;
 }
 function openView(id) {
   const v = intelViews.find(x => x.id === id); if (!v) return;
