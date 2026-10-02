@@ -236,3 +236,17 @@ Every headline number carries its reading. A number alone ("73%") answers nothin
 - Only "Precisam de você" takes the attention tone, and only when non-zero: it is the one indicator that asks the client to act. The other four are information.
 - A new screen that shows any of these numbers consumes this module; it never writes its own predicate.
 
+## Inteligência: modes, filters, customization (02/10/2026)
+
+One continuous page (`public/prototypes/centrix-inteligencia`), no tabs that only scroll and no nested sub-tabs. Header order: title → period → filter bar → content.
+
+- **Two reading modes**, a segmented control "Completa | Objetiva", default Completa, persisted per user. Completa: hero "Entrega final no prazo" + "Onde o prazo se perde" funnel, four KPI cards with sparklines, two charts (prazo por etapa and frete por mês, last 6 months), then Performance (Etapas, Exportadores, Agentes stacked), Preços e rotas and Compromissos do serviço (read-only). Objetiva: the four KPIs in a row and four question blocks, each with ONE computed insight line (metric + variation + conclusion) and "Ver detalhes →" to the Completa section. Section links appear only in Completa, as plain anchors.
+- **Personalizar** follows the Home pattern: a switch per block, draft until Salvar, "Restaurar padrão" always visible. What is stored is the list of HIDDEN blocks, so a new block is born visible.
+- **Global filters** (Exportador, Agente de cargas, Rota, Incoterm, País de origem, SKU) change every block in both modes. OR within a filter, AND across filters; options come from the data; active filters are removable chips with "Limpar filtros" and "N de M embarques"; the state lives in the URL. SKU is item-level: a shipment matches if it contains the SKU, while freight and lead times stay shipment-level, and the page says so when SKU is active.
+- **One comparison base**: every variation compares the chosen period with the immediately previous period of the same length, stated once in a caption. Rates vary in points, amounts in %.
+- **Small sample**: with fewer than 3 shipments (in the cut or in the base) the value carries "Amostra pequena (n=X)" and no variation chip; with zero, an empty state with "Limpar filtros".
+- **Colour**: improvement green, worsening amber, neutral grey. Red stays reserved for client action, and a variation is never one. No AI score.
+- **Each chart has a one-line caption** saying what it shows.
+- **Filter options never disappear.** The list and the count beside each option ("Shanghai → Santos (20)") come from the whole dataset; an option with no shipment in the current period plus the other active filters is shown disabled, never removed (a checked option always stays uncheckable).
+- **The current view is the report.** "Preparar relatório" opens a side panel that summarises the view ("Rota Shanghai → Santos · FOB · Últimos 90 dias · 7 embarques") and offers: *Salvar como minha visão* (named chips on their own row under the title restore period, filters, mode and visible blocks, with rename/delete in the chip menu; same per-user storage as Personalizar); *Levar para uma conversa* (exactly one exporter → the existing Revisão de exportador with period and filters; agent or route → "Revisão de rota ou agente" marked Planejado; otherwise a hint); *Receber e compartilhar* (e-mail schedule and PDF are simulated and labelled "Prévia"; Copiar link is real). Modal panel: focus trap, Esc closes, labelled fields.
+

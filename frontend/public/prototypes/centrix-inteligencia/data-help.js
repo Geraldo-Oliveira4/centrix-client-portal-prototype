@@ -1,7 +1,7 @@
 'use strict';
 // Availability review, distinct from missing values in the fictional sample.
 const DATA_HELP = {
-  identity: ['Parceiros e operações', 'Centrix e Inova têm campos para fornecedor/exportador e agente.', 'Confirmar preenchimento e vínculo de cada parceiro com o processo, embarque e PO. Conciliar nomes duplicados e cargas divididas ou consolidadas. Cadastro não comprova histórico de desempenho.'],
+  identity: ['Parceiros e operações', 'Centrix e Inova têm campos para exportador e agente.', 'Confirmar preenchimento e vínculo de cada parceiro com o processo, embarque e PO. Conciliar nomes duplicados e cargas divididas ou consolidadas. Cadastro não comprova histórico de desempenho.'],
   ready: ['Prontidão no prazo', 'O contrato proposto do Inova prevê prontidão prevista e realizada.', 'Confirmar retorno e preenchimento das datas; preservar o compromisso original e suas revisões, com fonte. A previsão atual pode ter sido alterada e não comprova a promessa original.'],
   collect: ['Coleta', 'O contrato proposto do Inova prevê coleta prevista e realizada.', 'Confirmar data e local da coleta, fonte do evento e compromisso original. Não deduzir prontidão ou coleta a partir da partida do navio.'],
   port: ['Transporte e chegada ao porto', 'Inova e ShipsGo têm campos ou eventos de transporte internacional.', 'Confirmar integração, cobertura por embarque/contêiner e eventos previstos versus realizados. Preservar a primeira previsão de chegada. Chegada, descarga e saída do terminal são marcos diferentes.'],
@@ -17,7 +17,7 @@ const DATA_HELP = {
   cause: ['Causa e responsabilidade', 'Relatórios históricos incluem categorias e apurações de desvios.', 'Obter evidência e conclusão de apuração ligadas à ocorrência. Associação com um parceiro ou etapa não prova responsabilidade. Atraso e avaria permanecem sem atribuição enquanto isso não for confirmado.']
 };
 const HELP_LABELS = {
-  'Fornecedor / origem':'identity','Fornecedor / rota':'identity','Entregas na base':'identity','Entrega / mercadoria':'quantity',
+  'Exportador / origem':'identity','Exportador / rota':'identity','Entregas na base':'identity','Entrega / mercadoria':'quantity',
   'Prontidão':'ready','Prontidão no prazo':'ready','Compromisso':'ready','Chegada ao porto':'port','Porto no prazo':'port','Destino final':'final',
   'Frete contratado':'freight','Entrega / contratação':'freight','Execução':'port','Conferência':'audit','Frete / cobrança':'audit','Performance / responsabilidade':'cause',
   'Onde os tempos excedem o previsto':'stages','Dentro do trânsito via Singapura':'stages','Como o desempenho evolui':'ready',
@@ -26,7 +26,7 @@ const HELP_LABELS = {
   'Agentes neste recorte':'audit','Fornecimento por parceiro':'docs','Contratação e auditoria':'audit',
   'Previsto':'stages','Realizado':'stages','Desvio':'stages'
 };
-function dataHelp(key){return DATA_HELP[key]?`<button type="button" class="data-help" data-help="${key}" aria-label="Dados a confirmar: ${DATA_HELP[key][0]}" aria-expanded="false"><span aria-hidden="true">i</span></button>`:'';}
+function dataHelp(key){if(typeof CLIENT_FLAGS!=='undefined'&&!CLIENT_FLAGS.dataHelp)return '';return DATA_HELP[key]?`<button type="button" class="data-help" data-help="${key}" aria-label="Dados a confirmar: ${DATA_HELP[key][0]}" aria-expanded="false"><span aria-hidden="true">i</span></button>`:'';}
 function dataLabel(label,key=HELP_LABELS[label]){return label+dataHelp(key);}
 
 let helpAnchor=null, helpPinned=false, helpTimer=null;
