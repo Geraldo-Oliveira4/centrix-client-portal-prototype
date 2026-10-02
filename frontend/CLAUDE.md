@@ -2435,6 +2435,20 @@ Prepared on 786d229 to retain the published Configurações release. Includes pr
 
 /portal/cotacoes/previa-habituais demonstrates entry from new quotation, history, supplier and preferred route. Reuses DraftRequestForm/ManualForm; an optional onSaveTemplate callback captures current form values without touching the normal create path. Named templates use an allow-list of stable fields, while occurrence data stays in a separate local draft. No API writes, calendar recurrence or changes to live Kanban/Configurações. See its README for local links, verification and integration limits. Branch codex/cotacao-habituais is not deployed.
 
+## Inteligência personalizável — 02/10/2026 (feedback do Orsi)
+
+Supersedes the four-block page ("Inteligência em blocos") and the Performance sub-tabs. Everything lives in the iframe `public/prototypes/centrix-inteligencia`:
+
+| O quê | Onde | Regra que não pode afrouxar |
+|---|---|---|
+| Fixture | `data.js` | 40 embarques fictícios (mar–set/2026), 4 exportadores, 3 agentes, 4 rotas, 3 incoterms, 3 países, 7 SKUs por ITEM. Mesma API `D` de antes; nenhum nome real |
+| Motor | `intel-engine.js` (puro) + `intel-engine.test.cjs` | Filtros OU/E, opções dos dados, SKU por item, base única = período anterior de mesma duração, amostra < 3 sem variação, séries mensais calculadas. Nenhum número digitado na tela |
+| Layout | `intel-layout.js` (puro) | Modos Completa/Objetiva e blocos ocultos em `centrix-proto-v2:intelligence-layout` (prefixo do store de demonstração: "Reiniciar" do painel limpa) |
+| Página | `intel-page.js` | Só desenha; usa os helpers de `app.js` em tempo de chamada. Filtros na hash (`#executivo?exp=east,nord&sku=EC-240`), que o host espelha na URL do portal |
+| Flags | `client-flags.js` | `CLIENT_FLAGS.assistants=false` (MCP fica para as ondas 2/3: `#assistentes` cai na visão geral) e `dataHelp=false` (indicadores "Dados a confirmar"). Ligar devolve tudo |
+
+"Fornecedor" virou **Exportador** em todo texto do módulo; os hashes `#fornecedores/...` continuam (links antigos). Compromissos do serviço é calculado da MESMA fixture (os filtros valem), só leitura. Os indicadores de embarque de `embarques/lib/shipment-indicators.ts` não se aplicam aqui: a Inteligência lê a fixture própria, não `/portal/shipments`.
+
 ## Intelligence prototype publication — 2026-09-13
 
 `/portal/inteligencia` hosts the approved static experience in a same-origin iframe from `public/prototypes/centrix-inteligencia`. Hash routes preserve periods and context across Performance, Partners, Routes/Locations, Reports and Assistants. Legacy Performance/Agents/Executive URLs remain entry points. Radar is published separately at `/portal/radar`; its existing release is preserved. All new analytics and assistant examples are demonstrative; MCP connection is planned, with no live integration. Report versions are browser-local. Operational modules and Frame are unchanged.
