@@ -24,6 +24,7 @@ import {
   buildShipmentOverview,
   compareShipmentOverview,
   hasArrived,
+  SHIPMENT_OVERVIEW_LABELS,
   type ShipmentOverviewKey,
 } from '../lib/shipment-overview';
 import { arrivalDay, formatShipmentEta } from '../lib/shipment-date';
@@ -252,24 +253,28 @@ export function ShipmentMapWorkspace({
         {shipments.some((s) => s.tracking?.is_mock) &&
           ' Rastreamento em pré-visualização.'}
       </p>
-      <div className={styles.filters} aria-label="Recortes da carteira">
-        <button
-          className={`${styles.chip} ${!metric && !legacyFilter ? styles.active : ''}`}
-          aria-pressed={!metric && !legacyFilter}
-          onClick={() => changeFilter(null)}
-        >
-          Todos <b>{shipments.length}</b>
-        </button>
-        {legacyFilter && (
+      {/* Sem chip solto "Todos": a faixa acima já é o filtro. Esta linha só
+          aparece com um recorte ativo, para dizer qual é e como voltar. */}
+      {(metric || legacyFilter) && (
+        <p className="portal-small flex flex-wrap items-center gap-2 text-portal-neutral" aria-live="polite">
+          <span>
+            Mostrando{' '}
+            <strong className="font-medium text-foreground">
+              {metric
+                ? SHIPMENT_OVERVIEW_LABELS[metric]
+                : SHIPMENT_FILTERS.find((f) => f.key === legacyFilter)?.label}
+            </strong>{' '}
+            · {visible.length} de {shipments.length} embarques
+          </span>
           <button
-            className={`${styles.chip} ${styles.active}`}
+            type="button"
             onClick={() => changeFilter(null)}
+            className="min-h-9 font-medium text-brand-indigo underline underline-offset-4"
           >
-            {SHIPMENT_FILTERS.find((f) => f.key === legacyFilter)?.label}{' '}
-            <X size={12} />
+            Ver todos
           </button>
-        )}
-      </div>
+        </p>
+      )}
       <section
         ref={mapSection}
         className={styles.mapSection}

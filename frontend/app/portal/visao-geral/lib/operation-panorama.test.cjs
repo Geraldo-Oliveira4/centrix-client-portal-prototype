@@ -59,7 +59,10 @@ test('Operação: uma camada de resumo, Onde intervir (máx. 4) e Atualizações
 test('Meu dia: frase + Fazer agora; sem cards de resumo, sem Mudanças relevantes; retornos recolhidos',()=>{
   const run=scenario();
   const html=run('renderDay()');
-  assert.match(html,/sua atenção hoje/);
+  // A frase e a lista contam a MESMA coisa.
+  const sentence=Number(html.match(/<strong>(\d+)<\/strong> itens? para fazer agora/)[1]);
+  assert.equal(sentence,(html.match(/class="task-row/g)||[]).length);
+  assert.match(html,/1 com prazo vencido.*2 vencem hoje.*1 sem vencimento hoje/);
   assert.match(html,/<h2>Fazer agora<\/h2>/);
   assert.doesNotMatch(html,/class="metrics"|Prazo vencido<\/span>|Mudanças relevantes/);
   assert.match(html,/<details class="surface waiting" id="waiting-list" >/);

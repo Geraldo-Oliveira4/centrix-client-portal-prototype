@@ -16,7 +16,7 @@ export default function VisaoGeralPage() {
   useEffect(() => {
     const hash = /^#(dia|operacao)$/.test(window.location.hash)
       ? window.location.hash : '#dia';
-    setSource('/prototypes/centrix-visao-geral/index.html?v=20261002-foco-1' + hash);
+    setSource('/prototypes/centrix-visao-geral/index.html?v=20261002-foco-2' + hash);
   }, []);
 
   useEffect(() => {

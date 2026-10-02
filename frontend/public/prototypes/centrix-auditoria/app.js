@@ -26,7 +26,7 @@ function parseRoute() {
   const p = location.hash.slice(1).split('/');
   if (['cotacao','embarque'].includes(p[0])) return {page:'journey', journey:p[0], id:decodeURIComponent(p[1] || ''), tab:p[2] || 'frete', dim:p[3] === 'performance' ? 'performance' : 'preco'};
   if (p[0] === 'main') return { page:'list', dim:'preco' };
-  if (p[1] === 'entrada') return { page:'intake', dim:['preco','performance'].includes(p[2])?p[2]:intake.dimension||route?.dim||'preco', step:/^etapa-[1-4]$/.test(p[3] || '') ? Number(p[3].slice(6)) : null };
+  if (p[1] === 'entrada') return { page:'intake', dim:'preco', step:/^etapa-[1-4]$/.test(p[3] || '') ? Number(p[3].slice(6)) : null };
   // Performance saiu da Auditoria em 02/10/2026 (não é tarefa do cliente); o
   // mesmo conteúdo é um relatório somente leitura em Inteligência. Links salvos
   // para a lista ou para a aba de um caso caem em Preço do frete.
