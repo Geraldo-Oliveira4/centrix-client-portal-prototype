@@ -286,7 +286,7 @@ Como isso é sustentado no código, e o que não pode afrouxar:
 | — | **documentos do embarque** (BL, Invoice, Packing List, Certificado de Origem): a seção "Documentos" do detalhe é montada no frontend (`embarques/lib/shipment-documents.ts`). O módulo GE do analista tem `EmbarqueDocumento`, mas nenhum handler do portal o expõe — não há upload nem download de verdade |
 | — | **"Aprovar booking" / "Enviar arquivo" do detalhe do embarque**: desde 17/08/2026 o modal confirma em vez de encerrar com "Nada foi enviado", e a faixa de ação vira recibo e o documento anda um degrau. Continua **sem rota de escrita**: é estado de componente que morre no refresh, com selo `preview` no sucesso. Detalhe em `frontend/CLAUDE.md` |
 | — | **Radar de Preços** (`Inteligência > Radar de Preços`): preço de frete por rota, variação contra a média e tendência. Não existe Data Lake nem tabela de frete de mercado neste repo — as ROTAS e a frequência são reais (saem dos embarques do cliente, pela mesma resolução do Mapa), todo número em dinheiro é ilustrativo. Modelado com dado simulado a pedido do Vinicius, para validar o valor da proposta com 2-3 clientes antes de puxar dado real |
-| origem da cotação vinda do Radar (`portal_origin`, log imutável, contável) | **notificação de preço** (`Meus Embarques > Alertas`, 5º tipo): herda a mesma divisão do Radar — rota real, número ilustrativo — e não há cron nem serviço de push que a dispare. Ela é montada no frontend junto do resto do feed, a cada abertura da tela |
+| origem da cotação vinda do Radar (`portal_origin`, log imutável, contável) | **notificação de preço** (antigo `Meus Embarques > Alertas`, 5º tipo; a aba saiu em 02/10/2026 e o alerta segue na fonte `price-alerts`): herda a mesma divisão do Radar — rota real, número ilustrativo — e não há cron nem serviço de push que a dispare. Ela é montada no frontend junto do resto do feed, a cada abertura da tela |
 | — | **risco por etapa e gatilho de ação** da timeline (`embarques/lib/step-insights.ts`): o percentual histórico da rota é ilustrativo; onde há aritmética real (atraso da companhia), ela manda e o número é o mesmo do badge do topo |
 | valor cotado na conferência da cotação (proposta vencedora) | **valor realizado** — fabricado em `app/audit_preview.py`; não existe fatura/BL neste repo |
 | aprovar/recusar/cancelar, montar+disparar RFQ | envio de e-mail (Microsoft Graph) -> log |
@@ -573,7 +573,7 @@ as extensões de página do Next) e o commit anterior à troca,
 `ea2b5d30cde74d23e32d43e852218602ce39a1e7`, anotado no topo do `page.tsx` novo.
 
 **O topo e o rodapé continuam sendo a 1b**, e não cópias: `HomeBanner` (saudação,
-frase dominante, farol) e `HomeShortcuts` são os mesmos componentes, importados
+frase dominante e, desde 02/10/2026, os cinco indicadores de embarque no lugar do farol) e `HomeShortcuts` são os mesmos componentes, importados
 dos mesmos arquivos. O que mudou é o MEIO da tela.
 
 | Tema | Pergunta | Cards |

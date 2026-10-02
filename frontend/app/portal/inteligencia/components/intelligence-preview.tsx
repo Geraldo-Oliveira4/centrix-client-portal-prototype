@@ -8,7 +8,7 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
   const [source, setSource] = useState<string>();
 
   useEffect(() => {
-    setSource('/prototypes/centrix-inteligencia/index.html?embed=1' + (window.location.hash || '#' + initialSection));
+    setSource('/prototypes/centrix-inteligencia/index.html?embed=1&v=20261002-compromissos-1' + (window.location.hash || '#' + initialSection));
   }, [initialSection]);
 
   useEffect(() => {

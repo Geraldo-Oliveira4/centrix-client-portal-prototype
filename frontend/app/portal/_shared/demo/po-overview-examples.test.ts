@@ -9,7 +9,6 @@ import {
 import {
   groupShipmentsByPo,
   poGroupStatus,
-  summarizePoGroups,
 } from './po-overview.ts';
 
 function run(now: Date) {
@@ -46,10 +45,13 @@ test('um de cada: PO dividido, em risco, sem previsão, já chegou, e as três f
   const buckets = statuses.map((s) => s.bucket);
   for (const b of ['atrasado', 'semana', 'mes', 'depois', 'sem_previsao', 'chegou'])
     assert.ok(buckets.includes(b as never), `falta faixa ${b}`);
-  const summary = summarizePoGroups(statuses);
-  assert.equal(summary.risco, 2);
-  assert.equal(summary.sem_previsao, 1);
-  assert.ok(summary.sete_dias >= 1);
+  assert.equal(statuses.filter((s) => s.atRisk).length, 2);
+  assert.equal(statuses.filter((s) => s.withoutForecast > 0).length, 1);
+  assert.ok(
+    statuses.some(
+      (s) => s.daysToNext != null && s.daysToNext >= 0 && s.daysToNext <= 7,
+    ),
+  );
 });
 
 test('tudo fictício e marcado: prefixo de exemplo e rastreamento is_mock', () => {

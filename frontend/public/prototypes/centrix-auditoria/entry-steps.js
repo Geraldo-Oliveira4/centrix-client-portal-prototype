@@ -1,7 +1,7 @@
 /* Estado por etapa da entrada e rascunhos por registro. Puro: a UI só renderiza o que sai daqui. */
 (function(root){
   const E=typeof module!=='undefined'&&module.exports?require('./entry.js'):root.EntryAudit;
-  const STEPS=['Localizar operação','Conferir contexto','Reunir fontes','Escopo e início'];
+  const STEPS=['Localizar operação','Conferir contexto','Reunir fontes','Revisão e início'];
   const STATE_LABELS={nao_iniciada:'Não iniciada',em_andamento:'Em andamento',pendente_documento:'Pendente de documento',concluida:'Concluída',com_divergencia:'Com divergência'};
   const REQUIRED=['Obrigatório','Obrigatório por controle','Alternativa necessária'];
   const CONTEXT_KEYS=['supplier','direction','modal','origin','destination','incoterm','namedPlace','contractor','owner'];
@@ -28,7 +28,7 @@
   function touched(d,n){
     if(n===1)return !!String(d.query||'').trim()||bound(d);
     if(n===2)return CONTEXT_KEYS.some(k=>String(d.fields[k]||'').trim());
-    if(n===3)return d.charges.length>0||d.events.length>0||d.sources.some(s=>!s.linked&&(s.files.length||s.status!=='Pendente'||s.reason||s.owner));
+    if(n===3)return d.charges.length>0||d.sources.some(s=>!s.linked&&(s.files.length||s.status!=='Pendente'||s.reason||s.owner));
     return visited(d,4);
   }
   function stepState(d,n,ops){

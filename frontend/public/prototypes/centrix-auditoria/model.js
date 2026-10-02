@@ -16,7 +16,7 @@
     return [
       operation('0011', 'Eastbridge Components', 'PO-2026-084', 'Shanghai → Santos', 'Agente Alpha', 4425, 4620, { opened: '2026-09-08', reference: 'COT-2026-0001 · v3 · aceite preservado', invoices: [invoice('FAT-0011', 'USD', [line('Frete marítimo', 3800, 3800), line('THC destino', 550, 550), line('Documentation Fee', 75, 120), line('Taxa adicional', 0, 150, 'Sem previsão localizada na condição aprovada. Solicitar justificativa ou retificação.')])] }),
       operation('0012', 'Ningbo Industrial', 'PO-2026-091', 'Ningbo → Itapoá', 'Agente Beta', 3210, null, { opened: '2026-09-07' }),
-      operation('0010', 'Nordwerk', 'PO-2026-077', 'Hamburgo → Santos', 'Agente Gamma', 5080, 5400, { checks: [check('Free time concedido', 21, 14, 'dias', { lowerIsWorse: true, source: 'Condição aceita e confirmação do serviço · amostra ilustrativa', note: 'Condição inferior à referência; a cobrança relacionada deve ser avaliada separadamente.' }), check('Trânsito até o porto de destino', 35, 35, 'dias')], cause: 'Motivo da alteração ainda não documentado.' }),
+      operation('0010', 'Nordwerk', 'PO-2026-077', 'Hamburgo → Santos', 'Agente Gamma', 5080, 5400, { adjustment: { since: '2026-09-11', invoice: 'FAT-0010', note: 'Contestação de USD 320 enviada pelo cliente; o Agente Gamma revisa a fatura.' }, checks: [check('Free time concedido', 21, 14, 'dias', { lowerIsWorse: true, source: 'Condição aceita e confirmação do serviço · amostra ilustrativa', note: 'Condição inferior à referência; a cobrança relacionada deve ser avaliada separadamente.' }), check('Trânsito até o porto de destino', 35, 35, 'dias')], cause: 'Motivo da alteração ainda não documentado.' }),
       operation('0009', 'Busan Precision', 'PO-2026-069', 'Busan → Navegantes', 'Agente Alpha', 2860, 2860, { opened: '2026-08-28' }),
       operation('0008', 'Delta Machinery', 'PO-2026-060', 'Roterdã → Santos', 'Agente Beta', 4120, 4120, { opened: '2026-09-10', checks: [check('Trânsito até o porto de destino', 35, 39, 'dias', { estimated: true, note: 'Previsão atual: 39 dias. Chegada ainda não realizada.' }), check('Transbordos', 1, null, 'transbordo', { pending: true })], timeline: [{ date: '2026-08-11', text: 'Referência estimada preservada: trânsito de 35 dias.' }, { date: '2026-08-16', text: 'Partida realizada.' }, { date: '2026-09-13', text: 'Previsão de chegada ao porto revisada para 24/09; ainda não realizada.' }] }),
       operation('0007', 'Liguria Parts', 'PO-2026-058', 'Gênova → Itapoá', 'Agente Gamma', 3960, 3960, { opened: '2026-08-26', checks: performance(true), cause: 'Causa ainda não comprovada. Nenhuma responsabilidade atribuída.', timeline: [{ date: '2026-07-09', text: 'Referência estimada preservada: 35 dias de trânsito.' }, { date: '2026-07-14', text: 'Partida realizada.' }, { date: '2026-08-26', text: 'Chegada ao porto realizada: 43 dias de trânsito; oito dias acima da referência.' }] }),
@@ -48,6 +48,31 @@
     const missing = checks.filter(c => !c.original || !Number.isFinite(c.agreed) || (!Number.isFinite(c.actual) && !c.pending));
     const pending = checks.filter(c => c.original && Number.isFinite(c.agreed) && (c.estimated || c.pending));
     return { requested, checks, evaluated, deviations, missing, pending, complete: requested && checks.length > 0 && evaluated.length === checks.length, status: !requested ? 'outside' : deviations.length ? 'deviation' : missing.length || !checks.length ? 'missing' : pending.length ? 'pending' : 'clean' };
+  }
+  // Kanban de Preço do frete (feedback do Orsi, 02/10/2026): gestão visual em três
+  // colunas, no lugar da tabela com presets. A coluna sai do MESMO resultado de
+  // `financial`, sem regra nova de divergência:
+  //   fatura  = "Com chegada confirmada, aguardando fatura": fatura ou referência
+  //             ainda não chegou (era "Falta informação" por fatura ausente).
+  //   analise = "Para análise": caso pronto (divergência) ou fatura recebida com
+  //             controle/fonte a completar (era "Caso pronto" e o restante de
+  //             "Falta informação").
+  //   ajuste  = "Sob ajuste": contestação já enviada (fixture `adjustment`) ou um
+  //             rascunho de contestação exportado nesta prévia.
+  //   null    = "Sem divergência" (conferida, nada a fazer) ou fora do escopo:
+  //             sai do quadro e é contada à parte.
+  const FREIGHT_COLUMNS = [
+    { id: 'fatura', label: 'Com chegada confirmada, aguardando fatura', note: 'A conferência começa quando a fatura chega.' },
+    { id: 'analise', label: 'Para análise', note: 'Diferenças e controles que pedem a sua leitura.' },
+    { id: 'ajuste', label: 'Sob ajuste', note: 'Contestação enviada; aguardando a correção do agente.' },
+  ];
+  function freightColumn(op, exported = false) {
+    const r = financial(op);
+    if (!r.requested) return null;
+    if (op.adjustment || (exported && r.status === 'deviation')) return 'ajuste';
+    if (r.status === 'clean') return null;
+    if (r.status === 'deviation') return 'analise';
+    return r.missing > 0 || !r.invoices.length ? 'fatura' : 'analise';
   }
   const normalize = text => String(text).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   function filterOperations(operations, filters) {
@@ -92,7 +117,7 @@
     if (available[preferred]) return preferred;
     return op.requested.find(dim => available[dim]) || (op.requested.includes(preferred) ? preferred : op.requested[0]);
   }
-  const api = { seed, clone, financial, operational, normalize, filterOperations, matches, summary, complement, addExternal, entryDimension };
+  const api = { seed, clone, financial, operational, normalize, filterOperations, matches, summary, complement, addExternal, entryDimension, FREIGHT_COLUMNS, freightColumn };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.AuditModel = api;
 })(typeof globalThis === 'undefined' ? this : globalThis);

@@ -29,4 +29,13 @@ check('performance tem cobertura e pedidos independentes do preço', () => { ass
 check('entrada parcial abre a dimensão disponível', () => { const o=M.addExternal([],externalInput).op; assert.equal(M.entryDimension(o,'preco'),'performance'); });
 check('escopo pendente exclusivo permanece na dimensão solicitada', () => { const o=M.addExternal([],{...externalInput,scope:'preco'}).op; assert.equal(M.entryDimension(o,'performance'),'preco'); });
 check('data de abertura da trilha corresponde à operação', () => ops.forEach(o=>assert.equal(o.logs[0].date,o.opened)));
+check('kanban: três colunas, com os rótulos aprovados', () => { assert.deepEqual(M.FREIGHT_COLUMNS.map(c=>c.label),['Com chegada confirmada, aguardando fatura','Para análise','Sob ajuste']); });
+check('kanban: caso pronto -> análise; fatura ausente -> aguardando fatura; contestação -> sob ajuste; sem divergência sai do quadro', () => {
+  assert.equal(M.financial(op('0011')).status,'deviation'); assert.equal(M.freightColumn(op('0011')),'analise');
+  assert.equal(M.financial(op('0012')).status,'missing'); assert.equal(M.freightColumn(op('0012')),'fatura');
+  assert.equal(M.freightColumn(op('0010')),'ajuste');
+  assert.equal(M.financial(op('0007')).status,'clean'); assert.equal(M.freightColumn(op('0007')),null);
+});
+check('kanban: rascunho exportado leva só caso com divergência para sob ajuste', () => { assert.equal(M.freightColumn(op('0011'),true),'ajuste'); assert.equal(M.freightColumn(op('0012'),true),'fatura'); });
+check('kanban: toda operação de preço cai em uma coluna ou é conferida sem divergência', () => ops.forEach(o => { const c=M.freightColumn(o); assert.ok(c===null ? M.financial(o).status==='clean' : M.FREIGHT_COLUMNS.some(x=>x.id===c)); }));
 console.log(`${count} verificações aprovadas.`);
