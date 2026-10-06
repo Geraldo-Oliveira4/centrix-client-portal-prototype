@@ -260,3 +260,15 @@ One continuous page (`public/prototypes/centrix-inteligencia`), no tabs that onl
 - **Four badges, four concepts, never colour-only** (icon + word, legend on screen). *Facts*, outlined: **Menor preço** (lowest TOTAL EM BRL among non-expired) and **Menor prazo** (lowest transit time). *Decisions*, filled plates: **Recomendada** (`portal-info`: the system suggests, only after analyst approval; never green) and **Escolhida** (`portal-success`: the proposal the client approved).
 - **Recommendation gate.** Before the Freitas analyst approves it, the tab shows only "Recomendação em revisão pela equipe Freitas…" — no score, no ranking, no hint. After approval: score 0–100, criterion bars, "Como calculamos" (weights 28/22/18/14/10/8) and a justification generated from the data. The recommended offer is not necessarily the highest score (10% price window over the cheapest eligible, direct route first), and the screen says so.
 - **This is the only AI score in the portal.** It compares proposals of one quotation; **Histórico do agente** shows facts only (shipments, on-time per stage, last 5, commitments with deviations), "dado, não veredito", with "Amostra pequena" under 3 and "Sem histórico" when absent.
+
+## Floating elements never overlap primary actions (07/10/2026)
+
+The "Ajuda" button (bottom-right) and the Preview-only "Demonstração" tab (bottom-left) must never cover a primary action, at any width.
+
+- **Every bar pinned to the bottom registers itself**: React bars use `useBottomActionBar()` (`frontend/app/portal/_shared/use-bottom-action-bar.ts`, a callback ref); iframe drawers report their `.drawer-footer` / `.drawer-actions` / `[data-bottom-action-bar]` through `public/prototypes/_shared/floating-safe.js`. The tallest one becomes `--floating-bottom-offset` on `<html>`; both floating elements rise above it with an 8px gap, and below 1024px Ajuda collapses to its icon (`aria-label` stays).
+- **Content keeps clear of both**: the portal content wrapper pads by `max(6rem, --floating-content-pad)`.
+- The math is pure and tested (`_shared/floating-safe-area.ts`). A new sticky footer that does not register is a bug, not a styling choice.
+
+## Agent history on the quotation detail: inline + drawer (07/10/2026)
+
+There is no standalone "Raio X do agente" block and no "Consultar agente" selector. Each offer row carries one line under the agent — "8 de 10 no prazo nesta rota · 1 divergência", "Sem histórico nesta rota" or "Amostra pequena (n=2)" — and a "Ver histórico" link that opens a drawer (right on desktop, bottom sheet on mobile; focus trap, Esc closes) with the three facts (cumprimento de prazo, cotado × cobrado, experiência nesta rota), the sample note, "A pontualidade observada não garante a próxima chegada" and the evidence expanded. Facts only, no score: "dado, não veredito". Copy lives in `frontend/app/portal/cotacao/lib/agent-history-line.ts`; the data source did not change.

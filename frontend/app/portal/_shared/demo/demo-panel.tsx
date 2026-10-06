@@ -62,7 +62,7 @@ export function DemoPanel() {
         <button
           type="button"
           className={cn(
-            'portal-small fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-[calc(1rem+env(safe-area-inset-left,0px))] z-30 inline-flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-3 py-1.5 font-medium text-portal-neutral shadow-sm transition-colors hover:border-brand-indigo-800/40 hover:text-brand-indigo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            'demo-tab-root portal-small fixed left-[calc(1rem+env(safe-area-inset-left,0px))] z-30 inline-flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-3 py-1.5 font-medium text-portal-neutral shadow-sm transition-colors hover:border-brand-indigo-800/40 hover:text-brand-indigo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             collapsed ? 'md:left-[72px]' : 'md:left-[256px]',
           )}
         >
