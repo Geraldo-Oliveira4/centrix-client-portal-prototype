@@ -48,6 +48,10 @@ import {
 } from './model';
 import s from './quotation-preview.module.css';
 import { reviewGroups } from './review-guide';
+import {
+  DEMO_REFERENCE_A,
+  DEMO_REFERENCE_B,
+} from '../comparativo/lib/fixtures';
 import { useBottomActionBar } from '../../_shared/use-bottom-action-bar';
 import {
   AgentHistoryDrawer,
@@ -321,6 +325,12 @@ export default function QuotationPreview({
           <a className={s.textButton} href="/portal/cotacoes/previa-habituais">
             Solicitações habituais
           </a>
+          <a
+            className={s.textButton}
+            href={`/portal/cotacoes/comparativo?cotacao=${DEMO_REFERENCE_A}`}
+          >
+            Comparar propostas
+          </a>
           {!list && (
             <a className={s.textButton} href="?variacoes=1">
               Ver variações
@@ -440,6 +450,32 @@ export default function QuotationPreview({
               somente da variação aberta.
             </p>
           </div>
+          {/* Entrada do comparativo de propostas (fixture própria, outra rota):
+              a prévia é a rota publicada de revisão de cotação, então é o
+              lugar natural para alcançá-lo sem tocar no detalhe real. */}
+          <section className={s.guideGroup}>
+            <h2>Comparar propostas</h2>
+            <div className={s.panel}>
+              {[
+                [DEMO_REFERENCE_A, 'LCL, cinco propostas, moedas misturadas, uma vencida e duas do mesmo agente.'],
+                [DEMO_REFERENCE_B, 'Seguro exigido; a recomendada não é a maior nota; o cliente já escolheu outra.'],
+              ].map(([ref, check]) => (
+                <a
+                  key={ref}
+                  className={s.listRow}
+                  href={`/portal/cotacoes/comparativo?cotacao=${ref}`}
+                >
+                  <span>
+                    <strong>Comparativo · {ref}</strong>
+                    <small>{check}</small>
+                  </span>
+                  <span className={s.guideOpen}>
+                    Comparar propostas <ChevronRight size={16} />
+                  </span>
+                </a>
+              ))}
+            </div>
+          </section>
           {reviewGroups.map((group) => (
             <section key={group.title} className={s.guideGroup}>
               <h2>{group.title}</h2>
