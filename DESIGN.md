@@ -250,3 +250,15 @@ One continuous page (`public/prototypes/centrix-inteligencia`), no tabs that onl
 - **Filter options never disappear.** The list and the count beside each option ("Shanghai → Santos (20)") come from the whole dataset; an option with no shipment in the current period plus the other active filters is shown disabled, never removed (a checked option always stays uncheckable).
 - **The current view is the report.** "Preparar relatório" opens a side panel that summarises the view ("Rota Shanghai → Santos · FOB · Últimos 90 dias · 7 embarques") and offers: *Salvar como minha visão* (named chips on their own row under the title restore period, filters, mode and visible blocks, with rename/delete in the chip menu; same per-user storage as Personalizar); *Levar para uma conversa* (exactly one exporter → the existing Revisão de exportador with period and filters; agent or route → "Revisão de rota ou agente" marked Planejado; otherwise a hint); *Receber e compartilhar* (e-mail schedule and PDF are simulated and labelled "Prévia"; Copiar link is real). Modal panel: focus trap, Esc closes, labelled fields.
 
+
+## Floating elements never overlap primary actions (07/10/2026)
+
+The "Ajuda" button (bottom-right) and the Preview-only "Demonstração" tab (bottom-left) must never cover a primary action, at any width.
+
+- **Every bar pinned to the bottom registers itself**: React bars use `useBottomActionBar()` (`frontend/app/portal/_shared/use-bottom-action-bar.ts`, a callback ref); iframe drawers report their `.drawer-footer` / `.drawer-actions` / `[data-bottom-action-bar]` through `public/prototypes/_shared/floating-safe.js`. The tallest one becomes `--floating-bottom-offset` on `<html>`; both floating elements rise above it with an 8px gap, and below 1024px Ajuda collapses to its icon (`aria-label` stays).
+- **Content keeps clear of both**: the portal content wrapper pads by `max(6rem, --floating-content-pad)`.
+- The math is pure and tested (`_shared/floating-safe-area.ts`). A new sticky footer that does not register is a bug, not a styling choice.
+
+## Agent history on the quotation detail: inline + drawer (07/10/2026)
+
+There is no standalone "Raio X do agente" block and no "Consultar agente" selector. Each offer row carries one line under the agent — "8 de 10 no prazo nesta rota · 1 divergência", "Sem histórico nesta rota" or "Amostra pequena (n=2)" — and a "Ver histórico" link that opens a drawer (right on desktop, bottom sheet on mobile; focus trap, Esc closes) with the three facts (cumprimento de prazo, cotado × cobrado, experiência nesta rota), the sample note, "A pontualidade observada não garante a próxima chegada" and the evidence expanded. Facts only, no score: "dado, não veredito". Copy lives in `frontend/app/portal/cotacao/lib/agent-history-line.ts`; the data source did not change.

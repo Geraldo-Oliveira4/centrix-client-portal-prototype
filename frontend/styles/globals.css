@@ -733,16 +733,38 @@ html:has(.fc-brand-scope) svg.lucide {
   --z-support: 55;
   --z-support-under-modal: 40;
   --support-gap: 16px;
+  /* Escritas por use-bottom-action-bar.ts quando há barra de ação presa ao
+     rodapé. Regra: flutuante nunca cobre ação primária (DESIGN.md). */
+  --floating-bottom-offset: 0px;
+  --floating-content-pad: 0px;
 }
 .support-root {
   position: fixed;
   right: calc(var(--support-gap) + env(safe-area-inset-right, 0px));
-  bottom: calc(var(--support-gap) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--support-gap) + var(--floating-bottom-offset) + env(safe-area-inset-bottom, 0px));
+  transition: bottom 150ms ease-out;
   z-index: var(--z-support);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 8px;
+}
+/* Com barra presente em tela estreita, a Ajuda vira só ícone (aria-label fica). */
+html[data-floating-compact] .support-label {
+  display: none;
+}
+/* Aba "Demonstração" (só Preview), canto inferior esquerdo: mesma regra. */
+.demo-tab-root {
+  bottom: calc(1rem + var(--floating-bottom-offset) + env(safe-area-inset-bottom, 0px));
+}
+/* Fim do conteúdo do portal: nunca escondido atrás da barra + Ajuda. */
+.portal-content-pad {
+  padding-bottom: max(6rem, var(--floating-content-pad));
+}
+@media (prefers-reduced-motion: reduce) {
+  .support-root {
+    transition: none;
+  }
 }
 body:has([role='dialog'][data-state='open']) .support-root,
 body:has([role='alertdialog'][data-state='open']) .support-root {
