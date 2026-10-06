@@ -2360,6 +2360,20 @@ São listas de **conveniência**, não catálogo — o backend grava texto livre
 valida contra elas. Acrescentar item é seguro; remover um que algum cliente já
 salvou some com o valor da tela (o dado continua no banco).
 
+### Comparativo de propostas (`/portal/cotacoes/comparativo/`) — 06/10/2026
+
+Rota nativa, só fixture (duas cotações fictícias em `lib/fixtures.ts`, `COT-DEMO-0417` e `COT-DEMO-0388`), sem API e sem tocar no detalhe real `/portal/cotacao/[id]`. Estado na URL: `?cotacao=&aba=mapa|recomendacao|historico&ordem=preco|prazo`. A tela só renderiza no cliente (`dynamic(..., { ssr: false })`), porque validade e chegada são relativas ao DIA de quem abre e servidor (UTC) e navegador (BRT) discordam à noite.
+
+| O quê | Onde | Regra que não pode afrouxar |
+|---|---|---|
+| Totais, selos factuais, ordenação, rótulos | `lib/comparison-model.ts` (puro) | Total sempre CALCULADO dos componentes; frete internacional é total da proposta; "TOTAL EM BRL" usa a PTAX comum da cotação. Vencida não leva "Menor preço"/"Menor prazo" e vai para o fim da ordenação. Mesmo agente duas vezes = "Opção 1/2" pela ordem de chegada. Texto do agente passa por `decodeText` (entidades HTML) e é impresso como texto; ausente = "—" |
+| Motor da recomendação | `lib/recommendation-engine.ts` (puro) | Pesos e tolerâncias são constantes nomeadas (regra vigente, muda por decisão comercial). Critérios relativos usam a régua das ELEGÍVEIS. Free time ausente = 0 dia antes da equivalência; critério ausente em todas = 100. Inelegível: vencida, seguro exigido sem seguro, auditoria alta/crítica. Recomendada = janela de 10% sobre a mais barata elegível → rota direta → maior nota. `recommendationView` sem aprovação devolve só `{ state: 'em_revisao' }` |
+| Portão do analista | `lib/analyst-approval.ts` + `use-analyst-approval.ts`; seção `_shared/demo/demo-section-comparativo.tsx` | Chave "Analista aprovou a recomendação" só no painel INTERNO (import dinâmico com condição inline). Em produção o hook devolve sempre `false` |
+| Histórico do agente | `lib/agent-history.ts` (puro) + `components/agent-history-tab.tsx` | Lê `public/prototypes/centrix-inteligencia/data.js` e o `commitments` de `intel-engine.js` SÓ PARA LEITURA (import direto do arquivo do iframe; não edite a fixture por esta tela). Sem nota de agente; < 3 = "Amostra pequena"; agente fora da fixture (Epsilon Cargo) = "Sem histórico" |
+| Aprovar | `components/approve-proposal-dialog.tsx` | Simulado, morre no refresh. O passo "Por que você escolheu esta proposta?" é opcional, não persiste e é ideia pendente de validação do Orsi (relatório won/lost futuro) |
+
+Testes em `npm run test:unit`: `comparison-model`, `recommendation-engine`, `agent-history`.
+
 ## Quotation field utilities — `utils/quotation-fields.ts`
 
 All shared logic for quotation field handling lives in `utils/quotation-fields.ts`. **Do not duplicate any of this in component or page files.**
