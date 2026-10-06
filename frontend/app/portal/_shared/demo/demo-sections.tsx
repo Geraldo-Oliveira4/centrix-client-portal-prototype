@@ -44,9 +44,9 @@ export interface DemoSection {
 
 // SEÇÕES INTERNAS (Freitas/Ionix). Só existem em build com
 // NEXT_PUBLIC_PROTO_INTERNAL=1 (preview): ondas de módulos, Freitas simulada,
-// e as mesas de revisão da Cotação V2, do Embarque via PO e do Fechamento
-// direto. A condição fica ESCRITA AQUI, inline, em volta de cada
-// `import()`, para o compilador resolvê-la e deixar esse código fora do bundle
+// as mesas de revisão da Cotação V2, do Embarque via PO e do Fechamento
+// direto, e o analista que libera a Recomendação IA do comparativo. A
+// condição fica ESCRITA AQUI, inline, em volta de cada `import()`, para o compilador resolvê-la e deixar esse código fora do bundle
 // de produção — uma constante importada de outro módulo não seria dobrada.
 // Em produção ficam só "Tipo de cliente", "Boas-vindas" e "Reiniciar".
 const INTERNAL_SECTIONS: DemoSection[] =
@@ -94,6 +94,17 @@ const INTERNAL_SECTIONS: DemoSection[] =
           Content: dynamic(() =>
             import('./demo-section-direct-close').then(
               (m) => m.DirectCloseSection,
+            ),
+          ),
+        },
+        {
+          id: 'comparativo',
+          title: 'Comparativo de propostas',
+          description:
+            'O analista que libera a Recomendação IA para o cliente.',
+          Content: dynamic(() =>
+            import('./demo-section-comparativo').then(
+              (m) => m.ComparativoSection,
             ),
           ),
         },

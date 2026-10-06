@@ -2362,6 +2362,24 @@ São listas de **conveniência**, não catálogo — o backend grava texto livre
 valida contra elas. Acrescentar item é seguro; remover um que algum cliente já
 salvou some com o valor da tela (o dado continua no banco).
 
+### Comparativo de propostas (`/portal/cotacoes/comparativo/`) — 06/10/2026
+
+Rota nativa, só fixture (duas cotações fictícias em `lib/fixtures.ts`, `COT-DEMO-0417` e `COT-DEMO-0388`), sem API e sem tocar no detalhe real `/portal/cotacao/[id]`. Estado na URL: `?cotacao=&aba=mapa|recomendacao|historico&ordem=preco|prazo`. A tela só renderiza no cliente (`dynamic(..., { ssr: false })`), porque validade e chegada são relativas ao DIA de quem abre e servidor (UTC) e navegador (BRT) discordam à noite.
+
+| O quê | Onde | Regra que não pode afrouxar |
+|---|---|---|
+| Totais, selos factuais, ordenação, rótulos | `lib/comparison-model.ts` (puro) | Total sempre CALCULADO dos componentes; frete internacional é total da proposta; "TOTAL EM BRL" usa a PTAX comum da cotação. Vencida não leva "Menor preço"/"Menor prazo" e vai para o fim da ordenação. Mesmo agente duas vezes = "Opção 1/2" pela ordem de chegada. Texto do agente passa por `decodeText` (entidades HTML) e é impresso como texto; ausente = "—" |
+| Motor da recomendação | `lib/recommendation-engine.ts` (puro) | Pesos e tolerâncias são constantes nomeadas (regra vigente, muda por decisão comercial). Critérios relativos usam a régua das ELEGÍVEIS. Free time ausente = 0 dia antes da equivalência; critério ausente em todas = 100. Inelegível: vencida, seguro exigido sem seguro, auditoria alta/crítica. Recomendada = janela de 10% sobre a mais barata elegível → rota direta → maior nota. `recommendationView` sem aprovação devolve só `{ state: 'em_revisao' }` |
+| Portão do analista | `lib/analyst-approval.ts` + `use-analyst-approval.ts`; seção `_shared/demo/demo-section-comparativo.tsx` | Chave "Analista aprovou a recomendação" só no painel INTERNO (import dinâmico com condição inline). Em produção o hook devolve sempre `false` |
+| Histórico do agente | `lib/agent-history.ts` (puro) + `components/agent-history-tab.tsx` | Lê `public/prototypes/centrix-inteligencia/data.js` e o `commitments` de `intel-engine.js` SÓ PARA LEITURA (import direto do arquivo do iframe; não edite a fixture por esta tela). Sem nota de agente; < 3 = "Amostra pequena"; agente fora da fixture (Epsilon Cargo) = "Sem histórico" |
+| Aprovar | `components/approve-proposal-dialog.tsx` | Simulado, morre no refresh. O passo "Por que você escolheu esta proposta?" é opcional, não persiste e é ideia pendente de validação do Orsi (relatório won/lost futuro) |
+| Resumo recolhível | `lib/summary-panel.ts` (puro), store `comparativo-summary-open` | Sem escolha gravada: recolhido abaixo de 1536px, aberto acima; a escolha do cliente vence a largura. Recolhido, a tabela ocupa a largura toda e as 5 propostas cabem a 1440px sem rolagem; a dica "Role a tabela" só aparece quando a rolagem é MEDIDA (ResizeObserver). Chips de arquivo têm largura máxima: sem ela o nome do arquivo alargava a coluna |
+| Entrada | `cotacoes/previa/quotation-preview.tsx` | "Comparar propostas" na barra da prévia e um grupo no guia `?variacoes=1`. Não há link no Kanban: a prévia é a rota publicada de revisão, e um segundo `useDemoPanel` registraria outro Ctrl+Shift+D (alternaria duas vezes) |
+
+Campos que faltam no backend: `docs/spec-campos-comparativo.md` (raiz).
+
+Testes em `npm run test:unit`: `comparison-model`, `recommendation-engine`, `agent-history`, `summary-panel`.
+
 ## Quotation field utilities — `utils/quotation-fields.ts`
 
 All shared logic for quotation field handling lives in `utils/quotation-fields.ts`. **Do not duplicate any of this in component or page files.**
@@ -2526,8 +2544,8 @@ Handoff para o backend: seções 8, 10, 11, 11b e 12 de `_shared/demo/HANDOFF-BA
 | "Cotar esta rota agora" | `onboarding.ts::welcomeQuotationHref` + `nova-cotacao/page.tsx` | `fonte=boas_vindas` pré-preenche mesmo no SaaS puro (valor informado pelo cliente); o Radar continua bloqueado no SaaS. Não grava `portal_origin`. O passo "primeira cotação" fecha no ENVIO, nunca no clique |
 | Mapa da Home | `home/components/home-route-map.tsx` | `ShipmentMap` ganhou só o slot opcional `children` (sem ele, nada muda) — é a única edição num componente reaproveitado da Home. Rotas da escolha do cliente em laranja; não são posição de carga |
 | Contagem dos números | `home/lib/count-up.ts` (puro) + `count-up-on-reveal.tsx` | Anima o texto já renderizado e termina SEMPRE no texto original; zero e ano não contam; desligado com `prefers-reduced-motion` |
-| Mini tour | `TOUR_STEPS` em `onboarding.ts`, `onboarding-flow.tsx` | No máximo 3 paradas (menu, Central, Ajuda), DEPOIS das boas-vindas e opcional; espera a revelação e não abre na Nova cotação |
-| Primeiros passos | `first-steps-card.tsx`, `use-first-steps.ts` (`justDone`, `acknowledgeFirstStep`) | No topo da Home; botão do próximo passo; barra fina com 2 de 3 (`firstStepsCompact`) |
+| Mini tour | `TOUR_STEPS` em `onboarding.ts`, `onboarding-flow.tsx` | 4 paradas desde 07/10/2026 (menu, Central, Performance, Ajuda), DEPOIS das boas-vindas e opcional; espera a revelação e não abre na Nova cotação |
+| Primeiros passos | `first-steps-card.tsx`, `use-first-steps.ts` (`justDone`, `acknowledgeFirstStep`) | No topo da Home; botão do próximo passo; 5 itens desde 07/10/2026, barra fina faltando um (`firstStepsCompact`) |
 
 ## Foco — feedback do Orsi, 02/10/2026 (branch `feat/proto-ux-orsi-foco`)
 
