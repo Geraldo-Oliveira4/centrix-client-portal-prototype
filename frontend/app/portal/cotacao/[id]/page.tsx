@@ -75,6 +75,12 @@ import {
   useEvidence,
 } from '../../inteligencia/components/evidence-block';
 import { ApproveDialog } from './components/approve-dialog';
+import { useBottomActionBar } from '../../_shared/use-bottom-action-bar';
+import {
+  AgentHistoryDrawer,
+  AgentHistoryInline,
+} from '../components/agent-history-drawer';
+import { agentHistoryLine } from '../lib/agent-history-line';
 import { CancelDialog } from './components/cancel-dialog';
 import { DeclineDialog } from './components/decline-dialog';
 import { DocumentsSection } from './components/documents-section';
@@ -157,7 +163,10 @@ function QuotationDetail({
   const search = useSearchParams();
   const returnHref = search.get('retorno') ? historyReturn(search.get('retorno')) : '/portal/cotacoes';
   const [selection, setSelection] = useState<string | null>(null);
-  const [inspected, setInspected] = useState<string | null>(null);
+  // A barra fixa de decisão se registra: a Ajuda e a aba Demonstração sobem acima dela.
+  const decisionBarRef = useBottomActionBar();
+  // Oferta cuja gaveta "Ver histórico" está aberta.
+  const [historyFor, setHistoryFor] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [dialog, setDialog] = useState<'approve' | 'decline' | 'cancel' | null>(
     null,
@@ -193,12 +202,7 @@ function QuotationDetail({
         ? p.id === recommendation.recommended_proposal_id
         : p.is_recommended) && !proposalIssue(p),
   );
-  const profile =
-    proposals.find((p) => p.id === inspected) ??
-    winner ??
-    chosen ??
-    recommended ??
-    proposals[0];
+  const historyProposal = proposals.find((p) => p.id === historyFor) ?? null;
   // O OVERLAY DESTRAVA A ESCOLHA. `canDecide` exige ENVIADA_CLIENTE, e uma
   // cotacao aberta pelo portal fica em TRIAGEM_IA — sem esta linha o cliente
   // via a comparacao liberada com todos os radios desabilitados e a jornada
@@ -276,7 +280,6 @@ function QuotationDetail({
   const select = (p: PortalProposal) => {
     if (!deciding || proposalIssue(p)) return;
     setSelection(p.id);
-    setInspected(null);
   };
 
   return (
@@ -579,7 +582,6 @@ function QuotationDetail({
                               }
                               checked={selected}
                               disabled={!deciding || !!issue}
-                              onClick={() => setInspected(null)}
                               onChange={() => select(p)}
                             />
                           </td>
@@ -590,6 +592,19 @@ function QuotationDetail({
                             <small>
                               {p.carrier || 'Armador não informado'}
                             </small>
+                            {(() => {
+                              const line = agentHistoryLine(
+                                p.agent_id ? illustrativeAgentHistory(p.agent_id) : null,
+                              );
+                              return (
+                                <AgentHistoryInline
+                                  text={line.text}
+                                  muted={line.kind !== 'normal'}
+                                  agentName={p.agent?.name || 'agente'}
+                                  onOpen={() => setHistoryFor(p.id)}
+                                />
+                              );
+                            })()}
                             {p.is_winner ? (
                               <span className={s.recommendedTag}>
                                 Escolhida
@@ -729,31 +744,32 @@ function QuotationDetail({
           </div>
         </section>
       )}
-      {/* MENOS DADO DEPOIS DA DECISAO (30/09/2026): o Raio X existe para
-          ESCOLHER. Com a cotacao fechada ele nao muda mais decisao nenhuma, e
-          vai para "ver detalhes" como os outros blocos de apoio. */}
-      {profile && !cancelled && !needsInfo && !waiting && !closed && (
-        <AgentProfile
-          quotation={q}
-          proposal={profile}
-          proposals={proposals}
-          chosenId={winner?.id ?? chosen?.id}
-          onInspect={setInspected}
-        />
-      )}
-      {profile && closed && (
-        <details className={s.support}>
-          <summary>
-            Raio X do agente escolhido <ChevronDown size={16} />
-          </summary>
-          <AgentProfile
-            quotation={q}
-            proposal={profile}
-            proposals={proposals}
-            chosenId={winner?.id ?? chosen?.id}
-            onInspect={setInspected}
-          />
-        </details>
+      {/* O antigo bloco "Raio X do agente de cargas" virou a linha de histórico
+          de cada oferta + esta gaveta (07/10/2026). Mesma fonte de dado. */}
+      {historyProposal && (
+        <AgentHistoryDrawer
+          open
+          onOpenChange={(open) => {
+            if (!open) setHistoryFor(null);
+          }}
+          agentName={historyProposal.agent?.name || 'Agente não informado'}
+          context={
+            historyProposal.id === (winner?.id ?? chosen?.id)
+              ? 'agente da sua escolha'
+              : historyProposal.id === recommended?.id
+                ? 'agente da proposta recomendada'
+                : undefined
+          }
+          history={
+            historyProposal.agent_id
+              ? illustrativeAgentHistory(historyProposal.agent_id)
+              : null
+          }
+          routeLabel={formatRoute(q)}
+          periodNote="Indicadores demonstrativos: amostra de março a agosto de 2026. Registros individuais de pontualidade e auditoria ainda não estão conectados."
+        >
+          <AgentEvidence quotation={q} proposal={historyProposal} />
+        </AgentHistoryDrawer>
       )}
 
       {portalOrigin && (canGenerateSI || closed) && (
@@ -821,7 +837,7 @@ function QuotationDetail({
         </div>
       </footer>
       {deciding && (
-        <div className={s.decisionBar}>
+        <div ref={decisionBarRef} className={s.decisionBar}>
           <div>
             {chosen ? (
               <>
@@ -980,98 +996,21 @@ function ProposalDetails({
   );
 }
 
-function AgentProfile({
+/** "Ver histórico e evidências" do detalhe real: a mesma `useEvidence` de antes. */
+function AgentEvidence({
   quotation,
   proposal,
-  proposals,
-  chosenId,
-  onInspect,
 }: {
   quotation: PortalQuotation;
   proposal: PortalProposal;
-  proposals: PortalProposal[];
-  chosenId?: string;
-  onInspect: (id: string) => void;
 }) {
-  const history = illustrativeAgentHistory(proposal.agent_id);
   const evidence = useEvidence({ ...quotation, proposals: [proposal] });
   return (
-    <section className={s.agentProfile} aria-labelledby="agent-profile-title">
-      <div className={s.profileHeader}>
-        <div>
-          <h2 id="agent-profile-title">Raio X do agente de cargas</h2>
-          <p className={s.muted}>Histórico para ajudar na sua escolha</p>
-        </div>
-        <label className={s.agentPicker}>
-          <span>Consultar agente</span>
-          <select
-            value={proposal.id}
-            onChange={(event) => onInspect(event.target.value)}
-          >
-            {proposals.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.agent?.name || 'Agente não informado'}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <p className={s.profileContext} aria-live="polite">
-        <strong>{proposal.agent?.name || 'Agente não informado'}</strong>
-        <span>
-          {proposal.id === chosenId
-            ? 'Agente da sua escolha'
-            : 'Consultando histórico · sua escolha permanece igual'}
-        </span>
+    <>
+      <EvidenceBody {...evidence} />
+      <p className={s.muted}>
+        {evidenceFootnote(evidence.scope, evidence.modalLabel)}
       </p>
-      <dl className={s.profileMetrics}>
-        <div>
-          <dt>Cumprimento de prazo</dt>
-          <dd>
-            <strong>
-              {history.onTime} de {history.completed}
-            </strong>
-            <span>chegadas no prazo</span>
-          </dd>
-          <p>{history.completed - history.onTime} chegadas após o previsto.</p>
-        </div>
-        <div>
-          <dt>Cotado × cobrado</dt>
-          <dd>
-            <strong>
-              {history.discrepancies === 0 ? 'Nenhuma' : history.discrepancies}
-            </strong>
-            <span>divergências confirmadas</span>
-          </dd>
-          <p>{history.audited} fretes conferidos nesta amostra.</p>
-        </div>
-        <div>
-          <dt>Experiência na rota</dt>
-          <dd>
-            <strong>{history.completed}</strong>
-            <span>embarques concluídos</span>
-          </dd>
-          <p>{formatRoute(quotation)}</p>
-        </div>
-      </dl>
-      <p className={s.profileReading}>
-        Use o histórico junto ao prazo e às condições da proposta. A
-        pontualidade observada não garante a próxima chegada.
-      </p>
-      <details key={proposal.id} className={s.support}>
-        <summary>
-          Ver histórico e critérios <ChevronDown size={16} />
-        </summary>
-        <p className={s.muted}>
-          Indicadores demonstrativos: amostra de março a agosto de 2026.
-          Registros individuais de pontualidade e auditoria ainda não estão
-          conectados.
-        </p>
-        <EvidenceBody {...evidence} />
-        <p className={s.muted}>
-          {evidenceFootnote(evidence.scope, evidence.modalLabel)}
-        </p>
-      </details>
-    </section>
+    </>
   );
 }

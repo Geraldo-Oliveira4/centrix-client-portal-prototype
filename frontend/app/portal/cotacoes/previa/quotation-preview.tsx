@@ -48,6 +48,12 @@ import {
 } from './model';
 import s from './quotation-preview.module.css';
 import { reviewGroups } from './review-guide';
+import { useBottomActionBar } from '../../_shared/use-bottom-action-bar';
+import {
+  AgentHistoryDrawer,
+  AgentHistoryInline,
+} from '../../cotacao/components/agent-history-drawer';
+import { agentHistoryLine } from '../../cotacao/lib/agent-history-line';
 import { DraftRequestForm } from './draft-request-form';
 import {
   ResponseOffers,
@@ -86,6 +92,8 @@ export default function QuotationPreview({
   const [q, setQ] = useState<Quote>(() => createQuote(scenario));
   const [loaded, setLoaded] = useState(false);
   const [selection, setSelection] = useState<string | null>(null);
+  // A barra fixa de decisão se registra: a Ajuda e a aba Demonstração sobem acima dela.
+  const decisionBarRef = useBottomActionBar();
   const [inspectedAgent, setInspectedAgent] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
@@ -181,9 +189,8 @@ export default function QuotationPreview({
   const cheapestComplete = q.offers
     .filter((o) => o.complete && validOffer(o))
     .sort((a, b) => a.total - b.total)[0];
-  const focusOffer = chosen ?? recommended ?? q.offers[0];
-  const agentProfile =
-    q.offers.find((o) => o.id === inspectedAgent) ?? focusOffer;
+  // Oferta cuja gaveta "Ver histórico" está aberta (antes: o agente do Raio X).
+  const agentProfile = q.offers.find((o) => o.id === inspectedAgent) ?? null;
   const selectOffer = (id: string) => {
     if (!canCompare || decisionError(q, id)) return;
     setSelection(id);
@@ -849,6 +856,17 @@ export default function QuotationPreview({
                                   {o.agent}
                                 </strong>
                                 <small>{o.carrier}</small>
+                                {(() => {
+                                  const line = agentHistoryLine(o);
+                                  return (
+                                    <AgentHistoryInline
+                                      text={line.text}
+                                      muted={line.kind !== 'normal'}
+                                      agentName={o.agent}
+                                      onOpen={() => setInspectedAgent(o.id)}
+                                    />
+                                  );
+                                })()}
                                 {rec ? (
                                   <span className={s.recommendedTag}>
                                     <Sparkles size={11} /> Recomendada
@@ -1071,122 +1089,27 @@ export default function QuotationPreview({
             </section>
           )}
 
-          {canCompare && focusOffer && (
-            <div className={s.insights}>
-              <section
-                className={s.agentProfile}
-                aria-labelledby="agent-profile-title"
-              >
-                <div className={s.profileHeader}>
-                  <div>
-                    <h2 id="agent-profile-title">Raio X do agente de cargas</h2>
-                    <p className={s.muted}>
-                      Histórico para ajudar na sua escolha
-                    </p>
-                  </div>
-                  <label className={s.agentPicker}>
-                    <span>Consultar agente</span>
-                    <select
-                      value={agentProfile.id}
-                      onChange={(event) =>
-                        setInspectedAgent(event.target.value)
-                      }
-                    >
-                      {q.offers.map((offer) => (
-                        <option key={offer.id} value={offer.id}>
-                          {offer.agent}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <p className={s.profileContext} aria-live="polite">
-                  <strong>{agentProfile.agent}</strong>
-                  <span>
-                    {agentProfile.id === chosen?.id
-                      ? 'Agente da sua escolha'
-                      : agentProfile.id === recommended?.id
-                        ? 'Agente da proposta recomendada'
-                        : 'Consultando histórico · sua escolha permanece igual'}
-                  </span>
-                </p>
-                <dl className={s.profileMetrics}>
-                  <div>
-                    <dt>Cumprimento de prazo</dt>
-                    <dd>
-                      {agentProfile.completed > 0 ? (
-                        <>
-                          <strong>
-                            {agentProfile.onTime} de {agentProfile.completed}
-                          </strong>
-                          <span>chegadas no prazo</span>
-                        </>
-                      ) : (
-                        <strong>Sem histórico</strong>
-                      )}
-                    </dd>
-                    <p>
-                      {agentProfile.completed > 0
-                        ? `Após o previsto no porto: ${agentProfile.completed - agentProfile.onTime} de ${agentProfile.completed}.`
-                        : 'Ainda não há chegadas para avaliar.'}
-                    </p>
-                  </div>
-                  <div>
-                    <dt>Cotado × cobrado</dt>
-                    <dd>
-                      {agentProfile.audited > 0 ? (
-                        <>
-                          <strong>
-                            {agentProfile.discrepancies === 0
-                              ? 'Nenhuma'
-                              : agentProfile.discrepancies}
-                          </strong>
-                          <span>
-                            {agentProfile.discrepancies > 1
-                              ? 'divergências confirmadas'
-                              : 'divergência confirmada'}
-                          </span>
-                        </>
-                      ) : (
-                        <strong>Sem auditorias</strong>
-                      )}
-                    </dd>
-                    <p>
-                      {agentProfile.audited > 0
-                        ? `${agentProfile.audited} fretes conferidos nesta amostra.`
-                        : 'Ainda não há cobranças conferidas.'}
-                    </p>
-                  </div>
-                  <div>
-                    <dt>Experiência nesta rota</dt>
-                    <dd>
-                      <strong>
-                        {agentProfile.completed > 0
-                          ? agentProfile.completed
-                          : 'Sem histórico'}
-                      </strong>
-                      {agentProfile.completed > 0 && (
-                        <span>embarques concluídos</span>
-                      )}
-                    </dd>
-                    <p>
-                      {q.origin} → {q.destination} · {q.modal} · {q.equipment}
-                    </p>
-                  </div>
-                </dl>
-                <p className={s.profileReading}>
-                  {agentProfile.completed > 0
-                    ? 'Use esse histórico junto ao prazo e às condições da proposta. A pontualidade observada não garante a próxima chegada.'
-                    : 'Ainda não há histórico suficiente para avaliar este agente. Confirme as condições da proposta antes de escolher.'}
-                </p>
-                <p className={s.muted}>
-                  Março a agosto de 2026 · amostra demonstrativa nesta rota
-                </p>
-                <details key={agentProfile.id}>
-                  <summary>
-                    Ver histórico e evidências <ChevronDown size={13} />
-                  </summary>
-                  <div className={s.evidence}>
+          {/* O antigo bloco "Raio X do agente de cargas" virou a linha de
+              histórico de cada oferta + esta gaveta (07/10/2026). */}
+          {agentProfile && (
+            <AgentHistoryDrawer
+              open
+              onOpenChange={(open) => {
+                if (!open) setInspectedAgent(null);
+              }}
+              agentName={agentProfile.agent}
+              context={
+                agentProfile.id === chosen?.id
+                  ? 'agente da sua escolha'
+                  : agentProfile.id === recommended?.id
+                    ? 'agente da proposta recomendada'
+                    : undefined
+              }
+              history={agentProfile}
+              routeLabel={`${q.origin} → ${q.destination} · ${q.modal} · ${q.equipment}`}
+              periodNote="Março a agosto de 2026 · amostra demonstrativa nesta rota."
+            >
+              <div className={s.evidence}>
                     <table>
                       <thead>
                         <tr>
@@ -1241,9 +1164,7 @@ export default function QuotationPreview({
                       resolução não estão disponíveis nesta base.
                     </small>
                   </div>
-                </details>
-              </section>
-            </div>
+            </AgentHistoryDrawer>
           )}
 
           {['review', 'released', 'closed'].includes(q.stage) && winner && (
@@ -1350,7 +1271,7 @@ export default function QuotationPreview({
           </footer>
 
           {canCompare && (
-            <div className={s.decisionBar}>
+            <div ref={decisionBarRef} className={s.decisionBar}>
               {chosen ? (
                 <div>
                   <span className={s.decisionLabel}>Sua escolha</span>

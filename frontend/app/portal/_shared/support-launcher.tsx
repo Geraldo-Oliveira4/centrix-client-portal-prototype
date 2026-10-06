@@ -29,6 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 import { portalFont } from '../portal-font';
+import { useIframeBottomBars } from './use-bottom-action-bar';
 import { setDemoValue, useDemoValue } from './demo/use-demo-store';
 import {
   SUPPORT_GREETING,
@@ -283,6 +284,9 @@ export function SupportLauncher() {
   const [mounted, setMounted] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
+  // Sobe acima de qualquer barra de ação presa ao rodapé, inclusive as de
+  // dentro dos iframes (floating-safe-area.ts).
+  useIframeBottomBars(usePathname() ?? '');
 
   useEffect(() => setMounted(true), []);
 
@@ -387,7 +391,7 @@ export function SupportLauncher() {
         ) : (
           <LifeBuoy className="h-5 w-5 shrink-0" />
         )}
-        <span className="hidden sm:inline">{open ? 'Fechar' : 'Ajuda'}</span>
+        <span className="support-label hidden sm:inline">{open ? 'Fechar' : 'Ajuda'}</span>
       </button>
     </div>,
     document.body,
