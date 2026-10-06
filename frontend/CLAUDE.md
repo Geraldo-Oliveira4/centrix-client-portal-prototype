@@ -2372,7 +2372,12 @@ Rota nativa, só fixture (duas cotações fictícias em `lib/fixtures.ts`, `COT-
 | Histórico do agente | `lib/agent-history.ts` (puro) + `components/agent-history-tab.tsx` | Lê `public/prototypes/centrix-inteligencia/data.js` e o `commitments` de `intel-engine.js` SÓ PARA LEITURA (import direto do arquivo do iframe; não edite a fixture por esta tela). Sem nota de agente; < 3 = "Amostra pequena"; agente fora da fixture (Epsilon Cargo) = "Sem histórico" |
 | Aprovar | `components/approve-proposal-dialog.tsx` | Simulado, morre no refresh. O passo "Por que você escolheu esta proposta?" é opcional, não persiste e é ideia pendente de validação do Orsi (relatório won/lost futuro) |
 
-Testes em `npm run test:unit`: `comparison-model`, `recommendation-engine`, `agent-history`.
+| Resumo recolhível | `lib/summary-panel.ts` (puro), store `comparativo-summary-open` | Sem escolha gravada: recolhido abaixo de 1536px, aberto acima; a escolha do cliente vence a largura. Recolhido, a tabela ocupa a largura toda e as 5 propostas cabem a 1440px sem rolagem; a dica "Role a tabela" só aparece quando a rolagem é MEDIDA (ResizeObserver). Chips de arquivo têm largura máxima: sem ela o nome do arquivo alargava a coluna |
+| Entrada | `cotacoes/previa/quotation-preview.tsx` | "Comparar propostas" na barra da prévia e um grupo no guia `?variacoes=1`. Não há link no Kanban: a prévia é a rota publicada de revisão, e um segundo `useDemoPanel` registraria outro Ctrl+Shift+D (alternaria duas vezes) |
+
+Campos que faltam no backend: `docs/spec-campos-comparativo.md` (raiz).
+
+Testes em `npm run test:unit`: `comparison-model`, `recommendation-engine`, `agent-history`, `summary-panel`.
 
 ## Quotation field utilities — `utils/quotation-fields.ts`
 

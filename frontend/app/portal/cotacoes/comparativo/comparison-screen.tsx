@@ -10,7 +10,13 @@
 
 import { useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { CheckCircle2, Download, Info } from 'lucide-react';
+import {
+  CheckCircle2,
+  Download,
+  Info,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from 'lucide-react';
 import { toast } from 'react-toastify';
 
 import { Button } from '@/components/ui/button';
@@ -35,6 +41,12 @@ import {
 import { comparisonFixtures, findComparison } from './lib/fixtures';
 import { recommendationView } from './lib/recommendation-engine';
 import { useAnalystApproval } from './lib/use-analyst-approval';
+import {
+  SUMMARY_PANEL_STORE_NAME,
+  parseSummaryOpen,
+  summaryOpen,
+} from './lib/summary-panel';
+import { setDemoValue, useDemoValue } from '../../_shared/demo/use-demo-store';
 import { AgentHistoryTab } from './components/agent-history-tab';
 import { ApproveProposalDialog } from './components/approve-proposal-dialog';
 import { MapTab } from './components/map-tab';
@@ -47,25 +59,74 @@ function localToday(): string {
 function RequestSummary({
   rows,
   linkValidUntil,
+  open,
+  onToggle,
+  compact,
 }: {
   rows: [string, string][];
   linkValidUntil: string;
+  open: boolean;
+  onToggle: () => void;
+  /** A linha curta que fica visível com o painel recolhido. */
+  compact: string;
 }) {
+  const toggle = (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="shrink-0 gap-1"
+      aria-expanded={open}
+      aria-controls="resumo-conteudo"
+      onClick={onToggle}
+    >
+      {open ? (
+        <>
+          <PanelLeftClose className="h-4 w-4" aria-hidden /> Recolher
+        </>
+      ) : (
+        <>
+          <PanelLeftOpen className="h-4 w-4" aria-hidden /> Mostrar resumo
+        </>
+      )}
+    </Button>
+  );
+
+  if (!open) {
+    return (
+      <aside
+        className="portal-card-muted flex flex-wrap items-center justify-between gap-2 px-6 py-4"
+        aria-labelledby="resumo-title"
+      >
+        <div className="min-w-0">
+          <h2 id="resumo-title" className="portal-h3">Resumo da solicitação</h2>
+          <p className="portal-small text-portal-neutral">{compact}</p>
+        </div>
+        {toggle}
+      </aside>
+    );
+  }
+
   return (
     <aside className="portal-card-muted space-y-4 p-6" aria-labelledby="resumo-title">
-      <h2 id="resumo-title" className="portal-h3">Resumo da solicitação</h2>
-      <dl className="portal-body space-y-2">
-        {rows.map(([k, v]) => (
-          <div key={k} className="grid grid-cols-[minmax(0,9rem)_1fr] gap-2 lg:grid-cols-1 lg:gap-0">
-            <dt className="portal-small text-portal-neutral">{k}</dt>
-            <dd className="break-words font-medium">{v || MISSING}</dd>
-          </div>
-        ))}
-      </dl>
-      <p className="portal-small flex items-start gap-2 rounded-lg border border-border bg-card p-2 text-portal-neutral">
-        <Info className="h-4 w-4 shrink-0" aria-hidden />
-        Link válido até {formatShortDate(linkValidUntil)}. Depois disso, peça um novo à equipe Freitas.
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <h2 id="resumo-title" className="portal-h3">Resumo da solicitação</h2>
+        {toggle}
+      </div>
+      <div id="resumo-conteudo" className="space-y-4">
+        <dl className="portal-body space-y-2">
+          {rows.map(([k, v]) => (
+            <div key={k} className="grid grid-cols-[minmax(0,9rem)_1fr] gap-2 lg:grid-cols-1 lg:gap-0">
+              <dt className="portal-small text-portal-neutral">{k}</dt>
+              <dd className="break-words font-medium">{v || MISSING}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="portal-small flex items-start gap-2 rounded-lg border border-border bg-card p-2 text-portal-neutral">
+          <Info className="h-4 w-4 shrink-0" aria-hidden />
+          Link válido até {formatShortDate(linkValidUntil)}. Depois disso, peça um novo à equipe Freitas.
+        </p>
+      </div>
     </aside>
   );
 }
@@ -82,6 +143,9 @@ export default function ComparisonScreen() {
   const quotation = useMemo(() => findComparison(reference, today), [reference, today]);
   const { request } = quotation;
   const analystApproved = useAnalystApproval();
+  const storedSummaryOpen = useDemoValue(SUMMARY_PANEL_STORE_NAME, parseSummaryOpen);
+  const [viewportWidth] = useState(() => window.innerWidth);
+  const isSummaryOpen = summaryOpen(storedSummaryOpen, viewportWidth);
 
   // Aprovação simulada, por cotação, só nesta sessão da tela.
   const [approvals, setApprovals] = useState<Record<string, string>>({});
@@ -200,8 +264,21 @@ export default function ComparisonScreen() {
         </div>
       ) : null}
 
-      <div className="grid gap-8 lg:grid-cols-[18rem_minmax(0,1fr)]">
-        <RequestSummary rows={summaryRows} linkValidUntil={request.linkValidUntil} />
+      <div className={cn('grid gap-8', isSummaryOpen && 'lg:grid-cols-[18rem_minmax(0,1fr)]')}>
+        <RequestSummary
+          rows={summaryRows}
+          linkValidUntil={request.linkValidUntil}
+          open={isSummaryOpen}
+          onToggle={() => setDemoValue(SUMMARY_PANEL_STORE_NAME, !isSummaryOpen)}
+          compact={[
+            request.reference,
+            `${request.origin} → ${request.destination}`,
+            `${request.modal} ${request.shipmentType}`,
+            request.incoterm,
+            request.product,
+            request.insuranceRequired ? 'Seguro exigido' : 'Seguro não exigido',
+          ].join(' · ')}
+        />
 
         <Tabs value={tab} onValueChange={(v) => setParam('aba', v as ComparisonTab)} className="min-w-0 space-y-6">
           <TabsList aria-label="Seções da proposta" className="overflow-x-auto">

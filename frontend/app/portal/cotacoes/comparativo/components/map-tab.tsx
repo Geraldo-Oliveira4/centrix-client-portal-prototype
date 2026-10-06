@@ -4,7 +4,7 @@
 // já recebe hoje. Primeira coluna fixa (rótulos) e rolagem horizontal do
 // CONTÊINER da tabela, nunca da página, a partir de 5 propostas ou no celular.
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Check, Download, FileSpreadsheet, FileText, Mail, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -65,7 +65,7 @@ export function FileChip({ doc }: { doc: ProposalDocument }) {
     <button
       type="button"
       onClick={() => previewToast(`o download de ${doc.name}`)}
-      className="portal-small inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-left text-brand-indigo hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="portal-small inline-flex max-w-[9.5rem] items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-left text-brand-indigo hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       title={doc.name}
     >
       <DocIcon kind={doc.kind} />
@@ -116,6 +116,19 @@ export function MapTab({
   onApprove,
 }: MapTabProps) {
   const { request } = quotation;
+  // A dica de rolagem só aparece quando a tabela de fato não cabe: medida, não
+  // presumida pela quantidade de propostas (com o resumo recolhido, 5 cabem a 1440px).
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => setOverflows(el.scrollWidth > el.clientWidth + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [sorted.length]);
   const totals = Object.fromEntries(
     sorted.map((p) => [p.id, proposalTotals(p, request.ptax)]),
   );
@@ -208,7 +221,7 @@ export function MapTab({
 
   const columnClass = (p: ComparisonProposal) =>
     cn(
-      'min-w-[13rem] max-w-[16rem] border-b border-l border-border px-4 py-2 align-top',
+      'min-w-[11.5rem] max-w-[16rem] border-b border-l border-border px-4 py-2 align-top',
       p.id === chosenId && 'bg-portal-success/5',
       isExpired(p, today) && 'text-portal-neutral',
     );
@@ -240,13 +253,13 @@ export function MapTab({
         <BadgeLegend />
       </div>
 
-      {sorted.length > 3 ? (
+      {overflows ? (
         <p className="portal-small text-portal-neutral">
-          {sorted.length} propostas. Role a tabela para os lados para ver todas; a primeira coluna fica fixa.
+          Role a tabela para os lados para ver as {sorted.length} propostas; a primeira coluna fica fixa.
         </p>
       ) : null}
       <div className="portal-card overflow-hidden p-0">
-        <div className="overflow-x-auto" tabIndex={0} aria-label="Tabela comparativa, role para os lados">
+        <div ref={scrollRef} className="overflow-x-auto" tabIndex={0} aria-label="Tabela comparativa, role para os lados">
           <table className="portal-body w-full border-separate border-spacing-0">
             <caption className="sr-only">
               Comparativo das {sorted.length} propostas da cotação {request.reference}, ordenado por{' '}
@@ -256,7 +269,7 @@ export function MapTab({
               <tr>
                 <th
                   scope="col"
-                  className="sticky left-0 z-20 min-w-[8rem] sm:min-w-[10rem] border-b border-border bg-card px-4 py-3 text-left align-bottom"
+                  className="sticky left-0 z-20 min-w-[8rem] sm:min-w-[9.5rem] border-b border-border bg-card px-4 py-3 text-left align-bottom"
                 >
                   <span className="portal-small font-medium text-portal-neutral">Proposta</span>
                 </th>
