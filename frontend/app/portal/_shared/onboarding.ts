@@ -224,14 +224,19 @@ export interface TourStep {
   /** Seletor do elemento a destacar; sem alvo, o card fica centralizado. */
   target?: string;
   module?: 'cotacao' | 'embarques' | 'inteligencia';
+  /** Ação secundária da parada (ex.: "Ver na prática"). Encerra o tour. */
+  cta?: { label: string; href: string };
 }
 
+/** Abre a Inteligência na visão "Minha operação" com o mini-guia de 3 balões. */
+export const INTEL_PRACTICE_HREF = '/portal/inteligencia?visao=minha-operacao&guia=1';
+
 /**
- * O MINI TOUR (Prompt 5): no máximo três paradas, opcional, oferecido no fim
- * das boas-vindas — não antes delas, como era. Mostra onde ficam as coisas que
- * o cliente não acha sozinho: os dois grupos do menu, a Central de trabalho e
- * o botão de Ajuda. Sem alvo visível (menu fechado no celular), o card fica
- * centralizado e o texto continua valendo.
+ * O MINI TOUR (Prompt 5): opcional, oferecido no fim das boas-vindas. Mostra
+ * onde ficam as coisas que o cliente não acha sozinho: os dois grupos do menu,
+ * a Central de trabalho, a Performance (07/10/2026: a Inteligência é
+ * estratégica e só aparecia numa frase) e o botão de Ajuda. Sem alvo visível
+ * (menu fechado no celular), o card vira folha de baixo e o texto continua.
  */
 export const TOUR_STEPS: TourStep[] = [
   {
@@ -247,6 +252,14 @@ export const TOUR_STEPS: TourStep[] = [
     target: 'a[href="/portal/visao-geral"]',
   },
   {
+    id: 'performance',
+    title: 'Performance',
+    body: 'Na Inteligência fica a leitura da semana: cada indicador traz a variação e uma conclusão em uma frase. Os filtros recortam por rota, agente ou exportador, e o que você escolheu nas boas-vindas já virou a visão "Minha operação".',
+    target: '[data-tour="menu"] a[href^="/portal/inteligencia"]',
+    module: 'inteligencia',
+    cta: { label: 'Ver na prática', href: INTEL_PRACTICE_HREF },
+  },
+  {
     id: 'suporte',
     title: 'Ajuda',
     body: 'Dúvida ou problema? Fale com o suporte ou reporte o que aconteceu, direto desta tela.',
@@ -255,7 +268,12 @@ export const TOUR_STEPS: TourStep[] = [
 ];
 
 /** Teto do mini tour: mais que isso deixa de ser "mini". */
-export const MAX_TOUR_STEPS = 3;
+export const MAX_TOUR_STEPS = 4;
+
+/** "2 de 4": a numeração conta só as paradas visíveis com os módulos atuais. */
+export function tourStepLabel(index: number, total: number): string {
+  return `${index + 1} de ${total}`;
+}
 
 export function visibleTourSteps(
   flags: Partial<Record<string, boolean>>,
@@ -570,12 +588,36 @@ export const FIRST_STEPS = [
   {
     id: 'alertas',
     label: 'Configurar os seus alertas',
-    // Configurações > Alertas. A aba Alertas de Meus Embarques saiu em
-    // 02/10/2026; a escolha do que acompanhar mora em Configurações.
-    href: '/portal/preferencias#alertas',
+    // Preferências de alertas (canal, frequência, resumo semanal). Os TIPOS de
+    // alerta continuam em Configurações > Alertas, linkada de lá.
+    href: '/portal/preferencias/alertas',
+  },
+  {
+    id: 'inteligencia',
+    label: 'Ver sua Inteligência',
+    // Conclui ao ABRIR a página (IntelligencePreview), não no clique.
+    href: '/portal/inteligencia',
+  },
+  {
+    id: 'visao',
+    label: 'Salvar uma visão',
+    // Conclui quando a Inteligência avisa que uma visão foi salva ou editada.
+    href: '/portal/inteligencia',
   },
   { id: 'colega', label: 'Convidar um colega', href: null },
 ] as const;
+
+/**
+ * Passos que se concluem pela AÇÃO na tela de destino, nunca pelo clique no
+ * link do checklist: cotação (ao enviar), alertas (ao salvar), Inteligência
+ * (ao abrir) e visão (ao salvar uma).
+ */
+export const FIRST_STEPS_DONE_BY_ACTION: FirstStepId[] = [
+  'cotacao',
+  'alertas',
+  'inteligencia',
+  'visao',
+];
 
 export type FirstStepId = (typeof FIRST_STEPS)[number]['id'];
 
@@ -626,7 +668,7 @@ export function nextFirstStep(
   return FIRST_STEPS.find((s) => !state.done.includes(s.id)) ?? null;
 }
 
-/** Com 2 de 3 feitos o cartão vira uma barra fina: o resto já é rotina. */
+/** Faltando um só passo, o cartão vira uma barra fina: o resto já é rotina. */
 export function firstStepsCompact(state: FirstStepsState): boolean {
   return state.done.length >= FIRST_STEPS.length - 1;
 }

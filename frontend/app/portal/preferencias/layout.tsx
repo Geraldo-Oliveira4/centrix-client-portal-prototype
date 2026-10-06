@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 const TABS = [
   { href: '/portal/preferencias', label: 'Configurações' },
   { href: '/portal/preferencias/conectadas', label: 'Perfil e notificações conectados' },
+  { href: '/portal/preferencias/alertas', label: 'Preferências de alertas' },
   { href: '/portal/preferencias/exportadores', label: 'Meus Exportadores' },
   { href: '/portal/preferencias/agentes', label: 'Meus Agentes' },
 ];

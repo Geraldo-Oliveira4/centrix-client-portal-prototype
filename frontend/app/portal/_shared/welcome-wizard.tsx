@@ -66,6 +66,7 @@ import {
 } from './onboarding';
 import { RouteMap } from './route-map';
 import { updateOnboarding } from './use-onboarding';
+import { writeDefaultIntelView } from './default-intel-view';
 
 const PRIORITY_ICON = {
   custo: BadgeDollarSign,
@@ -207,7 +208,7 @@ export function WelcomeWizard({ initial }: { initial: OnboardingState }) {
   );
   const [routeError, setRouteError] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
-  // Mini tour de 3 paradas depois da Home montada: opcional, ligado por padrão.
+  // Mini tour de 4 paradas depois da Home montada: opcional, ligado por padrão.
   const [wantTour, setWantTour] = useState(true);
 
   const companyName = initial.company.name || client?.name || '';
@@ -267,6 +268,9 @@ export function WelcomeWizard({ initial }: { initial: OnboardingState }) {
         mutate(data, { revalidate: false }),
       );
     }
+    // As respostas também chegam à Inteligência: rotas + prioridade viram a
+    // visão "Minha operação" (refazer a personalização a recria).
+    if (!skipped) writeDefaultIntelView(finalRoutes, priority);
     updateOnboarding({
       setupDone: true,
       wizardStep: 0,
@@ -367,7 +371,8 @@ export function WelcomeWizard({ initial }: { initial: OnboardingState }) {
                   O que mais importa para você?
                 </DialogPrimitive.Title>
                 <DialogPrimitive.Description className="portal-small text-portal-neutral">
-                  Usamos isso para escolher o que aparece primeiro na sua Home.
+                  Usamos isso para escolher o que aparece primeiro na sua Home
+                  e na sua Inteligência.
                 </DialogPrimitive.Description>
                 <div className="grid gap-3 sm:grid-cols-3">
                   {PRIORITY_OPTIONS.map((option) => (
@@ -390,10 +395,13 @@ export function WelcomeWizard({ initial }: { initial: OnboardingState }) {
                   Quais são as suas rotas principais?
                 </DialogPrimitive.Title>
                 <DialogPrimitive.Description className="portal-small text-portal-neutral">
-                  Escolha a origem e o destino — no mapa ou nos botões. Até{' '}
-                  {MAX_WELCOME_ROUTES} rotas.
+                  Escolha a origem e o destino — nos botões ou no mapa. Até{' '}
+                  {MAX_WELCOME_ROUTES} rotas; elas viram a visão “Minha
+                  operação” na Inteligência.
                 </DialogPrimitive.Description>
-                <RouteMap routes={routes} draft={draft} onPick={pick} />
+                {/* BOTÕES ANTES DO MAPA, e o mapa com teto de altura: a
+                    1440x800 o mapa em largura total (~300px) empurrava
+                    Origem/Destino para baixo da dobra do diálogo. */}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <fieldset className="space-y-1.5">
                     <legend className="portal-small font-medium text-foreground">
@@ -475,6 +483,12 @@ export function WelcomeWizard({ initial }: { initial: OnboardingState }) {
                     </p>
                   )}
                 </div>
+                <RouteMap
+                  routes={routes}
+                  draft={draft}
+                  onPick={pick}
+                  className="max-h-[min(24dvh,200px)]"
+                />
                 {routes.length > 0 && (
                   <ul className="space-y-2" aria-label="Rotas escolhidas">
                     {routes.map((route) => (
@@ -528,8 +542,9 @@ export function WelcomeWizard({ initial }: { initial: OnboardingState }) {
                       Fazer um tour rápido depois
                     </span>
                     <span className="portal-small block text-portal-neutral">
-                      3 paradas: o menu, a Central de trabalho e a Ajuda. Dá
-                      para pular a qualquer momento.
+                      4 paradas: o menu, a Central de trabalho, a
+                      Performance e a Ajuda. Dá para pular a qualquer
+                      momento.
                     </span>
                   </span>
                   <Switch
@@ -545,7 +560,7 @@ export function WelcomeWizard({ initial }: { initial: OnboardingState }) {
           <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3">
             <span className="portal-small text-portal-neutral">
               {step === 0
-                ? 'Fica salvo neste navegador.'
+                ? 'Dá para refazer quando quiser, na Home.'
                 : `${step} de ${WIZARD_STEPS.length - 1} perguntas`}
             </span>
             <div className="flex gap-2">

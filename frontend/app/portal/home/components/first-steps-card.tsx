@@ -1,17 +1,16 @@
 'use client';
 
-// "Primeiros passos" (Prompt 4, revisto no Prompt 5): três tarefas para a
-// primeira semana, no TOPO da Home, com o botão do próximo passo, anel de
-// progresso animado e uma comemoração discreta quando um passo fecha.
+// "Primeiros passos" (Prompt 4, revisto no Prompt 5 e em 07/10/2026): cinco
+// tarefas para a primeira semana, no TOPO da Home, com o botão do próximo
+// passo, anel de progresso animado e uma comemoração discreta.
 //
-// Tudo SIMULADO e só neste navegador: "Convidar um colega" não envia e-mail e
-// "Configurar alertas" só registra que a pessoa foi até lá. A exceção é a
-// cotação: o passo fecha SOZINHO quando a Nova cotação é enviada de verdade
-// (`markFirstStep('cotacao')` na tela de criação), e não no clique do link.
+// Cada passo com link fecha pela AÇÃO na tela de destino, nunca pelo clique:
+// a cotação ao ser enviada, os alertas ao salvar as preferências, a
+// Inteligência ao abrir e a visão quando uma é salva ou editada. "Convidar um
+// colega" fecha no próprio cartão e é simulado (nenhum e-mail sai).
 //
-// Com 2 de 3 feitos o cartão vira uma barra fina: o que falta é um item só, e
-// ele não merece mais o espaço do topo da Home. Dispensável; o "Reiniciar
-// onboarding" do painel traz o cartão de volta.
+// Faltando um passo (4 de 5) o cartão vira uma barra fina: o que falta é um
+// item só. Dispensável; o "Reiniciar onboarding" do painel o traz de volta.
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -42,6 +41,8 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NEXT_CTA: Record<FirstStepId, string> = {
   cotacao: 'Abrir cotação',
   alertas: 'Configurar alertas',
+  inteligencia: 'Abrir Inteligência',
+  visao: 'Salvar uma visão',
   colega: 'Convidar colega',
 };
 
@@ -181,11 +182,10 @@ export function FirstStepsCard() {
     next ? (
       next.href ? (
         <Button asChild size={small ? 'sm' : 'default'} className="gap-1.5">
-          <Link
-            href={next.href}
-            // A cotação fecha o passo quando é ENVIADA, não no clique.
-            onClick={() => next.id !== 'cotacao' && markFirstStep(next.id)}
-          >
+          {/* Nenhum passo com link fecha no clique: cotação fecha ao ENVIAR,
+              alertas ao SALVAR, Inteligência ao ABRIR e visão ao SALVAR uma
+              (FIRST_STEPS_DONE_BY_ACTION). */}
+          <Link href={next.href}>
             {NEXT_CTA[next.id]}
             <ArrowRight
               className={small ? 'h-4 w-4' : 'h-5 w-5'}

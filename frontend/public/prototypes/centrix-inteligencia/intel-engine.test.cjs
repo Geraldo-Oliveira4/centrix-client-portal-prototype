@@ -113,10 +113,39 @@ test('layout: padrão tudo visível em Completa; alternar, restaurar e descartar
   const r = L.reset(s);
   assert.equal(r.mode, 'objetiva');
   assert.deepEqual(r.hidden, { completa: [], objetiva: [] });
-  assert.deepEqual(L.normalize({ mode: 'xpto', hidden: { completa: ['sumiu', 'kpis'] } }), { mode: 'completa', hidden: { completa: ['kpis'], objetiva: [] } });
+  const n = L.normalize({ mode: 'xpto', hidden: { completa: ['sumiu', 'kpis'] } });
+  assert.equal(n.mode, 'completa');
+  assert.deepEqual(n.hidden, { completa: ['kpis'], objetiva: [] });
+  assert.deepEqual(n.order, L.defaults().order);
   const mem = { v: null, getItem() { return this.v; }, setItem(k, v) { this.v = v; } };
   L.save(mem, s);
   assert.deepEqual(L.load(mem), s);
+});
+
+test('layout: ordem guardada manda no desenho; id desconhecido sai e bloco novo entra no fim', () => {
+  const s = L.normalize({ mode: 'completa', order: { completa: ['precos', 'sumiu', 'graficos'], objetiva: ['q_frete'] } });
+  assert.deepEqual(L.visibleBlocks(s).slice(0, 2), ['precos', 'graficos']);
+  assert.equal(L.visibleBlocks(s).length, L.BLOCKS.completa.length);
+  assert.deepEqual(L.visibleBlocks(s, 'objetiva')[0], 'q_frete');
+  assert.deepEqual(L.orderedBlocks(s).map((b) => b.id), L.visibleBlocks(s));
+  // Ocultar continua valendo dentro da ordem.
+  assert.ok(!L.visibleBlocks(L.setVisible(s, 'completa', 'precos', false)).includes('precos'));
+  // Visão antiga, sem `order`, abre na ordem padrão.
+  const old = L.restoreView({ id: 'v', name: 'Antiga', query: '', mode: 'completa', hidden: { completa: [], objetiva: [] } });
+  assert.deepEqual(old.layout.order, L.defaults().order);
+  // A ordem viaja com a visão e conta para "visão ativa".
+  const view = L.captureView('Minha', new URLSearchParams('rota=shanghai'), s, E.FILTERS.map((f) => f.key));
+  assert.deepEqual(view.order.completa.slice(0, 2), ['precos', 'graficos']);
+  assert.ok(L.isActiveView(view, new URLSearchParams('rota=shanghai'), s, E.FILTERS.map((f) => f.key)));
+  assert.ok(!L.isActiveView(view, new URLSearchParams('rota=shanghai'), L.defaults(), E.FILTERS.map((f) => f.key)));
+});
+
+test('rota sem par na fixture: chip legível e zero embarques (estado "0 no recorte")', () => {
+  const rota = E.FILTERS.find((f) => f.key === 'rota');
+  assert.equal(rota.name(D, 'Shanghai>Itajaí'), 'Shanghai → Itajaí');
+  assert.equal(E.applyFilters(D.operations, { rota: ['Shanghai>Itajaí'] }).length, 0);
+  // OU dentro do filtro: a rota que existe continua trazendo os embarques dela.
+  assert.ok(E.applyFilters(D.operations, { rota: ['Shanghai>Itajaí', 'shanghai'] }).length > 0);
 });
 
 const RANGE = { start: '2026-06-16', end: '2026-09-13' };

@@ -19,7 +19,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname } from 'next/navigation';
-import { CheckCircle2, LifeBuoy, Paperclip, Send, X } from 'lucide-react';
+import Link from 'next/link';
+import { BellRing, CheckCircle2, Compass, LifeBuoy, Paperclip, Send, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,7 @@ import { cn } from '@/lib/utils';
 
 import { portalFont } from '../portal-font';
 import { useIframeBottomBars } from './use-bottom-action-bar';
+import { restartTour } from './use-onboarding';
 import { setDemoValue, useDemoValue } from './demo/use-demo-store';
 import {
   SUPPORT_GREETING,
@@ -349,6 +351,28 @@ export function SupportLauncher() {
               <X className="h-5 w-5" />
             </Button>
           </div>
+          {/* Reabrir o que o onboarding mostrou (07/10/2026). */}
+          <nav aria-label="Atalhos de ajuda" className="flex shrink-0 flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => {
+                close();
+                restartTour();
+              }}
+            >
+              <Compass className="h-4 w-4" aria-hidden="true" />
+              Rever tour
+            </Button>
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link href="/portal/preferencias/alertas" onClick={close}>
+                <BellRing className="h-4 w-4" aria-hidden="true" />
+                Preferências de alertas
+              </Link>
+            </Button>
+          </nav>
           <Tabs defaultValue="chat" className="flex min-h-0 flex-1 flex-col">
             <TabsList className="grid h-auto w-full shrink-0 grid-cols-2">
               <TabsTrigger value="chat" className="min-h-11 whitespace-normal">

@@ -23,7 +23,7 @@
   const FILTERS = [
     { key: 'exp', label: 'Exportador', values: (o) => [o.supplier], name: (D, v) => D.companies.find((c) => c.id === v)?.name || v },
     { key: 'ag', label: 'Agente de cargas', values: (o) => [o.agent], name: (D, v) => D.agents.find((a) => a.id === v)?.name || v },
-    { key: 'rota', label: 'Rota', values: (o) => [o.route], name: (D, v) => { const r = D.routes.find((x) => x.id === v); return r ? `${D.locations[r.from].name} → ${D.locations[r.to].name}` : v; } },
+    { key: 'rota', label: 'Rota', values: (o) => [o.route], name: (D, v) => { const r = D.routes.find((x) => x.id === v); return r ? `${D.locations[r.from].name} → ${D.locations[r.to].name}` : String(v).replace('>', ' → '); } },
     { key: 'inc', label: 'Incoterm', values: (o) => [o.incoterm], name: (D, v) => v },
     { key: 'pais', label: 'País de origem', values: (o) => [o.country], name: (D, v) => v },
     { key: 'sku', label: 'SKU', itemLevel: true, values: (o) => (o.items || []).map((i) => i.sku), name: (D, v) => (D.skus && D.skus[v] ? `${v} · ${D.skus[v].desc}` : v) },

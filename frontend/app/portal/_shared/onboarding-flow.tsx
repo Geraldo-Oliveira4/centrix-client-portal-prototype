@@ -2,15 +2,16 @@
 
 // O fluxo de boas-vindas do primeiro login: BOAS-VINDAS (três perguntas e o
 // mapa de rotas, `welcome-wizard.tsx`) -> a Home se monta com o perfil
-// escolhido -> MINI TOUR opcional de 3 paradas (Prompt 5; antes eram 6, e
-// vinham ANTES das boas-vindas). Montado no layout do portal, para funcionar
+// escolhido -> MINI TOUR opcional de 4 paradas (Prompt 5; 07/10/2026 ganhou a
+// parada Performance, entre a Central e a Ajuda). Montado no layout do portal, para funcionar
 // em qualquer tela de entrada. Regras em `onboarding.ts`.
 //
 // Acessibilidade: o card do tour e o assistente são diálogos modais do Radix
 // (foco preso, Esc fecha, foco devolvido). No tour, Esc = "Pular tour".
 
 import { useCallback, useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { ArrowRight } from 'lucide-react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,8 @@ import { cn } from '@/lib/utils';
 import { portalFont } from '../portal-font';
 
 import { usePortalModuleFlags } from './demo/use-feature-flags';
-import { visibleTourSteps } from './onboarding';
+import { tourStepLabel, visibleTourSteps } from './onboarding';
+import { useBottomActionBar } from './use-bottom-action-bar';
 import { updateOnboarding, useOnboarding } from './use-onboarding';
 import { WelcomeWizard } from './welcome-wizard';
 
@@ -33,9 +35,70 @@ function visibleRect(selector: string | undefined): DOMRect | null {
   return rect.width > 0 && rect.height > 0 ? rect : null;
 }
 
+/** Quanto as barras de rodapé ocupam (mecanismo global do #19). */
+function floatingOffset(): number {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(
+    '--floating-bottom-offset',
+  );
+  return Number.parseFloat(raw) || 0;
+}
+
+const CARD_W = 352;
+const CARD_H = 300; // estimativa com CTA; o card nunca passa disso a 352px
+const MOBILE_MAX = 639;
+
+/**
+ * Onde o card fica. Ao lado do alvo quando cabe; senão embaixo/em cima. Duas
+ * regras novas (07/10/2026): o card NUNCA cobre o título principal da tela
+ * (`main h1` — na Home é a saudação do banner) e nunca desce sobre o botão
+ * Ajuda nem sobre uma barra presa ao rodapé.
+ */
+function cardStyle(rect: DOMRect | null): React.CSSProperties | undefined {
+  if (!rect) return undefined;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const bottomLimit = vh - floatingOffset() - 16 - 60; // 60 = Ajuda + margem
+  let left: number;
+  let top: number;
+  if (rect.right + 16 + CARD_W < vw) {
+    left = rect.right + 16;
+    top = rect.top - 16;
+  } else {
+    left = Math.max(16, Math.min(rect.left, vw - CARD_W - 16));
+    top = rect.top - CARD_H - 16;
+    if (top < 16) top = rect.bottom + 16;
+  }
+  const title = document.querySelector('main h1');
+  if (title) {
+    const t = title.getBoundingClientRect();
+    const overlapsX = left < t.right && left + CARD_W > t.left;
+    const overlapsY = top < t.bottom && top + CARD_H > t.top;
+    if (t.height > 0 && overlapsX && overlapsY) top = t.bottom + 16;
+  }
+  top = Math.max(16, Math.min(top, bottomLimit - CARD_H));
+  return { left, top };
+}
+
+function useIsMobile(): boolean {
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const q = window.matchMedia(`(max-width: ${MOBILE_MAX}px)`);
+    const update = () => setMobile(q.matches);
+    update();
+    q.addEventListener('change', update);
+    return () => q.removeEventListener('change', update);
+  }, []);
+  return mobile;
+}
+
 function Tour({ onFinish }: { onFinish: () => void }) {
   const flags = usePortalModuleFlags();
   const steps = visibleTourSteps(flags);
+  const router = useRouter();
+  const mobile = useIsMobile();
+  // No celular o card é folha de baixo e se registra como barra de rodapé: o
+  // botão Ajuda sobe acima dela em vez de ficar escondido embaixo.
+  const sheetRef = useBottomActionBar();
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const step = steps[Math.min(index, steps.length - 1)];
@@ -53,23 +116,7 @@ function Tour({ onFinish }: { onFinish: () => void }) {
 
   if (!step) return null;
   const last = index === steps.length - 1;
-  // Card ao lado do alvo quando ha espaco; senao embaixo; sem alvo (ou no
-  // celular, onde o menu esta fechado), centralizado.
-  const CARD_W = 352;
-  const style: React.CSSProperties | undefined = rect
-    ? rect.right + 16 + CARD_W < window.innerWidth
-      ? {
-          left: rect.right + 16,
-          top: Math.max(16, Math.min(rect.top - 16, window.innerHeight - 280)),
-        }
-      : {
-          left: Math.max(
-            16,
-            Math.min(rect.left, window.innerWidth - CARD_W - 16),
-          ),
-          top: Math.max(16, rect.top - 250),
-        }
-    : undefined;
+  const style = mobile ? undefined : cardStyle(rect);
 
   return (
     <DialogPrimitive.Root open onOpenChange={(open) => !open && onFinish()}>
@@ -95,17 +142,21 @@ function Tour({ onFinish }: { onFinish: () => void }) {
           )}
         </div>
         <DialogPrimitive.Content
+          ref={mobile ? sheetRef : undefined}
           className={cn(
             // Portal do Radix monta fora do layout: a fonte do portal vem aqui.
             portalFont.variable,
             'font-[family-name:var(--font-source-sans)]',
-            'fixed z-50 w-[22rem] max-w-[calc(100vw-2rem)] space-y-3 rounded-lg border bg-card p-5 shadow-lg focus-visible:outline-none',
-            !style && 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
+            'fixed z-50 space-y-3 border bg-card p-5 shadow-lg focus-visible:outline-none',
+            mobile
+              ? 'inset-x-0 bottom-0 rounded-t-2xl pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))]'
+              : 'w-[22rem] max-w-[calc(100vw-2rem)] rounded-lg',
+            !mobile && !style && 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
           )}
           style={style}
         >
           <p className="portal-small font-medium text-portal-neutral">
-            {index + 1} de {steps.length}
+            {tourStepLabel(index, steps.length)}
           </p>
           <DialogPrimitive.Title className="portal-h3">
             {step.title}
@@ -113,6 +164,20 @@ function Tour({ onFinish }: { onFinish: () => void }) {
           <DialogPrimitive.Description className="portal-body text-foreground/80">
             {step.body}
           </DialogPrimitive.Description>
+          {step.cta && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => {
+                onFinish();
+                router.push(step.cta!.href);
+              }}
+            >
+              {step.cta.label}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
             <Button
               variant="ghost"
