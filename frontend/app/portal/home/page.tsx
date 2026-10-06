@@ -206,7 +206,12 @@ export default function PortalHomePage() {
       mutate(data, { revalidate: false }),
     );
     setSaving(false);
-    if (ok) toast.success('Personalização apagada. Escolha os temas de novo.');
+    if (!ok) return;
+    // Refazer do zero reabre as boas-vindas na primeira pergunta, com as
+    // respostas anteriores marcadas: ao concluir, a Home E a visão "Minha
+    // operação" da Inteligência são recriadas a partir das novas respostas.
+    updateOnboarding({ setupDone: false, wizardStep: 1, revealPending: false });
+    toast.success('Personalização apagada. Responda de novo para remontar.');
   };
 
   if (loadingShipments || loadingQuotations || loadingLayout) {
@@ -293,7 +298,7 @@ export default function PortalHomePage() {
       )}
 
       {/* PRIMEIROS PASSOS no topo do conteudo (Prompt 5): logo abaixo do
-          aviso de Home pronta e antes dos cards; com 2 de 3 feitos o proprio cartao
+          aviso de Home pronta e antes dos cards; faltando um passo (4 de 5) o proprio cartao
           vira uma barra fina e devolve o espaco. */}
       {!needsOnboarding && onboarding.setupDone && (
         <div

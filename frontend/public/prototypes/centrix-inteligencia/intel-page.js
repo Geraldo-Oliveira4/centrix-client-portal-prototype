@@ -15,6 +15,9 @@ let customizeDraft = null;          // rascunho do "Personalizar" até Salvar
 let intelViews = (() => { try { return IL.loadViews(localStorage); } catch { return []; } })();
 const FILTER_KEYS = IE.FILTERS.map(f => f.key);
 function saveViews(next) { intelViews = next; try { IL.saveViews(localStorage, intelViews); } catch {} }
+/* "Primeiros passos" do portal: salvar ou editar uma visão conclui o passo
+   "Salvar uma visão". O host (IntelligencePreview) ouve e marca. */
+function notifyViewSaved() { try { if (window.parent !== window) window.parent.postMessage({ type: 'centrix:first-step', id: 'visao' }, location.origin); } catch {} }
 
 function saveIntelLayout(next) { intelLayout = IL.normalize(next); try { IL.save(localStorage, intelLayout); } catch {} }
 
@@ -135,10 +138,16 @@ function modeSwitch() {
   return `<div class="segmented" role="radiogroup" aria-label="Modo de leitura">${IL.MODES.map(([m, label]) => `<button role="radio" aria-checked="${intelLayout.mode === m}" data-action="intel-mode" data-id="${m}">${label}</button>`).join('')}</div>`;
 }
 
+/* ESTADO DE CLIENTE NOVO (07/10/2026). Este protótipo não tem embarques reais
+   ligados à Inteligência: o que aparece é sempre a fixture fictícia de data.js.
+   O selo é FIXO e diz isso; quando houver embarques, os dados reais entram no
+   lugar do exemplo (spec-onboarding-backend.md). */
+const EXAMPLE_NOTE = '<p class="example-note"><span class="example-tag">Exemplo ilustrativo</span> Seus dados reais substituem este exemplo assim que houver embarques.</p>';
+
 /* --------------------------------------------------------------- página --- */
 function intelOverview() {
   const s = intelScope(), mode = intelLayout.mode, visible = new Set(IL.visibleBlocks(intelLayout));
-  let html = `<div class="heading"><div><h1 tabindex="-1">Inteligência</h1><p>${mode === 'completa' ? 'O retrato completo da sua operação: prazos, frete, parceiros e rotas.' : 'As quatro perguntas da sua operação, respondidas em uma linha cada.'}</p></div><div class="actions intel-actions">${modeSwitch()}<button class="button secondary" data-action="intel-customize">Personalizar</button><button class="button secondary" data-action="intel-report">Preparar relatório</button></div></div>${viewChips()}`;
+  let html = `<div class="heading"><div><h1 tabindex="-1">Inteligência</h1><p>${mode === 'completa' ? 'O retrato completo da sua operação: prazos, frete, parceiros e rotas.' : 'As quatro perguntas da sua operação, respondidas em uma linha cada.'}</p>${EXAMPLE_NOTE}</div><div class="actions intel-actions">${modeSwitch()}<button class="button secondary" data-action="intel-customize">Personalizar</button><button class="button secondary" data-action="intel-report">Preparar relatório</button></div></div>${viewChips()}`;
   html += periodBar() + filterBar(s);
   html += `<p class="comparison-caption">${s.range.valid ? IE.comparisonCaption(s.range) : ''}${s.cur.length && s.cur.length < IE.MIN_SAMPLE ? ' ' + smallTag(s.cur.length) + ' Com menos de 3 embarques as variações não são mostradas.' : ''}</p>`;
   if (mode === 'completa' && s.cur.length) {
@@ -149,19 +158,30 @@ function intelOverview() {
     return html + `<div class="empty"><h2>Nenhum embarque neste recorte</h2><p>${s.active ? 'Os filtros escolhidos não têm embarques no período.' : 'Não há embarques no período escolhido.'}</p>${s.active ? '<button class="button" data-action="gfilter-clear">Limpar filtros</button>' : ''}</div>`;
   }
   if (!visible.size) return html + '<div class="empty"><h2>Todos os blocos estão ocultos</h2><p>Ligue um bloco em “Personalizar” ou restaure o padrão.</p><button class="button" data-action="intel-customize">Personalizar</button></div>';
+  // A ORDEM vem do layout (Personalizar ou visão "Minha operação"). Destaque e
+  // funil continuam lado a lado, no lugar do primeiro dos dois.
+  const order = IL.visibleBlocks(intelLayout);
   if (mode === 'completa') {
-    const top = [visible.has('destaque') && heroBlock(s), visible.has('funil') && funnelBlock(s)].filter(Boolean);
-    if (top.length) html += `<div class="split ${top.length === 1 ? 'single' : ''}">${top.join('')}</div>`;
-    if (visible.has('kpis')) html += kpisBlock(s, true);
-    if (visible.has('graficos')) html += chartsBlock(s);
-    if (visible.has('performance')) html += performanceBlock(s);
-    if (visible.has('precos')) html += pricesBlock(s);
-    if (visible.has('compromissos')) html += commitmentsBlock(s);
+    const render1 = { kpis: () => kpisBlock(s, true), graficos: () => chartsBlock(s), performance: () => performanceBlock(s), precos: () => pricesBlock(s), compromissos: () => commitmentsBlock(s) };
+    let pairDone = false;
+    for (const id of order) {
+      if (id === 'destaque' || id === 'funil') {
+        if (pairDone) continue;
+        pairDone = true;
+        const top = [visible.has('destaque') && heroBlock(s), visible.has('funil') && funnelBlock(s)].filter(Boolean);
+        if (top.length) html += `<div class="split ${top.length === 1 ? 'single' : ''}">${top.join('')}</div>`;
+      } else if (render1[id]) html += render1[id]();
+    }
   } else {
     const q = IE.questions(D, s.cur, s.prev);
-    if (visible.has('kpis')) html += kpisBlock(s, false);
-    const qs = [['q_prazo', 'Estou entregando no prazo?', q.prazo, 'destaque'], ['q_frete', 'Quanto estou pagando de frete?', q.frete, 'graficos'], ['q_parceiros', 'Com quem trabalho melhor?', q.parceiros, 'performance'], ['q_perda', 'Onde o prazo se perde?', q.perda, 'funil']].filter(([id]) => visible.has(id));
-    if (qs.length) html += `<div class="questions">${qs.map(([id, t, v, target]) => questionBlock(id, t, v, target)).join('')}</div>`;
+    const Q = { q_prazo: ['Estou entregando no prazo?', q.prazo, 'destaque'], q_frete: ['Quanto estou pagando de frete?', q.frete, 'graficos'], q_parceiros: ['Com quem trabalho melhor?', q.parceiros, 'performance'], q_perda: ['Onde o prazo se perde?', q.perda, 'funil'] };
+    let group = [];
+    const flush = () => { if (group.length) html += `<div class="questions">${group.join('')}</div>`; group = []; };
+    for (const id of order) {
+      if (id === 'kpis') { flush(); html += kpisBlock(s, false); }
+      else if (Q[id]) group.push(questionBlock(id, Q[id][0], Q[id][1], Q[id][2]));
+    }
+    flush();
   }
   return html;
 }
@@ -212,7 +232,7 @@ function openCustomize() {
 }
 function renderCustomize() {
   const mode = customizeDraft.mode, on = new Set(IL.visibleBlocks(customizeDraft));
-  openDrawer('Personalizar', `Modo ${mode === 'completa' ? 'Completa' : 'Objetiva'} · escolha os blocos que aparecem`, `<p class="muted">As escolhas ficam salvas para você neste navegador. Os filtros e o período não mudam.</p><div class="cust-list">${IL.BLOCKS[mode].map(b => `<label class="cust-row"><span><b>${b.label}</b><small>${b.desc}</small></span><input type="checkbox" role="switch" data-cust="${b.id}" ${on.has(b.id) ? 'checked' : ''}></label>`).join('')}</div><div class="cust-actions"><button class="text-button" data-action="intel-cust-reset">Restaurar padrão</button><span><button class="button secondary" data-action="close">Cancelar</button> <button class="button" data-action="intel-cust-save">Salvar</button></span></div>`);
+  openDrawer('Personalizar', `Modo ${mode === 'completa' ? 'Completa' : 'Objetiva'} · escolha os blocos que aparecem`, `<p class="muted">As escolhas ficam salvas para você neste navegador. Os filtros e o período não mudam.</p><div class="cust-list">${IL.orderedBlocks(customizeDraft, mode).map(b => `<label class="cust-row"><span><b>${b.label}</b><small>${b.desc}</small></span><input type="checkbox" role="switch" data-cust="${b.id}" ${on.has(b.id) ? 'checked' : ''}></label>`).join('')}</div><div class="cust-actions"><button class="text-button" data-action="intel-cust-reset">Restaurar padrão</button><span><button class="button secondary" data-action="close">Cancelar</button> <button class="button" data-action="intel-cust-save">Salvar</button></span></div>`);
 }
 
 /* --------------------------------------------------------------- eventos --- */
@@ -233,7 +253,7 @@ document.addEventListener('click', e => {
   else if (a === 'intel-jump') { e.preventDefault(); jumpTo(id); }
   else if (a === 'intel-report') openReportPanel();
   else if (a === 'view-open') openView(id);
-  else if (a === 'view-rename') { const input = document.querySelector(`[data-view-name="${CSS.escape(id)}"]`); saveViews(IL.renameView(intelViews, id, input && input.value)); render(); toast('Visão renomeada.'); }
+  else if (a === 'view-rename') { const input = document.querySelector(`[data-view-name="${CSS.escape(id)}"]`); saveViews(IL.renameView(intelViews, id, input && input.value)); notifyViewSaved(); render(); toast('Visão renomeada.'); }
   else if (a === 'view-delete') { saveViews(IL.deleteView(intelViews, id)); render(); toast('Visão excluída.'); }
   else if (a === 'report-copy') {
     const link = shareLink(), field = document.getElementById('report-link');
@@ -277,7 +297,7 @@ document.addEventListener('submit', e => {
   if (e.target.id === 'view-form') {
     e.preventDefault(); const name = document.getElementById('view-name').value.trim();
     if (!name) { document.getElementById('view-name').focus(); return; }
-    saveViews([...intelViews, IL.captureView(name, params, intelLayout, FILTER_KEYS)]); closeDrawer(); render(); toast('Visão salva.');
+    saveViews([...intelViews, IL.captureView(name, params, intelLayout, FILTER_KEYS)]); notifyViewSaved(); closeDrawer(); render(); toast('Visão salva.');
   } else if (e.target.id === 'report-email') {
     e.preventDefault();
     const to = document.getElementById('report-to').value.split(/[,;\s]+/).filter(Boolean), bad = to.filter(x => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x));
@@ -285,4 +305,69 @@ document.addEventListener('submit', e => {
     if (!to.length || bad.length) { err.textContent = to.length ? `E-mail inválido: ${bad.join(', ')}` : 'Informe ao menos um destinatário.'; document.getElementById('report-to').focus(); return; }
     openReportPanel({ freq: document.getElementById('report-freq').value, to });
   }
+});
+
+/* ------------------------------------------------------------ mini-guia --- */
+/* "Ver na prática" (tour do portal, parada Performance, 07/10/2026): três
+   balões curtos e puláveis sobre a página de verdade. Dado, não veredito: o
+   guia ensina a LER os números, não aponta o que é bom ou ruim. Diálogo modal
+   (foco preso, Esc fecha); no celular vira folha de baixo, marcada como barra
+   de rodapé para o botão Ajuda do portal subir acima dela. */
+const GUIDE_STEPS = [
+  { target: '.kpis .kpi', title: 'Como ler um indicador', body: 'Cada indicador traz três coisas: o número do recorte, a variação contra o período anterior de mesma duração e uma conclusão em uma frase. Com menos de 3 embarques aparece “Amostra pequena” e a variação some.' },
+  { target: '.context', title: 'Filtros e modos', body: 'Os filtros recortam todos os blocos: dentro de um filtro vale qualquer opção marcada; entre filtros, todos juntos. Completa mostra o retrato inteiro; Objetiva, as quatro perguntas em uma linha cada.' },
+  { target: '.views-row', fallback: '[data-action="intel-report"]', title: 'Minhas visões e relatório', body: '“Minha operação” já está em Minhas visões, com as rotas que você escolheu. Salve outros recortes como visão e use “Preparar relatório” para resumir e compartilhar o que está na tela.' },
+];
+let guideIndex = -1, guideReturnFocus = null;
+function guideTarget(step) { return document.querySelector(step.target) || (step.fallback && document.querySelector(step.fallback)); }
+function closeGuide() {
+  document.getElementById('intel-guide')?.remove();
+  document.querySelectorAll('.guide-target').forEach(el => el.classList.remove('guide-target'));
+  guideIndex = -1;
+  if (guideReturnFocus && guideReturnFocus.focus) guideReturnFocus.focus();
+}
+function showGuide(i) {
+  document.getElementById('intel-guide')?.remove();
+  document.querySelectorAll('.guide-target').forEach(el => el.classList.remove('guide-target'));
+  guideIndex = i;
+  const step = GUIDE_STEPS[i], target = guideTarget(step), sheet = window.innerWidth < 640;
+  if (target) { target.classList.add('guide-target'); target.scrollIntoView({ block: 'center', behavior: 'instant' in window ? 'instant' : 'auto' }); }
+  const el = document.createElement('div');
+  el.id = 'intel-guide';
+  el.className = 'guide' + (sheet ? ' sheet' : '');
+  el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'guide-title'); el.setAttribute('aria-describedby', 'guide-body');
+  if (sheet) el.setAttribute('data-bottom-action-bar', '');
+  const last = i === GUIDE_STEPS.length - 1;
+  el.innerHTML = `<p class="guide-count">${i + 1} de ${GUIDE_STEPS.length}</p><h2 id="guide-title">${esc(step.title)}</h2><p id="guide-body">${esc(step.body)}</p><div class="guide-actions"><button class="text-button" data-guide="skip">Pular</button><span>${i > 0 ? '<button class="button secondary" data-guide="back">Voltar</button> ' : ''}<button class="button" data-guide="${last ? 'done' : 'next'}">${last ? 'Concluir' : 'Próximo'}</button></span></div>`;
+  document.body.appendChild(el);
+  if (!sheet && target) {
+    const r = target.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+    const below = r.bottom + 12 + h < window.innerHeight;
+    el.style.top = Math.max(12, below ? r.bottom + 12 : r.top - h - 12) + 'px';
+    el.style.left = Math.max(12, Math.min(r.left, window.innerWidth - w - 12)) + 'px';
+  }
+  el.querySelector('[data-guide="next"], [data-guide="done"]').focus();
+}
+function openGuide() { guideReturnFocus = document.activeElement; showGuide(0); }
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-guide]'); if (!b) return;
+  const a = b.dataset.guide;
+  if (a === 'next') showGuide(guideIndex + 1); else if (a === 'back') showGuide(guideIndex - 1); else closeGuide();
+});
+document.addEventListener('keydown', e => {
+  const g = document.getElementById('intel-guide'); if (!g) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeGuide(); return; }
+  if (e.key !== 'Tab') return;
+  const items = [...g.querySelectorAll('button')]; if (!items.length) return;
+  const first = items[0], lastItem = items[items.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); lastItem.focus(); }
+  else if (!e.shiftKey && document.activeElement === lastItem) { e.preventDefault(); first.focus(); }
+  else if (!g.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+});
+/* Entrada pelo portal: `?view=<id>` abre a visão e `?guide=1` abre o guia. */
+document.addEventListener('DOMContentLoaded', () => {
+  const q = new URLSearchParams(location.search);
+  const viewId = q.get('view');
+  if (viewId && intelViews.some(v => v.id === viewId)) openView(viewId);
+  if (q.get('guide') === '1') setTimeout(openGuide, 350);
 });

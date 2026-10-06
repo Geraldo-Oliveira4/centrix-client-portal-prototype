@@ -28,7 +28,7 @@
     ],
   };
   const STORE_KEY = 'centrix-proto-v2:intelligence-layout';
-  const defaults = () => ({ mode: 'completa', hidden: { completa: [], objetiva: [] } });
+  const defaults = () => ({ mode: 'completa', hidden: { completa: [], objetiva: [] }, order: { completa: BLOCKS.completa.map((b) => b.id), objetiva: BLOCKS.objetiva.map((b) => b.id) } });
 
   /** Normaliza o que veio do storage: modo válido, só ids conhecidos. */
   function normalize(raw) {
@@ -38,11 +38,22 @@
     for (const mode of Object.keys(BLOCKS)) {
       const known = new Set(BLOCKS[mode].map((b) => b.id));
       base.hidden[mode] = [...new Set((raw.hidden && raw.hidden[mode]) || [])].filter((id) => known.has(id));
+      // ORDEM (07/10/2026, visão "Minha operação" das boas-vindas): ids
+      // conhecidos na ordem guardada, e o que faltar entra no fim na ordem
+      // padrão. Estado sem `order` (versões anteriores) fica na ordem padrão.
+      const saved = [...new Set((raw.order && raw.order[mode]) || [])].filter((id) => known.has(id));
+      base.order[mode] = [...saved, ...BLOCKS[mode].map((b) => b.id).filter((id) => !saved.includes(id))];
     }
     return base;
   }
+  /** Blocos do modo na ordem do estado (para desenhar e para o Personalizar). */
+  function orderedBlocks(state, mode = state.mode) {
+    const n = normalize(state);
+    return n.order[mode].map((id) => BLOCKS[mode].find((b) => b.id === id));
+  }
   function visibleBlocks(state, mode = state.mode) {
-    return BLOCKS[mode].filter((b) => !state.hidden[mode].includes(b.id)).map((b) => b.id);
+    const n = normalize(state);
+    return n.order[mode].filter((id) => !n.hidden[mode].includes(id));
   }
   function setVisible(state, mode, id, on) {
     const hidden = new Set(state.hidden[mode]);
@@ -52,7 +63,7 @@
   function setMode(state, mode) {
     return normalize({ ...state, mode });
   }
-  /** "Restaurar padrão": todos os blocos de volta; o modo escolhido fica. */
+  /** "Restaurar padrão": todos os blocos de volta, ordem padrão; o modo escolhido fica. */
   function reset(state) {
     return { ...defaults(), mode: normalize(state).mode };
   }
@@ -73,17 +84,18 @@
     const q = new URLSearchParams();
     for (const k of [...PERIOD_KEYS, ...filterKeys]) { const v = params.get(k); if (v) q.set(k, v); }
     const n = normalize(state);
-    return { id: id || 'v' + Date.now().toString(36), name: String(name || '').trim() || 'Minha visão', query: q.toString(), mode: n.mode, hidden: n.hidden };
+    return { id: id || 'v' + Date.now().toString(36), name: String(name || '').trim() || 'Minha visão', query: q.toString(), mode: n.mode, hidden: n.hidden, order: n.order };
   }
   /** O que restaurar: a query (vai para a URL como qualquer filtro) e o layout. */
   function restoreView(view) {
-    return { query: view.query || '', layout: normalize({ mode: view.mode, hidden: view.hidden }) };
+    return { query: view.query || '', layout: normalize({ mode: view.mode, hidden: view.hidden, order: view.order }) };
   }
   /** A visão está aplicada agora? (para destacar o chip) */
   function isActiveView(view, params, state, filterKeys) {
     const cur = captureView('', params, state, filterKeys, view.id);
     const sort = (q) => [...new URLSearchParams(q).entries()].sort().join('&');
-    return sort(cur.query) === sort(view.query) && cur.mode === view.mode && JSON.stringify(cur.hidden) === JSON.stringify(normalize(view).hidden);
+    const v = normalize(view);
+    return sort(cur.query) === sort(view.query) && cur.mode === view.mode && JSON.stringify(cur.hidden) === JSON.stringify(v.hidden) && JSON.stringify(cur.order) === JSON.stringify(v.order);
   }
   function loadViews(storage) {
     try { const v = JSON.parse(storage.getItem(VIEWS_KEY) || '[]'); return Array.isArray(v) ? v.filter((x) => x && x.id && x.name) : []; } catch { return []; }
@@ -92,7 +104,7 @@
   function renameView(views, id, name) { const n = String(name || '').trim(); return n ? views.map((v) => (v.id === id ? { ...v, name: n } : v)) : views; }
   function deleteView(views, id) { return views.filter((v) => v.id !== id); }
 
-  const api = { MODES, BLOCKS, STORE_KEY, VIEWS_KEY, defaults, normalize, visibleBlocks, setVisible, setMode, reset, load, save, captureView, restoreView, isActiveView, loadViews, saveViews, renameView, deleteView };
+  const api = { MODES, BLOCKS, STORE_KEY, VIEWS_KEY, defaults, normalize, orderedBlocks, visibleBlocks, setVisible, setMode, reset, load, save, captureView, restoreView, isActiveView, loadViews, saveViews, renameView, deleteView };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelLayout = api;
 })(typeof window !== 'undefined' ? window : globalThis);

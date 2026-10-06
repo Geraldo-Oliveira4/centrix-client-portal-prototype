@@ -34,24 +34,39 @@ import {
   routeLabel,
   themesForProfile,
   visibleTourSteps,
+  tourStepLabel,
+  INTEL_PRACTICE_HREF,
+  FIRST_STEPS_DONE_BY_ACTION,
 } from './onboarding.ts';
 
-test('mini tour: no máximo 3 paradas — menu, Central e Ajuda', () => {
+test('mini tour: 4 paradas — menu, Central, Performance (antes da Ajuda) e Ajuda', () => {
+  assert.equal(MAX_TOUR_STEPS, 4);
   assert.ok(TOUR_STEPS.length <= MAX_TOUR_STEPS);
   assert.deepEqual(
     TOUR_STEPS.map((s) => s.id),
-    ['menu', 'central', 'suporte'],
+    ['menu', 'central', 'performance', 'suporte'],
   );
   assert.ok(TOUR_STEPS.every((s) => s.target));
+  const perf = TOUR_STEPS.find((s) => s.id === 'performance')!;
+  assert.equal(perf.target, '[data-tour="menu"] a[href^="/portal/inteligencia"]');
+  assert.equal(perf.cta?.label, 'Ver na prática');
+  assert.equal(perf.cta?.href, INTEL_PRACTICE_HREF);
+  assert.match(perf.cta!.href, /visao=minha-operacao/);
+  assert.match(perf.cta!.href, /guia=1/);
+  // Dado, não veredito: nada de score.
+  assert.doesNotMatch(perf.body, /score|nota|\/100/i);
 });
 
-test('nenhuma parada do mini tour depende de módulo que possa sumir', () => {
-  const steps = visibleTourSteps({
-    embarques: false,
-    inteligencia: false,
-    cotacao: false,
-  });
-  assert.equal(steps.length, TOUR_STEPS.length);
+test('numeração do tour: "1 de 4" ... "4 de 4"; sem Inteligência, "1 de 3"', () => {
+  const all = visibleTourSteps({});
+  assert.deepEqual(all.map((_, i) => tourStepLabel(i, all.length)), ['1 de 4', '2 de 4', '3 de 4', '4 de 4']);
+  const off = visibleTourSteps({ inteligencia: false });
+  assert.deepEqual(off.map((s) => s.id), ['menu', 'central', 'suporte']);
+  assert.equal(tourStepLabel(off.length - 1, off.length), '3 de 3');
+  // A última parada continua sendo a Ajuda, nos dois casos.
+  assert.equal(all.at(-1)?.id, 'suporte');
+  // Embarques e cotação desligados não tiram parada nenhuma.
+  assert.equal(visibleTourSteps({ embarques: false, cotacao: false }).length, 4);
 });
 
 test('rota exige origem e destino do mesmo modal, sem repetição', () => {
@@ -201,15 +216,28 @@ test('estado das boas-vindas: respostas e etapa retomável; lixo é descartado',
   assert.equal(bad.wizardStep, 0);
 });
 
-test('primeiros passos: três itens, progresso e ids desconhecidos descartados', () => {
-  assert.equal(FIRST_STEPS.length, 3);
+test('primeiros passos: cinco itens, progresso e ids desconhecidos descartados', () => {
+  assert.equal(FIRST_STEPS.length, 5);
+  assert.deepEqual(
+    FIRST_STEPS.map((s) => s.id),
+    ['cotacao', 'alertas', 'inteligencia', 'visao', 'colega'],
+  );
+  assert.deepEqual(
+    FIRST_STEPS.map((s) => s.label).slice(2, 4),
+    ['Ver sua Inteligência', 'Salvar uma visão'],
+  );
+  // Só o convite fecha pelo próprio card; os outros, pela ação na tela.
+  assert.deepEqual(
+    FIRST_STEPS.filter((s) => !FIRST_STEPS_DONE_BY_ACTION.includes(s.id)).map((s) => s.id),
+    ['colega'],
+  );
   const st = parseFirstSteps(
     JSON.stringify({ done: ['cotacao', 'cotacao', 'outro'], dismissed: false }),
   );
   assert.deepEqual(st.done, ['cotacao']);
   assert.deepEqual(firstStepsProgress(st), {
     done: 1,
-    total: 3,
+    total: 5,
     complete: false,
   });
   assert.equal(
@@ -218,7 +246,15 @@ test('primeiros passos: três itens, progresso e ids desconhecidos descartados',
       dismissed: false,
       justDone: null,
     }).complete,
-    true,
+    false,
+  );
+  assert.deepEqual(
+    firstStepsProgress({
+      done: ['cotacao', 'alertas', 'inteligencia', 'visao', 'colega'],
+      dismissed: false,
+      justDone: null,
+    }),
+    { done: 5, total: 5, complete: true },
   );
   assert.deepEqual(parseFirstSteps('lixo'), {
     done: [],
@@ -290,7 +326,7 @@ test('cotar esta rota: o link leva modal, origem, destino e a fonte', () => {
   assert.equal(air.searchParams.get('porto_embarque'), null);
 });
 
-test('primeiros passos: próximo passo, barra fina com 2 de 3 e comemoração pendente', () => {
+test('primeiros passos: próximo passo, barra fina faltando 1 de 5 e comemoração pendente', () => {
   const none = parseFirstSteps(null);
   assert.equal(nextFirstStep(none)?.id, 'cotacao');
   assert.equal(firstStepsCompact(none), false);
@@ -307,12 +343,17 @@ test('primeiros passos: próximo passo, barra fina com 2 de 3 e comemoração pe
     null,
     'justDone precisa estar entre os concluídos',
   );
-  assert.equal(firstStepsCompact(two), true);
+  assert.equal(firstStepsCompact(two), false);
   assert.equal(nextFirstStep(two)?.id, 'alertas');
+  const four = parseFirstSteps(
+    JSON.stringify({ done: ['cotacao', 'alertas', 'inteligencia', 'colega'] }),
+  );
+  assert.equal(firstStepsCompact(four), true);
+  assert.equal(nextFirstStep(four)?.id, 'visao');
   assert.equal(
     nextFirstStep(
       parseFirstSteps(
-        JSON.stringify({ done: ['cotacao', 'alertas', 'colega'] }),
+        JSON.stringify({ done: ['cotacao', 'alertas', 'inteligencia', 'visao', 'colega'] }),
       ),
     ),
     null,
