@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { UploadCloud, X } from 'lucide-react';
+import { Plus, UploadCloud, X } from 'lucide-react';
 import {
   Button,
   Combobox,
@@ -64,6 +64,16 @@ import {
 } from './field-blocks';
 import type { HardblockReport } from '@/app/portal/_shared/demo/quotation-hardblocks';
 import { HelpTip } from '@/components/help-tip';
+import {
+  cargoCountSummary,
+  cargoField,
+  combinedProductLabel,
+  countVolumes,
+  emptyCargo,
+  extraCargoLines,
+  type ExtraCargo,
+} from '@/app/portal/_shared/demo/quotation-cargos';
+import { ExtraCargoCard } from './extra-cargo-card';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -133,6 +143,8 @@ export type ManualFormDraft = {
   equipments: CreateEquipmentItem[];
   volumes: CreateVolumeItem[];
   flags?: Partial<Record<'showRefrigerada' | 'agenteDefineLocalColeta' | 'agenteDefinePortoEmbarque' | 'agenteDefinePortoDestino' | 'agenteDefineAeroportoEmbarque' | 'agenteDefineAeroportoDestino' | 'cargaPerigosaDeclarada', boolean>>;
+  /** Cargas 2..N (portal, `multiCargo`). A carga 1 são os campos de sempre. */
+  cargos?: ExtraCargo[];
 };
 
 interface ManualFormProps {
@@ -201,6 +213,13 @@ interface ManualFormProps {
   helpTips?: Partial<Record<ManualFormHelpField, string>>;
   /** Called on every change (portal: "você já embarcou esta carga"). */
   onValuesChange?: (values: Partial<ManualFormValues>) => void;
+  /**
+   * Portal: the Carga column becomes a list of cards ("Carga 1", "Carga 2"...)
+   * with "+ Adicionar carga". Cargo 1 is the form's own fields; cargos 2..N are
+   * `ExtraCargoCard`s. Shipment-wide cargo fields (FCL equipments, mandatory
+   * insurance) move below the cards. The analyst screen passes nothing.
+   */
+  multiCargo?: boolean;
 }
 
 export type ManualFormHelpField =
@@ -214,7 +233,7 @@ export type ManualFormHelpField =
   | 'ncm'
   | 'temperatura_min';
 
-export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues, draft, submitLabel, hardblocks, clientFacing, helpTips, onValuesChange }: ManualFormProps) {
+export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, attachmentFiles, onAttachmentFilesChange, createFn = createQuotation, exporterSection, exporterId, initialValues, draft, submitLabel, hardblocks, clientFacing, helpTips, onValuesChange, multiCargo }: ManualFormProps) {
   // O rotulo com o "?" ao lado. Botao FORA do <label>: dentro dele, o clique
   // no "?" tambem focaria o campo.
   const withTip = (field: ManualFormHelpField, label: string, node: React.ReactNode) =>
@@ -235,6 +254,13 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
   const [editingEquipmentIndex, setEditingEquipmentIndex] = useState<number | null>(null);
   const [volumeDialogOpen, setVolumeDialogOpen] = useState(false);
   const [editingVolumeIndex, setEditingVolumeIndex] = useState<number | null>(null);
+  // Which cargo the volume dialog writes to: 1 = the form's own volumes,
+  // 2..N = `extraCargos[n - 2]`.
+  const [volumeCargo, setVolumeCargo] = useState(1);
+  const [extraCargos, setExtraCargos] = useState<ExtraCargo[]>(draft?.initial.cargos ?? []);
+  const cargoSeq = useRef(extraCargos.length);
+  const [focusCargoId, setFocusCargoId] = useState<string | null>(null);
+  const addCargoRef = useRef<HTMLButtonElement>(null);
   const [showRefrigerada, setShowRefrigerada] = useState(draft?.initial.flags?.showRefrigerada ?? false);
   const [agenteDefineLocalColeta, setAgenteDefineLocalColeta] = useState(draft?.initial.flags?.agenteDefineLocalColeta ?? false);
   const [agenteDefinePortoEmbarque, setAgenteDefinePortoEmbarque] = useState(draft?.initial.flags?.agenteDefinePortoEmbarque ?? false);
@@ -385,7 +411,35 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
   const draftSnapshot = (values: Partial<ManualFormValues>): ManualFormDraft => ({
     values, equipments, volumes,
     flags: { showRefrigerada, agenteDefineLocalColeta, agenteDefinePortoEmbarque, agenteDefinePortoDestino, agenteDefineAeroportoEmbarque, agenteDefineAeroportoDestino, cargaPerigosaDeclarada },
+    ...(multiCargo ? { cargos: extraCargos } : {}),
   });
+
+  const extras = multiCargo ? extraCargos : [];
+  const allVolumes = [...volumes, ...extras.flatMap((cargo) => cargo.volumes)];
+  const updateCargo = (id: string, patch: Partial<ExtraCargo>) =>
+    setExtraCargos((prev) => prev.map((cargo) => (cargo.id === id ? { ...cargo, ...patch } : cargo)));
+  const addCargo = () => {
+    cargoSeq.current += 1;
+    const cargo = emptyCargo(`carga-extra-${cargoSeq.current}`);
+    setExtraCargos((prev) => [...prev, cargo]);
+    setFocusCargoId(cargo.id);
+  };
+  const removeCargo = (id: string) => {
+    setExtraCargos((prev) => prev.filter((cargo) => cargo.id !== id));
+    addCargoRef.current?.focus();
+  };
+  // A new card takes the focus on its first field: otherwise a keyboard user
+  // who pressed "+ Adicionar carga" is left on the button with no sign of where
+  // the new card went.
+  useEffect(() => {
+    if (!focusCargoId) return;
+    const index = extraCargos.findIndex((cargo) => cargo.id === focusCargoId);
+    setFocusCargoId(null);
+    if (index === -1) return;
+    const target = document.getElementById(`${fieldAnchor(cargoField(index + 2, 'product'))}-input`);
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target?.focus({ preventScroll: true });
+  }, [focusCargoId, extraCargos]);
 
   // Re-evaluated on every render, and `watch()` re-renders on every change:
   // switching the incoterm revalidates without anyone asking.
@@ -429,7 +483,13 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
       incoterm: values.incoterm || undefined,
       ptax_negociada: values.ptax_negociada || undefined,
       price_or_performance: (values.price_or_performance || undefined) as PriceOrPerformance | undefined,
-      product: values.product || undefined,
+      // Several cargos: today's backend has ONE product field, so it gets a
+      // composed label ("Peças + 2 outras cargas") that every later screen
+      // reads as is. The full list goes to the observations below and to the
+      // review snapshot; the target payload is docs/spec-cotacao-multiplas-cargas.md.
+      product: extras.length
+        ? combinedProductLabel([values.product ?? '', ...extras.map((cargo) => cargo.product)])
+        : values.product || undefined,
       ncm: values.ncm || undefined,
       carga_perigosa: values.carga_perigosa as CargaPerigosa | undefined,
       un_number: values.un_number || undefined,
@@ -451,9 +511,11 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
       agente_define_aeroporto_destino: agenteDefineAeroportoDestino || undefined,
       destination_yard: values.destination_yard || undefined,
       client_reference: values.client_reference || undefined,
-      observations: values.observations || undefined,
+      observations: extras.length
+        ? [values.observations?.trim(), `Cargas adicionais:\n${extraCargoLines(extras).join('\n')}`].filter(Boolean).join('\n\n')
+        : values.observations || undefined,
       equipments: equipments.length > 0 ? equipments : undefined,
-      volumes: volumes.length > 0 ? volumes : undefined,
+      volumes: allVolumes.length > 0 ? allVolumes : undefined,
       files: attachmentFiles?.length ? attachmentFiles.map((f) => f.name) : undefined,
     });
 
@@ -472,6 +534,366 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
       setIsSubmitting(false);
     }
   };
+
+
+  // The Carga block, in pieces: the analyst layout stacks them as it always
+  // did; the portal's `multiCargo` layout puts the cargo-1 pieces in the
+  // "Carga 1" card and the shipment-wide ones (equipments, insurance) below the
+  // list of cards.
+  const cargoOneFields = (
+    <>
+    <FormField
+      control={form.control}
+      name="product"
+      render={({ field }) => (
+        <FormItem id={fieldAnchor('product')}>
+          <FormLabel>Produto / Mercadoria</FormLabel>
+          <FormControl>
+            <Input placeholder="Ex: Eletrônicos, Têxteis..." {...field} />
+          </FormControl>
+          <FormMessage />
+          <FieldBlockHint field="product" />
+        </FormItem>
+      )}
+    />
+
+    {report && (
+      <FieldCollapse open={report.applies.ncm} closedOffset="-mt-3">
+        <FormField
+          control={form.control}
+          name="ncm"
+          render={({ field }) => (
+            <FormItem id={fieldAnchor('ncm')}>
+              {withTip('ncm', 'NCM', <FormLabel>NCM</FormLabel>)}
+              <FormControl>
+                <Input inputMode="numeric" placeholder="Ex: 8517.62.77" {...field} />
+              </FormControl>
+              <FormMessage />
+              <FieldBlockHint field="ncm" />
+            </FormItem>
+          )}
+        />
+      </FieldCollapse>
+    )}
+
+    {/* Carga Perigosa */}
+    <div className="flex flex-col gap-2">
+      {report ? (
+        // Hardblock mode: an explicit Sim/Não with NO default. A
+        // switch that starts off reads as "Não" to someone who never
+        // looked at it — exactly the answer that must not slip by.
+        <div id={fieldAnchor('carga_perigosa')} className="flex flex-col gap-2">
+          {withTip('carga_perigosa', 'Carga perigosa', <Label htmlFor="carga-perigosa-resposta">Carga perigosa</Label>)}
+          <Select
+            value={dangerousAnswer}
+            onValueChange={(answer) => {
+              if (answer === 'nao') {
+                setCargaPerigosaDeclarada(false);
+                form.setValue('carga_perigosa', 'NAO');
+                form.setValue('un_number', '');
+                form.setValue('imo_class', '');
+              } else {
+                setCargaPerigosaDeclarada(true);
+                if (form.getValues('carga_perigosa') === 'NAO') form.setValue('carga_perigosa', undefined);
+              }
+            }}
+          >
+            <SelectTrigger id="carga-perigosa-resposta">
+              <SelectValue placeholder="Selecionar..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="nao">Não</SelectItem>
+              <SelectItem value="sim">Sim</SelectItem>
+            </SelectContent>
+          </Select>
+          <FieldBlockHint field="carga_perigosa" />
+        </div>
+      ) : (
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={cargaPerigosaActive}
+          onCheckedChange={(checked) => {
+            if (!checked) {
+              form.setValue('carga_perigosa', 'NAO');
+              form.setValue('un_number', '');
+              form.setValue('imo_class', '');
+            } else {
+              form.setValue('carga_perigosa', 'RA');
+            }
+          }}
+        />
+        {withTip('carga_perigosa', 'Carga perigosa', <Label>Carga Perigosa</Label>)}
+      </div>
+      )}
+
+      <Reveal open={report ? dangerousAnswer === 'sim' : cargaPerigosaActive} closedOffset="-mt-2">
+        <div className="grid grid-cols-2 gap-3">
+          <FormField
+            control={form.control}
+            name="carga_perigosa"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Classificação</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value === 'NAO' ? '' : (field.value ?? '')}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecionar..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="RA">RA — Radioativo</SelectItem>
+                    <SelectItem value="IMO">IMO — Perigoso (IMDG)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {(report ? report.applies.unNumber : showUnNumber) && (
+            <FormField
+              control={form.control}
+              name="un_number"
+              render={({ field }) => (
+                <FormItem id={fieldAnchor('un_number')}>
+                  {withTip('un_number', 'UN', <FormLabel>UN</FormLabel>)}
+                  <FormControl>
+                    <Input placeholder="Ex: UN1263" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                  <FieldBlockHint field="un_number" />
+                </FormItem>
+              )}
+            />
+          )}
+
+          {showImoClass && (
+            <FormField
+              control={form.control}
+              name="imo_class"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>IMO (Classe)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: 3, 6.1, 8" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+        </div>
+      </Reveal>
+    </div>
+
+    {/* Empilhável + Tombável */}
+    <div className="grid grid-cols-2 gap-3">
+      <FormField
+        control={form.control}
+        name="stackability"
+        render={({ field }) => (
+          <FormItem id={fieldAnchor('stackability')}>
+            {withTip('stackability', 'Empilhável', <FormLabel>Empilhável</FormLabel>)}
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar..." />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="true">Sim</SelectItem>
+                <SelectItem value="false">Não</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormMessage />
+            <FieldBlockHint field="stackability" />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="carga_tombavel"
+        render={({ field }) => (
+          <FormItem id={fieldAnchor('carga_tombavel')}>
+            {withTip('carga_tombavel', 'Carga tombável', <FormLabel>Carga Tombável</FormLabel>)}
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar..." />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="true">Sim</SelectItem>
+                <SelectItem value="false">Não</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormMessage />
+            <FieldBlockHint field="carga_tombavel" />
+          </FormItem>
+        )}
+      />
+    </div>
+
+    {/* Carga Refrigerada */}
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={showRefrigerada}
+          onCheckedChange={(checked) => {
+            setShowRefrigerada(checked);
+            if (!checked) {
+              form.setValue('temperatura_min', '');
+              form.setValue('temperatura_max', '');
+            }
+          }}
+        />
+        <Label>Carga Refrigerada</Label>
+      </div>
+
+      <Reveal open={showRefrigerada} closedOffset="-mt-2">
+        <div className="grid grid-cols-2 gap-3">
+          <FormField
+            control={form.control}
+            name="temperatura_min"
+            render={({ field }) => (
+              <FormItem id={fieldAnchor('temperatura_min')}>
+                {withTip('temperatura_min', 'Temperatura mínima', <FormLabel>Temp. Mín (°C)</FormLabel>)}
+                <FormControl>
+                  <Input type="number" placeholder="Mín" {...field} />
+                </FormControl>
+                <FormMessage />
+                <FieldBlockHint field="temperatura_min" />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="temperatura_max"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Temp. Máx (°C)</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="Máx" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      </Reveal>
+    </div>
+
+    </>
+  );
+  const equipmentsBlock = (
+    <>
+    {/* FCL: equipment list */}
+    {isFCL && (
+      <EquipmentsTable
+        equipments={equipments}
+        onAdd={() => {
+          setEditingEquipmentIndex(null);
+          setEquipmentDialogOpen(true);
+        }}
+        onEdit={(i) => {
+          setEditingEquipmentIndex(i);
+          setEquipmentDialogOpen(true);
+        }}
+        onDelete={(i) => setEquipments((prev) => prev.filter((_, idx) => idx !== i))}
+      />
+    )}
+
+    </>
+  );
+  const cargoOneVolumes = (
+    <>
+    {/* LCL / Air / Break Bulk: volume list */}
+    {showVolumeSection && (
+      <VolumesTable
+        volumes={volumes}
+        modal={watchModal}
+        onAdd={() => {
+          setVolumeCargo(1);
+          setEditingVolumeIndex(null);
+          setVolumeDialogOpen(true);
+        }}
+        onEdit={(i) => {
+          setVolumeCargo(1);
+          setEditingVolumeIndex(i);
+          setVolumeDialogOpen(true);
+        }}
+        onDelete={(i) => setVolumes((prev) => prev.filter((_, idx) => idx !== i))}
+      />
+    )}
+
+    </>
+  );
+  const declaredValueField = (
+    <FormItem className="col-span-2" id={fieldAnchor('declared_value')}>
+      {withTip('declared_value', 'Valor da carga', <FormLabel>Valor da Carga</FormLabel>)}
+      <div className="flex gap-2">
+        <FormField
+          control={form.control}
+          name="declared_value_currency"
+          render={({ field }) => (
+            <Select onValueChange={field.onChange} value={field.value ?? 'BRL'}>
+              <FormControl>
+                <SelectTrigger className="w-24 shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="BRL">BRL</SelectItem>
+                <SelectItem value="USD">USD</SelectItem>
+                <SelectItem value="EUR">EUR</SelectItem>
+                <SelectItem value="GBP">GBP</SelectItem>
+                <SelectItem value="CNY">CNY</SelectItem>
+                <SelectItem value="ARS">ARS</SelectItem>
+                <SelectItem value="CLP">CLP</SelectItem>
+                <SelectItem value="MXN">MXN</SelectItem>
+                <SelectItem value="CHF">CHF</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="declared_value"
+          render={({ field }) => (
+            <FormControl>
+              <Input type="text" inputMode="decimal" placeholder="0.00" className="flex-1" {...field} />
+            </FormControl>
+          )}
+        />
+      </div>
+      <FieldBlockHint field="declared_value" />
+    </FormItem>
+
+  );
+  const insuranceField = (
+    <FormField
+      control={form.control}
+      name="insurance_required"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Seguro Obrigatório</FormLabel>
+          <Select onValueChange={field.onChange} value={field.value}>
+            <FormControl>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar..." />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              <SelectItem value="true">Sim</SelectItem>
+              <SelectItem value="false">Não</SelectItem>
+            </SelectContent>
+          </Select>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
 
   return (
     <Form {...form}>
@@ -494,7 +916,10 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
             shared height, so the row reads as three columns of one form instead
             of three unrelated cards. Below `lg` they stack: at 3 columns the
             two-up fields inside each block get too narrow to read. */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* multiCargo (portal): more room per block. Three columns only from
+            2xl; at 1440 the form shares the row with the sidebar and the V2
+            side panel, and three blocks there left ~250px per column. */}
+        <div className={cn('grid grid-cols-1', multiCargo ? 'gap-6 xl:grid-cols-2 2xl:grid-cols-3' : 'gap-4 lg:grid-cols-3')}>
 
           {/* ── Bloco 1: Embarque ── */}
           <CardSection
@@ -959,283 +1384,88 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
           <CardSection
             number={2}
             title="Carga"
-            subtitle="Produto, volumes e características da mercadoria"
+            subtitle={multiCargo ? 'Uma ou mais cargas, cada uma com seus volumes' : 'Produto, volumes e características da mercadoria'}
           >
-            <div className="flex flex-col gap-3">
-              <FormField
-                control={form.control}
-                name="product"
-                render={({ field }) => (
-                  <FormItem id={fieldAnchor('product')}>
-                    <FormLabel>Produto / Mercadoria</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Eletrônicos, Têxteis..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                    <FieldBlockHint field="product" />
-                  </FormItem>
-                )}
-              />
-
-              {report && (
-                <FieldCollapse open={report.applies.ncm} closedOffset="-mt-3">
-                  <FormField
-                    control={form.control}
-                    name="ncm"
-                    render={({ field }) => (
-                      <FormItem id={fieldAnchor('ncm')}>
-                        {withTip('ncm', 'NCM', <FormLabel>NCM</FormLabel>)}
-                        <FormControl>
-                          <Input inputMode="numeric" placeholder="Ex: 8517.62.77" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        <FieldBlockHint field="ncm" />
-                      </FormItem>
-                    )}
-                  />
-                </FieldCollapse>
-              )}
-
-              {/* Carga Perigosa */}
-              <div className="flex flex-col gap-2">
-                {report ? (
-                  // Hardblock mode: an explicit Sim/Não with NO default. A
-                  // switch that starts off reads as "Não" to someone who never
-                  // looked at it — exactly the answer that must not slip by.
-                  <div id={fieldAnchor('carga_perigosa')} className="flex flex-col gap-2">
-                    {withTip('carga_perigosa', 'Carga perigosa', <Label htmlFor="carga-perigosa-resposta">Carga perigosa</Label>)}
-                    <Select
-                      value={dangerousAnswer}
-                      onValueChange={(answer) => {
-                        if (answer === 'nao') {
-                          setCargaPerigosaDeclarada(false);
-                          form.setValue('carga_perigosa', 'NAO');
-                          form.setValue('un_number', '');
-                          form.setValue('imo_class', '');
-                        } else {
-                          setCargaPerigosaDeclarada(true);
-                          if (form.getValues('carga_perigosa') === 'NAO') form.setValue('carga_perigosa', undefined);
-                        }
+            {multiCargo ? (
+              <div className="flex flex-col gap-4">
+                <p className="portal-small text-portal-neutral">
+                  Esta cotação é um embarque. Ele pode levar várias cargas, e cada
+                  carga, vários volumes. Rota, datas e seguro valem para o embarque
+                  inteiro.
+                </p>
+                {/* The list scrolls on its own at xl, where the three blocks
+                    sit side by side; below that it is the page that scrolls. */}
+                <div
+                  role="region"
+                  aria-label="Cargas desta cotação"
+                  tabIndex={0}
+                  className="flex flex-col gap-4 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring xl:max-h-[calc(100dvh-16rem)] xl:overflow-y-auto xl:pr-2"
+                >
+                  <article
+                    aria-labelledby="carga-1-titulo"
+                    className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
+                  >
+                    <h3 id="carga-1-titulo" className="portal-h3">
+                      Carga 1
+                    </h3>
+                    {cargoOneFields}
+                    {cargoOneVolumes}
+                    {declaredValueField}
+                  </article>
+                  {extraCargos.map((cargo, index) => (
+                    <ExtraCargoCard
+                      key={cargo.id}
+                      number={index + 2}
+                      cargo={cargo}
+                      onChange={(patch) => updateCargo(cargo.id, patch)}
+                      onRemove={() => removeCargo(cargo.id)}
+                      hardblockMode={!!report}
+                      showNcm={report?.applies.ncm ?? false}
+                      showVolumes={showVolumeSection}
+                      modal={watchModal}
+                      onAddVolume={() => {
+                        setVolumeCargo(index + 2);
+                        setEditingVolumeIndex(null);
+                        setVolumeDialogOpen(true);
                       }}
-                    >
-                      <SelectTrigger id="carga-perigosa-resposta">
-                        <SelectValue placeholder="Selecionar..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="nao">Não</SelectItem>
-                        <SelectItem value="sim">Sim</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FieldBlockHint field="carga_perigosa" />
-                  </div>
-                ) : (
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={cargaPerigosaActive}
-                    onCheckedChange={(checked) => {
-                      if (!checked) {
-                        form.setValue('carga_perigosa', 'NAO');
-                        form.setValue('un_number', '');
-                        form.setValue('imo_class', '');
-                      } else {
-                        form.setValue('carga_perigosa', 'RA');
+                      onEditVolume={(i) => {
+                        setVolumeCargo(index + 2);
+                        setEditingVolumeIndex(i);
+                        setVolumeDialogOpen(true);
+                      }}
+                      onDeleteVolume={(i) =>
+                        updateCargo(cargo.id, { volumes: cargo.volumes.filter((_, idx) => idx !== i) })
                       }
-                    }}
-                  />
-                  {withTip('carga_perigosa', 'Carga perigosa', <Label>Carga Perigosa</Label>)}
+                    />
+                  ))}
                 </div>
-                )}
-
-                <Reveal open={report ? dangerousAnswer === 'sim' : cargaPerigosaActive} closedOffset="-mt-2">
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField
-                      control={form.control}
-                      name="carga_perigosa"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Classificação</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value === 'NAO' ? '' : (field.value ?? '')}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecionar..." />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="RA">RA — Radioativo</SelectItem>
-                              <SelectItem value="IMO">IMO — Perigoso (IMDG)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {(report ? report.applies.unNumber : showUnNumber) && (
-                      <FormField
-                        control={form.control}
-                        name="un_number"
-                        render={({ field }) => (
-                          <FormItem id={fieldAnchor('un_number')}>
-                            {withTip('un_number', 'UN', <FormLabel>UN</FormLabel>)}
-                            <FormControl>
-                              <Input placeholder="Ex: UN1263" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            <FieldBlockHint field="un_number" />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-
-                    {showImoClass && (
-                      <FormField
-                        control={form.control}
-                        name="imo_class"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>IMO (Classe)</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Ex: 3, 6.1, 8" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-                  </div>
-                </Reveal>
+                <Button
+                  ref={addCargoRef}
+                  type="button"
+                  variant="outline"
+                  className="gap-1.5 self-start"
+                  onClick={addCargo}
+                  aria-label={`Adicionar carga (hoje: ${1 + extraCargos.length})`}
+                >
+                  <Plus className="h-5 w-5" aria-hidden="true" />
+                  Adicionar carga
+                </Button>
+                <section
+                  aria-labelledby="carga-embarque-titulo"
+                  className="flex flex-col gap-3 border-t border-border pt-4"
+                >
+                  <h3 id="carga-embarque-titulo" className="portal-h3">
+                    Do embarque inteiro
+                  </h3>
+                  {equipmentsBlock}
+                  {insuranceField}
+                </section>
               </div>
-
-              {/* Empilhável + Tombável */}
-              <div className="grid grid-cols-2 gap-3">
-                <FormField
-                  control={form.control}
-                  name="stackability"
-                  render={({ field }) => (
-                    <FormItem id={fieldAnchor('stackability')}>
-                      {withTip('stackability', 'Empilhável', <FormLabel>Empilhável</FormLabel>)}
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecionar..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="true">Sim</SelectItem>
-                          <SelectItem value="false">Não</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                      <FieldBlockHint field="stackability" />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="carga_tombavel"
-                  render={({ field }) => (
-                    <FormItem id={fieldAnchor('carga_tombavel')}>
-                      {withTip('carga_tombavel', 'Carga tombável', <FormLabel>Carga Tombável</FormLabel>)}
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecionar..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="true">Sim</SelectItem>
-                          <SelectItem value="false">Não</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                      <FieldBlockHint field="carga_tombavel" />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Carga Refrigerada */}
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={showRefrigerada}
-                    onCheckedChange={(checked) => {
-                      setShowRefrigerada(checked);
-                      if (!checked) {
-                        form.setValue('temperatura_min', '');
-                        form.setValue('temperatura_max', '');
-                      }
-                    }}
-                  />
-                  <Label>Carga Refrigerada</Label>
-                </div>
-
-                <Reveal open={showRefrigerada} closedOffset="-mt-2">
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField
-                      control={form.control}
-                      name="temperatura_min"
-                      render={({ field }) => (
-                        <FormItem id={fieldAnchor('temperatura_min')}>
-                          {withTip('temperatura_min', 'Temperatura mínima', <FormLabel>Temp. Mín (°C)</FormLabel>)}
-                          <FormControl>
-                            <Input type="number" placeholder="Mín" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                          <FieldBlockHint field="temperatura_min" />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="temperatura_max"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Temp. Máx (°C)</FormLabel>
-                          <FormControl>
-                            <Input type="number" placeholder="Máx" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </Reveal>
-              </div>
-
-              {/* FCL: equipment list */}
-              {isFCL && (
-                <EquipmentsTable
-                  equipments={equipments}
-                  onAdd={() => {
-                    setEditingEquipmentIndex(null);
-                    setEquipmentDialogOpen(true);
-                  }}
-                  onEdit={(i) => {
-                    setEditingEquipmentIndex(i);
-                    setEquipmentDialogOpen(true);
-                  }}
-                  onDelete={(i) => setEquipments((prev) => prev.filter((_, idx) => idx !== i))}
-                />
-              )}
-
-              {/* LCL / Air / Break Bulk: volume list */}
-              {showVolumeSection && (
-                <VolumesTable
-                  volumes={volumes}
-                  modal={watchModal}
-                  onAdd={() => {
-                    setEditingVolumeIndex(null);
-                    setVolumeDialogOpen(true);
-                  }}
-                  onEdit={(i) => {
-                    setEditingVolumeIndex(i);
-                    setVolumeDialogOpen(true);
-                  }}
-                  onDelete={(i) => setVolumes((prev) => prev.filter((_, idx) => idx !== i))}
-                />
-              )}
+            ) : (
+            <div className="flex flex-col gap-3">
+              {cargoOneFields}
+              {equipmentsBlock}
+              {cargoOneVolumes}
 
               <div className="grid grid-cols-2 gap-3">
                 {/* Spans both columns: this field is a currency select (fixed
@@ -1244,72 +1474,17 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
                     narrow to read or type into. Full width gives the input the
                     remaining ~180px. Also fixes the same field on the analyst
                     screen, which renders this shared form. */}
-                <FormItem className="col-span-2" id={fieldAnchor('declared_value')}>
-                  {withTip('declared_value', 'Valor da carga', <FormLabel>Valor da Carga</FormLabel>)}
-                  <div className="flex gap-2">
-                    <FormField
-                      control={form.control}
-                      name="declared_value_currency"
-                      render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value ?? 'BRL'}>
-                          <FormControl>
-                            <SelectTrigger className="w-24 shrink-0">
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="BRL">BRL</SelectItem>
-                            <SelectItem value="USD">USD</SelectItem>
-                            <SelectItem value="EUR">EUR</SelectItem>
-                            <SelectItem value="GBP">GBP</SelectItem>
-                            <SelectItem value="CNY">CNY</SelectItem>
-                            <SelectItem value="ARS">ARS</SelectItem>
-                            <SelectItem value="CLP">CLP</SelectItem>
-                            <SelectItem value="MXN">MXN</SelectItem>
-                            <SelectItem value="CHF">CHF</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="declared_value"
-                      render={({ field }) => (
-                        <FormControl>
-                          <Input type="text" inputMode="decimal" placeholder="0.00" className="flex-1" {...field} />
-                        </FormControl>
-                      )}
-                    />
-                  </div>
-                  <FieldBlockHint field="declared_value" />
-                </FormItem>
-
-                <FormField
-                  control={form.control}
-                  name="insurance_required"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Seguro Obrigatório</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecionar..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="true">Sim</SelectItem>
-                          <SelectItem value="false">Não</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+{declaredValueField}
+                {insuranceField}
               </div>
             </div>
+            )}
           </CardSection>
 
           {/* ── Bloco 3: Observacoes ── */}
+          {/* `contents` keeps the analyst grid untouched; in the portal's two-
+              column layout Observações takes the whole second row. */}
+          <div className={multiCargo ? 'xl:col-span-2 2xl:col-span-1' : 'contents'}>
           <CardSection
             number={3}
             title="Observações"
@@ -1409,6 +1584,7 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
               />
             </div>
           </CardSection>
+          </div>
         </div>
 
         <div className="flex flex-col gap-3 pt-2">
@@ -1429,9 +1605,13 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
               >
                 <UploadCloud className="w-5 h-5 text-muted-foreground" />
                 <div className="text-center">
-                  <p className="text-sm font-medium">Documentação do processo</p>
+                  <p className="text-sm font-medium">
+                    {clientFacing ? 'Documentos de apoio (só para consulta)' : 'Documentação do processo'}
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    Arraste ou clique para anexar — PDF, Word, Excel, imagens
+                    {clientFacing
+                      ? 'BL, certificado de origem e outros arquivos ficam anexados para consulta. Eles não preenchem os campos acima. PDF, Word, Excel, imagens.'
+                      : 'Arraste ou clique para anexar — PDF, Word, Excel, imagens'}
                   </p>
                 </div>
                 <input
@@ -1482,6 +1662,16 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
             </div>
           )}
 
+          {multiCargo && (
+            <p role="status" className="portal-body text-right text-foreground/80">
+              <span className="font-medium text-foreground">Resumo do envio:</span>{' '}
+              {cargoCountSummary(
+                1 + extraCargos.length,
+                showVolumeSection ? countVolumes(allVolumes) : null,
+                isFCL ? equipments.length : null,
+              )}
+            </p>
+          )}
           <div className="flex flex-wrap items-center justify-end gap-3">
             {blocked && <SubmitBlockedNote countLabel={countLabel} />}
             {draft?.onSaveTemplate && <Button type="button" variant="ghost" onClick={() => draft.onSaveTemplate?.(draftSnapshot(form.getValues()))}>Salvar como habitual</Button>}
@@ -1520,12 +1710,23 @@ export function ManualForm({ clientId, onQuotationCreated, disabled, clientDna, 
           if (!open) setEditingVolumeIndex(null);
         }}
         modal={watchModal}
-        initialValues={editingVolumeIndex !== null ? volumes[editingVolumeIndex] : undefined}
+        initialValues={
+          editingVolumeIndex === null
+            ? undefined
+            : volumeCargo === 1
+              ? volumes[editingVolumeIndex]
+              : extraCargos[volumeCargo - 2]?.volumes[editingVolumeIndex]
+        }
         onAdd={(item) => {
-          if (editingVolumeIndex !== null) {
-            setVolumes((prev) => prev.map((v, idx) => (idx === editingVolumeIndex ? item : v)));
+          const upsert = (prev: CreateVolumeItem[]) =>
+            editingVolumeIndex !== null
+              ? prev.map((v, idx) => (idx === editingVolumeIndex ? item : v))
+              : [...prev, item];
+          if (volumeCargo === 1) {
+            setVolumes(upsert);
           } else {
-            setVolumes((prev) => [...prev, item]);
+            const cargo = extraCargos[volumeCargo - 2];
+            if (cargo) updateCargo(cargo.id, { volumes: upsert(cargo.volumes) });
           }
         }}
       />

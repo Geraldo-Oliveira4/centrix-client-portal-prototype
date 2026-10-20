@@ -9,6 +9,7 @@ import { useShipmentIndicators } from '../embarques/components/shipment-indicato
 import {
   SHIPMENT_INDICATOR_KEYS,
   SHIPMENT_INDICATOR_LABELS,
+  shipmentIndicatorHref,
 } from '../embarques/lib/shipment-indicators';
 
 /**
@@ -41,7 +42,7 @@ export default function VisaoGeralPage() {
             key,
             label: SHIPMENT_INDICATOR_LABELS[key],
             count: indicators[key].size,
-            href: `/portal/embarques?tab=lista&indicador=${key}`,
+            href: shipmentIndicatorHref(key),
           })),
     [indicators, isLoading, isError],
   );

@@ -86,6 +86,19 @@
     });
   }
 
+  /**
+   * "Selecionar todos" de um filtro: toda opção que ainda tem embarque no
+   * recorte (período + OUTROS filtros). Desabilitada ("0 no recorte") não entra;
+   * a já marcada fica, porque marcada nunca desabilita.
+   */
+  function selectAllValues(D, allOps, periodOps, filters, key) {
+    return filterOptions(D, allOps, periodOps, filters, key).filter((o) => !o.disabled).map((o) => o.value);
+  }
+  /** "Limpar" de UM filtro: tira só esta chave, os outros filtros ficam. */
+  function clearFilter(filters, key) {
+    return { ...filters, [key]: [] };
+  }
+
   /** "Rota Shanghai → Santos · FOB · Últimos 90 dias · 14 embarques". */
   function viewSummary(D, filters, periodLabel, n) {
     const parts = FILTERS.filter((f) => (filters[f.key] || []).length).map((f) => {
@@ -124,6 +137,47 @@
   function comparisonCaption(range) {
     const p = previousRange(range);
     return `Variações comparam com o período anterior de mesma duração (${fullDate(p.start)} a ${fullDate(p.end)}, ${p.days} dias).`;
+  }
+
+  /**
+   * A faixa do período: "Mostrando: Últimos 90 dias (16/06/2026 a 13/09/2026) ·
+   * comparado com 18/03/2026 a 15/06/2026 · 42 embarques". A base de comparação é
+   * a MESMA de toda variação da tela (`previousRange`).
+   */
+  function periodStrip(range, label, n) {
+    const p = previousRange(range);
+    return `Mostrando: ${label} (${fullDate(range.start)} a ${fullDate(range.end)}) · comparado com ${fullDate(p.start)} a ${fullDate(p.end)} · ${n} ${n === 1 ? 'embarque' : 'embarques'}`;
+  }
+
+  // ------------------------------------------------------ como é calculado ---
+  /** "Chegada ao destino": porto ou aeroporto de descarga (escopo do Centrix vai da cotação até ela). */
+  const DESTINATION_HINT = 'Porto ou aeroporto de descarga';
+  const KPI_FORMULA = {
+    ready: 'Mercadoria pronta para embarque na origem dentro do prazo combinado: embarques com prontidão realizada até o compromisso original ÷ embarques com prontidão confirmada.',
+    port: 'Chegada ao destino (porto ou aeroporto de descarga) realizada até o primeiro ETA contratado ÷ embarques com chegada registrada. Resultado da cadeia, sem atribuição automática ao exportador ou agente.',
+    freight: null,
+    count: 'Contagem dos embarques no recorte (período + filtros).',
+  };
+  /**
+   * As quatro linhas do "Como é calculado" de um KPI: fonte, fórmula, período e
+   * filtros. Fonte e fórmula saem da definição da métrica na fixture (dado de
+   * exemplo); o que ela não diz vira "A definir com dados", nunca um palpite.
+   */
+  function kpiDefinition(D, key, filters) {
+    const m = (D.metrics || {})[key];
+    const source = key === 'count' ? 'Embarques da base filtrados pelo período (compromisso de prontidão).' : (m && m.source) || 'A definir com dados';
+    const formula = KPI_FORMULA[key] || (m && m.definition) || 'A definir com dados';
+    const active = FILTERS.filter((f) => (filters[f.key] || []).length);
+    const filterLine = (active.length
+      ? `Ativos: ${active.map((f) => `${f.label} (${filters[f.key].map((v) => f.name(D, v)).join(', ')})`).join('; ')}.`
+      : 'Todos os filtros globais (exportador, agente, rota, incoterm, país, SKU).')
+      + ' Com SKU, frete e prazos continuam sendo do embarque inteiro.';
+    return [
+      { label: 'Fonte', text: source },
+      { label: 'Fórmula', text: formula },
+      { label: 'Período', text: 'Compromisso de prontidão dentro do período selecionado; variação contra o período anterior de mesma duração.' },
+      { label: 'Filtros que se aplicam', text: filterLine },
+    ];
   }
 
   // ------------------------------------------------------------ métricas ---
@@ -168,7 +222,7 @@
   }
 
   // ------------------------------------------------------- leituras prontas ---
-  const STAGE_KEYS = [['ready', 'Prontidão'], ['port', 'Chegada ao porto'], ['final', 'Entrega final']];
+  const STAGE_KEYS = [['ready', 'Prontidão'], ['port', 'Chegada ao destino'], ['final', 'Entrega final']];
   /** "Onde o prazo se perde": as três taxas em sequência e a maior queda entre elas. */
   function funnel(D, ops) {
     const steps = STAGE_KEYS.map(([key, label]) => { const a = D.metric(key, ops); return { key, label, rate: a.rate, good: a.good, base: a.eligible.length }; });
@@ -215,7 +269,7 @@
     return {
       prazo: { kpi: final, metric: pct(final.value), conclusion: final.value == null ? 'Ainda não há entrega final com comprovante neste recorte.' : `${fa.good} de ${fa.eligible.length} entregas chegaram no prazo final.${routes[0] && routes.length > 1 && routes[0].final.rate < final.value ? ` Onde pesa mais: ${routes[0].name} (${routes[0].final.good} de ${routes[0].final.eligible.length}).` : ''}` },
       frete: { kpi: freight, metric: freight.value == null ? '—' : usd(freight.value), conclusion: freight.value == null ? 'Sem frete contratado neste recorte.' : `Média de ${usd(freight.value / Math.max(1, D.metric('freight', cur).eligible.length))} por embarque.${byRoute.length > 1 ? ` Rota mais cara: ${byRoute[0].name} (${usd(byRoute[0].freightAvg)} em média).` : ''}` },
-      parceiros: { kpi: null, metric: agents[0] ? agents[0].name : '—', conclusion: agents[0] ? `Chega ao porto no prazo em ${agents[0].port.rate}% (${agents[0].port.good} de ${agents[0].port.eligible.length}).${exps[0] ? ` Exportador mais pontual na prontidão: ${exps[0].name} (${exps[0].ready.rate}%).` : ''}` : `Nenhum agente com ${MIN_SAMPLE} ou mais chegadas neste recorte para comparar.` },
+      parceiros: { kpi: null, metric: agents[0] ? agents[0].name : '—', conclusion: agents[0] ? `Chega ao destino no prazo em ${agents[0].port.rate}% (${agents[0].port.good} de ${agents[0].port.eligible.length}).${exps[0] ? ` Exportador mais pontual na prontidão: ${exps[0].name} (${exps[0].ready.rate}%).` : ''}` : `Nenhum agente com ${MIN_SAMPLE} ou mais chegadas neste recorte para comparar.` },
       perda: { kpi: null, metric: delays[0] && delays[0].avg > 0 ? delays[0].label : f.drop ? f.drop.to : '—', conclusion: delays[0] && delays[0].avg > 0 ? `Em média +${String(delays[0].avg).replace('.', ',')} dia(s) acima do planejado nesta etapa.${f.drop ? ` A maior queda de prazo é de ${f.drop.from} para ${f.drop.to} (−${f.drop.points} pontos).` : ''}` : 'Nenhuma etapa acima do planejado neste recorte.' },
     };
   }
@@ -234,7 +288,7 @@
     });
   }
 
-  const api = { FILTERS, MIN_SAMPLE, readFilters, writeFilters, activeCount, matches, applyFilters, options, filterOptions, viewSummary, reportContext, previousRange, inRange, comparisonCaption, kpi, monthly, funnel, stageDelays, ranking, questions, commitments, valueOf };
+  const api = { FILTERS, MIN_SAMPLE, DESTINATION_HINT, readFilters, writeFilters, activeCount, matches, applyFilters, options, filterOptions, selectAllValues, clearFilter, periodStrip, kpiDefinition, viewSummary, reportContext, previousRange, inRange, comparisonCaption, kpi, monthly, funnel, stageDelays, ranking, questions, commitments, valueOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelEngine = api;
 })(typeof window !== 'undefined' ? window : globalThis);

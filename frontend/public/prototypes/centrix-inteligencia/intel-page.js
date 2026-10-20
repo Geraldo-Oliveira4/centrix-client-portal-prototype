@@ -11,6 +11,7 @@
 const IE = window.IntelEngine, IL = window.IntelLayout;
 let intelLayout = (() => { try { return IL.load(localStorage); } catch { return IL.defaults(); } })();
 let openFilterKey = null;          // dropdown de filtro aberto, preservado entre renders
+const openKpiHow = new Set();      // "Como é calculado" abertos, preservados entre renders
 let customizeDraft = null;          // rascunho do "Personalizar" até Salvar
 let intelViews = (() => { try { return IL.loadViews(localStorage); } catch { return []; } })();
 const FILTER_KEYS = IE.FILTERS.map(f => f.key);
@@ -50,12 +51,21 @@ function spark(series) {
   return `<svg class="spark" viewBox="0 0 100 28" aria-hidden="true"><polyline points="${xy}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 }
 function kpiValue(key, k) { return k.value == null ? '—' : key === 'freight' ? money(k.value) : key === 'count' ? String(k.value) : k.value + '%'; }
-const KPI_LABELS = { ready: 'Prontidão no prazo', port: 'Chegada ao porto no prazo', freight: 'Frete contratado', count: 'Embarques no recorte' };
+/* "Chegada ao destino" = porto ou aeroporto de descarga: o escopo do Centrix vai
+   da cotação até ali. O termo leva a dica em `title` e por extenso para leitor de tela. */
+const destTerm = (t) => `<span class="term" title="${IE.DESTINATION_HINT}">${t}</span><span class="sr-only"> (${IE.DESTINATION_HINT.toLowerCase()})</span>`;
+const KPI_LABELS = { ready: 'Prontidão no prazo', port: `${destTerm('Chegada ao destino')} no prazo`, freight: 'Frete contratado', count: 'Embarques no recorte' };
+/** "ⓘ Como é calculado": fonte, fórmula, período e filtros (intel-engine.js::kpiDefinition). */
+function kpiHow(key, gf) {
+  const id = 'kpi-how-' + key, open = openKpiHow.has(key);
+  const lines = IE.kpiDefinition(D, key, gf);
+  return `<button type="button" class="kpi-how" data-action="kpi-how" data-id="${key}" aria-expanded="${open}" aria-controls="${id}"><span aria-hidden="true">ⓘ</span> Como é calculado</button><div class="kpi-how-body" id="${id}" ${open ? '' : 'hidden'}><span class="example-tag">Dado de exemplo</span><dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
+}
 function kpiCard(key, s, withSpark) {
   const k = IE.kpi(D, key, s.cur, s.prev), series = withSpark ? IE.monthly(D, key, s.cur.length ? IE.applyFilters(D.operations, s.gf) : [], s.range.end) : null;
   const a = key === 'count' ? null : D.metric(key, s.cur);
   const base = key === 'count' ? `${s.cur.length} de ${s.all.length} no período` : a.m.amount ? `${a.eligible.length} de ${s.cur.length} com valor` : `${a.good} de ${a.eligible.length} elegíveis`;
-  return `<article class="kpi"><span class="kpi-label">${KPI_LABELS[key]}</span><b>${kpiValue(key, k)}</b>${k.small ? smallTag(k.n) : variationChip(k)}<small>${base}</small>${withSpark ? spark(series) : ''}</article>`;
+  return `<article class="kpi"><span class="kpi-label">${KPI_LABELS[key]}</span><b>${kpiValue(key, k)}</b>${k.small ? smallTag(k.n) : variationChip(k)}<small>${base}</small><small class="kpi-period">No período selecionado</small>${withSpark ? spark(series) : ''}${kpiHow(key, s.gf)}</article>`;
 }
 function lineChart(series, keys) {
   const W = 560, H = 190, L = 34, B = 26, T = 10, R = 10, n = series[0].length;
@@ -81,21 +91,21 @@ function heroBlock(s) {
 }
 function funnelBlock(s) {
   const f = IE.funnel(D, s.cur);
-  return `<section class="block" id="bloco-funil" aria-labelledby="t-funil">${blockHead('funil', 'Onde o prazo se perde', 'A mesma carteira em três momentos: quanto chega no prazo a cada etapa.')}<ol class="funnel">${f.steps.map(st => `<li><span>${st.label}</span><div class="funnel-track"><span style="width:${st.rate || 0}%"></span></div><b>${pctTxt(st.rate)}</b><small>${st.good ?? 0} de ${st.base}</small></li>`).join('')}</ol><p class="insight-line">${f.drop ? `A maior queda é de <strong>${f.drop.from}</strong> para <strong>${f.drop.to}</strong>: −${f.drop.points} pontos.` : 'Nenhuma queda de prazo entre as etapas neste recorte.'}</p></section>`;
+  return `<section class="block" id="bloco-funil" aria-labelledby="t-funil">${blockHead('funil', 'Onde o prazo se perde', 'A mesma carteira em três momentos: quanto chega no prazo a cada etapa.')}<ol class="funnel">${f.steps.map(st => `<li><span>${st.key === 'port' ? destTerm(st.label) : st.label}</span><div class="funnel-track"><span style="width:${st.rate || 0}%"></span></div><b>${pctTxt(st.rate)}</b><small>${st.good ?? 0} de ${st.base}</small></li>`).join('')}</ol><p class="insight-line">${f.drop ? `A maior queda é de <strong>${f.drop.from}</strong> para <strong>${f.drop.to}</strong>: −${f.drop.points} pontos.` : 'Nenhuma queda de prazo entre as etapas neste recorte.'}</p></section>`;
 }
 function kpisBlock(s, withSpark) {
   return `<section class="block" id="bloco-kpis" aria-label="Indicadores"><div class="kpis">${['ready', 'port', 'freight', 'count'].map(k => kpiCard(k, s, withSpark)).join('')}</div>${withSpark ? '<p class="chart-caption">Cada linha mostra o indicador mês a mês nos últimos 6 meses.</p>' : ''}</section>`;
 }
 function chartsBlock(s) {
   const base = IE.applyFilters(D.operations, s.gf);
-  const keys = [['ready', 'Prontidão', 's1'], ['port', 'Chegada ao porto', 's2'], ['final', 'Entrega final', 's3']];
+  const keys = [['ready', 'Prontidão', 's1'], ['port', 'Chegada ao destino', 's2'], ['final', 'Entrega final', 's3']];
   return `<section class="block" id="bloco-graficos" aria-labelledby="t-graficos">${blockHead('graficos', 'Evolução', '')}<div class="charts"><div class="chart-card"><h3>Prazo por etapa · últimos 6 meses</h3>${lineChart(keys.map(([k]) => IE.monthly(D, k, base, s.range.end)), keys)}<p class="chart-caption">Percentual no prazo em cada etapa, por mês do compromisso de prontidão. Meses recentes ainda têm cargas em curso.</p></div><div class="chart-card"><h3>Frete por mês</h3>${barChart(IE.monthly(D, 'freight', base, s.range.end))}<p class="chart-caption">Frete internacional contratado (USD) por mês do compromisso de prontidão. Exclui taxas e trecho terrestre.</p></div></div></section>`;
 }
 function rankingTable(rows, dim) {
   const first = { exp: 'Exportador', ag: 'Agente de cargas', rota: 'Rota' }[dim];
   const href = r => dim === 'exp' ? link('fornecedores/' + r.id + '/resumo', `<b>${esc(r.name)}</b>`) : dim === 'ag' ? link('agentes/' + r.id + '/resumo', `<b>${esc(r.name)}</b>`) : link('rotas/' + r.id + '/resumo', `<b>${esc(r.name)}</b>`);
   const cell = m => `${pctTxt(m.rate)}<small>${m.good ?? 0} de ${m.eligible.length}</small>`;
-  return rows.length ? table([first, 'Embarques', 'Prontidão no prazo', 'Chegada ao porto no prazo', 'Frete médio'], rows.map(r => `<tr><td>${href(r)}</td><td>${r.n}${r.n < IE.MIN_SAMPLE ? ' ' + smallTag(r.n) : ''}</td><td>${cell(r.ready)}</td><td>${cell(r.port)}</td><td>${r.freightAvg == null ? '—' : money(r.freightAvg)}</td></tr>`).join('')) : '<p class="muted">Nenhum registro neste recorte.</p>';
+  return rows.length ? table([first, 'Embarques', 'Prontidão no prazo', 'Chegada ao destino no prazo', 'Frete médio'], rows.map(r => `<tr><td>${href(r)}</td><td>${r.n}${r.n < IE.MIN_SAMPLE ? ' ' + smallTag(r.n) : ''}</td><td>${cell(r.ready)}</td><td>${cell(r.port)}</td><td>${r.freightAvg == null ? '—' : money(r.freightAvg)}</td></tr>`).join('')) : '<p class="muted">Nenhum registro neste recorte.</p>';
 }
 function performanceBlock(s) {
   // Sem sub-abas: Etapas, Exportadores e Agentes empilhados, cada um com o seu h3.
@@ -126,9 +136,21 @@ function filterBar(s) {
     // Lista e contagem da base INTEIRA (todos os períodos); desabilitada quando não
     // sobra embarque no período + outros filtros. Opção nunca some.
     const sel = s.gf[f.key] || [], opts = IE.filterOptions(D, D.operations, s.all, s.gf, f.key);
-    return `<details class="fsel" data-fkey="${f.key}" ${openFilterKey === f.key ? 'open' : ''}><summary>${f.label}${sel.length ? ` <b>${sel.length}</b>` : ''}</summary><div class="fsel-menu" role="group" aria-label="${f.label}"><p class="fsel-hint">Entre parênteses, embarques em toda a base.</p>${opts.map(o => `<label class="${o.disabled ? 'is-disabled' : ''}" title="${o.available} no recorte atual"><input type="checkbox" data-gfilter="${f.key}" value="${esc(o.value)}" ${o.selected ? 'checked' : ''} ${o.disabled ? 'disabled' : ''}> <span>${esc(o.label)} (${o.count})</span>${o.disabled ? '<small>0 no recorte</small>' : ''}</label>`).join('')}</div></details>`;
+    return `<details class="fsel" data-fkey="${f.key}" ${openFilterKey === f.key ? 'open' : ''}><summary>${f.label}${sel.length ? ` <b>${sel.length}</b>` : ''}</summary><div class="fsel-menu" role="group" aria-label="${f.label}"><div class="fsel-actions"><button type="button" class="text-button" data-action="gfilter-all" data-key="${f.key}" aria-label="Selecionar todas as opções de ${f.label} com embarques no recorte">Selecionar todos</button><button type="button" class="text-button" data-action="gfilter-clear-one" data-key="${f.key}" aria-label="Limpar o filtro ${f.label}" ${sel.length ? '' : 'disabled'}>Limpar</button></div><p class="fsel-hint">Entre parênteses, embarques em toda a base.</p>${opts.map(o => `<label class="${o.disabled ? 'is-disabled' : ''}" title="${o.available} no recorte atual"><input type="checkbox" data-gfilter="${f.key}" value="${esc(o.value)}" ${o.selected ? 'checked' : ''} ${o.disabled ? 'disabled' : ''}> <span>${esc(o.label)} (${o.count})</span>${o.disabled ? '<small>0 no recorte</small>' : ''}</label>`).join('')}</div></details>`;
   };
-  return `<section class="filterbar" aria-label="Filtros do relatório"><div class="filter-row">${IE.FILTERS.map(dropdown).join('')}<span class="fcount" aria-live="polite"><b>${s.cur.length}</b> de ${s.all.length} embarques</span></div>${chips.length ? `<div class="filter-chips">${chips.join('')}<button class="text-button" data-action="gfilter-clear">Limpar filtros</button></div>` : ''}${(s.gf.sku || []).length ? '<p class="note-small">Filtro de SKU: entra o embarque que contém o SKU; frete e prazos continuam sendo do embarque inteiro.</p>' : ''}</section>`;
+  return `<section class="filterbar" aria-label="Filtros do relatório"><div class="filter-row">${IE.FILTERS.map(dropdown).join('')}<span class="fcount" aria-live="polite"><b>${s.cur.length}</b> de ${s.all.length} embarques</span></div>${chips.length ? `<div class="filter-chips">${chips.join('')}<button class="text-button" data-action="gfilter-clear" aria-label="Limpar todos os filtros">Limpar filtros</button>${raioX(s.gf)}</div>` : ''}${(s.gf.sku || []).length ? '<p class="note-small">Filtro de SKU: entra o embarque que contém o SKU; frete e prazos continuam sendo do embarque inteiro.</p>' : ''}</section>`;
+}
+/* Atalho para o Raio X do exportador: só com UM exportador marcado. O destino é a
+   ficha de exportador que já existe (#fornecedores/<id>/resumo), com o período. */
+function raioX(gf) {
+  const exp = gf.exp || [];
+  if (exp.length !== 1 || !company(exp[0])) return '';
+  return `<span class="raio-x">${link('fornecedores/' + exp[0] + '/resumo', `Ver Raio X do exportador <span class="sr-only">${esc(company(exp[0]).name)}</span> →`)}</span>`;
+}
+/** A faixa "Mostrando: … · comparado com … · N embarques", logo abaixo do título. */
+function periodStripLine(s) {
+  const label = periodNames[params.get('period') || 'days90'] || 'Personalizado';
+  return s.range.valid ? IE.periodStrip(s.range, label, s.cur.length) : 'Período inválido — revise as datas';
 }
 function periodBar() {
   const r = periodRange();
@@ -147,7 +169,7 @@ const EXAMPLE_NOTE = '<p class="example-note"><span class="example-tag">Exemplo 
 /* --------------------------------------------------------------- página --- */
 function intelOverview() {
   const s = intelScope(), mode = intelLayout.mode, visible = new Set(IL.visibleBlocks(intelLayout));
-  let html = `<div class="heading"><div><h1 tabindex="-1">Inteligência</h1><p>${mode === 'completa' ? 'O retrato completo da sua operação: prazos, frete, parceiros e rotas.' : 'As quatro perguntas da sua operação, respondidas em uma linha cada.'}</p>${EXAMPLE_NOTE}</div><div class="actions intel-actions">${modeSwitch()}<button class="button secondary" data-action="intel-customize">Personalizar</button><button class="button secondary" data-action="intel-report">Preparar relatório</button></div></div>${viewChips()}`;
+  let html = `<div class="heading"><div><h1 tabindex="-1">Inteligência</h1><p>${mode === 'completa' ? 'O retrato completo da sua operação: prazos, frete, parceiros e rotas.' : 'As quatro perguntas da sua operação, respondidas em uma linha cada.'}</p>${EXAMPLE_NOTE}</div><div class="actions intel-actions">${modeSwitch()}<button class="button secondary" data-action="intel-customize">Personalizar</button><button class="button secondary" data-action="intel-report">Preparar relatório</button></div></div><p class="period-strip" role="status" aria-live="polite">${esc(periodStripLine(s))}</p>${viewChips()}`;
   html += periodBar() + filterBar(s);
   html += `<p class="comparison-caption">${s.range.valid ? IE.comparisonCaption(s.range) : ''}${s.cur.length && s.cur.length < IE.MIN_SAMPLE ? ' ' + smallTag(s.cur.length) + ' Com menos de 3 embarques as variações não são mostradas.' : ''}</p>`;
   if (mode === 'completa' && s.cur.length) {
@@ -215,7 +237,7 @@ function openReportPanel(emailDone) {
   const email = emailDone
     ? `<div class="success" role="status"><b>Agendado (simulação)</b><p>Envio ${esc(emailDone.freq)} para ${esc(emailDone.to.join(', '))}. Nada foi enviado nesta prévia.</p></div>`
     : `<form id="report-email" class="report-form" novalidate><label>Frequência<select id="report-freq"><option value="semanal">Semanal</option><option value="mensal">Mensal</option></select></label><label>Destinatários<input id="report-to" type="text" placeholder="nome@empresa.com, outro@empresa.com" aria-describedby="report-to-error" required></label><p id="report-to-error" class="form-error" role="alert"></p><button class="button" type="submit">Agendar envio</button></form>`;
-  openDrawer('Preparar relatório', esc(summary), `<p class="muted">A visão atual — período, filtros, modo e blocos — é o relatório.</p>
+  openDrawer('Preparar relatório', esc(summary), `<p class="period-strip in-report">${esc(periodStripLine(s))}</p><p class="muted">A visão atual — período, filtros, modo e blocos — é o relatório.</p>
     <section class="report-section" aria-labelledby="rs-1"><h3 id="rs-1">Salvar como minha visão</h3><form id="view-form" class="report-form"><label>Nome da visão<input id="view-name" type="text" maxlength="60" required placeholder="Ex.: Shanghai FOB"></label><button class="button" type="submit">Salvar</button></form><p class="muted small">Aparece como atalho no topo da Inteligência e restaura período, filtros, modo e blocos.</p></section>
     <section class="report-section" aria-labelledby="rs-2"><h3 id="rs-2">Levar para uma conversa</h3>${talk}<p class="small">${link('relatorios', 'Ver todos os relatórios')}</p></section>
     <section class="report-section" aria-labelledby="rs-3"><h3 id="rs-3">Receber e compartilhar</h3>
@@ -250,6 +272,17 @@ document.addEventListener('click', e => {
   else if (a === 'intel-cust-save') { saveIntelLayout(customizeDraft); customizeDraft = null; closeDrawer(); render(); toast('Personalização salva.'); }
   else if (a === 'gfilter-remove') { const gf = IE.readFilters(params); gf[b.dataset.key] = gf[b.dataset.key].filter(v => v !== b.dataset.value); setGlobalFilters(gf); }
   else if (a === 'gfilter-clear') { openFilterKey = null; setGlobalFilters({}); }
+  else if (a === 'gfilter-all' || a === 'gfilter-clear-one') {
+    const key = b.dataset.key, s = intelScope();
+    const gf = a === 'gfilter-all' ? { ...s.gf, [key]: IE.selectAllValues(D, D.operations, s.all, s.gf, key) } : IE.clearFilter(s.gf, key);
+    openFilterKey = key; setGlobalFilters(gf);
+  }
+  else if (a === 'kpi-how') {
+    const open = b.getAttribute('aria-expanded') !== 'true';
+    if (open) openKpiHow.add(id); else openKpiHow.delete(id);
+    b.setAttribute('aria-expanded', String(open));
+    document.getElementById(b.getAttribute('aria-controls')).hidden = !open;
+  }
   else if (a === 'intel-jump') { e.preventDefault(); jumpTo(id); }
   else if (a === 'intel-report') openReportPanel();
   else if (a === 'view-open') openView(id);

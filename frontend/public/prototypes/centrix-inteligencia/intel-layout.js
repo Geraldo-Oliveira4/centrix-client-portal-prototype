@@ -12,8 +12,8 @@
   const BLOCKS = {
     completa: [
       { id: 'destaque', label: 'Entrega final no prazo', desc: 'O número principal, a variação e a tendência dos últimos meses.' },
-      { id: 'funil', label: 'Onde o prazo se perde', desc: 'Prontidão → Chegada ao porto → Entrega final, com a maior queda.' },
-      { id: 'kpis', label: 'Indicadores', desc: 'Prontidão, Chegada ao porto, Frete contratado e Embarques no recorte.' },
+      { id: 'funil', label: 'Onde o prazo se perde', desc: 'Prontidão → Chegada ao destino → Entrega final, com a maior queda.' },
+      { id: 'kpis', label: 'Indicadores', desc: 'Prontidão, Chegada ao destino, Frete contratado e Embarques no recorte.' },
       { id: 'graficos', label: 'Gráficos', desc: 'Prazo por etapa e frete por mês, nos últimos 6 meses.' },
       { id: 'performance', label: 'Performance', desc: 'Etapas, Exportadores e Agentes de cargas.' },
       { id: 'precos', label: 'Preços e rotas', desc: 'Suas rotas, frequência e frete médio.' },

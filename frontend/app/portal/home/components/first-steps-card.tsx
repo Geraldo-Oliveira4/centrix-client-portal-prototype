@@ -11,10 +11,22 @@
 //
 // Faltando um passo (4 de 5) o cartão vira uma barra fina: o que falta é um
 // item só. Dispensável; o "Reiniciar onboarding" do painel o traz de volta.
+//
+// Desde 20/10/2026 (revisão do Vitor) cada passo é uma LINHA de largura inteira
+// com descrição, estado e a própria ação, em qualquer ordem; "Recolher" esconde
+// a lista e deixa o cabeçalho com o progresso.
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Check, PartyPopper, UserPlus, X } from 'lucide-react';
+import {
+  ArrowRight,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  PartyPopper,
+  UserPlus,
+  X,
+} from 'lucide-react';
 import { toast } from 'react-toastify';
 
 import { Button } from '@/components/ui/button';
@@ -137,6 +149,7 @@ export function FirstStepsCard() {
   const [inviting, setInviting] = useState(false);
   const [email, setEmail] = useState('');
   const [touched, setTouched] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const progress = firstStepsProgress(state);
   const next = nextFirstStep(state);
   const compact = firstStepsCompact(state);
@@ -212,6 +225,7 @@ export function FirstStepsCard() {
 
   const inviteForm = inviting && !isDone('colega') && (
     <form
+      id="convite-colega-form"
       className="flex flex-wrap items-end gap-2"
       onSubmit={(event) => {
         event.preventDefault();
@@ -322,10 +336,50 @@ export function FirstStepsCard() {
     );
   }
 
+  // Linha por passo, largura inteira (revisão do Vitor, 20/10/2026): a grade
+  // de três colunas espremia o rótulo e só o "próximo" tinha ação. Agora TODO
+  // passo tem a própria ação e pode ser feito em qualquer ordem; o passo ainda
+  // conclui pela AÇÃO no destino, nunca pelo clique aqui.
+  const rowAction = (step: (typeof FIRST_STEPS)[number], done: boolean) => {
+    const label = done ? 'Abrir de novo' : NEXT_CTA[step.id];
+    const aria = `${label}: ${step.label}`;
+    if (step.href) {
+      return (
+        <Button
+          asChild
+          size="sm"
+          variant={done ? 'ghost' : 'outline'}
+          className="min-h-11 gap-1.5"
+        >
+          <Link href={step.href} aria-label={aria}>
+            {label}
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </Button>
+      );
+    }
+    if (done) return null;
+    return (
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="min-h-11 gap-1.5"
+        aria-expanded={inviting}
+        aria-controls="convite-colega-form"
+        aria-label={aria}
+        onClick={() => setInviting((v) => !v)}
+      >
+        {label}
+        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      </Button>
+    );
+  };
+
   return (
     <section
       aria-labelledby="primeiros-passos"
-      className="portal-card space-y-4 border-l-4 border-l-brand-orange p-5"
+      className="portal-card space-y-4 border-l-4 border-l-brand-orange p-6"
     >
       <div className="flex flex-wrap items-center gap-4">
         <ProgressRing
@@ -342,56 +396,87 @@ export function FirstStepsCard() {
           {status}
         </div>
         <div className="ml-auto flex items-center gap-1">
-          {nextButton(false)}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="min-h-11 gap-1.5"
+            aria-expanded={!collapsed}
+            aria-controls="primeiros-passos-lista"
+            onClick={() => setCollapsed((v) => !v)}
+          >
+            {collapsed ? (
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <ChevronUp className="h-4 w-4" aria-hidden="true" />
+            )}
+            {collapsed ? 'Mostrar passos' : 'Recolher'}
+            <span className="sr-only">
+              {collapsed ? ' de Primeiros passos' : ' Primeiros passos'}
+            </span>
+          </Button>
           {dismiss}
         </div>
       </div>
 
-      <ol className="grid gap-2 sm:grid-cols-3">
-        {FIRST_STEPS.map((step, index) => {
-          const done = isDone(step.id);
-          const isNext = next?.id === step.id;
-          return (
-            <li
-              key={step.id}
-              className={cn(
-                'flex min-h-11 items-center gap-2.5 rounded-lg border px-3 py-2',
-                done
-                  ? 'border-portal-success/30 bg-portal-success/10'
-                  : isNext
-                    ? 'border-brand-orange/50 bg-card'
-                    : 'border-border bg-muted/20',
-                justDone === step.id && 'first-steps-done',
-              )}
-            >
-              <span
-                aria-hidden="true"
+      <div id="primeiros-passos-lista" hidden={collapsed} className="space-y-4">
+        <ol className="divide-y divide-border rounded-lg border border-border">
+          {FIRST_STEPS.map((step, index) => {
+            const done = isDone(step.id);
+            return (
+              <li
+                key={step.id}
                 className={cn(
-                  'portal-small flex h-6 w-6 shrink-0 items-center justify-center rounded-full border font-medium',
-                  done
-                    ? 'border-portal-success bg-portal-success text-white'
-                    : 'border-border text-portal-neutral',
+                  'flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:gap-4',
+                  done && 'bg-portal-success/5',
+                  justDone === step.id && 'first-steps-done',
                 )}
               >
-                {done ? <Check className="h-4 w-4" /> : index + 1}
-              </span>
-              <span
-                className={cn(
-                  'portal-body min-w-0',
-                  done ? 'text-portal-neutral line-through' : 'text-foreground',
-                  isNext && 'font-medium',
-                )}
-              >
-                {step.label}
-                <span className="sr-only">
-                  {done ? ' (concluído)' : isNext ? ' (próximo)' : ''}
-                </span>
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-      {inviteForm}
+                <div className="flex min-w-0 flex-1 items-start gap-4">
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'portal-small flex h-8 w-8 shrink-0 items-center justify-center rounded-full border font-medium',
+                      done
+                        ? 'border-portal-success bg-portal-success text-white'
+                        : 'border-border text-portal-neutral',
+                    )}
+                  >
+                    {done ? <Check className="h-4 w-4" /> : index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={cn(
+                        'portal-body font-medium',
+                        done ? 'text-portal-neutral' : 'text-foreground',
+                      )}
+                    >
+                      {step.label}
+                    </p>
+                    <p className="portal-small text-portal-neutral">
+                      {step.description}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-4 pl-12 sm:justify-end sm:pl-0">
+                  <span
+                    className={cn(
+                      'portal-small rounded-full px-2 py-1 font-medium',
+                      done
+                        ? 'bg-portal-success/10 text-portal-success-ink'
+                        : 'bg-muted text-portal-neutral',
+                    )}
+                  >
+                    {done ? 'Concluído' : 'Pendente'}
+                  </span>
+                  {rowAction(step, done)}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+        {inviteForm}
+      </div>
     </section>
   );
 }

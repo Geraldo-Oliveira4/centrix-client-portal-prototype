@@ -47,6 +47,10 @@ import { WhatHappensNextPanel } from '@/app/portal/_shared/demo/what-happens-nex
 import { submitToFreitas } from '@/app/portal/_shared/demo/quotation-review';
 import { evaluateHardblocks } from '@/app/portal/_shared/demo/quotation-hardblocks';
 import {
+  combinedProductLabel,
+  hardblocksWithCargos,
+} from '@/app/portal/_shared/demo/quotation-cargos';
+import {
   snapshotFromDraft,
   type FormSnapshot,
 } from '@/app/portal/_shared/demo/quotation-form-snapshot';
@@ -70,14 +74,18 @@ import type { Exporter } from '@/types/exporter';
 
 type PagePhase = 'idle' | 'submitting' | 'done';
 
-// Os documentos que a Freitas espera do processo. É a lista de DOCUMENTOS, não
-// de formatos: ".msg, PDF, Word…" dizia o que o input aceita, nunca o que o
-// cliente deveria mandar. Os formatos continuam logo abaixo, como detalhe.
+// Os documentos dos quais a Freitas LÊ os dados da cotação. É a lista de
+// DOCUMENTOS, não de formatos: ".msg, PDF, Word…" dizia o que o input aceita,
+// nunca o que o cliente deveria mandar. Os formatos continuam logo abaixo.
+//
+// Desde 20/10/2026 (Vitor) os dois lugares de documento da tela se distinguem
+// pelo texto: AQUI ficam os que preenchem a cotação; BL e certificado de origem
+// são de apoio e vão na zona "Documentos de apoio" do formulário. Só texto: o
+// comportamento das duas zonas não mudou.
 const PORTAL_EXPECTED_DOCUMENTS = [
-  'BL / AWB',
+  'PO / pedido',
   'Invoice',
   'Packing List',
-  'Certificado de origem',
   'E-mail do exportador',
 ];
 
@@ -231,9 +239,18 @@ function PortalNovaCotacaoContent() {
   // Os hardblocks do Orsi (29/09/2026) so valem na V2: com a flag desligada o
   // formulario continua exatamente como era.
   const exporterName = exporter?.name ?? null;
+  // Com várias cargas o banner conta POR CARGA ("Produto (Carga 2)"): a carga
+  // extra passa pela MESMA regra (`hardblocksWithCargos`).
   const hardblocks = useCallback(
-    (draft: ManualFormDraft) =>
-      evaluateHardblocks(snapshotFromDraft(draft, exporterName)),
+    (draft: ManualFormDraft) => {
+      const snapshot = snapshotFromDraft(draft, exporterName);
+      return hardblocksWithCargos(
+        evaluateHardblocks(snapshot),
+        snapshot,
+        draft.cargos ?? [],
+        evaluateHardblocks,
+      );
+    },
     [exporterName],
   );
 
@@ -247,7 +264,7 @@ function PortalNovaCotacaoContent() {
       // hardblocks da revisao de saida.
       sendToFreitas(
         quotation,
-        snapshot ? snapshotFromDraft(snapshot, exporterName) : undefined,
+        snapshot ? submittedSnapshot(snapshot, exporterName) : undefined,
       );
       return;
     }
@@ -450,6 +467,7 @@ function PortalNovaCotacaoContent() {
             clientFacing
             onValuesChange={setFormValues}
             helpTips={QUOTATION_HELP}
+            multiCargo
             exporterSection={
               <PortalExporterSelect
                 value={exporter?.id ?? null}
@@ -474,18 +492,22 @@ function PortalNovaCotacaoContent() {
             </div>
           ) : (
           <div className="space-y-4">
-            <p className="portal-small text-portal-neutral">
-              Envie o que você já tem do processo — BL ou AWB, Invoice, Packing
-              List, certificado de origem, ou o próprio e-mail do exportador. A
-              Freitas usa esses documentos para montar a cotação, então nada
-              precisa ser digitado duas vezes.
-            </p>
+            <div className="space-y-1">
+              <h2 className="portal-h3">Documentos que preenchem a cotação</h2>
+              <p className="portal-small text-portal-neutral">
+                PO ou pedido, Invoice, Packing List ou o próprio e-mail do
+                exportador. A Freitas lê esses documentos e preenche a cotação
+                com eles, então nada precisa ser digitado duas vezes. BL e
+                certificado de origem são documentos de apoio: anexe na aba
+                “Preencher manualmente”, em “Documentos de apoio”.
+              </p>
+            </div>
             <UploadZone
               files={uploadFiles}
               onFilesChange={setUploadFiles}
               msgUploadProgress={0}
               isUploading={phase === 'submitting'}
-              title="Arraste aqui os documentos do processo"
+              title="Arraste aqui os documentos que preenchem a cotação"
               expectedDocuments={PORTAL_EXPECTED_DOCUMENTS}
             />
             <div className="flex justify-end">
@@ -513,6 +535,34 @@ function PortalNovaCotacaoContent() {
       {v2 && <WhatHappensNextPanel />}
       </div>
     </div>
+  );
+}
+
+/**
+ * O snapshot que vai para a revisão da Freitas. Com várias cargas ele leva o
+ * MESMO produto composto e TODOS os volumes que a criação mandou ao backend
+ * (`ManualForm`): sem isso a primeira edição na revisão acusaria "Produto" e
+ * "Equipamentos e volumes" alterados sem o cliente ter mexido em nada.
+ */
+function submittedSnapshot(
+  draft: ManualFormDraft,
+  exporterName: string | null,
+): FormSnapshot {
+  const cargos = draft.cargos ?? [];
+  if (cargos.length === 0) return snapshotFromDraft(draft, exporterName);
+  return snapshotFromDraft(
+    {
+      ...draft,
+      values: {
+        ...draft.values,
+        product: combinedProductLabel([
+          draft.values.product ?? '',
+          ...cargos.map((cargo) => cargo.product),
+        ]),
+      },
+      volumes: [...draft.volumes, ...cargos.flatMap((cargo) => cargo.volumes)],
+    },
+    exporterName,
   );
 }
 

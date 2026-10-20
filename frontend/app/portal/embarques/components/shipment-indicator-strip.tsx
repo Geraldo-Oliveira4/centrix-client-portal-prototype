@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, type ReactNode } from 'react';
+import Link from 'next/link';
 import {
   AlertTriangle,
   ArrowRight,
@@ -21,6 +22,7 @@ import {
   SHIPMENT_INDICATOR_DEFINITIONS,
   SHIPMENT_INDICATOR_KEYS,
   SHIPMENT_INDICATOR_LABELS,
+  shipmentIndicatorHref,
   type ShipmentIndicatorKey,
   type ShipmentIndicators,
 } from '../lib/shipment-indicators';
@@ -64,7 +66,8 @@ const ICONS: Record<ShipmentIndicatorKey, LucideIcon> = {
  * número na tinta da marca. Nunca vermelho aqui.
  *
  * `onSelect` transforma os cartões em recortes (Panorama, lista, Visão por PO);
- * sem ele a faixa é só leitura (Home). `variant="navy"` é a do banner da Home.
+ * sem ele a faixa é só leitura. `variant="navy"` é a do banner da Home, onde
+ * cada chip é link para a lista recortada (20/10/2026).
  */
 export function ShipmentIndicatorStrip({
   indicators,
@@ -86,6 +89,9 @@ export function ShipmentIndicatorStrip({
   className?: string;
 }) {
   if (variant === 'navy') {
+    // Cada chip é um LINK para a lista de Embarques já recortada (revisão do
+    // Vitor, 20/10/2026), inclusive com 0: a lista abre no estado vazio, que é
+    // a resposta. O número é o mesmo conjunto que a lista filtra.
     return (
       <ul
         className={cn('flex flex-wrap gap-2', className)}
@@ -94,22 +100,26 @@ export function ShipmentIndicatorStrip({
         {SHIPMENT_INDICATOR_KEYS.map((key) => {
           const count = indicators[key].size;
           return (
-            <li
-              key={key}
-              className="portal-small flex items-center gap-1.5 rounded-full border border-white/20 px-3 py-1 text-white/85"
-              title={SHIPMENT_INDICATOR_DEFINITIONS[key]}
-            >
-              {SHIPMENT_INDICATOR_LABELS[key]}
-              <span
-                className={cn(
-                  'font-semibold tabular-nums',
-                  key === 'action' && count > 0
-                    ? 'text-portal-warning'
-                    : 'text-white',
-                )}
+            <li key={key}>
+              <Link
+                href={shipmentIndicatorHref(key)}
+                aria-label={`${SHIPMENT_INDICATOR_LABELS[key]}: ${count} ${unit}. Abrir a lista filtrada`}
+                title={SHIPMENT_INDICATOR_DEFINITIONS[key]}
+                className="portal-small flex min-h-11 items-center gap-2 rounded-full border border-white/20 px-4 text-white/85 transition-colors hover:border-white/50 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
-                {count}
-              </span>
+                {SHIPMENT_INDICATOR_LABELS[key]}
+                <span
+                  className={cn(
+                    'font-semibold tabular-nums',
+                    key === 'action' && count > 0
+                      ? 'text-portal-warning'
+                      : 'text-white',
+                  )}
+                >
+                  {count}
+                </span>
+                <ArrowRight className="h-4 w-4 text-white/60" aria-hidden="true" />
+              </Link>
             </li>
           );
         })}

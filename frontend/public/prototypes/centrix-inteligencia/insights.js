@@ -84,7 +84,7 @@
 
   const LEAD = {
     ready: (v) => `Seus exportadores deixaram a carga pronta no prazo em ${v}% dos embarques.`,
-    port: (v) => `${v}% das cargas chegaram ao porto de destino no prazo.`,
+    port: (v) => `${v}% das cargas chegaram ao destino (porto ou aeroporto de descarga) no prazo.`,
     final: (v) => `${v}% das entregas chegaram ao destino final no prazo.`,
     docs: (v) => `${v}% dos embarques tiveram a documentação aceita sem correção.`,
     freight: (v) => `Você contratou ${money(v)} de frete internacional no período.`,
