@@ -162,6 +162,15 @@ export const SHIPMENT_LIST_RECORTE_LABELS: Record<ShipmentListRecorte, string> =
   documentos: 'Pendências documentais',
 };
 
+/**
+ * Para onde leva um indicador: a lista de Embarques já recortada por ele.
+ * Uma regra só para a Home (chips do banner) e a Central de trabalho; o número
+ * do chip é `indicators[key].size`, o MESMO conjunto que a lista usa no recorte.
+ */
+export function shipmentIndicatorHref(key: ShipmentListRecorte): string {
+  return `/portal/embarques?tab=lista&indicador=${key}`;
+}
+
 export function isShipmentListRecorte(
   value: string | null | undefined,
 ): value is ShipmentListRecorte {

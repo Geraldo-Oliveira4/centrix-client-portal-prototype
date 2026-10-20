@@ -2012,6 +2012,12 @@ fileira de abas dentro do navy, e a sidebar escondida nesta rota. As duas
 criavam dois lugares para ir ao mesmo lugar, o que dá ao cliente duas respostas
 para "onde eu clico?". **Não reintroduza navegação neste bloco.**
 
+> **20/10/2026 (revisão do Vitor):** os cinco chips de indicador do banner viraram
+> links para a lista de Embarques já recortada (`shipmentIndicatorHref`). Isso
+> NÃO é a navegação de volta: o chip leva só à resposta do próprio número. Abas,
+> atalhos de módulo e links genéricos continuam proibidos aqui. Ver a seção
+> "Ajustes do Vitor" no fim deste arquivo.
+
 **2. A Home mostra UMA ação, não a fila.** `components/urgent-action-card.tsx`,
 fundo rosa claro (`bg-primary/5`, a única superfície assim no portal) e botão
 primário. A tela tinha a fila inteira e isso derrotava o propósito dela — 18
@@ -2565,3 +2571,17 @@ da raiz ("Focus" e "One source for shipment indicators").
 | Panorama sem chip "Todos" | `shipment-map-workspace.tsx` | A faixa de indicadores é o filtro; a linha "Mostrando X · N de M · Ver todos" só aparece com recorte ativo |
 | Performance fora da Auditoria | `centrix-inteligencia/app.js::serviceCommitments` (aba "Compromissos do serviço" do bloco Performance) | Relatório somente leitura, mesma fonte (`centrix-auditoria/{freight,performance,model}.js` carregados no index), sem CTA de contestação e sem link para o caso. Links antigos `#auditoria/performance` caem em Preço do frete com aviso |
 
+
+## Ajustes do Vitor — 20/10/2026 (branch `feat/proto-ajustes-vitor`)
+
+Revisão técnica do protótipo: Inteligência aprovada com ajustes pequenos; Nova
+cotação precisa deixar claro que aceita várias cargas. Regras também no
+`DESIGN.md` da raiz ("Vitor's review").
+
+| O quê | Onde | Regra que não pode afrouxar |
+|---|---|---|
+| Chips da Home clicáveis | `ShipmentIndicatorStrip variant="navy"` + `shipmentIndicatorHref` (`embarques/lib/shipment-indicators.ts`, testado em `shipment-indicator-href.test.ts`) | Destino = `/portal/embarques?tab=lista&indicador=<chave>`, a MESMA função da Central. Clicável com 0. A linha "N com prazo vencido · N vencem…" fica TEXTO: mistura cotação e embarque e nenhuma lista filtra por urgência |
+| Primeiros passos em linhas | `home/components/first-steps-card.tsx`, `description` em `FIRST_STEPS` (`_shared/onboarding.ts`, `first-steps.test.ts`) | Qualquer ordem, cada linha com ação própria; "Recolher" é estado do componente. O passo continua fechando pela AÇÃO no destino. Barra fina com 4 de 5 mantida |
+| Inteligência: filtros, período, definições, Raio X | `centrix-inteligencia/intel-engine.js` (`selectAllValues`, `clearFilter`, `periodStrip`, `kpiDefinition`, `DESTINATION_HINT`, testados em `intel-engine.test.cjs`) + `intel-page.js` | "Selecionar todos" ignora opção desabilitada; "Limpar" é só daquele filtro. Faixa "Mostrando: … · comparado com … · N embarques" fixa e repetida no relatório. "Como é calculado" lê `source`/`definition` de `data.js` com selo "Dado de exemplo"; sem fonte, "A definir com dados". "Chegada ao porto" virou "Chegada ao destino" em todo o iframe (alias antigo mantido no `data-help.js`). "Ver Raio X do exportador" = ficha existente `#fornecedores/<id>/resumo`, só com UM exportador |
+| Várias cargas na Nova cotação | `ManualForm multiCargo` (só o portal passa) + `extra-cargo-card.tsx` + `_shared/demo/quotation-cargos.ts` (puro, `quotation-cargos.test.ts`) | Carga 1 = os campos de sempre do formulário; cargas 2..N em estado controlado. As regras da carga extra passam pela MESMA `evaluateHardblocks` (`hardblocksWithCargos`), nunca por uma lista própria. Seguro obrigatório e equipamentos FCL são do embarque, fora dos cartões. O backend não conhece cargas: `product` vira rótulo composto, volumes somados, cargas extras nas observações. Formato alvo em `docs/spec-cotacao-multiplas-cargas.md` |
+| Dois blocos de documentos | aba "Enviar arquivos" (`nova-cotacao/page.tsx`) e zona de anexos do `ManualForm` com `clientFacing` | Só texto: "Documentos que preenchem a cotação" × "Documentos de apoio (só para consulta)". Comportamento igual |

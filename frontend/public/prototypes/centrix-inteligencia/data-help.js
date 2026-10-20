@@ -4,7 +4,7 @@ const DATA_HELP = {
   identity: ['Parceiros e operações', 'Centrix e Inova têm campos para exportador e agente.', 'Confirmar preenchimento e vínculo de cada parceiro com o processo, embarque e PO. Conciliar nomes duplicados e cargas divididas ou consolidadas. Cadastro não comprova histórico de desempenho.'],
   ready: ['Prontidão no prazo', 'O contrato proposto do Inova prevê prontidão prevista e realizada.', 'Confirmar retorno e preenchimento das datas; preservar o compromisso original e suas revisões, com fonte. A previsão atual pode ter sido alterada e não comprova a promessa original.'],
   collect: ['Coleta', 'O contrato proposto do Inova prevê coleta prevista e realizada.', 'Confirmar data e local da coleta, fonte do evento e compromisso original. Não deduzir prontidão ou coleta a partir da partida do navio.'],
-  port: ['Transporte e chegada ao porto', 'Inova e ShipsGo têm campos ou eventos de transporte internacional.', 'Confirmar integração, cobertura por embarque/contêiner e eventos previstos versus realizados. Preservar a primeira previsão de chegada. Chegada, descarga e saída do terminal são marcos diferentes.'],
+  port: ['Transporte e chegada ao destino', 'Inova e ShipsGo têm campos ou eventos de transporte internacional.', 'Confirmar integração, cobertura por embarque/contêiner e eventos previstos versus realizados. Preservar a primeira previsão de chegada. Chegada, descarga e saída do terminal são marcos diferentes.'],
   final: ['Entrega no destino final', 'O comprovante de entrega pode vir da operação, transportador ou cliente.', 'Identificar a fonte integrada e obter local, data real e compromisso original da entrega. O contrato Inova examinado não mapeia esse evento. Chegada ao porto ou gate out não comprovam entrega na fábrica.'],
   docs: ['Qualidade documental', 'O Centrix possui anexos e identificação de documentos.', 'Registrar primeira versão enviada, versões corrigidas, critérios de conferência, resultado e data do aceite. Um documento anexado não comprova que estava correto na primeira entrega.'],
   quantity: ['Quantidade recebida', 'A fonte pode ser o recebimento do cliente ou seu ERP/WMS; ainda não está mapeada.', 'Obter quantidade pedida e efetivamente recebida por item e unidade, com entregas parciais e vínculo à PO. Packing list e BL descrevem a carga, mas não comprovam o que foi recebido.'],
@@ -18,7 +18,7 @@ const DATA_HELP = {
 };
 const HELP_LABELS = {
   'Exportador / origem':'identity','Exportador / rota':'identity','Entregas na base':'identity','Entrega / mercadoria':'quantity',
-  'Prontidão':'ready','Prontidão no prazo':'ready','Compromisso':'ready','Chegada ao porto':'port','Porto no prazo':'port','Destino final':'final',
+  'Prontidão':'ready','Prontidão no prazo':'ready','Compromisso':'ready','Chegada ao porto':'port','Chegada ao destino':'port','Chegada ao destino no prazo':'port','Porto no prazo':'port','Destino final':'final',
   'Frete contratado':'freight','Entrega / contratação':'freight','Execução':'port','Conferência':'audit','Frete / cobrança':'audit','Performance / responsabilidade':'cause',
   'Onde os tempos excedem o previsto':'stages','Dentro do trânsito via Singapura':'stages','Como o desempenho evolui':'ready',
   'Percursos utilizados':'route','Variantes deste corredor':'route','Locais da operação':'route','Passagens e fontes':'route','Movimentações':'route',

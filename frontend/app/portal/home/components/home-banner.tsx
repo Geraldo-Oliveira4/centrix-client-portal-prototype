@@ -10,22 +10,25 @@ import type { ShipmentIndicators } from '../../embarques/lib/shipment-indicators
 /**
  * Banner navy da Home. Desenho validado com o Victor Orsi no Claude Design.
  *
- * BANNER INFORMATIVO PURO, sem nenhuma funcao de navegacao. Ele diz tres coisas
- * e para: quem esta logado, quantos itens exigem atencao hoje, e os cinco
- * indicadores dos embarques (so leitura). Uma versao anterior levava uma fileira de abas no rodape e chegou a
- * substituir a sidebar nesta rota; as duas ideias sairam em 03/09/2026.
+ * O BANNER diz tres coisas: quem esta logado, quantos itens exigem atencao hoje
+ * e os cinco indicadores dos embarques. Uma versao anterior levava uma fileira
+ * de abas no rodape e chegou a substituir a sidebar nesta rota; as duas ideias
+ * sairam em 03/09/2026.
  *
- * NAVEGACAO VIVE SO NA SIDEBAR. E a razao de nao existir link nenhum aqui, nem
- * discreto: dois lugares para ir ao mesmo lugar dao ao cliente duas respostas
- * para "onde eu clico?", e a sidebar ja responde em todas as telas do portal —
- * inclusive nesta, que nao e mais excecao de rota.
+ * OS CINCO INDICADORES SAO LINKS desde 20/10/2026 (revisao tecnica do Vitor):
+ * cada chip abre Meus Embarques > lista ja recortada pelo indicador
+ * (`shipmentIndicatorHref`, a mesma regra da Central), inclusive com 0. Isso nao
+ * reabre a navegacao que saiu em 03/09: o chip nao e um segundo caminho para um
+ * MODULO (isso continua so na sidebar), e o atalho para a RESPOSTA do proprio
+ * numero. A frase de prazo ("N com prazo vencido...") continua texto: ela soma
+ * cotacao e embarque, e nenhuma lista do portal filtra por urgencia.
  *
  * DUAS REGRAS DE COR, e as duas vem do guia de marca (ver "Client Portal design
  * system" no CLAUDE.md do frontend):
  *
  *   1. Navy Profundo #1A1C31 (`brand-navy`) e IDENTIDADE. Ele emoldura, nunca
- *      convida a clicar — e agora isso e literal, porque nao ha o que clicar
- *      aqui. Laranja (`primary`, #F59C27) e a unica cor de acao da Home desde a
+ *      convida a clicar: os chips clicaveis ficam em contorno branco, sem
+ *      preenchimento de acao. Laranja (`primary`, #F59C27) e a unica cor de acao da Home desde a
  *      migracao de marca v1.0, e ela aparece uma vez so: no CTA do card "Sua
  *      acao mais urgente".
  *   2. Nos indicadores, so "Precisam de voce" ganha cor (o tom de atencao,

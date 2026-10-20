@@ -583,11 +583,13 @@ export const FIRST_STEPS = [
   {
     id: 'cotacao',
     label: 'Abrir a sua primeira cotação',
+    description: 'Conclui quando você envia a cotação, não ao abrir a tela.',
     href: '/portal/nova-cotacao',
   },
   {
     id: 'alertas',
     label: 'Configurar os seus alertas',
+    description: 'Escolha canal e frequência. Conclui ao salvar as preferências.',
     // Preferências de alertas (canal, frequência, resumo semanal). Os TIPOS de
     // alerta continuam em Configurações > Alertas, linkada de lá.
     href: '/portal/preferencias/alertas',
@@ -595,16 +597,23 @@ export const FIRST_STEPS = [
   {
     id: 'inteligencia',
     label: 'Ver sua Inteligência',
+    description: 'Prazos, frete e parceiros da sua operação. Conclui ao abrir.',
     // Conclui ao ABRIR a página (IntelligencePreview), não no clique.
     href: '/portal/inteligencia',
   },
   {
     id: 'visao',
     label: 'Salvar uma visão',
+    description: 'Na Inteligência, salve um recorte de período e filtros.',
     // Conclui quando a Inteligência avisa que uma visão foi salva ou editada.
     href: '/portal/inteligencia',
   },
-  { id: 'colega', label: 'Convidar um colega', href: null },
+  {
+    id: 'colega',
+    label: 'Convidar um colega',
+    description: 'Convite simulado nesta demonstração: nenhum e-mail sai.',
+    href: null,
+  },
 ] as const;
 
 /**

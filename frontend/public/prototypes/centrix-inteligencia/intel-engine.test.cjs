@@ -214,3 +214,50 @@ test('Preparar relatório: atalho de conversa por estado do filtro', () => {
   assert.deepEqual(E.reportContext(f('ag=beta')), { exporter: null, plannedRouteAgent: true, hint: false });
   assert.deepEqual(E.reportContext(f('rota=shanghai&exp=nord')), { exporter: 'nord', plannedRouteAgent: true, hint: false });
 });
+
+test('Selecionar todos: só opções com embarque no recorte; marcada fica; desabilitada fica de fora', () => {
+  const period = E.inRange(D.operations, { start: '2026-08-01', end: '2026-08-31' });
+  const gf = f('rota=' + D.operations.find((o) => o.readyPlan.startsWith('2026-08')).route);
+  const opts = E.filterOptions(D, D.operations, period, gf, 'exp');
+  const all = E.selectAllValues(D, D.operations, period, gf, 'exp');
+  assert.deepEqual(all, opts.filter((o) => !o.disabled).map((o) => o.value));
+  assert.ok(opts.some((o) => o.disabled), 'o recorte precisa ter ao menos uma opção desabilitada');
+  for (const o of opts.filter((x) => x.disabled)) assert.ok(!all.includes(o.value));
+  // Uma opção já marcada sem embarque no recorte continua marcada (dá para desmarcar).
+  const dead = opts.find((o) => o.disabled).value;
+  const kept = E.selectAllValues(D, D.operations, period, { ...gf, exp: [dead] }, 'exp');
+  assert.ok(kept.includes(dead));
+  // Não mexe nos outros filtros.
+  assert.deepEqual(gf.rota.length, 1);
+});
+
+test('Limpar um filtro tira só aquela chave', () => {
+  const gf = f('exp=east,nord&rota=x&inc=FOB');
+  const out = E.clearFilter(gf, 'exp');
+  assert.deepEqual(out.exp, []);
+  assert.deepEqual(out.rota, ['x']);
+  assert.deepEqual(out.inc, ['FOB']);
+  assert.deepEqual(gf.exp, ['east', 'nord'], 'não muta a entrada');
+  const q = E.writeFilters(new URLSearchParams('exp=east&inc=FOB&period=days30'), out);
+  assert.equal(q.get('exp'), null);
+  assert.equal(q.get('inc'), 'FOB');
+  assert.equal(q.get('period'), 'days30');
+});
+
+test('faixa do período: período, base de comparação e N', () => {
+  const r = { start: '2026-06-16', end: '2026-09-13' };
+  assert.equal(E.periodStrip(r, 'Últimos 90 dias', 42), 'Mostrando: Últimos 90 dias (16/06/2026 a 13/09/2026) · comparado com 18/03/2026 a 15/06/2026 · 42 embarques');
+  assert.match(E.periodStrip(r, 'X', 1), /· 1 embarque$/);
+});
+
+test('Como é calculado: todo KPI tem as quatro linhas preenchidas', () => {
+  for (const key of ['ready', 'port', 'freight', 'count']) {
+    const lines = E.kpiDefinition(D, key, f(''));
+    assert.deepEqual(lines.map((l) => l.label), ['Fonte', 'Fórmula', 'Período', 'Filtros que se aplicam']);
+    for (const l of lines) assert.ok(l.text && l.text.trim().length > 10, `${key}/${l.label}`);
+  }
+  assert.match(E.kpiDefinition(D, 'ready', f(''))[1].text, /pronta para embarque na origem dentro do prazo combinado/);
+  assert.match(E.kpiDefinition(D, 'port', f(''))[1].text, /porto ou aeroporto de descarga/);
+  const withExp = E.kpiDefinition(D, 'port', f('exp=nord'))[3].text;
+  assert.match(withExp, /Exportador \(Nordwerk Industrial\)/);
+});
