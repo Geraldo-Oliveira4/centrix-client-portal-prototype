@@ -51,7 +51,7 @@ test('rotas viram UM filtro de rota (OU dentro do filtro); prioridade só ordena
 });
 
 test('prioridade define o que aparece primeiro, sem esconder nada', () => {
-  assert.deepEqual(blockOrderFor('custo').completa.slice(0, 2), ['graficos', 'precos']);
+  assert.deepEqual(blockOrderFor('custo').completa.slice(0, 2), ['graficos', 'kpis']);
   assert.equal(blockOrderFor('custo').objetiva[0], 'q_frete');
   assert.deepEqual(blockOrderFor('prazo').completa.slice(0, 2), ['destaque', 'funil']);
   assert.equal(blockOrderFor('prazo').objetiva[0], 'q_prazo');

@@ -8,8 +8,16 @@
    app.js (esc, money, link, panel, table, periodRange, params...) em tempo de
    chamada, por isso é carregado ANTES de app.js e não executa nada sozinho. */
 
-const IE = window.IntelEngine, IL = window.IntelLayout;
-let intelLayout = (() => { try { return IL.load(localStorage); } catch { return IL.defaults(); } })();
+const IE = window.IntelEngine, IL = window.IntelLayout, IT = window.IntelTabs, IS = window.IntelSim;
+/* Completa/Objetiva escondido (23/10/2026, a confirmar com o Orsi): com a chave
+   desligada a página fica sempre na Completa, inclusive para quem tinha salvo a
+   Objetiva. O código dos dois modos continua inteiro; religar é trocar a chave. */
+const MODE_SWITCH = typeof CLIENT_FLAGS === 'undefined' || CLIENT_FLAGS.modeSwitch !== false;
+const effectiveLayout = l => (MODE_SWITCH ? l : IL.setMode(l, 'completa'));
+let intelLayout = effectiveLayout((() => { try { return IL.load(localStorage); } catch { return IL.defaults(); } })());
+const tableSort = new Map();       // ordenação de cada tabela de aba (dim -> {key, dir}), preservada entre renders
+let reportEntity = null;           // entidade do painel de detalhe que abriu o relatório
+let simSort = null;                // ordenação da tabela do Simulador, preservada entre renders
 let openFilterKey = null;          // dropdown de filtro aberto, preservado entre renders
 const openKpiHow = new Set();      // "Como é calculado" abertos, preservados entre renders
 let customizeDraft = null;          // rascunho do "Personalizar" até Salvar
@@ -20,7 +28,7 @@ function saveViews(next) { intelViews = next; try { IL.saveViews(localStorage, i
    "Salvar uma visão". O host (IntelligencePreview) ouve e marca. */
 function notifyViewSaved() { try { if (window.parent !== window) window.parent.postMessage({ type: 'centrix:first-step', id: 'visao' }, location.origin); } catch {} }
 
-function saveIntelLayout(next) { intelLayout = IL.normalize(next); try { IL.save(localStorage, intelLayout); } catch {} }
+function saveIntelLayout(next) { intelLayout = effectiveLayout(IL.normalize(next)); try { IL.save(localStorage, intelLayout); } catch {} }
 
 /* ---------------------------------------------------------------- dados --- */
 function intelScope() {
@@ -101,20 +109,13 @@ function chartsBlock(s) {
   const keys = [['ready', 'Prontidão', 's1'], ['port', 'Chegada ao destino', 's2'], ['final', 'Entrega final', 's3']];
   return `<section class="block" id="bloco-graficos" aria-labelledby="t-graficos">${blockHead('graficos', 'Evolução', '')}<div class="charts"><div class="chart-card"><h3>Prazo por etapa · últimos 6 meses</h3>${lineChart(keys.map(([k]) => IE.monthly(D, k, base, s.range.end)), keys)}<p class="chart-caption">Percentual no prazo em cada etapa, por mês do compromisso de prontidão. Meses recentes ainda têm cargas em curso.</p></div><div class="chart-card"><h3>Frete por mês</h3>${barChart(IE.monthly(D, 'freight', base, s.range.end))}<p class="chart-caption">Frete internacional contratado (USD) por mês do compromisso de prontidão. Exclui taxas e trecho terrestre.</p></div></div></section>`;
 }
-function rankingTable(rows, dim) {
-  const first = { exp: 'Exportador', ag: 'Agente de cargas', rota: 'Rota' }[dim];
-  const href = r => dim === 'exp' ? link('fornecedores/' + r.id + '/resumo', `<b>${esc(r.name)}</b>`) : dim === 'ag' ? link('agentes/' + r.id + '/resumo', `<b>${esc(r.name)}</b>`) : link('rotas/' + r.id + '/resumo', `<b>${esc(r.name)}</b>`);
-  const cell = m => `${pctTxt(m.rate)}<small>${m.good ?? 0} de ${m.eligible.length}</small>`;
-  return rows.length ? table([first, 'Embarques', 'Prontidão no prazo', 'Chegada ao destino no prazo', 'Frete médio'], rows.map(r => `<tr><td>${href(r)}</td><td>${r.n}${r.n < IE.MIN_SAMPLE ? ' ' + smallTag(r.n) : ''}</td><td>${cell(r.ready)}</td><td>${cell(r.port)}</td><td>${r.freightAvg == null ? '—' : money(r.freightAvg)}</td></tr>`).join('')) : '<p class="muted">Nenhum registro neste recorte.</p>';
-}
 function performanceBlock(s) {
-  // Sem sub-abas: Etapas, Exportadores e Agentes empilhados, cada um com o seu h3.
-  return `<section class="block" id="bloco-performance" aria-labelledby="t-performance">${blockHead('performance', 'Performance', 'Onde os tempos excedem o previsto e como cada parceiro entrega.')}<h3 class="sub">Etapas</h3>${stagePanel(s.cur)}<h3 class="sub">Exportadores</h3>${rankingTable(IE.ranking(D, s.cur, 'exp'), 'exp')}<h3 class="sub">Agentes de cargas</h3>${rankingTable(IE.ranking(D, s.cur, 'ag'), 'ag')}</section>`;
-}
-function pricesBlock(s) {
-  return `<section class="block" id="bloco-precos" aria-labelledby="t-precos">${blockHead('precos', 'Preços e rotas', 'Seus percursos, a frequência e o frete médio contratado. O preço de mercado de cada rota fica no Radar.')}${rankingTable(IE.ranking(D, s.cur, 'rota'), 'rota')}<p class="chart-caption"><a class="link" href="/portal/radar" target="_top">Abrir o Radar ↗</a> · <a class="link" href="#locais">Ver locais</a></p></section>`;
+  // Abas (23/10/2026): na Visão geral fica só a leitura por ETAPA. As tabelas de
+  // Exportadores e Agentes moraram aqui e agora são as abas de mesmo nome.
+  return `<section class="block" id="bloco-performance" aria-labelledby="t-performance">${blockHead('performance', 'Performance', 'Onde os tempos excedem o previsto em cada etapa da cadeia. Por parceiro e por rota, veja as abas acima.')}${stagePanel(s.cur)}</section>`;
 }
 function commitmentsBlock(s) {
+  // Mora na aba Agentes de carga desde 23/10/2026: é o combinado com o AGENTE.
   const rows = IE.commitments(D, s.cur).sort((a, b) => (a.status === 'deviation' ? 0 : 1) - (b.status === 'deviation' ? 0 : 1)), LABEL = { deviation: 'Desvio identificado', clean: 'Sem desvio', missing: 'Falta informação' };
   const dev = rows.filter(r => r.status === 'deviation').length;
   const ctl = c => `${esc(c.name)}: ${c.actual} ${c.unit} <small>combinado ${c.agreed} ${c.unit}</small>`;
@@ -140,12 +141,13 @@ function filterBar(s) {
   };
   return `<section class="filterbar" aria-label="Filtros do relatório"><div class="filter-row">${IE.FILTERS.map(dropdown).join('')}<span class="fcount" aria-live="polite"><b>${s.cur.length}</b> de ${s.all.length} embarques</span></div>${chips.length ? `<div class="filter-chips">${chips.join('')}<button class="text-button" data-action="gfilter-clear" aria-label="Limpar todos os filtros">Limpar filtros</button>${raioX(s.gf)}</div>` : ''}${(s.gf.sku || []).length ? '<p class="note-small">Filtro de SKU: entra o embarque que contém o SKU; frete e prazos continuam sendo do embarque inteiro.</p>' : ''}</section>`;
 }
-/* Atalho para o Raio X do exportador: só com UM exportador marcado. O destino é a
-   ficha de exportador que já existe (#fornecedores/<id>/resumo), com o período. */
+/* Atalho para o Raio X do exportador: só com UM exportador marcado. Desde as abas
+   (23/10/2026) o Raio X é o DETALHE da aba Exportadores, aberto em painel com o
+   período e os filtros de agora; a ficha antiga continua no link do painel. */
 function raioX(gf) {
   const exp = gf.exp || [];
   if (exp.length !== 1 || !company(exp[0])) return '';
-  return `<span class="raio-x">${link('fornecedores/' + exp[0] + '/resumo', `Ver Raio X do exportador <span class="sr-only">${esc(company(exp[0]).name)}</span> →`)}</span>`;
+  return `<span class="raio-x">${link('executivo', `Ver Raio X do exportador <span class="sr-only">${esc(company(exp[0]).name)}</span> →`, { aba: 'exportadores', sel: exp[0] })}</span>`;
 }
 /** A faixa "Mostrando: … · comparado com … · N embarques", logo abaixo do título. */
 function periodStripLine(s) {
@@ -166,25 +168,141 @@ function modeSwitch() {
    lugar do exemplo (spec-onboarding-backend.md). */
 const EXAMPLE_NOTE = '<p class="example-note"><span class="example-tag">Exemplo ilustrativo</span> Seus dados reais substituem este exemplo assim que houver embarques.</p>';
 
+/* ---------------------------------------------------------------- abas --- */
+/* Abas (23/10/2026, semanal de produto). Período e filtros ficam ACIMA das abas
+   e valem para todas; a aba entra na URL (`aba=`) e nas visões salvas. Sem
+   `aba`, Visão geral — é o que faz visões antigas abrirem como sempre. */
+function currentTab() { return IT.readTab(params, extraTabs()); }
+/** Abas fora da família do retrovisor: o Simulador (o caminho do futuro). */
+function extraTabs() { return ['simulador']; }
+function tabNav(tab) {
+  const item = ([id, label], cls = '') => `<a href="${esc(url('executivo', { aba: id === 'geral' ? null : id, sel: null }))}" class="intel-tab${cls}${tab === id ? ' active' : ''}" data-tab="${id}" ${tab === id ? 'aria-current="page"' : ''}>${label}</a>`;
+  // O passado (o que aconteceu) e o futuro (o que decidir agora) ficam em dois
+  // grupos, separados por um divisor; o futuro leva o selo "Prévia".
+  return `<nav class="intel-tabs" aria-label="Abas da Inteligência"><div class="intel-tabs-past" role="group" aria-label="O que aconteceu">${IT.TABS.map(t => item(t)).join('')}</div><div class="intel-tabs-future" role="group" aria-label="O que decidir agora"><span class="tabs-divider" aria-hidden="true"></span>${item(['simulador', 'Simulador <span class="preview-tag">Prévia</span>'], ' future')}</div></nav>`;
+}
+/* Cabeçalho ordenável: botão por coluna, `aria-sort` no th. */
+function sortableHead(dim, sort) {
+  return IT.COLUMNS[dim].map(([key, label]) => {
+    const on = sort.key === key, dir = on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+    const arrow = on ? (sort.dir === 'asc' ? '↑' : '↓') : '↕';
+    const head = /^Chegada ao destino/.test(label) ? destTerm('Chegada ao destino') + label.slice('Chegada ao destino'.length) : label;
+    return `<th scope="col" aria-sort="${dir}"><button type="button" class="sort-button${on ? ' active' : ''}" data-action="tab-sort" data-dim="${dim}" data-key="${key}">${head} <span aria-hidden="true">${arrow}</span></button></th>`;
+  }).join('');
+}
+const rateCell = m => (m.base ? `${pctTxt(m.rate)}<small>${m.good ?? 0} de ${m.base}</small>` : '—<small>sem registro</small>');
+const transitCell = r => (r.transitMedian == null ? '—<small>sem saída e chegada</small>' : `${String(r.transitMedian).replace('.', ',')} dias<small>${r.transitN} com saída e chegada</small>`);
+function cellOf(dim, key, r) {
+  if (key === 'name') {
+    const sub = dim === 'exp' ? `${esc(company(r.id)?.city || '')}` : dim === 'ag' ? (agent(r.id)?.preferred ? 'Preferido no cadastro' : '') : esc(route(r.id)?.equipment || '');
+    return `<button type="button" class="row-open" data-action="entity-open" data-dim="${dim}" data-id="${esc(r.id)}"><b>${esc(r.name)}</b></button>${sub ? `<small>${sub}</small>` : ''}`;
+  }
+  if (key === 'country') return esc(r.country || '—');
+  if (key === 'n') return `${r.n}<small>${r.share}% do recorte</small>${r.small ? smallTag(r.n) : ''}`;
+  if (key === 'transitMedian') return transitCell(r);
+  if (key === 'freightAvg') return r.freightAvg == null ? '—' : money(r.freightAvg);
+  if (key === 'agents' || key === 'routes') return String(r[key]);
+  return rateCell(r[key]);
+}
+function comparisonTable(dim, rows) {
+  const sort = tableSort.get(dim) || IT.DEFAULT_SORT, sorted = IT.sortRows(rows, sort);
+  if (!sorted.length) return '<p class="muted">Nenhum registro neste recorte.</p>';
+  return `<div class="table-wrap"><table class="compare"><thead><tr>${sortableHead(dim, sort)}</tr></thead><tbody>${sorted.map(r => `<tr class="clickable" data-row-dim="${dim}" data-row-id="${esc(r.id)}">${IT.COLUMNS[dim].map(([key]) => `<td>${cellOf(dim, key, r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+const TAB_COPY = {
+  exp: { plural: 'Exportadores', noun: 'exportadores', sub: 'Quem vende e embarca a mercadoria. Ordenado por volume; clique numa linha para ver o detalhe (o antigo Raio X).' },
+  ag: { plural: 'Agentes de carga', noun: 'agentes', sub: 'Quem contrata e acompanha o transporte. Ordenado por volume; clique numa linha para ver uso, prazo e cobrança.' },
+  rota: { plural: 'Rotas', noun: 'rotas', sub: 'Origem → destino internacional. Ordenado por volume; clique numa linha para ver agentes e SKUs da rota.' },
+};
+function tabSummaryRow(dim, rows, total) {
+  const t = IT.tabSummary(rows, total), c = TAB_COPY[dim];
+  const card = (label, value, small) => `<div class="tab-stat"><span>${label}</span><b>${value}</b>${small ? `<small>${small}</small>` : ''}</div>`;
+  return `<div class="tab-stats">${card(`${c.plural} no recorte`, t.count, `${total} embarques`)}${t.top ? card('Maior participação', `${t.top.share}%`, `${esc(t.top.name)} · ${t.top.n} de ${total}`) : ''}${t.top2Share != null ? card('Os 2 maiores somam', `${t.top2Share}%`, 'dos embarques do recorte') : ''}${t.smallCount ? card('Com amostra pequena', t.smallCount, 'menos de 3 embarques') : ''}</div>`;
+}
+function entityTab(dim, s) {
+  const rows = IT.entityRows(D, s.cur, dim), c = TAB_COPY[dim];
+  let html = `<section class="block" id="aba-${dim}" aria-labelledby="t-aba-${dim}">${blockHead('aba-' + dim, c.plural, c.sub)}${tabSummaryRow(dim, rows, s.cur.length)}${comparisonTable(dim, rows)}<p class="chart-caption">Dado, não veredito: as colunas são fatos do recorte, sem nota nem ranking. Com menos de 3 embarques a linha leva “Amostra pequena”.</p></section>`;
+  if (dim === 'ag') html += commitmentsBlock(s);
+  if (dim === 'rota') html += `<p class="chart-caption">O preço de mercado de cada rota fica no Radar. <a class="link" href="/portal/radar" target="_top">Abrir o Radar ↗</a> · <a class="link" href="#locais">Ver locais</a></p>`;
+  return html;
+}
+
+/* ------------------------------------------------------------- detalhe --- */
+/* O detalhe de uma entidade (o antigo Raio X) num painel lateral; no celular,
+   folha de baixo. Mesmo `<dialog>` das outras gavetas. A entidade aberta fica na
+   URL (`sel=`) para o atalho do Raio X e o link compartilhado abrirem direto. */
+const THIS = { exp: 'este exportador', ag: 'este agente', rota: 'esta rota' };
+const FICHA = { exp: id => 'fornecedores/' + id + '/resumo', ag: id => 'agentes/' + id + '/resumo', rota: id => 'rotas/' + id + '/resumo' };
+function factList(items) { return `<dl class="facts">${items.map(([k, v, small]) => `<div><dt>${k}</dt><dd>${v}${small ? `<small>${small}</small>` : ''}</dd></div>`).join('')}</dl>`; }
+function skuTable(rows, withExporter) {
+  if (!rows.length) return '<p class="muted">Nenhum SKU neste recorte.</p>';
+  return table(['SKU', withExporter ? 'Exportador' : 'Rotas', 'Embarques'], rows.map(r => `<tr><td><b>${esc(r.sku)}</b><small>${esc(r.desc)}</small></td><td>${withExporter ? esc(r.exporters.map(id => company(id)?.name || id).join(', ')) : esc(r.routes.map(id => routeName(route(id))).join(', '))}</td><td>${r.n}${r.small ? smallTag(r.n) : ''}</td></tr>`).join(''));
+}
+function entityDetailHtml(dim, id, s) {
+  const ops = IT.entityOps(s.cur, dim, id), row = IT.entityRows(D, s.cur, dim).find(r => r.id === id);
+  const actions = `<div class="entity-actions"><button class="button" data-action="entity-filter" data-dim="${dim}" data-id="${esc(id)}">Filtrar por ${THIS[dim]}</button><button class="button secondary" data-action="entity-report" data-dim="${dim}" data-id="${esc(id)}">Preparar relatório</button>${link(FICHA[dim](id), 'Ver ficha completa →')}</div>`;
+  if (!row) return actions + `<div class="empty"><h2>Sem embarques neste recorte</h2><p>Altere o período ou os filtros para ver o histórico de ${THIS[dim]}.</p></div>`;
+  const facts = [
+    ['Embarques', `${row.n}`, `${row.share}% do recorte${row.small ? ' · amostra pequena' : ''}`],
+    ['Prontidão no prazo', pctTxt(row.ready.rate), row.ready.base ? `${row.ready.good} de ${row.ready.base}` : 'sem registro'],
+    [destTerm('Chegada ao destino') + ' no prazo', pctTxt(row.port.rate), row.port.base ? `${row.port.good} de ${row.port.base}` : 'sem registro'],
+    ['Entrega final no prazo', pctTxt(row.final.rate), row.final.base ? `${row.final.good} de ${row.final.base}` : 'sem registro'],
+    ['Trânsito mediano', row.transitMedian == null ? '—' : String(row.transitMedian).replace('.', ',') + ' dias', `${row.transitN} com saída e chegada`],
+    ['Frete médio', row.freightAvg == null ? '—' : money(row.freightAvg), 'frete internacional contratado'],
+  ];
+  const base = IT.entityOps(IE.applyFilters(D.operations, s.gf), dim, id);
+  const keys = [['ready', 'Prontidão', 's1'], ['port', 'Chegada ao destino', 's2'], ['final', 'Entrega final', 's3']];
+  const evolution = `<section class="detail-section" aria-labelledby="dt-evo"><h3 id="dt-evo">Evolução · últimos 6 meses</h3>${lineChart(keys.map(([k]) => IE.monthly(D, k, base, s.range.end)), keys)}<p class="chart-caption">Percentual no prazo por mês do compromisso de prontidão, com os filtros atuais.</p></section>`;
+  let extra = '';
+  if (dim === 'exp') extra = `<section class="detail-section" aria-labelledby="dt-sku"><h3 id="dt-sku">SKUs deste exportador</h3>${skuTable(IT.skuRows(D, ops), false)}<p class="chart-caption">SKU é do item: um embarque com dois SKUs conta nos dois.</p></section>`;
+  if (dim === 'rota') {
+    const agents = IT.sortRows(IT.entityRows(D, ops, 'ag'));
+    extra = `<section class="detail-section" aria-labelledby="dt-ag"><h3 id="dt-ag">Agentes nesta rota</h3>${table(['Agente', 'Embarques', 'Trânsito mediano', 'Chegada ao destino no prazo'], agents.map(r => `<tr><td><b>${esc(r.name)}</b></td><td>${r.n}${r.small ? smallTag(r.n) : ''}</td><td>${transitCell(r)}</td><td>${rateCell(r.port)}</td></tr>`).join(''))}</section><section class="detail-section" aria-labelledby="dt-sku"><h3 id="dt-sku">SKUs nesta rota</h3>${skuTable(IT.skuRows(D, ops), true)}</section>`;
+  }
+  if (dim === 'ag') {
+    const imp = IT.agentImpact(D, s.cur, id), devs = IE.commitments(D, ops).filter(c => c.status === 'deviation').length;
+    extra = `<section class="detail-section" aria-labelledby="dt-imp"><h3 id="dt-imp">Uso e impacto</h3>${factList([
+      ['Participação nos embarques', `${imp.share}%`, `${imp.n} de ${imp.total} no recorte · ${imp.routes.length} ${imp.routes.length === 1 ? 'rota' : 'rotas'}: ${esc(imp.routes.map(r => routeName(route(r))).join(', '))}`],
+      ['Prazo do trânsito', imp.transitMedian == null ? '—' : String(imp.transitMedian).replace('.', ',') + ' dias (mediana)', `${imp.transitOverPlan} de ${imp.transitBase} acima do trânsito previsto na proposta`],
+      ['Cotado × cobrado', imp.auditBase ? `${imp.auditDiffCount} de ${imp.auditBase}` : '—', imp.auditBase ? `conferências concluídas com diferença${imp.auditDiffUsd ? ` · ${money(imp.auditDiffUsd)} fundamentados, não recuperados` : ''}${imp.auditPending ? ` · ${imp.auditPending} em esclarecimento ou não auditados` : ''}` : 'nenhuma conferência concluída'],
+      ['Compromissos do serviço', `${devs} de ${ops.length}`, 'embarques com desvio contra o combinado'],
+    ])}<p class="chart-caption">Desvio observado não atribui responsabilidade ao agente.</p></section>`;
+  }
+  return actions + `<section class="detail-section" aria-labelledby="dt-facts"><h3 id="dt-facts">Fatos principais</h3>${factList(facts)}</section>` + evolution + extra;
+}
+function entitySubtitle(dim, id) {
+  if (dim === 'exp') { const c = company(id); return `${c.city}, ${c.country} · Exportador · ${periodText()}`; }
+  if (dim === 'ag') { const a = agent(id); return `Agente de carga · ${a.preferred ? 'Preferido no cadastro' : 'Sem preferência cadastral'} · ${periodText()}`; }
+  const r = route(id); return `${r.mode} · ${r.equipment} · ${periodText()}`;
+}
+function openEntity(dim, id) {
+  const s = intelScope();
+  openDrawer(esc(IT.nameOf(D, dim, id)), esc(entitySubtitle(dim, id)), entityDetailHtml(dim, id, s));
+  $('#drawer').classList.add('entity-sheet');
+}
+/** Depois de desenhar a Visão geral/abas: abre o detalhe pedido pela URL. */
+function afterOverviewRender() {
+  const sel = IT.readSelection(D, params, currentTab());
+  if (sel) openEntity(sel.dim, sel.id);
+}
+/** Fechar o painel tira `sel` da URL sem nova navegação (e sem reabrir). */
+function stripSelection() {
+  if (!params.has('sel')) return;
+  params.delete('sel');
+  const next = '#' + pagePath + (params.toString() ? '?' + params : '');
+  history.replaceState(history.state, '', location.pathname + location.search + next);
+  try { if (window.parent !== window) window.parent.history.replaceState(window.parent.history.state, '', window.parent.location.pathname + window.parent.location.search + next); } catch {}
+}
+
 /* --------------------------------------------------------------- página --- */
-function intelOverview() {
-  const s = intelScope(), mode = intelLayout.mode, visible = new Set(IL.visibleBlocks(intelLayout));
-  let html = `<div class="heading"><div><h1 tabindex="-1">Inteligência</h1><p>${mode === 'completa' ? 'O retrato completo da sua operação: prazos, frete, parceiros e rotas.' : 'As quatro perguntas da sua operação, respondidas em uma linha cada.'}</p>${EXAMPLE_NOTE}</div><div class="actions intel-actions">${modeSwitch()}<button class="button secondary" data-action="intel-customize">Personalizar</button><button class="button secondary" data-action="intel-report">Preparar relatório</button></div></div><p class="period-strip" role="status" aria-live="polite">${esc(periodStripLine(s))}</p>${viewChips()}`;
-  html += periodBar() + filterBar(s);
-  html += `<p class="comparison-caption">${s.range.valid ? IE.comparisonCaption(s.range) : ''}${s.cur.length && s.cur.length < IE.MIN_SAMPLE ? ' ' + smallTag(s.cur.length) + ' Com menos de 3 embarques as variações não são mostradas.' : ''}</p>`;
-  if (mode === 'completa' && s.cur.length) {
-    const anchors = [['performance', 'Performance'], ['precos', 'Preços e rotas'], ['compromissos', 'Compromissos do serviço']].filter(([id]) => visible.has(id));
-    if (anchors.length) html += `<p class="anchors">Ir para: ${anchors.map(([id, l]) => `<a href="#" data-action="intel-jump" data-id="${id}">${l}</a>`).join(' · ')}</p>`;
-  }
-  if (!s.cur.length) {
-    return html + `<div class="empty"><h2>Nenhum embarque neste recorte</h2><p>${s.active ? 'Os filtros escolhidos não têm embarques no período.' : 'Não há embarques no período escolhido.'}</p>${s.active ? '<button class="button" data-action="gfilter-clear">Limpar filtros</button>' : ''}</div>`;
-  }
-  if (!visible.size) return html + '<div class="empty"><h2>Todos os blocos estão ocultos</h2><p>Ligue um bloco em “Personalizar” ou restaure o padrão.</p><button class="button" data-action="intel-customize">Personalizar</button></div>';
+function geralTab(s, visible) {
+  if (!visible.size) return '<div class="empty"><h2>Todos os blocos estão ocultos</h2><p>Ligue um bloco em “Personalizar” ou restaure o padrão.</p><button class="button" data-action="intel-customize">Personalizar</button></div>';
   // A ORDEM vem do layout (Personalizar ou visão "Minha operação"). Destaque e
   // funil continuam lado a lado, no lugar do primeiro dos dois.
   const order = IL.visibleBlocks(intelLayout);
-  if (mode === 'completa') {
-    const render1 = { kpis: () => kpisBlock(s, true), graficos: () => chartsBlock(s), performance: () => performanceBlock(s), precos: () => pricesBlock(s), compromissos: () => commitmentsBlock(s) };
+  let html = '';
+  if (intelLayout.mode === 'completa') {
+    const render1 = { kpis: () => kpisBlock(s, true), graficos: () => chartsBlock(s), performance: () => performanceBlock(s) };
     let pairDone = false;
     for (const id of order) {
       if (id === 'destaque' || id === 'funil') {
@@ -207,6 +325,79 @@ function intelOverview() {
   }
   return html;
 }
+/** Conteúdo das abas que não são do retrovisor (o Simulador). */
+function extraTabContent(tab, s) { return tab === 'simulador' ? simulatorTab(s) : ''; }
+
+/* ----------------------------------------------------------- simulador --- */
+/* "Quero chegar até uma data. Qual rota e qual agente cabem?" Estatística sobre
+   o histórico do recorte (intel-sim.js), em semanas, sem custo e sem
+   recomendação. Hoje = o corte da demonstração (D.cutoff), o mesmo relógio de
+   toda a página. */
+const SIM_ICON = { cabe: '✓', apertado: '◐', nao_cabe: '×', small: '?' };
+function simStatus(r) {
+  const key = r.small ? 'small' : r.status;
+  if (!key) return '—';
+  return `<span class="sim-status ${key}"><span aria-hidden="true">${SIM_ICON[key]}</span> ${IS.STATUS[key].label}</span>`;
+}
+const daysTxt = v => String(v).replace('.', ',');
+function simTable(result) {
+  const sort = simSort || IS.DEFAULT_SORT, rows = IS.sortSimRows(result.rows, sort);
+  const head = IS.COLUMNS.map(([key, label]) => {
+    if (!key) return `<th scope="col"><span class="th-plain">${label}</span></th>`;
+    const on = sort.key === key, dir = on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+    return `<th scope="col" aria-sort="${dir}"><button type="button" class="sort-button${on ? ' active' : ''}" data-action="sim-sort" data-key="${key}">${label} <span aria-hidden="true">${on ? (sort.dir === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>`;
+  }).join('');
+  const body = rows.map(r => {
+    const hist = `${r.n} ${r.n === 1 ? 'trânsito' : 'trânsitos'}<small>${r.shipments} ${r.shipments === 1 ? 'embarque' : 'embarques'} no histórico</small>${r.small ? smallTag(r.n) : ''}`;
+    const L = IS.COLUMNS.map(([, label]) => esc(label));
+    if (r.small || !r.status) return `<tr><td data-label="${L[0]}"><b>${esc(r.routeName)}</b></td><td data-label="${L[1]}">${esc(r.agentName)}</td><td data-label="${L[2]}">${hist}</td><td data-label="${L[3]}">${r.small ? '—' : `${daysTxt(r.median)} · ${r.p90} dias`}</td><td data-label="${L[4]}">—</td><td data-label="${L[5]}">—</td><td data-label="${L[6]}">${simStatus(r)}</td></tr>`;
+    const safe = IS.departureLabel(r.departBySafe, result.today), lim = IS.departureLabel(r.departByMedian, result.today);
+    return `<tr><td data-label="${L[0]}"><b>${esc(r.routeName)}</b></td><td data-label="${L[1]}">${esc(r.agentName)}</td><td data-label="${L[2]}">${hist}</td><td data-label="${L[3]}">${daysTxt(r.median)} · ${r.p90} dias<small>folga do P90: ${r.margin} ${r.margin === 1 ? 'dia' : 'dias'}</small></td><td data-label="${L[4]}">Chegada estimada ${IS.weekWindow(r.arrivalFrom, r.arrivalTo)}</td><td data-label="${L[5]}"><span class="${safe.passed ? 'muted' : ''}">Com folga: ${safe.text}</span><small>No limite (mediana): ${lim.text}</small></td><td data-label="${L[6]}">${simStatus(r)}</td></tr>`;
+  }).join('');
+  // Conteúdo de cada célula num só bloco: no celular a célula vira grade rótulo | valor.
+  const cells = body.replace(/(<td data-label="[^"]*">)([\s\S]*?)(<\/td>)/g, '$1<div>$2</div>$3');
+  return `<div class="table-wrap sim-wrap"><table class="compare sim-table"><thead><tr>${head}</tr></thead><tbody>${cells}</tbody></table></div>`;
+}
+function simHow(s) {
+  const open = openKpiHow.has('sim');
+  const lines = IS.howCalculated(D, s.gf, periodNames[params.get('period') || 'days90'] || 'Personalizado');
+  return `<button type="button" class="kpi-how" data-action="kpi-how" data-id="sim" aria-expanded="${open}" aria-controls="kpi-how-sim"><span aria-hidden="true">ⓘ</span> Como é calculado</button><div class="kpi-how-body sim-how" id="kpi-how-sim" ${open ? '' : 'hidden'}><span class="example-tag">Dado de exemplo</span><dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
+}
+function simulatorTab(s) {
+  const inputs = IS.readInputs(D, params), today = D.cutoff;
+  const result = IS.simulate(D, s.cur, { route: inputs.route, arriveBy: inputs.arriveBy, today });
+  const routes = D.routes.filter(r => IE.applyFilters(D.operations, s.gf).some(o => o.route === r.id) || r.id === inputs.route);
+  const form = `<form class="sim-form" id="sim-form" onsubmit="return false"><label>Rota (origem → destino)<select id="sim-route"><option value="">Todas as rotas com histórico</option>${routes.map(r => `<option value="${r.id}" ${inputs.route === r.id ? 'selected' : ''}>${esc(routeName(r))}</option>`).join('')}</select></label><label>Quero chegar até<input id="sim-date" type="date" value="${inputs.arriveBy}" min="${IS.addDays(today, 1)}" aria-describedby="sim-today"></label><p id="sim-today" class="sim-today">Hoje na demonstração: ${fullDate(today)}. A simulação considera embarque a partir de hoje. Agente, incoterm e os outros filtros acima também valem aqui.</p></form>`;
+  const c = result.counts;
+  const when = result.arriveBy ? `${fullDate(result.arriveBy)} (${IS.weekLabel(result.arriveBy)}, ${result.available} ${result.available === 1 ? 'dia' : 'dias'} a partir de hoje)` : '';
+  let msg = '';
+  const clear = s.active ? '<button class="button secondary" data-action="gfilter-clear">Limpar filtros</button>' : '';
+  if (result.state === 'past') msg = `<div class="empty sim-empty"><h3>Essa data já passou</h3><p>Hoje, nesta demonstração, é ${fullDate(today)}. Escolha uma data de chegada a partir de ${fullDate(IS.addDays(today, 1))}.</p></div>`;
+  else if (result.state === 'no_date') msg = `<div class="empty sim-empty"><h3>Escolha a data desejada de chegada</h3><p>Com a data, a tabela mostra quais rotas e agentes cabem.</p></div>`;
+  else if (result.state === 'no_history') msg = `<div class="empty sim-empty"><h3>Sem histórico para esta rota</h3><p>Nenhum embarque ${inputs.route ? 'nesta rota ' : ''}no período e nos filtros atuais. Sem histórico não há estimativa.</p>${clear}${inputs.route ? '<button class="button secondary" data-action="sim-all-routes">Ver todas as rotas</button>' : ''}</div>`;
+  else if (result.state === 'all_small') msg = `<div class="note sim-note"><b>Amostra pequena em todos os pares.</b> Nenhum agente tem ${IS.MIN_SAMPLE} ou mais trânsitos registrados ${inputs.route ? 'nesta rota ' : ''}no período ${esc(periodNames[params.get('period') || 'days90'] || 'selecionado')}, então não há estimativa. <button class="button secondary" data-action="sim-widen">Usar o histórico de Este ano</button></div>`;
+  else if (result.state === 'all_nao_cabe') msg = `<div class="note sim-note"><b>Nenhum agente cabe nesta data.</b> Embarcando hoje, a mediana mais curta deste recorte chega ${IS.weekWindow(result.earliestArrival, result.earliestArrival)}. Para caber, escolha uma data a partir dessa semana.</div>`;
+  const summary = result.arriveBy && result.available > 0 && result.rows.some(r => !r.small && r.status) ? `<p class="sim-summary" role="status">Para chegar até ${esc(when)}: <b>${c.cabe}</b> ${c.cabe === 1 ? 'cabe' : 'cabem'} na data · <b>${c.apertado}</b> ${c.apertado === 1 ? 'apertado' : 'apertados'} · <b>${c.nao_cabe}</b> não ${c.nao_cabe === 1 ? 'cabe' : 'cabem'}${c.small ? ` · <b>${c.small}</b> sem estimativa (amostra pequena)` : ''}.</p>` : '';
+  const showTable = result.rows.length && !['past', 'no_date', 'no_history'].includes(result.state);
+  const rules = `<ul class="sim-rules">${['cabe', 'apertado', 'nao_cabe', 'small'].map(k => `<li>${simStatus({ small: k === 'small', status: k })} ${IS.STATUS[k].rule}</li>`).join('')}</ul>`;
+  return `<section class="block sim" id="aba-simulador" aria-labelledby="t-sim"><div class="block-head"><div><h2 id="t-sim">Simulador de cenários <span class="preview-tag">Prévia</span></h2><p>Quero chegar até uma data. Qual rota e qual agente cabem?</p></div></div><p class="sim-disclaimer" role="note"><b>Estimativa baseada no histórico. Não é garantia de prazo.</b> O resultado sai em semanas, não em dia exato.</p>${form}${simHow(s)}${summary}${msg}${showTable ? simTable(result) : ''}${showTable ? rules : ''}<p class="chart-caption">Classificação factual sobre o trânsito registrado, sem nota nem recomendação. Ordenado por volume de embarques no histórico. Custos ficam fora desta prévia.</p></section>`;
+}
+function setSimParam(changes) { location.hash = url('executivo', changes); }
+function intelOverview() {
+  const s = intelScope(), mode = intelLayout.mode, visible = new Set(IL.visibleBlocks(intelLayout)), tab = currentTab();
+  const actions = `${MODE_SWITCH && tab === 'geral' ? modeSwitch() : ''}${tab === 'geral' ? '<button class="button secondary" data-action="intel-customize">Personalizar</button>' : ''}${tab === 'simulador' ? '' : '<button class="button secondary" data-action="intel-report">Preparar relatório</button>'}`;
+  let html = `<div class="heading"><div><h1 tabindex="-1">Inteligência</h1><p>${mode === 'completa' ? 'O retrato da sua operação: números principais e evolução na Visão geral; o detalhe por exportador, agente e rota nas abas.' : 'As quatro perguntas da sua operação, respondidas em uma linha cada.'}</p>${EXAMPLE_NOTE}</div><div class="actions intel-actions">${actions}</div></div><p class="period-strip" role="status" aria-live="polite">${esc(periodStripLine(s))}</p>${viewChips()}`;
+  html += periodBar() + filterBar(s);
+  html += `<p class="comparison-caption">${s.range.valid ? IE.comparisonCaption(s.range) : ''}${s.cur.length && s.cur.length < IE.MIN_SAMPLE ? ' ' + smallTag(s.cur.length) + ' Com menos de 3 embarques as variações não são mostradas.' : ''}</p>`;
+  html += tabNav(tab);
+  const extra = extraTabContent(tab, s);
+  if (extra) return html + extra;
+  if (!s.cur.length) {
+    return html + `<div class="empty"><h2>Nenhum embarque neste recorte</h2><p>${s.active ? 'Os filtros escolhidos não têm embarques no período.' : 'Não há embarques no período escolhido.'}</p>${s.active ? '<button class="button" data-action="gfilter-clear">Limpar filtros</button>' : ''}</div>`;
+  }
+  if (IT.DIM_OF_TAB[tab]) return html + entityTab(IT.DIM_OF_TAB[tab], s);
+  return html + geralTab(s, visible);
+}
 
 /* ------------------------------------------------------- visões salvas --- */
 function viewChips() {
@@ -227,8 +418,12 @@ function shareLink() {
   try { return top.location.origin + top.location.pathname + location.hash; } catch { return location.href; }
 }
 function openReportPanel(emailDone) {
-  const s = intelScope(), ctx = IE.reportContext(s.gf);
-  const summary = IE.viewSummary(D, s.gf, periodNames[params.get('period') || 'days90'] || 'Personalizado', s.cur.length) + ` · Leitura ${intelLayout.mode === 'completa' ? 'completa' : 'objetiva'}`;
+  // Aberto do painel de detalhe, o relatório é DAQUELA entidade: o atalho de
+  // conversa olha o filtro como se ela estivesse filtrada. O conteúdo do
+  // relatório não muda (Orsi vai definir); muda só a menção a aba/entidade.
+  const s = intelScope(), ctx = IE.reportContext(reportEntity ? IT.filterByEntity(s.gf, reportEntity.dim, reportEntity.id) : s.gf);
+  const mention = IT.tabMention(D, currentTab(), reportEntity);
+  const summary = IE.viewSummary(D, s.gf, periodNames[params.get('period') || 'days90'] || 'Personalizado', s.cur.length) + (mention ? ` · ${mention}` : '') + ` · Leitura ${intelLayout.mode === 'completa' ? 'completa' : 'objetiva'}`;
   const talk = [
     ctx.exporter ? `<a class="button" href="${esc(url('relatorios/revisao', { supplier: ctx.exporter }))}">Preparar revisão com ${esc(company(ctx.exporter).name)}</a><p class="muted small">Abre Relatórios › Revisão de exportador com este período e estes filtros.</p>` : '',
     ctx.plannedRouteAgent ? `<div class="planned"><div><b>Revisão de rota ou agente</b> <span class="pill">Planejado</span></div><p class="muted small">Comparáveis, desvios e pauta com o parceiro. Ainda sem geração nesta prévia.</p><button class="button secondary" disabled>Preparar revisão</button></div>` : '',
@@ -238,7 +433,7 @@ function openReportPanel(emailDone) {
     ? `<div class="success" role="status"><b>Agendado (simulação)</b><p>Envio ${esc(emailDone.freq)} para ${esc(emailDone.to.join(', '))}. Nada foi enviado nesta prévia.</p></div>`
     : `<form id="report-email" class="report-form" novalidate><label>Frequência<select id="report-freq"><option value="semanal">Semanal</option><option value="mensal">Mensal</option></select></label><label>Destinatários<input id="report-to" type="text" placeholder="nome@empresa.com, outro@empresa.com" aria-describedby="report-to-error" required></label><p id="report-to-error" class="form-error" role="alert"></p><button class="button" type="submit">Agendar envio</button></form>`;
   openDrawer('Preparar relatório', esc(summary), `<p class="period-strip in-report">${esc(periodStripLine(s))}</p><p class="muted">A visão atual — período, filtros, modo e blocos — é o relatório.</p>
-    <section class="report-section" aria-labelledby="rs-1"><h3 id="rs-1">Salvar como minha visão</h3><form id="view-form" class="report-form"><label>Nome da visão<input id="view-name" type="text" maxlength="60" required placeholder="Ex.: Shanghai FOB"></label><button class="button" type="submit">Salvar</button></form><p class="muted small">Aparece como atalho no topo da Inteligência e restaura período, filtros, modo e blocos.</p></section>
+    <section class="report-section" aria-labelledby="rs-1"><h3 id="rs-1">Salvar como minha visão</h3>${currentTab() !== 'geral' ? `<p class="muted small">A visão guarda também a aba (${esc(IT.tabMention(D, currentTab(), null).replace('Aba ', ''))}).</p>` : ''}<form id="view-form" class="report-form"><label>Nome da visão<input id="view-name" type="text" maxlength="60" required placeholder="Ex.: Shanghai FOB"></label><button class="button" type="submit">Salvar</button></form><p class="muted small">Aparece como atalho no topo da Inteligência e restaura período, filtros, modo e blocos.</p></section>
     <section class="report-section" aria-labelledby="rs-2"><h3 id="rs-2">Levar para uma conversa</h3>${talk}<p class="small">${link('relatorios', 'Ver todos os relatórios')}</p></section>
     <section class="report-section" aria-labelledby="rs-3"><h3 id="rs-3">Receber e compartilhar</h3>
       <div class="share-item"><div><b>Enviar por e-mail</b> ${PREVIEW}</div>${email}</div>
@@ -284,7 +479,14 @@ document.addEventListener('click', e => {
     document.getElementById(b.getAttribute('aria-controls')).hidden = !open;
   }
   else if (a === 'intel-jump') { e.preventDefault(); jumpTo(id); }
-  else if (a === 'intel-report') openReportPanel();
+  else if (a === 'intel-report') { reportEntity = null; openReportPanel(); }
+  else if (a === 'tab-sort') { const dim = b.dataset.dim; tableSort.set(dim, IT.nextSort(tableSort.get(dim) || IT.DEFAULT_SORT, b.dataset.key)); render(); document.querySelector(`[data-action="tab-sort"][data-dim="${dim}"][data-key="${b.dataset.key}"]`)?.focus(); }
+  else if (a === 'entity-open') location.hash = url('executivo', { sel: b.dataset.id });
+  else if (a === 'sim-sort') { simSort = IS.nextSort(simSort || IS.DEFAULT_SORT, b.dataset.key); render(); document.querySelector(`[data-action="sim-sort"][data-key="${b.dataset.key}"]`)?.focus(); }
+  else if (a === 'sim-widen') setSimParam({ period: 'year', start: null, end: null });
+  else if (a === 'sim-all-routes') setSimParam({ srota: null });
+  else if (a === 'entity-filter') { const gf = IT.filterByEntity(IE.readFilters(params), b.dataset.dim, b.dataset.id); params.delete('sel'); setGlobalFilters(gf); toast('Filtro aplicado a todas as abas.'); }
+  else if (a === 'entity-report') { reportEntity = { dim: b.dataset.dim, id: b.dataset.id }; openReportPanel(); }
   else if (a === 'view-open') openView(id);
   else if (a === 'view-rename') { const input = document.querySelector(`[data-view-name="${CSS.escape(id)}"]`); saveViews(IL.renameView(intelViews, id, input && input.value)); notifyViewSaved(); render(); toast('Visão renomeada.'); }
   else if (a === 'view-delete') { saveViews(IL.deleteView(intelViews, id)); render(); toast('Visão excluída.'); }
@@ -303,8 +505,26 @@ document.addEventListener('click', e => {
     saveIntelLayout(next); render(); requestAnimationFrame(() => jumpTo(id)); if (hidden) toast('Bloco reexibido na leitura completa.');
   }
 });
+// A linha inteira abre o detalhe (o botão do nome é a porta do teclado).
+document.addEventListener('click', e => {
+  const tr = e.target.closest('tr[data-row-dim]');
+  if (!tr || e.target.closest('button, a, input, select, summary')) return;
+  location.hash = url('executivo', { sel: tr.dataset.rowId });
+});
+// Setas trocam de aba quando o foco está na faixa (Home/End vão às pontas).
+document.addEventListener('keydown', e => {
+  const t = e.target.closest && e.target.closest('.intel-tab');
+  if (!t || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+  const all = [...document.querySelectorAll('.intel-tab')], i = all.indexOf(t);
+  const next = e.key === 'Home' ? 0 : e.key === 'End' ? all.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + all.length) % all.length;
+  e.preventDefault(); all[next].focus();
+});
+// O evento `close` chega depois do render; se outro painel já abriu, não mexe nele.
+document.getElementById('drawer').addEventListener('close', () => { const d = document.getElementById('drawer'); if (d.open) return; d.classList.remove('entity-sheet'); stripSelection(); });
 document.addEventListener('change', e => {
   const t = e.target;
+  if (t.id === 'sim-route') { setSimParam({ srota: t.value || null }); return; }
+  if (t.id === 'sim-date') { if (IS.validIso(t.value)) setSimParam({ chegada: t.value }); return; }
   if (t.dataset && t.dataset.gfilter) {
     const gf = IE.readFilters(params), key = t.dataset.gfilter, set = new Set(gf[key]);
     if (t.checked) set.add(t.value); else set.delete(t.value);

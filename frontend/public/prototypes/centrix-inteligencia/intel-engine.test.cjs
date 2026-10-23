@@ -106,8 +106,8 @@ test('layout: padrão tudo visível em Completa; alternar, restaurar e descartar
   let s = L.defaults();
   assert.equal(s.mode, 'completa');
   assert.deepEqual(L.visibleBlocks(s), L.BLOCKS.completa.map((b) => b.id));
-  s = L.setVisible(s, 'completa', 'precos', false);
-  assert.ok(!L.visibleBlocks(s).includes('precos'));
+  s = L.setVisible(s, 'completa', 'performance', false);
+  assert.ok(!L.visibleBlocks(s).includes('performance'));
   s = L.setMode(s, 'objetiva');
   assert.deepEqual(L.visibleBlocks(s), L.BLOCKS.objetiva.map((b) => b.id));
   const r = L.reset(s);
@@ -123,19 +123,19 @@ test('layout: padrão tudo visível em Completa; alternar, restaurar e descartar
 });
 
 test('layout: ordem guardada manda no desenho; id desconhecido sai e bloco novo entra no fim', () => {
-  const s = L.normalize({ mode: 'completa', order: { completa: ['precos', 'sumiu', 'graficos'], objetiva: ['q_frete'] } });
-  assert.deepEqual(L.visibleBlocks(s).slice(0, 2), ['precos', 'graficos']);
+  const s = L.normalize({ mode: 'completa', order: { completa: ['performance', 'sumiu', 'graficos'], objetiva: ['q_frete'] } });
+  assert.deepEqual(L.visibleBlocks(s).slice(0, 2), ['performance', 'graficos']);
   assert.equal(L.visibleBlocks(s).length, L.BLOCKS.completa.length);
   assert.deepEqual(L.visibleBlocks(s, 'objetiva')[0], 'q_frete');
   assert.deepEqual(L.orderedBlocks(s).map((b) => b.id), L.visibleBlocks(s));
   // Ocultar continua valendo dentro da ordem.
-  assert.ok(!L.visibleBlocks(L.setVisible(s, 'completa', 'precos', false)).includes('precos'));
+  assert.ok(!L.visibleBlocks(L.setVisible(s, 'completa', 'performance', false)).includes('performance'));
   // Visão antiga, sem `order`, abre na ordem padrão.
   const old = L.restoreView({ id: 'v', name: 'Antiga', query: '', mode: 'completa', hidden: { completa: [], objetiva: [] } });
   assert.deepEqual(old.layout.order, L.defaults().order);
   // A ordem viaja com a visão e conta para "visão ativa".
   const view = L.captureView('Minha', new URLSearchParams('rota=shanghai'), s, E.FILTERS.map((f) => f.key));
-  assert.deepEqual(view.order.completa.slice(0, 2), ['precos', 'graficos']);
+  assert.deepEqual(view.order.completa.slice(0, 2), ['performance', 'graficos']);
   assert.ok(L.isActiveView(view, new URLSearchParams('rota=shanghai'), s, E.FILTERS.map((f) => f.key)));
   assert.ok(!L.isActiveView(view, new URLSearchParams('rota=shanghai'), L.defaults(), E.FILTERS.map((f) => f.key)));
 });

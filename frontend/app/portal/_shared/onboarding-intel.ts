@@ -51,7 +51,7 @@ export type IntelBlockOrder = Record<IntelMode, string[]>;
 
 /** Ordem padrão da Inteligência (a mesma de `IntelLayout.BLOCKS`). */
 export const DEFAULT_BLOCK_ORDER: IntelBlockOrder = {
-  completa: ['destaque', 'funil', 'kpis', 'graficos', 'performance', 'precos', 'compromissos'],
+  completa: ['destaque', 'funil', 'kpis', 'graficos', 'performance'],
   objetiva: ['kpis', 'q_prazo', 'q_frete', 'q_parceiros', 'q_perda'],
 };
 
@@ -61,13 +61,15 @@ export const DEFAULT_BLOCK_ORDER: IntelBlockOrder = {
  * prioridade ordena, não recorta.
  */
 const PRIORITY_FIRST: Record<Priority, IntelBlockOrder> = {
-  // Frete por mês, preços por rota e o número de frete.
-  custo: { completa: ['graficos', 'precos', 'kpis'], objetiva: ['q_frete', 'kpis'] },
+  // Frete por mês e o número de frete. Preços por rota viraram a aba Rotas
+  // (23/10/2026) e saíram da ordem de blocos da Visão geral.
+  custo: { completa: ['graficos', 'kpis'], objetiva: ['q_frete', 'kpis'] },
   // Entrega no prazo, onde o prazo se perde (por etapa, transit time).
   prazo: { completa: ['destaque', 'funil', 'graficos'], objetiva: ['q_prazo', 'q_perda'] },
-  // Status e atrasos: indicadores do recorte, etapas atrasadas, compromissos.
+  // Status e atrasos: indicadores do recorte e etapas atrasadas (os
+  // compromissos do serviço moram na aba Agentes de carga desde 23/10/2026).
   visibilidade: {
-    completa: ['kpis', 'funil', 'performance', 'compromissos'],
+    completa: ['kpis', 'funil', 'performance'],
     objetiva: ['kpis', 'q_perda', 'q_prazo'],
   },
 };

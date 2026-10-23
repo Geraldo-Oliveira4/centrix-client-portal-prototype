@@ -187,3 +187,75 @@ h3.sub{font-size:16px;margin:22px 0 10px}
 .raio-x{margin-left:auto;font-size:13px}
 @media(max-width:600px){.raio-x{margin-left:0;width:100%}.period-strip{font-size:12px}}
 .block{scroll-margin-top:64px}
+/* Abas (23/10/2026): Visão geral | Exportadores | Agentes de carga | Rotas, abaixo
+   do período e dos filtros. No celular a faixa rola na horizontal, nunca a página. */
+.intel-tabs{display:flex;gap:16px;align-items:flex-end;margin:18px 0 4px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.intel-tabs-past{display:flex;gap:4px;flex:0 0 auto}
+.intel-tab{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;white-space:nowrap;color:var(--muted);text-decoration:none;font-weight:600;font-size:14px;border-bottom:3px solid transparent;margin-bottom:-1px}
+.intel-tab:hover{color:var(--indigo)}
+.intel-tab.active{color:var(--indigo);border-bottom-color:var(--orange)}
+.intel-tab:focus-visible{outline:3px solid #8b80b9;outline-offset:-3px;border-radius:6px 6px 0 0}
+.tab-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 16px}
+.tab-stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:2px}
+.tab-stat span{font-size:12px;color:var(--muted);font-weight:600}
+.tab-stat b{font-size:24px;color:var(--indigo);line-height:1.2}
+.tab-stat small{font-size:12px;color:var(--muted)}
+table.compare th{padding:0}
+.sort-button{all:unset;box-sizing:border-box;display:flex;gap:6px;align-items:center;width:100%;min-height:44px;padding:8px 12px;cursor:pointer;font-weight:600;font-size:12px;color:var(--muted)}
+.sort-button.active{color:var(--indigo)}
+.sort-button:focus-visible{outline:3px solid #8b80b9;outline-offset:-3px;border-radius:4px}
+table.compare tr.clickable{cursor:pointer}
+table.compare tr.clickable:hover td{background:#f8f8fd}
+.row-open{all:unset;cursor:pointer;color:var(--indigo);text-decoration:underline;text-underline-offset:3px}
+.row-open:focus-visible{outline:3px solid #8b80b9;outline-offset:2px;border-radius:4px}
+table.compare td .sample-tag{margin-top:4px}
+.entity-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 18px}
+.entity-actions .button{margin-top:0}
+.detail-section{margin:0 0 22px}
+.detail-section h3{font-size:16px;margin:0 0 10px;color:var(--indigo)}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0}
+.facts>div{background:#f8f8fd;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.facts dt{font-size:12px;color:var(--muted);font-weight:600}
+.facts dd{margin:2px 0 0;font-size:18px;font-weight:600;color:var(--ink)}
+.facts dd small{display:block;font-size:12px;font-weight:400;color:var(--muted)}
+@media(max-width:900px){.tab-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Detalhe de entidade no celular: folha de baixo, com o topo da página à vista. */
+@media(max-width:700px){dialog.entity-sheet{inset:auto 0 0 0;width:100%;height:88dvh;max-height:88dvh;border-left:0;border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -12px 50px #1a1c3130}.facts{grid-template-columns:1fr 1fr}.intel-tab{padding:0 10px}}
+@media(max-width:420px){.tab-stats{grid-template-columns:1fr 1fr}.tab-stat b{font-size:20px}}
+/* O texto só para leitor de tela (.sr-only, absoluto) dentro de uma tabela rolável
+   escapava do .table-wrap e alargava a página no celular. */
+.table-wrap{position:relative}
+/* Simulador (23/10/2026): o caminho do FUTURO, separado das abas do passado por
+   um divisor e um fundo próprio; selo "Prévia". */
+.intel-tabs-future{display:flex;align-items:flex-end;gap:12px;flex:0 0 auto}
+.tabs-divider{align-self:center;width:1px;height:24px;background:var(--line)}
+.intel-tab.future{background:#fff7ea;border-radius:8px 8px 0 0;color:#7a4407}
+.intel-tab.future.active{color:#7a4407;border-bottom-color:var(--orange)}
+.intel-tab .preview-tag{margin-left:8px}
+.block.sim{border-bottom:0}
+.block.sim h2 .preview-tag{vertical-align:middle;font-family:Source,'Segoe UI',sans-serif}
+.sim-disclaimer{margin:0 0 14px;padding:10px 14px;background:#fff7ea;border:1px solid #f3d7a8;border-left:3px solid var(--orange);border-radius:8px;font-size:14px;color:var(--ink)}
+.sim-form{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-end;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:0 0 8px}
+.sim-form label{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--ink)}
+.sim-form select,.sim-form input{min-height:40px;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:#fff;min-width:220px}
+.sim-form select:focus-visible,.sim-form input:focus-visible{outline:3px solid #8b80b9;outline-offset:1px}
+.sim-today{flex:1 1 100%;margin:0;font-size:12px;color:var(--muted)}
+.sim-how{margin:0 0 10px;max-width:880px}
+.sim-summary{margin:12px 0;font-size:15px}
+.sim-note{margin:12px 0}
+.sim-note .button{margin:8px 0 0}
+.sim-empty{margin:12px 0}
+.sim-empty h3{font-size:18px;margin:0 0 6px}
+.sim-status{display:inline-flex;gap:6px;align-items:center;font-size:13px;font-weight:600;border-radius:999px;padding:3px 10px;white-space:nowrap;border:1px solid transparent}
+.sim-status.cabe{background:#e7f4ec;color:#23754f}
+.sim-status.apertado{background:#fdf3e1;color:#875810}
+.sim-status.nao_cabe{background:#eef0f4;color:#4a5163;border-color:#d6d9e2}
+.sim-status.small{background:#f6f5fb;color:#5a5880;border:1px dashed #9b98b8;white-space:normal}
+.sim-rules{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:6px;font-size:13px;color:var(--muted)}
+.sim-table td small{display:block}
+.th-plain{display:block;padding:8px 12px;font-weight:600;font-size:12px;color:var(--muted)}
+@media(max-width:700px){.sim-form select,.sim-form input{min-width:0;width:100%}.sim-form label{flex:1 1 100%}}
+/* Simulador no celular: cada par rota × agente vira um cartão (rótulo: valor),
+   sem rolagem lateral. A ordem é a padrão (volume). */
+@media(max-width:700px){.sim-wrap:before{display:none}.sim-wrap table.sim-table{min-width:0;width:100%}.sim-table thead{display:none}.sim-table,.sim-table tbody,.sim-table tr,.sim-table td{display:block;width:100%}.sim-table tr{border:1px solid var(--line);border-radius:10px;background:#fff;margin:0 0 10px;padding:6px 12px}.sim-table td{display:grid;grid-template-columns:42% 1fr;gap:8px;padding:6px 0;border:0}.sim-table td:before{content:attr(data-label);font-size:12px;font-weight:600;color:var(--muted)}.sim-table td:last-child{padding-bottom:8px}}
+@media(max-width:700px){.sim-table td .sim-status{justify-self:start}.sim-table td>div{min-width:0}}

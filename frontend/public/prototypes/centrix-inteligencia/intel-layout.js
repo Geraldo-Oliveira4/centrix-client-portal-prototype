@@ -15,9 +15,11 @@
       { id: 'funil', label: 'Onde o prazo se perde', desc: 'Prontidão → Chegada ao destino → Entrega final, com a maior queda.' },
       { id: 'kpis', label: 'Indicadores', desc: 'Prontidão, Chegada ao destino, Frete contratado e Embarques no recorte.' },
       { id: 'graficos', label: 'Gráficos', desc: 'Prazo por etapa e frete por mês, nos últimos 6 meses.' },
-      { id: 'performance', label: 'Performance', desc: 'Etapas, Exportadores e Agentes de cargas.' },
-      { id: 'precos', label: 'Preços e rotas', desc: 'Suas rotas, frequência e frete médio.' },
-      { id: 'compromissos', label: 'Compromissos do serviço', desc: 'Prazos e condições combinados × realizados, só leitura.' },
+      // Abas (23/10/2026): as tabelas de Exportadores e Agentes, "Preços e rotas"
+      // e "Compromissos do serviço" saíram da Visão geral para as abas
+      // Exportadores, Agentes de carga e Rotas. Um layout salvo com esses ids
+      // perde só a menção a eles (normalize descarta id desconhecido).
+      { id: 'performance', label: 'Performance', desc: 'Onde os tempos excedem o previsto, por etapa da cadeia.' },
     ],
     objetiva: [
       { id: 'kpis', label: 'Indicadores', desc: 'Os quatro números principais em uma linha.' },
@@ -79,10 +81,14 @@
   // MESMO mecanismo do Personalizar (store de demonstração, por usuário).
   const VIEWS_KEY = 'centrix-proto-v2:intelligence-views';
   const PERIOD_KEYS = ['period', 'start', 'end'];
+  // A aba entra na visão (23/10/2026). Visão antiga não tem `aba` e por isso abre
+  // na Visão geral, como sempre abriu (IntelTabs.readTab).
+  // As entradas do Simulador (rota e data desejada) viajam junto com a aba.
+  const TAB_KEYS = ['aba', 'srota', 'chegada'];
   /** Captura a visão atual. `filterKeys` vem do motor (IntelEngine.FILTERS). */
   function captureView(name, params, state, filterKeys, id) {
     const q = new URLSearchParams();
-    for (const k of [...PERIOD_KEYS, ...filterKeys]) { const v = params.get(k); if (v) q.set(k, v); }
+    for (const k of [...PERIOD_KEYS, ...TAB_KEYS, ...filterKeys]) { const v = params.get(k); if (v) q.set(k, v); }
     const n = normalize(state);
     return { id: id || 'v' + Date.now().toString(36), name: String(name || '').trim() || 'Minha visão', query: q.toString(), mode: n.mode, hidden: n.hidden, order: n.order };
   }
