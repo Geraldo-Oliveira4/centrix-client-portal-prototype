@@ -17,12 +17,21 @@ Código: `public/prototypes/centrix-inteligencia/intel-sim.js` (puro) e
 | Entrada | URL | Padrão | Observação |
 |---|---|---|---|
 | Rota (origem → destino) | `srota` | Todas as rotas com histórico | Rota desconhecida = todas |
-| Data desejada de chegada | `chegada` | Hoje + 5 semanas | Para a aba responder sem clique extra |
-| Período e filtros globais | os de sempre | Últimos 90 dias | Agente, incoterm, exportador, país e SKU restringem o histórico, como em toda aba |
+| Data desejada de chegada | `chegada` | Hoje + 32 dias | Para a aba responder sem clique extra (com a fixture, já mostra os três resultados) |
+| Histórico (janela própria) | `janela` = `6m` \| `12m` \| `tudo` | Últimos 12 meses | Contado pela data de SAÍDA, até hoje. Visão salva sem `janela` abre com 12 meses |
+| Filtros globais | os de sempre | — | Exportador, agente, incoterm, SKU e país de origem restringem o histórico, como em toda aba |
+
+**O período do painel NÃO se aplica ao Simulador (24/10/2026).** Na primeira
+versão ele herdava o período global (padrão 90 dias), e todo par rota × agente
+caía em "Amostra pequena": quem abria a aba via o pior estado. Para trânsito, é o
+histórico longo que dá confiança; por isso a janela é própria e fica sempre à
+vista ("Histórico usado: últimos 12 meses · N embarques nesta rota", também na
+faixa fixa do topo). O botão "Usar o histórico de Este ano" saiu, substituído
+pelo seletor.
 
 As entradas viajam na visão salva (junto da aba). "Hoje" é o corte da
-demonstração, `D.cutoff` = **13/09/2026**, o mesmo relógio de toda a página (o
-relógio da demo está congelado nessa data). A tela diz isso ao lado do campo.
+demonstração, `D.cutoff`, **relativo à data atual** (ver "Relógio da
+demonstração" abaixo); a tela mostra a data ao lado do campo.
 Premissa declarada: o embarque pode acontecer **a partir de hoje**; prontidão e
 coleta não entram.
 
@@ -59,16 +68,43 @@ ou ranking.
 |---|---|---|
 | `ok` | há pares com estimativa | resumo ("7 cabem · 1 apertado · 3 não cabem") + tabela + regras |
 | `all_nao_cabe` | data muito próxima, nenhum par com estimativa cabe | aviso com a semana a partir da qual a mediana mais curta chega + tabela |
-| `all_small` | todos os pares com n < 3 | aviso + botão "Usar o histórico de Este ano" + tabela com "Amostra pequena" |
+| `all_small` | todos os pares com n < 3 | aviso sugerindo ampliar para "Todo o histórico" no seletor + tabela com "Amostra pequena" |
 | `no_history` | nenhum embarque na rota com período e filtros | vazio + "Limpar filtros" / "Ver todas as rotas" |
 | `past` | data desejada ≤ hoje | "Essa data já passou" com a primeira data possível |
 | `no_date` | data inválida | pede a data |
 
-Com a fixture (60 embarques, 11 pares rota × agente, 4 a 8 trânsitos por par no
-ano), "Este ano" e chegada em 15/10/2026 mostram os três resultados juntos. No
-período padrão (90 dias) todo par tem 1 ou 2 trânsitos e a tela cai em
-`all_small`: o período vale para todas as abas, inclusive esta, e a tela oferece
-ampliar com um clique.
+Com a fixture e a data padrão (hoje + 32 dias), as três janelas mostram os três
+resultados: 6 meses = 11 pares (7 cabem · 1 apertado · 3 não cabem), 12 meses =
+14 pares (9 · 2 · 3), todo o histórico = 15 pares (10 · 2 · 3).
+
+## Histórico acrescentado à fixture (24/10/2026)
+
+Com 12 meses, só Shanghai → Santos tinha 3 agentes com n ≥ 3. Foram acrescentados
+**19 embarques fictícios** (DEMO-061 a DEMO-079), todos ANTES da série de março
+(e portanto fora dos últimos 90 dias, sem mexer na Visão geral nem nas abas no
+período padrão):
+
+| Par | Embarques | Quando (data-base) | Efeito |
+|---|---|---|---|
+| Ningbo → Itajaí × Delta Shipping | 5 | out/2025 a fev/2026 | 3º agente em Ningbo, dentro de 12 meses |
+| Hamburgo → Itajaí × Alpha Logistics | 5 | out/2025 a fev/2026 | 3º agente em Hamburgo |
+| Gênova → Santos × Delta Shipping | 5 | out/2025 a fev/2026 | 3º agente em Gênova |
+| Nova York → Santos × Gamma Freight | 4 | mai a ago/2025 | só em "Todo o histórico" (mais de 12 meses) |
+
+Resultado com 12 meses: 4 rotas com 3 agentes de n ≥ 3. Mesmos exportadores,
+SKUs e regras de geração (`makeOperation` em `data.js`); nenhum nome novo.
+
+## Relógio da demonstração (nenhum "hoje" congelado)
+
+A fixture é gerada contra uma data-base fixa (corte 13/09/2026) e, no
+navegador, **deslocada em memória** por `offset = hoje − data-base`
+(`D.shift`). Todas as datas andam o mesmo número de dias: trânsito, atraso,
+compromisso × realizado e a duração dos períodos não mudam, e o corte vira o
+hoje. O arquivo-fonte não muda. `?hoje=AAAA-MM-DD` (na URL do portal ou do
+iframe) fixa o hoje para testes e screenshots; sem ele, vale a data local. No
+Node os testes recebem o dataset na data-base e injetam o relógio
+(`D.shift(...)`, `D.demoToday(search, now)`), então nenhum teste depende da data
+real em que roda.
 
 ## Sem custo, saving ou economia
 

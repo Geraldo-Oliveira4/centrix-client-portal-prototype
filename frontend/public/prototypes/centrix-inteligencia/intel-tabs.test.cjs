@@ -52,7 +52,7 @@ test('Visão geral enxuta: só números, gráficos, evolução e performance por
 test('linhas de comparação: só fatos do recorte, sem nota nem ranking', () => {
   const rows = T.entityRows(D, D.operations, 'ag');
   assert.equal(rows.length, 4);
-  assert.equal(rows.reduce((n, r) => n + r.n, 0), 60);
+  assert.equal(rows.reduce((n, r) => n + r.n, 0), D.operations.length);
   const alpha = rows.find((r) => r.id === 'alpha');
   assert.equal(alpha.n, D.operations.filter((o) => o.agent === 'alpha').length);
   assert.equal(alpha.port.base, D.metric('port', D.operations.filter((o) => o.agent === 'alpha')).eligible.length);
@@ -106,13 +106,13 @@ test('amostra pequena: n < 3 marca a linha, n = 3 não', () => {
 
 test('resumo da aba: quantas entidades e concentração por volume', () => {
   const rows = T.entityRows(D, D.operations, 'rota');
-  const sum = T.tabSummary(rows, 60);
+  const sum = T.tabSummary(rows, D.operations.length);
   assert.equal(sum.count, 5);
   assert.equal(sum.top.name, 'Shanghai → Santos');
   const shanghai = D.operations.filter((o) => o.route === 'shanghai').length;
   assert.equal(sum.top.n, shanghai);
   const second = T.sortRows(rows)[1].n;
-  assert.equal(sum.top2Share, Math.round(((shanghai + second) / 60) * 100));
+  assert.equal(sum.top2Share, Math.round(((shanghai + second) / D.operations.length) * 100));
   assert.equal(T.tabSummary([], 0).top, null);
   assert.equal(T.tabSummary(rows.slice(0, 1), rows[0].n).top2Share, null);
 });
@@ -154,7 +154,7 @@ test('uso e impacto do agente: participação, prazo e cotado × cobrado só do 
   const imp = T.agentImpact(D, D.operations, 'beta');
   const beta = D.operations.filter((o) => o.agent === 'beta');
   assert.equal(imp.n, beta.length);
-  assert.equal(imp.share, Math.round((beta.length / 60) * 100));
+  assert.equal(imp.share, Math.round((beta.length / D.operations.length) * 100));
   assert.deepEqual(imp.routes, ['shanghai']);
   const audit = D.metric('audit', beta);
   assert.equal(imp.auditBase, audit.eligible.length);

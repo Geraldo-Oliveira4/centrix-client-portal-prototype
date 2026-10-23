@@ -5,7 +5,7 @@ const S = require('./intel-sim.js');
 const L = require('./intel-layout.js');
 const E = require('./intel-engine.js');
 
-const TODAY = D.cutoff; // 2026-09-13, o relógio congelado da demonstração
+const TODAY = D.cutoff; // 2026-09-13: a DATA-BASE da fixture (no Node, D não é deslocado; o relógio é injetado)
 const all = D.operations;
 const row = (r, route, agent) => r.rows.find((x) => x.route === route && x.agent === agent);
 
@@ -42,7 +42,7 @@ test('classificação: Cabe (P90 cabe), Apertado (só a mediana), Não cabe (nem
   assert.equal(row(r, 'ningbo', 'gamma').status, 'cabe'); // 32 / 32
   assert.equal(row(r, 'shanghai', 'beta').status, 'nao_cabe'); // 34 / 37
   assert.equal(row(r, 'newyork', 'delta').status, 'cabe');
-  assert.deepEqual(r.counts, { cabe: 7, apertado: 1, nao_cabe: 3, small: 0 });
+  assert.deepEqual(r.counts, { cabe: 10, apertado: 2, nao_cabe: 3, small: 0 });
 });
 
 test('data limite de embarque = data desejada − P90 (com folga) e − mediana (no limite)', () => {
@@ -126,13 +126,105 @@ test('dado, não veredito: nada de custo, score ou recomendação no resultado',
   assert.ok(!r.rows.some((x) => 'freight' in x || 'cost' in x));
 });
 
-test('entradas na URL: rota válida, data desejada com padrão de 5 semanas; viajam na visão salva', () => {
+test('entradas na URL: rota válida, data desejada com padrão de 32 dias; viajam na visão salva', () => {
   const p = new URLSearchParams('aba=simulador&srota=genova&chegada=2026-11-02');
-  assert.deepEqual(S.readInputs(D, p), { route: 'genova', arriveBy: '2026-11-02', explicit: true });
-  assert.deepEqual(S.readInputs(D, new URLSearchParams('srota=lua')), { route: '', arriveBy: S.addDays(TODAY, 35), explicit: false });
+  assert.deepEqual(S.readInputs(D, p), { route: 'genova', arriveBy: '2026-11-02', explicit: true, window: '12m' });
+  assert.deepEqual(S.readInputs(D, new URLSearchParams('srota=lua')), { route: '', arriveBy: S.addDays(TODAY, 32), explicit: false, window: '12m' });
   const v = L.captureView('Meu cenário', p, L.defaults(), E.FILTERS.map((f) => f.key));
   assert.equal(new URLSearchParams(v.query).get('chegada'), '2026-11-02');
   assert.equal(new URLSearchParams(v.query).get('srota'), 'genova');
   const how = S.howCalculated(D, {}, 'Este ano').map((l) => l.label);
-  assert.deepEqual(how, ['Fonte', 'Fórmula', 'Período', 'Filtros que se aplicam']);
+  assert.deepEqual(how, ['Fonte', 'Fórmula', 'Histórico', 'Filtros que se aplicam']);
+});
+
+// ---------------------------------------------------------------------------
+// Janela própria do Simulador e relógio da demonstração (24/10/2026)
+
+test('janela do Simulador: 6 meses, 12 meses (padrão) e todo o histórico, pela data de saída', () => {
+  assert.equal(S.DEFAULT_WINDOW, '12m');
+  assert.equal(S.windowStart('6m', '2026-09-13'), '2026-03-13');
+  assert.equal(S.windowStart('12m', '2026-09-13'), '2025-09-13');
+  assert.equal(S.windowStart('12m', '2026-03-31'), '2025-03-31');
+  assert.equal(S.windowStart('6m', '2026-08-31'), '2026-02-28'); // fevereiro não tem 31
+  assert.equal(S.windowStart('tudo', '2026-09-13'), null);
+  const n = (k) => S.inWindow(all, k, TODAY).length;
+  assert.ok(n('6m') < n('12m') && n('12m') < n('tudo'), `${n('6m')} < ${n('12m')} < ${n('tudo')}`);
+  assert.equal(n('tudo'), all.length);
+  for (const o of S.inWindow(all, '6m', TODAY)) assert.ok((o.depart || o.readyPlan) >= '2026-03-13');
+  // Nada depois de hoje entra.
+  assert.equal(S.inWindow([{ depart: '2026-09-20' }], 'tudo', TODAY).length, 0);
+  assert.equal(S.windowLabel('6m'), 'Últimos 6 meses');
+});
+
+test('12 meses sustentam o Simulador: ao menos 3 rotas com 3 agentes de n>=3', () => {
+  const r = S.simulate(D, S.inWindow(all, '12m', TODAY), { arriveBy: '2026-10-31', today: TODAY });
+  const byRoute = {};
+  for (const x of r.rows.filter((x) => x.n >= 3)) byRoute[x.route] = (byRoute[x.route] || 0) + 1;
+  assert.ok(Object.values(byRoute).filter((k) => k >= 3).length >= 3, JSON.stringify(byRoute));
+  assert.equal(r.state, 'ok');
+  // Nova York × Gamma só existe a mais de 12 meses: aparece só em "Todo o histórico".
+  assert.ok(!r.rows.some((x) => x.route === 'newyork' && x.agent === 'gamma'));
+  const tudo = S.simulate(D, S.inWindow(all, 'tudo', TODAY), { arriveBy: '2026-10-31', today: TODAY });
+  assert.ok(tudo.rows.some((x) => x.route === 'newyork' && x.agent === 'gamma' && !x.small));
+});
+
+test('12 meses abre com os três resultados (Cabe, Apertado, Não cabe) na data padrão relativa', () => {
+  const r = S.simulate(D, S.inWindow(all, '12m', TODAY), { arriveBy: S.readInputs(D, new URLSearchParams('')).arriveBy, today: TODAY });
+  assert.ok(r.counts.cabe > 0 && r.counts.apertado > 0 && r.counts.nao_cabe > 0, JSON.stringify(r.counts));
+});
+
+test('janela na URL e na visão salva; visão antiga (sem janela) abre com 12 meses', () => {
+  assert.equal(S.readWindow(new URLSearchParams('janela=6m')), '6m');
+  assert.equal(S.readWindow(new URLSearchParams('janela=tudo')), 'tudo');
+  assert.equal(S.readWindow(new URLSearchParams('janela=xpto')), '12m');
+  const old = { id: 'v0', name: 'Simulador antigo', query: 'aba=simulador&srota=genova&chegada=2026-11-02', mode: 'completa', hidden: { completa: [], objetiva: [] } };
+  assert.equal(S.readWindow(new URLSearchParams(L.restoreView(old).query)), '12m');
+  const v = L.captureView('6 meses', new URLSearchParams('aba=simulador&janela=6m&period=days30'), L.defaults(), E.FILTERS.map((f) => f.key));
+  assert.equal(new URLSearchParams(L.restoreView(v).query).get('janela'), '6m');
+  // A janela não é o período: trocar o período do painel não mexe nela.
+  assert.equal(S.readWindow(new URLSearchParams('period=days30')), '12m');
+});
+
+test('relógio injetado: ?hoje= fixa o dia; sem ele vale a data local do relógio passado', () => {
+  assert.equal(D.demoToday('?hoje=2027-01-15', new Date(2030, 0, 1)), '2027-01-15');
+  assert.equal(D.demoToday('?embed=1&hoje=2026-02-30', new Date(2026, 9, 24, 9)), '2026-10-24'); // data inválida é ignorada
+  assert.equal(D.demoToday('', new Date(2026, 9, 24, 23, 30)), '2026-10-24');
+  // No Node o dataset fica na data-base, qualquer que seja o relógio real.
+  assert.equal(D.cutoff, '2026-09-13');
+  assert.equal(D.offsetDays, 0);
+});
+
+test('deslocamento: o corte vira o hoje e TODAS as diferenças entre datas se preservam', () => {
+  const X = D.shift('2026-10-24');
+  assert.equal(X.cutoff, '2026-10-24');
+  assert.equal(X.offsetDays, 41);
+  assert.equal(X.operations.length, D.operations.length);
+  for (let i = 0; i < D.operations.length; i++) {
+    const a = D.operations[i], b = X.operations[i];
+    for (const k of D.DATE_FIELDS) {
+      assert.equal(a[k] == null, b[k] == null, `${a.id} ${k}: nulo continua nulo`);
+      if (a[k]) assert.equal(D.days(a[k], b[k]), 41, `${a.id} ${k}`);
+    }
+    if (a.depart && a.arrive) assert.equal(D.days(b.depart, b.arrive), D.days(a.depart, a.arrive));
+    assert.equal(b.freight, a.freight);
+  }
+  assert.equal(D.operations[0].readyPlan, '2026-03-02', 'a fonte não muda');
+  // Para trás também funciona, e a classificação do Simulador é a mesma.
+  const Y = D.shift('2026-01-01');
+  const rx = S.simulate(X, S.inWindow(X.operations, '12m', X.cutoff), { arriveBy: S.addDays(X.cutoff, 32), today: X.cutoff });
+  const ry = S.simulate(Y, S.inWindow(Y.operations, '12m', Y.cutoff), { arriveBy: S.addDays(Y.cutoff, 32), today: Y.cutoff });
+  const base = S.simulate(D, S.inWindow(all, '12m', TODAY), { arriveBy: S.addDays(TODAY, 32), today: TODAY });
+  assert.deepEqual(rx.counts, base.counts);
+  assert.deepEqual(ry.counts, base.counts);
+});
+
+test('deslocado, o período padrão de 90 dias continua com os mesmos embarques e a base anterior', () => {
+  const X = D.shift('2026-10-24');
+  const range = (cut) => ({ start: S.addDays(cut, -89), end: cut });
+  const cur = (DD) => E.inRange(DD.operations, range(DD.cutoff)).map((o) => o.id).sort();
+  assert.deepEqual(cur(X), cur(D));
+  assert.ok(cur(D).length >= 20);
+  const prev = (DD) => E.inRange(DD.operations, E.previousRange(range(DD.cutoff))).map((o) => o.id).sort();
+  assert.deepEqual(prev(X), prev(D));
+  assert.ok(prev(D).length >= 20);
 });

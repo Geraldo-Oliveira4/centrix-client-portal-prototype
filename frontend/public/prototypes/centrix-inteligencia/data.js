@@ -1,6 +1,9 @@
 'use strict';
 // IDs e identidades da fixture de Configurações de 13/09 (v2). Não lê nem grava seu localStorage.
-const D = (() => {
+const D_BASE = (() => {
+  // DATA-BASE da fixture: as datas abaixo são geradas contra este corte e depois
+  // DESLOCADAS em memória para que o "hoje" da demonstração seja a data atual
+  // (ver `shift`, no fim do arquivo). O arquivo-fonte nunca muda.
   const cutoff = '2026-09-13';
   // FIXTURE FICTÍCIA (02/10/2026, Inteligência personalizável). Repo público:
   // nenhum nome real. 60 embarques de março a setembro de 2026, com os seis
@@ -41,9 +44,7 @@ const D = (() => {
   const transitPlans = {ningbo:32,shanghai:34,hamburgo:22,genova:26,newyork:18};
   const baseFreight = {ningbo:3200,shanghai:3400,hamburgo:1800,genova:2600,newyork:2200};
   const condition = ['integra','integra','integra','avaria','integra','integra','integra','integra'];
-  const operations = Array.from({length:60},(_,i)=>{
-    const [supplier,route,agent,incoterm,itemSkus] = plan[i%plan.length];
-    const readyPlan = add('2026-03-02',Math.round(i*3.15));
+  function makeOperation(i,[supplier,route,agent,incoterm,itemSkus],readyPlan){
     const month = Number(readyPlan.slice(5,7));
     const h = (i*37+11)%17;
     const readyDelay = i%13===7 ? null
@@ -61,11 +62,25 @@ const D = (() => {
     const docs = i%11===4 ? null : i%5===2 ? 'corrigida' : 'correta';
     const receipt = i%9===5 ? 'parcial' : 'completo';
     const audit = i%12===0 ? 'divergencia' : i%7===3 ? 'inconclusiva' : i%6===5 ? 'nao-auditada' : 'conforme';
-    const freight = Math.round(baseFreight[route]*(month>=7?1.08:1)+(i%3)*60);
+    const freight = Math.round(baseFreight[route]*(readyPlan>='2026-07-01'?1.08:1)+(i%3)*60);
     const freeTime = {agreed:21,granted:agent==='beta'&&month>=7?14:21};
     const bookingHours = agent==='beta' ? (month>=7?60:30) : agent==='gamma' ? 36 : agent==='delta' ? 24 : 20;
     return {id:'DEMO-'+num,po:'PO '+(4521+i),sku:items[0].sku,cargo:items[0].desc,items,incoterm,country:companies.find(c=>c.id===supplier).country,supplier,route,agent,variant,readyPlan,ready:readyDelay===null?null:known(actualReady),collect:known(collect),depart:known(depart),arrive:known(arrive),gate:known(gate),final:known(final),collectPlan:add(readyPlan,2),departPlan:add(readyPlan,6),arrivePlan:add(readyPlan,6+transitPlan),finalPlan:add(readyPlan,11+transitPlan),arriveForecast:arrive,finalForecast:final,transitPlan,docs,ordered:items[0].qty,received:known(final)&&receipt?(receipt==='parcial'?Math.round(items[0].qty*0.95):items[0].qty):null,condition:known(final)?condition[i%condition.length]:null,freight,cargoValue:i%10===3?null:({east:24000,yang:18000,nord:42000,lig:36000,hud:30000})[supplier],audit:known(arrive)?audit:'nao-auditada',extra:audit==='divergencia'?195:null,responseHours:bookingHours,freeTime,connectionIn:variant==='conexao'?known(add(depart,7)):null,connectionOut:variant==='conexao'?known(add(depart,10)):null};
-  });
+  }
+  const operations = Array.from({length:60},(_,i)=>makeOperation(i,plan[i%plan.length],add('2026-03-02',Math.round(i*3.15))));
+  // HISTÓRICO ANTERIOR (24/10/2026, Simulador de cenários): 19 embarques
+  // fictícios ANTES da série de março, para o trânsito ter histórico longo. Três
+  // pares novos dentro dos 12 meses (Ningbo × Delta, Hamburgo × Alpha, Gênova ×
+  // Delta: 5 cada) dão 3 agentes com n>=3 em 4 rotas; Nova York × Gamma (4) fica
+  // a mais de 12 meses do corte e só entra em "Todo o histórico". Todos ficam fora
+  // dos últimos 90 dias, então a Visão geral e as abas no período padrão não mudam.
+  const olderPlan = [
+    ...[0,1,2,3,4].map(k=>[['east','ningbo','delta','FOB',['EC-240']],add('2025-10-06',k*27)]),
+    ...[0,1,2,3,4].map(k=>[['nord','hamburgo','alpha','EXW',['NW-720']],add('2025-10-13',k*27)]),
+    ...[0,1,2,3,4].map(k=>[['lig','genova','delta','CIF',['LG-050']],add('2025-10-20',k*27)]),
+    ...[0,1,2,3].map(k=>[['hud','newyork','gamma','FOB',['HP-410']],add('2025-05-05',k*30)]),
+  ];
+  olderPlan.forEach(([spec,ready],k)=>operations.push(makeOperation(60+k,spec,ready)));
   const metrics = {
     ready:{label:'Prontidão no prazo',source:'Compromisso da PO + confirmação do exportador',definition:'Prontidão realizada até o compromisso original, em dias corridos. Não mede transporte.',eligible:o=>!!o.ready,ok:o=>o.ready<=o.readyPlan,value:o=>`${o.readyPlan} → ${o.ready||'sem confirmação'}`},
     docs:{label:'Documentação sem correção',source:'Checklist da primeira versão documental',definition:'Primeira versão aceita sem correção entre entregas com checklist. Ausência de checklist não significa conformidade.',eligible:o=>!!o.docs,ok:o=>o.docs==='correta',value:o=>o.docs==='correta'?'Primeira versão aceita':o.docs==='corrigida'?'Correção de packing list registrada':'Checklist ausente'},
@@ -80,6 +95,30 @@ const D = (() => {
   const stages=[{id:'pre',label:'Prontidão → coleta',from:'ready',to:'collect',plan:()=>2,source:'Confirmação de prontidão + recibo de coleta'},{id:'origin',label:'Coleta → embarque',from:'collect',to:'depart',plan:()=>4,source:'Recibo de coleta + evento de saída'},{id:'sea',label:'Trânsito internacional',from:'depart',to:'arrive',plan:o=>o.transitPlan,source:'Eventos de saída e chegada'},{id:'port',label:'Chegada → gate out',from:'arrive',to:'gate',plan:()=>3,source:'Eventos de chegada + gate out'},{id:'land',label:'Gate out → destino final',from:'gate',to:'final',plan:()=>2,source:'Gate out + comprovante de entrega'}];
   const connectionStages=[{id:'sea-first',label:'Ningbo → Singapura',from:'depart',to:'connectionIn',plan:()=>7,source:'Saída de Ningbo + entrada em Singapura'},{id:'connection',label:'Permanência em Singapura',from:'connectionIn',to:'connectionOut',plan:()=>3,source:'Entrada + saída da conexão'},{id:'sea-last',label:'Singapura → Itajaí',from:'connectionOut',to:'arrive',plan:()=>22,source:'Saída de Singapura + chegada a Itajaí'}];
   function metric(key,ops){const m=metrics[key],eligible=ops.filter(m.eligible),excluded=ops.filter(o=>!m.eligible(o));return {m,eligible,excluded,good:m.ok?eligible.filter(m.ok).length:null,total:m.amount?eligible.reduce((n,o)=>n+m.amount(o),0):null,rate:m.ok&&eligible.length?Math.round(eligible.filter(m.ok).length/eligible.length*100):null};}
-  return {cutoff,companies,agents,locations,routes,skus,operations,metrics,stages,connectionStages,add,days,metric};
+  // RELÓGIO DA DEMONSTRAÇÃO (24/10/2026): nenhum "hoje" congelado. `shift` desloca
+  // TODAS as datas da fixture pelo mesmo número de dias (hoje − data-base), então
+  // diferenças entre datas (trânsito, atraso, período) não mudam, e o corte vira
+  // o hoje. Determinístico e só em memória.
+  const DATE_FIELDS = ['readyPlan','ready','collect','depart','arrive','gate','final','collectPlan','departPlan','arrivePlan','finalPlan','arriveForecast','finalForecast','connectionIn','connectionOut'];
+  const validDay = d => /^\d{4}-\d{2}-\d{2}$/.test(d||'') && !Number.isNaN(Date.parse(d)) && new Date(d+'T12:00:00Z').toISOString().slice(0,10)===d;
+  /** O "hoje" da demonstração: `?hoje=AAAA-MM-DD` (testes e screenshots) ou a data local de `now`. */
+  function demoToday(search, now){
+    const q = new URLSearchParams(search||'').get('hoje');
+    if(validDay(q)) return q;
+    const n = now instanceof Date ? now : new Date();
+    return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+  }
+  function shift(base, today){
+    const offset = validDay(today) ? days(base.cutoff, today) : 0;
+    const move = d => (d ? add(d, offset) : d);
+    return {...base, cutoff: move(base.cutoff), baseCutoff: base.cutoff, offsetDays: offset, shiftDate: move,
+      operations: base.operations.map(o => { const x = {...o}; for (const k of DATE_FIELDS) x[k] = move(o[k]); return x; })};
+  }
+  const base = {cutoff,companies,agents,locations,routes,skus,operations,metrics,stages,connectionStages,add,days,metric};
+  return {...base, baseCutoff: cutoff, offsetDays: 0, shiftDate: d => d, DATE_FIELDS, demoToday, shift: today => shift(base, today)};
 })();
+// No Node (testes) o dataset sai na DATA-BASE, sem depender do relógio real; o
+// teste que quer outro "hoje" chama D.shift(hoje). No navegador, o corte é hoje
+// (ou ?hoje=) — o mesmo para toda a página.
+const D = typeof module !== 'undefined' ? D_BASE : D_BASE.shift(D_BASE.demoToday(location.search, new Date()));
 if(typeof module!=='undefined')module.exports=D;

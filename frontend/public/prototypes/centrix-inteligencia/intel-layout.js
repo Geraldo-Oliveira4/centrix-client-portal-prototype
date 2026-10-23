@@ -84,7 +84,7 @@
   // A aba entra na visão (23/10/2026). Visão antiga não tem `aba` e por isso abre
   // na Visão geral, como sempre abriu (IntelTabs.readTab).
   // As entradas do Simulador (rota e data desejada) viajam junto com a aba.
-  const TAB_KEYS = ['aba', 'srota', 'chegada'];
+  const TAB_KEYS = ['aba', 'srota', 'chegada', 'janela'];
   /** Captura a visão atual. `filterKeys` vem do motor (IntelEngine.FILTERS). */
   function captureView(name, params, state, filterKeys, id) {
     const q = new URLSearchParams();

@@ -161,28 +161,60 @@
     return { key, dir: key === 'route' || key === 'agent' ? 'asc' : 'desc' };
   }
 
-  /** Entradas da URL: `srota` (rota ou vazio) e `chegada` (data desejada). */
+  // ------------------------------------------------- janela de histórico ---
+  // O Simulador NÃO usa o período do painel (24/10/2026): para trânsito, é o
+  // histórico longo que dá confiança, e 90 dias deixavam todo par em "Amostra
+  // pequena". Ele tem a própria janela, contada pela DATA DE SAÍDA até hoje.
+  const WINDOWS = [['6m', 'Últimos 6 meses', 6], ['12m', 'Últimos 12 meses', 12], ['tudo', 'Todo o histórico', null]];
+  const DEFAULT_WINDOW = '12m';
+  /** Janela da URL (`janela`). Ausente ou desconhecida = 12 meses (visões antigas). */
+  function readWindow(params) {
+    const get = (k) => (typeof params.get === 'function' ? params.get(k) : params[k]);
+    const v = get('janela');
+    return WINDOWS.some(([id]) => id === v) ? v : DEFAULT_WINDOW;
+  }
+  /** Início da janela: o mesmo dia N meses antes de hoje (último dia do mês se ele não existir). */
+  function windowStart(key, today) {
+    const w = WINDOWS.find(([id]) => id === key);
+    if (!w || w[2] == null) return null;
+    const [y, m, d] = today.split('-').map(Number);
+    const last = new Date(Date.UTC(y, m - 1 - w[2] + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(y, m - 1 - w[2], Math.min(d, last))).toISOString().slice(0, 10);
+  }
+  /** Embarques na janela: saída (ou, sem saída, o compromisso de prontidão) entre o início e hoje. */
+  function inWindow(ops, key, today) {
+    const start = windowStart(key, today);
+    return ops.filter((o) => { const d = o.depart || o.readyPlan; return d && d <= today && (!start || d >= start); });
+  }
+  function windowLabel(key) { return (WINDOWS.find(([id]) => id === key) || WINDOWS[1])[1]; }
+
+  /** Entradas da URL: `srota` (rota ou vazio), `chegada` (data desejada) e `janela`. */
   function readInputs(D, params, today = D.cutoff) {
     const get = (k) => (typeof params.get === 'function' ? params.get(k) : params[k]);
     const route = D.routes.some((r) => r.id === get('srota')) ? get('srota') : '';
     const raw = get('chegada');
-    return { route, arriveBy: validIso(raw) ? raw : defaultArrival(today), explicit: validIso(raw) };
+    return { route, arriveBy: validIso(raw) ? raw : defaultArrival(today), explicit: validIso(raw), window: readWindow(params) };
   }
-  /** Data desejada padrão: 5 semanas depois de hoje, para a aba responder sem clique. */
-  function defaultArrival(today) { return addDays(today, 35); }
+  /**
+   * Data desejada padrão: 32 dias depois de hoje (pouco mais de 4 semanas), para a
+   * aba responder sem clique. Com a fixture, é a data em que a leitura padrão
+   * (12 meses) já mostra os três resultados lado a lado.
+   */
+  const DEFAULT_ARRIVAL_DAYS = 32;
+  function defaultArrival(today) { return addDays(today, DEFAULT_ARRIVAL_DAYS); }
 
   /** As quatro linhas do "Como é calculado" do simulador. */
-  function howCalculated(D, filters, periodLabel) {
+  function howCalculated(D, filters, windowKey = DEFAULT_WINDOW, today = D.cutoff) {
     const active = Engine.FILTERS.filter((f) => (filters[f.key] || []).length);
     return [
       { label: 'Fonte', text: 'Data de saída e data de chegada ao destino registradas em cada embarque do histórico.' },
       { label: 'Fórmula', text: `Trânsito = chegada − saída, em dias. Por rota e agente: mediana e P${HIGH_PERCENTILE} (o menor trânsito que cobre ${HIGH_PERCENTILE}% dos casos). Data limite de embarque = data desejada − P${HIGH_PERCENTILE} (com folga) ou − mediana (no limite). Cabe na data: até o P${HIGH_PERCENTILE} chega a tempo embarcando a partir de hoje. Apertado: só a mediana chega. Não cabe: nem a mediana. Menos de ${MIN_SAMPLE} trânsitos: sem estimativa.` },
-      { label: 'Período', text: `Embarques do período selecionado (${periodLabel}). Hoje, nesta demonstração, é ${D.cutoff.split('-').reverse().join('/')}.` },
+      { label: 'Histórico', text: `${windowLabel(windowKey)}${windowStart(windowKey, today) ? `, pela data de saída, de ${windowStart(windowKey, today).split('-').reverse().join('/')} até hoje` : ', todos os embarques com saída até hoje'}. O período do painel não se aplica ao Simulador. Hoje, nesta demonstração, é ${today.split('-').reverse().join('/')}.` },
       { label: 'Filtros que se aplicam', text: active.length ? `Ativos: ${active.map((f) => `${f.label} (${filters[f.key].map((v) => f.name(D, v)).join(', ')})`).join('; ')}.` : 'Todos os filtros globais (exportador, agente, rota, incoterm, país, SKU).' },
     ];
   }
 
-  const api = { MIN_SAMPLE, HIGH_PERCENTILE, STATUS, COLUMNS, DEFAULT_SORT, percentile, median, weekStart, weekLabel, weekWindow, departureLabel, classify, simulate, sortSimRows, nextSort, readInputs, defaultArrival, howCalculated, addDays, diffDays, validIso };
+  const api = { MIN_SAMPLE, HIGH_PERCENTILE, STATUS, COLUMNS, DEFAULT_SORT, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, departureLabel, classify, simulate, sortSimRows, nextSort, readInputs, defaultArrival, howCalculated, addDays, diffDays, validIso };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelSim = api;
 })(typeof window !== 'undefined' ? window : globalThis);
