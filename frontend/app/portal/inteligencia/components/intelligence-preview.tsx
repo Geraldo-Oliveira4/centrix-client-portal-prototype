@@ -23,6 +23,10 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
       const view = here.get('visao');
       if (view) extra.set('view', view);
       if (here.get('guia') === '1') extra.set('guide', '1');
+      // Relógio da demonstração: `?hoje=AAAA-MM-DD` fixa o "hoje" do iframe
+      // (testes e screenshots reproduzíveis). Sem ele, o hoje é a data atual.
+      const hoje = here.get('hoje');
+      if (hoje && /^\d{4}-\d{2}-\d{2}$/.test(hoje)) extra.set('hoje', hoje);
       entry.current = extra.toString();
     }
     if (here.has('visao') || here.has('guia')) {
@@ -31,7 +35,7 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
       const q = here.toString();
       window.history.replaceState(window.history.state, '', window.location.pathname + (q ? '?' + q : '') + window.location.hash);
     }
-    setSource('/prototypes/centrix-inteligencia/index.html?embed=1&v=20261023-sim-1' + (entry.current ? '&' + entry.current : '') + (window.location.hash || '#' + initialSection));
+    setSource('/prototypes/centrix-inteligencia/index.html?embed=1&v=20261024-relogio-1' + (entry.current ? '&' + entry.current : '') + (window.location.hash || '#' + initialSection));
   }, [initialSection]);
 
   // "Primeiros passos": abrir a Inteligência conclui "Ver sua Inteligência";

@@ -7,10 +7,13 @@ const L = require('./intel-layout.js');
 const ids = (ops) => ops.map((o) => o.id).sort();
 const f = (q) => E.readFilters(new URLSearchParams(q));
 
-test('fixture: ~60 embarques de março a setembro com os seis campos dos filtros', () => {
-  assert.equal(D.operations.length, 60);
-  assert.equal(D.operations[0].readyPlan.slice(0, 7), '2026-03');
-  assert.equal(D.operations.at(-1).readyPlan.slice(0, 7), '2026-09');
+test('fixture: 60 embarques de março a setembro + 19 anteriores (histórico do Simulador), com os seis campos dos filtros', () => {
+  assert.equal(D.operations.length, 79);
+  const main = D.operations.slice(0, 60), older = D.operations.slice(60);
+  assert.equal(main[0].readyPlan.slice(0, 7), '2026-03');
+  assert.equal(main.at(-1).readyPlan.slice(0, 7), '2026-09');
+  assert.ok(older.every((o) => o.readyPlan < '2026-03-01'), 'o histórico anterior fica antes da série principal');
+  assert.ok(older.every((o) => o.readyPlan < '2026-06-15'), 'e fora dos últimos 90 dias');
   for (const o of D.operations) {
     assert.ok(o.supplier && o.agent && o.route && o.incoterm && o.country);
     assert.ok(o.items.length >= 1 && o.items.every((i) => D.skus[i.sku]));
