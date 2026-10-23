@@ -31,7 +31,7 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
       const q = here.toString();
       window.history.replaceState(window.history.state, '', window.location.pathname + (q ? '?' + q : '') + window.location.hash);
     }
-    setSource('/prototypes/centrix-inteligencia/index.html?embed=1&v=20261020-vitor-1' + (entry.current ? '&' + entry.current : '') + (window.location.hash || '#' + initialSection));
+    setSource('/prototypes/centrix-inteligencia/index.html?embed=1&v=20261023-abas-1' + (entry.current ? '&' + entry.current : '') + (window.location.hash || '#' + initialSection));
   }, [initialSection]);
 
   // "Primeiros passos": abrir a Inteligência conclui "Ver sua Inteligência";

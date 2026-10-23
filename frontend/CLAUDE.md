@@ -2585,3 +2585,22 @@ cotação precisa deixar claro que aceita várias cargas. Regras também no
 | Inteligência: filtros, período, definições, Raio X | `centrix-inteligencia/intel-engine.js` (`selectAllValues`, `clearFilter`, `periodStrip`, `kpiDefinition`, `DESTINATION_HINT`, testados em `intel-engine.test.cjs`) + `intel-page.js` | "Selecionar todos" ignora opção desabilitada; "Limpar" é só daquele filtro. Faixa "Mostrando: … · comparado com … · N embarques" fixa e repetida no relatório. "Como é calculado" lê `source`/`definition` de `data.js` com selo "Dado de exemplo"; sem fonte, "A definir com dados". "Chegada ao porto" virou "Chegada ao destino" em todo o iframe (alias antigo mantido no `data-help.js`). "Ver Raio X do exportador" = ficha existente `#fornecedores/<id>/resumo`, só com UM exportador |
 | Várias cargas na Nova cotação | `ManualForm multiCargo` (só o portal passa) + `extra-cargo-card.tsx` + `_shared/demo/quotation-cargos.ts` (puro, `quotation-cargos.test.ts`) | Carga 1 = os campos de sempre do formulário; cargas 2..N em estado controlado. As regras da carga extra passam pela MESMA `evaluateHardblocks` (`hardblocksWithCargos`), nunca por uma lista própria. Seguro obrigatório e equipamentos FCL são do embarque, fora dos cartões. O backend não conhece cargas: `product` vira rótulo composto, volumes somados, cargas extras nas observações. Formato alvo em `docs/spec-cotacao-multiplas-cargas.md` |
 | Dois blocos de documentos | aba "Enviar arquivos" (`nova-cotacao/page.tsx`) e zona de anexos do `ManualForm` com `clientFacing` | Só texto: "Documentos que preenchem a cotação" × "Documentos de apoio (só para consulta)". Comportamento igual |
+
+## Inteligência em abas — 23/10/2026 (semanal de produto: Vinicius, Orsi, Vitor)
+
+A primeira tela era longa demais. Agora: Visão geral enxuta + abas Exportadores,
+Agentes de carga e Rotas, tudo no iframe `public/prototypes/centrix-inteligencia`.
+Spec por aba/indicador (o que é fixture × o que depende de dado real) em
+`docs/spec-inteligencia-abas.md`; regras visuais no `DESIGN.md` da raiz.
+
+| O quê | Onde | Regra que não pode afrouxar |
+|---|---|---|
+| Abas, linhas, ordem, detalhe | `intel-tabs.js` (puro) + `intel-tabs.test.cjs` | `aba=` na URL; ausente = Visão geral (visão salva antiga). `sortRows`: volume por padrão, ausente sempre no fim. Colunas só factuais (`COLUMNS`), teste proíbe score/nota/ranking/melhor/pior. n < 3 = "Amostra pequena" |
+| Página | `intel-page.js` (`tabNav`, `entityTab`, `comparisonTable`, `entityDetailHtml`) | Período e filtros ACIMA das abas, valendo para todas. Personalizar só na Visão geral. Detalhe no `<dialog>` de sempre (`entity-sheet` = folha de baixo < 700px); `sel=` na URL enquanto aberto, e o fechamento tira `sel` por `replaceState` (sem renavegar) também na URL do host |
+| Visão geral | `IntelLayout.BLOCKS.completa` | Só destaque, funil, KPIs, gráficos e Performance por etapa. `precos`/`compromissos` saíram dos blocos (layout salvo com eles perde só o id); `onboarding-intel.ts` acompanha (teste compara as duas listas) |
+| Completa/Objetiva | `CLIENT_FLAGS.modeSwitch` (`client-flags.js`) | `false`: botão some e a página fica na Completa. O código dos dois modos continua; reativar é trocar a chave. A confirmar com o Orsi |
+| Raio X | `raioX()` em `intel-page.js` | "Ver Raio X do exportador" abre `#executivo?aba=exportadores&sel=<id>`; as fichas `#fornecedores/<id>/...` continuam e são o "Ver ficha completa" do painel |
+| Hashes antigos | `LEGACY_SECTION_TAB` + `overview()` em `app.js` | `#exportadores`/`#agentes`/`#rotas` abrem a aba; `#compromissos` abre Agentes e rola até o bloco; `/portal/inteligencia/agentes` cai na aba Agentes |
+| Relatório | `openReportPanel` | Aberto do painel, menciona "Aba X · <entidade>" e trata a entidade como filtrada para o atalho de conversa. Conteúdo do relatório NÃO mudou (o Orsi vai definir) |
+| Tabela rolável | `style.css` | `.table-wrap{position:relative}`: sem isso o `.sr-only` do cabeçalho escapava e alargava a página a 390px |
+

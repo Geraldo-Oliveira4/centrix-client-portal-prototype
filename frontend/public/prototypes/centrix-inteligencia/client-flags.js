@@ -3,5 +3,7 @@
 // para as ondas 2/3; os indicadores "Dados a confirmar" (dataHelp) são nota de
 // revisão interna, não leitura do cliente. Ligar aqui volta tudo como era: as
 // rotas e os textos continuam no código.
-const CLIENT_FLAGS = Object.freeze({ assistants: false, dataHelp: false });
+// modeSwitch (23/10/2026): o botão Completa/Objetiva fica escondido enquanto a
+// Visão geral enxuta + abas é validada; decisão a confirmar com o Orsi.
+const CLIENT_FLAGS = Object.freeze({ assistants: false, dataHelp: false, modeSwitch: false });
 if (typeof window !== 'undefined') window.CLIENT_FLAGS = CLIENT_FLAGS;
