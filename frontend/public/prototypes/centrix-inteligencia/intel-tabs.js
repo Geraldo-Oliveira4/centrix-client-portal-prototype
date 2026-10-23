@@ -236,7 +236,7 @@
   }
   /** O relatório menciona aba e entidade: "Aba Exportadores · Eastbridge Components". */
   function tabMention(D, tab, selection) {
-    const label = (TABS.find(([id]) => id === tab) || [null, null])[1];
+    const label = tab === 'simulador' ? 'Simulador' : (TABS.find(([id]) => id === tab) || [null, null])[1];
     if (!label || tab === 'geral') return '';
     return selection ? `Aba ${label} · ${nameOf(D, selection.dim, selection.id)}` : `Aba ${label}`;
   }
