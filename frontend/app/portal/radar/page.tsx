@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { hojeParam } from '@/lib/demo-clock';
 
 /** Approved Radar Beta. Fixtures and route selections remain isolated from client data. */
 export default function RadarPage() {
@@ -10,7 +11,8 @@ export default function RadarPage() {
   useEffect(() => {
     const hash = /^#(radar|sinal)(\/|$)/.test(window.location.hash)
       ? window.location.hash : '#radar/mercado';
-    setSource('/prototypes/centrix-radar/index.html?embed=1' + hash);
+    // `?hoje=` da pagina vira o relogio do iframe (lib/demo-clock.ts).
+    setSource('/prototypes/centrix-radar/index.html?embed=1&v=20261112-relogio' + hojeParam(window.location.search) + hash);
   }, []);
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export default function RadarPage() {
       const child = iframe.contentWindow;
       if (!child) return;
       const syncHash = () => {
-        window.history.replaceState(window.history.state, '', window.location.pathname + child.location.hash);
+        window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + child.location.hash);
       };
       const restoreHash = () => {
         if (window.location.hash && child.location.hash !== window.location.hash) child.location.hash = window.location.hash;

@@ -1341,6 +1341,20 @@ erro mascarado. Infra e diagnóstico: `docs/INFRA.md` na raiz.
   fundo opaco, com "Tentar de novo"; no celular só a frase principal. Ela não
   disputa espaço com as barras presas ao rodapé nem com o "Ajuda".
 
+## Relógio da demonstração em todas as telas (12/11/2026)
+
+Nenhum "hoje" congelado. Regra da Inteligência (data-base + deslocamento +
+`?hoje=AAAA-MM-DD`) aplicada também em: `cotacoes/previa` e `embarques/previa`
+(`lib/demo-clock.ts`: `requestDemoToday` na página, `shiftFixture` /
+`shiftDateText`), Central de trabalho (`DEMO_CLOCK` em `centrix-visao-geral/data.js`),
+Auditoria e Radar (`public/prototypes/_shared/demo-clock.js`). Os hosts repassam
+`?hoje=` ao iframe (`hojeParam`). Auditoria e Radar andam em **semanas inteiras**
+(regra de dia útil da PTAX e séries semanais); a Radar desloca na SAÍDA (um
+`MutationObserver` em `centrix-radar/clock.js`), porque a ordenação "recentes"
+compara o dia do mês como texto. Os testes injetam o relógio; sem ele, ficam na
+data-base. Fixture nova com data: escreva contra a data-base da tela, nunca com
+"hoje" literal.
+
 ## Protótipo V2 — flags, Cotação V2 e Embarque via PO — 24/09/2026
 
 Três frentes construídas juntas, todas do **lado do cliente** e todas atrás de
