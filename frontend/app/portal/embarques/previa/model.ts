@@ -1,4 +1,11 @@
 // Explicitly fictional visual-review data. No customer or operational API writes.
+//
+// RELÓGIO DA DEMONSTRAÇÃO (12/11/2026), mesma regra da Inteligência: os cenários
+// são escritos contra a DATA-BASE `REVIEW_DAY` e deslocados inteiros
+// (`shiftFixture`) para o hoje da demonstração — data atual ou `?hoje=`. Datas
+// ISO e textos ("13/09/2026", "18 set.") andam juntos; diferenças não mudam.
+import { shiftDateText, shiftFixture } from '../../../../lib/demo-clock.ts';
+
 export const REVIEW_DAY = '2026-09-13';
 export const journeySteps = [
   {
@@ -104,6 +111,8 @@ export type HistoryEvent = {
 };
 export type Shipment = {
   id: string;
+  /** O hoje da demonstração em que o cenário foi montado (`AAAA-MM-DD`). */
+  today: string;
   reference: string;
   description: string;
   origin: string;
@@ -133,9 +142,13 @@ export const shortDate = (date: string | null) =>
         .replace(/\.$/, '')
     : 'A confirmar';
 
-export function createShipment(scenario: string): Shipment {
+export function createShipment(
+  scenario: string,
+  today: string = REVIEW_DAY,
+): Shipment {
   const q: Shipment = {
     id: `demo-shipment-${scenario}`,
+    today: REVIEW_DAY,
     reference: 'EMB-DEMO-0183',
     description: 'Componentes para montagem industrial',
     origin: 'Ningbo, China',
@@ -481,10 +494,10 @@ export function createShipment(scenario: string): Shipment {
       version: 'v1',
     }));
   }
-  return q;
+  return { ...shiftFixture(q, REVIEW_DAY, today), today };
 }
 
-export function arrivalState(q: Shipment, day = REVIEW_DAY) {
+export function arrivalState(q: Shipment, day = q.today) {
   if (q.actual && q.eta)
     return {
       label: 'Chegada confirmada ao porto',
@@ -560,7 +573,7 @@ export function journeyGuidance(q: Shipment) {
       action: 'Ver acompanhamento',
       alertId: 'pickup',
     };
-  if (q.eta && q.eta < REVIEW_DAY)
+  if (q.eta && q.eta < q.today)
     return {
       phase: 'Em trânsito · confirmação pendente',
       summary: 'A última previsão venceu, mas não há confirmação de chegada.',
@@ -674,8 +687,11 @@ export function approveBooking(q: Shipment): Shipment {
             state: 'Resolvida',
             read: true,
             title: 'Booking v3 aprovado',
-            detail:
+            detail: shiftDateText(
               'Você aprovou a alteração da saída de 11 para 14 set. A partida segue sem confirmação.',
+              REVIEW_DAY,
+              q.today,
+            ),
           }
         : a,
     ),

@@ -26,4 +26,4 @@ Estado somente em sessionStorage por cenário/aba. Nenhum arquivo é lido/enviad
 
 ## Verificação
 
-Na pasta frontend: `node --test app/portal/embarques/previa/model.test.ts`, `npm run test:unit` e `npm run build`. Build inclui TypeScript. Conferir também seleção de cenários, painel por marco, foco/Esc, ações e largura móvel. Dados fixos de referência em 13/09/2026.
+Na pasta frontend: `node --test app/portal/embarques/previa/model.test.ts`, `npm run test:unit` e `npm run build`. Build inclui TypeScript. Conferir também seleção de cenários, painel por marco, foco/Esc, ações e largura móvel. Dados escritos contra a data-base 13/09/2026 e deslocados para a data atual ou `?hoje=AAAA-MM-DD` (`lib/demo-clock.ts`).

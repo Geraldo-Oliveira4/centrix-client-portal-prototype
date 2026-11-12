@@ -35,12 +35,14 @@ import {
   journeyGuidance,
   markRead,
   money,
+  REVIEW_DAY,
   scenarios,
   shortDate,
   submitDocument,
   type CargoItem,
   type Shipment,
 } from './model';
+import { shiftDateText } from '@/lib/demo-clock';
 import s from './shipment-preview.module.css';
 import { LinkQuotationCard } from '../../_shared/demo/link-quotation-card';
 import { NoQuotationChip } from '../../_shared/demo/shipment-po-labels';
@@ -57,9 +59,14 @@ const STORAGE = 'centrix-shipment-review-v2';
 
 export default function ShipmentPreview({
   initialScenario,
+  today,
 }: {
   initialScenario: string;
+  /** O hoje da demonstração (data atual ou `?hoje=`), decidido pela página. */
+  today: string;
 }) {
+  /** Texto de fixture escrito contra a data-base, deslocado para `today`. */
+  const at = (text: string) => shiftDateText(text, REVIEW_DAY, today);
   const validScenario = scenarios.some(([id]) => id === initialScenario)
     ? initialScenario
     : 'transito';
@@ -67,7 +74,9 @@ export default function ShipmentPreview({
   // Tela 9 (RQ-4). Estado local: a vinculacao e uma acao desta tela de revisao,
   // como as demais daqui, e nao chama rota de escrita nenhuma.
   const [linkedQuotation, setLinkedQuotation] = useState<string | null>(null);
-  const [q, setQ] = useState<Shipment>(() => createShipment(validScenario));
+  const [q, setQ] = useState<Shipment>(() =>
+    createShipment(validScenario, today),
+  );
   const [ready, setReady] = useState(false);
   const [showSources, setShowSources] = useState(false);
   const [tab, setTab] = useState('cargo');
@@ -110,7 +119,11 @@ export default function ShipmentPreview({
       const saved = sessionStorage.getItem(`${STORAGE}:${scenario}`);
       if (saved) {
         const data = JSON.parse(saved);
-        if (data.shipment?.id === `demo-shipment-${scenario}`)
+        // Revisão salva em outro dia fica para trás: as datas dela são de lá.
+        if (
+          data.shipment?.id === `demo-shipment-${scenario}` &&
+          data.shipment?.today === today
+        )
           setQ(data.shipment);
         if (data.notifications) setNotifications(data.notifications);
       }
@@ -118,7 +131,7 @@ export default function ShipmentPreview({
       /* A fresh fixture remains usable when storage is unavailable. */
     }
     setReady(true);
-  }, [scenario]);
+  }, [scenario, today]);
   useEffect(() => {
     if (ready)
       try {
@@ -134,18 +147,20 @@ export default function ShipmentPreview({
   function changeScenario(value: string) {
     setReady(false);
     setScenario(value);
-    setQ(createShipment(value));
+    setQ(createShipment(value, today));
     setPanel(null);
     setTab('cargo');
     setQuery('');
     setSupplier('all');
     setCollapsed([]);
     setNotice('');
-    window.history.replaceState(null, '', `?cenario=${value}`);
+    const url = new URL(window.location.href);
+    url.searchParams.set('cenario', value);
+    window.history.replaceState(null, '', url.search);
   }
   function reset() {
     sessionStorage.removeItem(`${STORAGE}:${scenario}`);
-    setQ(createShipment(scenario));
+    setQ(createShipment(scenario, today));
     setNotifications({ changes: true, documents: true });
     setPanel(null);
     setNotice('Cenário restaurado.');
@@ -270,8 +285,8 @@ export default function ShipmentPreview({
     <div className={s.workspace}>
       <div className={s.review}>
         <span>
-          <Info size={14} /> Protótipo · cenários fictícios · referência:
-          13/09/2026
+          <Info size={14} /> Protótipo · cenários fictícios · referência:{' '}
+          {at('13/09/2026')}
         </span>
         <details>
           <summary>
@@ -401,7 +416,7 @@ export default function ShipmentPreview({
                 <span className={s.success}>
                   <CheckCircle2 size={14} /> Confirmada
                 </span>
-              ) : q.eta && q.eta < '2026-09-13' ? (
+              ) : q.eta && q.eta < q.today ? (
                 <button
                   className={s.warning}
                   onClick={() => open({ kind: 'alert', id: 'eta-expired' })}
@@ -539,9 +554,9 @@ export default function ShipmentPreview({
                     : index === 0
                       ? scenario === 'sem-dados'
                         ? 'Data não informada'
-                        : '28 ago.'
+                        : at('28 ago.')
                       : index < q.stage
-                        ? ['', '01 set.', '02 set.', '03 set.'][index]
+                        ? at(['', '01 set.', '02 set.', '03 set.'][index])
                         : index === 4
                           ? `${q.actual ? '' : 'Prev. '}${shortDate(q.eta)}`
                           : 'Sem previsão informada'}
@@ -884,7 +899,7 @@ export default function ShipmentPreview({
               <p>
                 {scenario === 'sem-dados'
                   ? 'Cotação aprovada ainda não vinculada.'
-                  : 'COT-DEMO-0173 · proposta v2 · aprovada em 28 ago. 2026'}
+                  : at('COT-DEMO-0173 · proposta v2 · aprovada em 28 ago. 2026')}
               </p>
             </div>
             {scenario !== 'sem-dados' && (
@@ -1184,13 +1199,13 @@ export default function ShipmentPreview({
                       <h3>Booking proposto · v3</h3>
                       <div className={s.compare}>
                         <span>Saída solicitada</span>
-                        <strong>11 set.</strong>
+                        <strong>{at('11 set.')}</strong>
                         <span>Nova saída proposta</span>
-                        <strong>14 set.</strong>
+                        <strong>{at('14 set.')}</strong>
                         <span>Frete internacional</span>
                         <strong>USD 2.850,00 · sem alteração</strong>
                         <span>Chegada prevista</span>
-                        <strong>24 set. · Santos</strong>
+                        <strong>{at('24 set.')} · Santos</strong>
                       </div>
                       {selectedAlert.state !== 'Resolvida' && (
                         <>

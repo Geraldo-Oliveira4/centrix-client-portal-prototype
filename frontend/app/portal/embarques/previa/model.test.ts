@@ -102,3 +102,31 @@ test('aprovar booking preserva a etapa; repetir não duplica histórico', () => 
   );
   assert.equal(approveBooking(next), next);
 });
+
+// Relógio da demonstração: o hoje é injetado; nenhum teste depende da data real.
+test('relógio injetado: ETA, histórico e textos andam com o hoje', () => {
+  const later = createShipment('transito', '2026-11-12'); // +60 dias
+  assert.equal(later.today, '2026-11-12');
+  assert.equal(later.firstEta, '2026-11-17');
+  assert.equal(later.eta, '2026-11-20');
+  assert.equal(later.updated, '12/11/2026 às 09:40');
+  assert.doesNotMatch(JSON.stringify(later), /2026-09|\/09\b|\bset\./);
+  assert.equal(later.reference, createShipment('transito').reference);
+});
+
+test('relógio injetado: previsão vencida e orientação são relativas ao hoje', () => {
+  for (const today of ['2026-09-13', '2026-11-12', '2027-02-01']) {
+    const base = createShipment('transito', today);
+    assert.equal(arrivalState(base).tone, arrivalState(createShipment('transito')).tone, today);
+    assert.equal(
+      journeyGuidance(createShipment('vencida', today)).phase,
+      journeyGuidance(createShipment('vencida')).phase,
+      today,
+    );
+  }
+  const booking = approveBooking(createShipment('booking', '2026-11-12'));
+  assert.match(
+    booking.alerts.find((a) => a.kind === 'booking')!.detail,
+    /de 10 para 13 nov\./,
+  );
+});

@@ -108,3 +108,116 @@ export function hojeParam(search: string | null | undefined): string {
   }
   return isValidDay(hoje) ? '&hoje=' + hoje : '';
 }
+
+const MONTHS_PT = [
+  'jan',
+  'fev',
+  'mar',
+  'abr',
+  'mai',
+  'jun',
+  'jul',
+  'ago',
+  'set',
+  'out',
+  'nov',
+  'dez',
+];
+
+/**
+ * Desloca as datas ESCRITAS num texto de fixture: "DD/MM", "DD/MM/AAAA",
+ * "D[D] set[.] [AAAA]" e o par "11 para 14 set." (o primeiro número herda o mês).
+ * Mantém o formato (zero à esquerda, ponto da abreviação). Números que não são
+ * data (PO, valores, "1 × 40") não casam com nenhum formato.
+ */
+export function shiftDateText(
+  text: string,
+  baseDay: string,
+  today: string,
+): string {
+  const offset = daysBetween(baseDay, today);
+  if (!offset || !text) return text;
+  const baseYear = baseDay.slice(0, 4);
+  const move = (dd: string, mm: number, yyyy?: string) =>
+    addDays(
+      `${yyyy || baseYear}-${String(mm).padStart(2, '0')}-${dd.padStart(2, '0')}`,
+      offset,
+    );
+  const pad = (dd: string, value: string) =>
+    dd.length === 2 ? value.padStart(2, '0') : String(Number(value));
+  const monthAlt = MONTHS_PT.join('|');
+  return text
+    .replace(
+      /\b(\d{2})\/(\d{2})(\/(\d{4}))?\b/g,
+      (all, dd: string, mm: string, withYear: string, yyyy: string) => {
+        const m = Number(mm);
+        if (m < 1 || m > 12 || Number(dd) < 1 || Number(dd) > 31) return all;
+        const d = move(dd, m, yyyy);
+        return (
+          `${d.slice(8, 10)}/${d.slice(5, 7)}` +
+          (withYear ? `/${d.slice(0, 4)}` : '')
+        );
+      },
+    )
+    .replace(
+      // Uma passada só para "D mês" e o par "D1 para D2 mês": duas passadas
+      // deslocariam o D2 duas vezes.
+      new RegExp(
+        `\\b(\\d{1,2})(?:( para | e | a )(\\d{1,2}))? (${monthAlt})(\\.?)( (\\d{4}))?\\b`,
+        'g',
+      ),
+      (
+        _all,
+        d1: string,
+        sep: string | undefined,
+        d2: string | undefined,
+        mon: string,
+        dot: string,
+        withYear: string | undefined,
+        yyyy: string | undefined,
+      ) => {
+        const m = MONTHS_PT.indexOf(mon) + 1;
+        const name = (d: string) => MONTHS_PT[Number(d.slice(5, 7)) - 1];
+        const last = move(d2 ?? d1, m, yyyy);
+        const tail =
+          `${pad(d2 ?? d1, last.slice(8, 10))} ${name(last)}${dot}` +
+          (withYear ? ` ${last.slice(0, 4)}` : '');
+        if (!sep) return tail;
+        // "30 para 2 out.": o primeiro dia é do mês anterior.
+        const firstMonth =
+          d2 && Number(d1) > Number(d2) ? ((m + 10) % 12) + 1 : m;
+        const first = move(d1, firstMonth, yyyy);
+        const head =
+          name(first) === name(last)
+            ? pad(d1, first.slice(8, 10))
+            : `${pad(d1, first.slice(8, 10))} ${name(first)}${dot}`;
+        return `${head}${sep}${tail}`;
+      },
+    );
+}
+
+/**
+ * Desloca uma fixture inteira (cópia): string ISO vira `shiftIso`, outro texto
+ * vira `shiftDateText`. Chaves em `keep` (ids, referências) não são tocadas.
+ */
+export function shiftFixture<T>(
+  value: T,
+  baseDay: string,
+  today: string,
+  keep: string[] = ['id', 'reference'],
+): T {
+  if (daysBetween(baseDay, today) === 0) return value;
+  const walk = (v: unknown, key?: string): unknown => {
+    if (Array.isArray(v)) return v.map((x) => walk(x));
+    if (v && typeof v === 'object') {
+      return Object.fromEntries(
+        Object.entries(v).map(([k, x]) => [k, walk(x, k)]),
+      );
+    }
+    if (typeof v !== 'string' || (key && keep.includes(key))) return v;
+    return /^\d{4}-\d{2}-\d{2}/.test(v)
+      ? shiftIso(v, baseDay, today)
+      : shiftDateText(v, baseDay, today);
+  };
+  return walk(value) as T;
+}
