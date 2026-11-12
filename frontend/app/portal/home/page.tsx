@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
-import { LoaderComponent, ErrorComponent } from '@arboria-tech/arboria-ui';
+import { LoaderComponent } from '@arboria-tech/arboria-ui';
 import { toast } from 'react-toastify';
 
 import { Button } from '@/components/ui';
@@ -47,6 +47,7 @@ import {
   type PortalHomeCard,
   type PortalHomeTheme,
 } from './lib/home-layout';
+import { PortalLoadError } from '@/app/portal/_shared/portal-load-error';
 
 /**
  * Home do Portal do Cliente — a landing pos-login, agora PERSONALIZAVEL.
@@ -217,7 +218,7 @@ export default function PortalHomePage() {
   if (loadingShipments || loadingQuotations || loadingLayout) {
     return <LoaderComponent />;
   }
-  if (shipmentsError || quotationsError || layoutError) return <ErrorComponent />;
+  if (shipmentsError || quotationsError || layoutError) return <PortalLoadError />;
 
   // Sem linha na tabela, ou com uma linha que so tem temas de um vocabulario
   // que esta versao nao conhece mais.

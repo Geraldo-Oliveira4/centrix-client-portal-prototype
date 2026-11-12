@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Bell, Info, Save, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { LoaderComponent, ErrorComponent } from '@arboria-tech/arboria-ui';
+import { LoaderComponent } from '@arboria-tech/arboria-ui';
 
 import {
   Button,
@@ -34,6 +34,7 @@ import {
 } from '../embarques/lib/shipment-alerts';
 import { INCOTERM_OPTIONS, PORT_OPTIONS } from './lib/operation-options';
 import { notifySuccess } from '@/lib/offline/notify';
+import { PortalLoadError } from '@/app/portal/_shared/portal-load-error';
 
 /**
  * Minhas Preferências — configuração de conta, em dois blocos com estatutos
@@ -87,7 +88,7 @@ export default function PortalPreferenciasPage() {
   }, [preferences]);
 
   if (isLoading) return <LoaderComponent />;
-  if (isError) return <ErrorComponent />;
+  if (isError) return <PortalLoadError />;
 
   const handleSave = async () => {
     setSaving(true);

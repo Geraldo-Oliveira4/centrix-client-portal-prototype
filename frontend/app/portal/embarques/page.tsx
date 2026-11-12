@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Map as MapIcon, List, Hourglass, Package, Plus } from 'lucide-react';
-import { ErrorComponent, LoaderComponent } from '@arboria-tech/arboria-ui';
+import { LoaderComponent } from '@arboria-tech/arboria-ui';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,6 +31,7 @@ import {
   type ShipmentFilterKey,
 } from './lib/shipment-filters';
 import { isShipmentListRecorte } from './lib/shipment-indicators';
+import { PortalLoadError } from '@/app/portal/_shared/portal-load-error';
 
 // Navegação do panorama da carteira ao detalhe.
 //
@@ -123,7 +124,7 @@ function PortalEmbarquesContent() {
   // The existing shipment list uses its originating quotation context.
   const { data: quotationsData } = useMyQuotations();
 
-  if (isError) return <ErrorComponent />;
+  if (isError) return <PortalLoadError />;
 
   const subtitle = isLoading
     ? undefined

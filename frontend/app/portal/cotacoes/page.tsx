@@ -2,7 +2,7 @@
 import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { History, KanbanSquare, CheckCircle2 } from 'lucide-react';
-import { LoaderComponent, ErrorComponent } from '@arboria-tech/arboria-ui';
+import { LoaderComponent } from '@arboria-tech/arboria-ui';
 import { useMyQuotations, useMyClient } from '@/hooks/use-portal-quotations';
 import { Button } from '@/components/ui';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,6 +15,7 @@ import { isApprovedQuotation } from './lib/approved-model';
 import { usePreparationData } from './lib/use-preparation-data';
 import { useQuotationReviewStore } from '../_shared/demo/use-quotation-review';
 import { usePortalModuleReleased } from '../_shared/demo/use-feature-flags';
+import { PortalLoadError } from '@/app/portal/_shared/portal-load-error';
 
 function PortalCotacoesContent() {
   const router = useRouter();
@@ -27,7 +28,7 @@ function PortalCotacoesContent() {
   const rawReviews = useQuotationReviewStore();
   const reviews = v2Released ? rawReviews : {};
   if (isLoading) return <LoaderComponent />;
-  if (isError || !data) return <ErrorComponent />;
+  if (isError || !data) return <PortalLoadError />;
   const closed = [...data.buckets.finalizadas, ...data.buckets.cancelada];
   // "Aprovadas" = o que o backend fechou MAIS o que a jornada V2 aprovou no
   // overlay (RQ-18). As duas parcelas nao se sobrepoem: uma cotacao com overlay

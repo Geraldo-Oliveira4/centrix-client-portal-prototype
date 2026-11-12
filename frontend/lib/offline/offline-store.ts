@@ -14,11 +14,9 @@ import {
   type FetchLike,
   type OfflineReason,
 } from './offline-mode';
+import type { OfflineStatus } from './install-fallback';
 
-export type OfflineStatus =
-  | { status: 'checking' }
-  | { status: 'online'; explicit: boolean }
-  | { status: 'offline'; reason: OfflineReason };
+export type { OfflineStatus };
 
 type Listener = () => void;
 
@@ -133,4 +131,19 @@ export async function retryOnline(
 export function subscribeOffline(listener: Listener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
+}
+
+/**
+ * "Usar dados de exemplo": a saída da tela de erro quando o modo offline estava
+ * desligado (`?offline=0` / `NEXT_PUBLIC_OFFLINE_DEMO=0`). Vale para a sessão.
+ */
+export function switchToSampleData() {
+  writeStored('offline:query');
+  pending = Promise.resolve({ status: 'offline', reason: 'query' });
+  set({ status: 'offline', reason: 'query' });
+  if (isClient()) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('offline', '1');
+    window.location.replace(url.toString());
+  }
 }

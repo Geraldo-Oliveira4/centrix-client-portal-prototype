@@ -9,19 +9,22 @@
 //
 // MODO OFFLINE: this instance is also the ONLY place where the portal's data
 // source switches between the API and the demo fixtures (`lib/offline/`). Before
-// the first request the health check decides the mode for the session; while
-// offline every request is answered by `offlineAdapter`, and a network failure
-// mid-session (server went to sleep) switches over and replays the request
-// there. HTTP errors from a live API are never masked.
+// the first request the health check (a DB-backed route) decides the mode for
+// the session; while offline every request is answered by `offlineAdapter`, and
+// any request that fails by network, 4 s timeout or 5xx switches over and is
+// replayed there. 4xx answers from a live API are never masked.
 
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { portalSession } from './portal-session';
 import { offlineAdapter } from './offline/offline-adapter';
-import { isNetworkFailure } from './offline/offline-mode';
+import { installOfflineFallback } from './offline/install-fallback';
+import { REQUEST_TIMEOUT_MS } from './offline/offline-mode';
 import { ensureDataMode, getOfflineStatus, markOffline } from './offline/offline-store';
 
 const portal_api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API,
+  // Acima de 4 s a chamada conta como servidor indisponivel (lib/offline/).
+  timeout: REQUEST_TIMEOUT_MS,
 });
 
 const decodeJwtExp = (token: string): number | null => {
@@ -80,12 +83,6 @@ const refreshAccessToken = async (): Promise<string | null> => {
     return null;
   }
 };
-
-portal_api.interceptors.request.use(async (config) => {
-  const mode = await ensureDataMode();
-  if (mode.status === 'offline') config.adapter = offlineAdapter;
-  return config;
-});
 
 portal_api.interceptors.request.use((config) => {
   const session = portalSession.get();
@@ -146,18 +143,13 @@ portal_api.interceptors.response.use(
   },
 );
 
-portal_api.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    const config = error.config;
-    const status = getOfflineStatus();
-    const explicitlyOnline = status.status === 'online' && status.explicit;
-    if (!config || explicitlyOnline || !isNetworkFailure(error)) {
-      return Promise.reject(error);
-    }
-    markOffline('network');
-    return offlineAdapter(config);
-  },
-);
+// Registered after the 401 handler: response interceptors run in order, so a
+// 401 is refreshed first and only what is still failing reaches the fallback.
+installOfflineFallback(portal_api, {
+  ensureMode: ensureDataMode,
+  getStatus: getOfflineStatus,
+  markOffline,
+  adapter: offlineAdapter,
+});
 
 export default portal_api;

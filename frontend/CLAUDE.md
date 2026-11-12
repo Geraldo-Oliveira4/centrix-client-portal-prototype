@@ -1309,10 +1309,20 @@ erro mascarado. Infra e diagnóstico: `docs/INFRA.md` na raiz.
   sabem que estão offline. Não importe o adapter em outro lugar (há teste que
   trava isso) e não leia fixture direto numa tela.
 - **Quando liga** (`lib/offline/offline-mode.ts`, puro e testado): `?offline=1`
-  > escolha da sessão > `NEXT_PUBLIC_OFFLINE_DEMO=1` > teste de saúde (`/health`,
-  4 s + uma tentativa extra) antes da primeira chamada. Erro de REDE no meio da
-  sessão também liga; erro HTTP de API de pé continua erro. `=0`/`?offline=0`
-  desliga — e só aí volta o `ErrorComponent` "Aguarde o servidor inicializar".
+  > escolha da sessão > `NEXT_PUBLIC_OFFLINE_DEMO=1` (zero chamada ao backend) >
+  teste de saúde antes da primeira chamada. **"Servidor no ar" não é "dados
+  disponíveis"**: o teste consulta `/portal/clients/me`, que lê o banco — nunca
+  `/health` nem `/docs`, que respondiam 200 com o banco fora. Qualquer chamada
+  que falhe por rede, timeout de 4 s (`REQUEST_TIMEOUT_MS`) ou **5xx** liga o modo
+  e é repetida nas fixtures; 4xx de API de pé continua erro. `=0`/`?offline=0`
+  desliga o modo.
+- **Sem "Aguarde o servidor inicializar".** As telas do portal usam
+  `PortalLoadError` (`_shared/portal-load-error.tsx`) no lugar do
+  `ErrorComponent` da lib: aviso curto + "Tentar de novo" + "Usar dados de
+  exemplo". Não volte a importar `ErrorComponent` em `/portal`.
+- **Instalação testável:** `lib/offline/install-fallback.ts` liga o modo a uma
+  instância do axios; `install-fallback.test.ts` o exercita contra um servidor
+  HTTP real devolvendo 500, pendurando e fechado.
 - **Fixtures** (`lib/offline/fixtures.ts`): os 15 cenários da prévia de
   embarques (a mesma fonte de `scripts/preview-shipments-api.mjs`) + cotações do
   Funil, agentes, exportadores e layout da Home. Tudo fictício, datas relativas

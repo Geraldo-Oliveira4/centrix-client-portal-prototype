@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 
 import {
   checkHealthOnce,
-  isNetworkFailure,
+  isServerUnavailable,
   offlineBannerText,
+  HEALTH_PATH,
   probeHealth,
   resolveDataMode,
   type FetchLike,
@@ -29,17 +30,18 @@ function scripted(...steps: Array<'ok' | 'down' | 'error' | 'hang'>) {
   return { fetchImpl, calls };
 }
 
-test('API de pé: o teste de saúde passa na primeira tentativa', async () => {
+test('API de pé: o teste de saúde consulta uma rota que USA o banco, não /health nem /docs', async () => {
   const { fetchImpl, calls } = scripted('ok');
   assert.equal(await probeHealth(API, fetchImpl, { timeoutMs: 50 }), true);
-  assert.deepEqual(calls, [API + '/health']);
+  assert.deepEqual(calls, [API + HEALTH_PATH]);
+  assert.equal(HEALTH_PATH, '/portal/clients/me');
 });
 
-test('timeout: a tentativa que não responde vira falha, e só há UMA tentativa extra', async () => {
-  const { fetchImpl, calls } = scripted('hang', 'hang', 'ok');
+test('timeout: a tentativa que não responde vira falha, sem espera longa (uma tentativa)', async () => {
+  const { fetchImpl, calls } = scripted('hang', 'ok');
   const started = Date.now();
   assert.equal(await probeHealth(API, fetchImpl, { timeoutMs: 30 }), false);
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 1);
   assert.ok(Date.now() - started < 1000, 'o timeout corta a espera');
 });
 
@@ -55,9 +57,12 @@ test('erro de rede e status não-2xx também são falha, sem lançar', async () 
   assert.equal(await checkHealthOnce('', scripted('ok').fetchImpl, 30), false);
 });
 
-test('a tentativa extra salva um servidor que acordou no meio do teste', async () => {
+test('tentativas extras continuam possíveis por opção', async () => {
   const { fetchImpl, calls } = scripted('hang', 'ok');
-  assert.equal(await probeHealth(API, fetchImpl, { timeoutMs: 30 }), true);
+  assert.equal(
+    await probeHealth(API, fetchImpl, { timeoutMs: 30, attempts: 2 }),
+    true,
+  );
   assert.equal(calls.length, 2);
 });
 
@@ -113,38 +118,42 @@ test('precedência: URL > sessão > variável de ambiente > teste de saúde', ()
   );
 });
 
-test('só erro de REDE troca para dados de exemplo; erro HTTP de API de pé continua erro', () => {
+test('rede, timeout e 5xx contam como indisponível; 4xx de API de pé continua erro', () => {
   assert.equal(
-    isNetworkFailure({ isAxiosError: true, code: 'ERR_NETWORK' }),
+    isServerUnavailable({ isAxiosError: true, code: 'ERR_NETWORK' }),
     true,
   );
   assert.equal(
-    isNetworkFailure({ isAxiosError: true, code: 'ECONNABORTED' }),
+    isServerUnavailable({ isAxiosError: true, code: 'ECONNABORTED' }),
     true,
   );
   assert.equal(
-    isNetworkFailure({ isAxiosError: true, response: { status: 500 } }),
+    isServerUnavailable({ isAxiosError: true, response: { status: 500 } }),
+    true,
+  );
+  assert.equal(
+    isServerUnavailable({ isAxiosError: true, response: { status: 503 } }),
+    true,
+  );
+  assert.equal(
+    isServerUnavailable({ isAxiosError: true, response: { status: 404 } }),
     false,
   );
   assert.equal(
-    isNetworkFailure({ isAxiosError: true, response: { status: 404 } }),
+    isServerUnavailable({ isAxiosError: true, code: 'ERR_CANCELED' }),
     false,
   );
-  assert.equal(
-    isNetworkFailure({ isAxiosError: true, code: 'ERR_CANCELED' }),
-    false,
-  );
-  assert.equal(isNetworkFailure(new Error('x')), false);
+  assert.equal(isServerUnavailable(new Error('x')), false);
 });
 
 test('a faixa sempre começa por "Modo demonstração" e diz quando o servidor caiu', () => {
   assert.equal(
     offlineBannerText('health'),
-    'Modo demonstração: servidor indisponível, mostrando dados de exemplo.',
+    'Modo demonstração: servidor indisponível. Dados de exemplo.',
   );
   assert.equal(offlineBannerText('network'), offlineBannerText('health'));
   assert.match(
     offlineBannerText('query'),
-    /^Modo demonstração: mostrando dados de exemplo/,
+    /^Modo demonstração: dados de exemplo/,
   );
 });

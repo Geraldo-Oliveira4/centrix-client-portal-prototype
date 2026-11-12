@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Info, Plus, ShieldCheck, Users } from 'lucide-react';
-import { LoaderComponent, ErrorComponent, EmptyState } from '@arboria-tech/arboria-ui';
+import { LoaderComponent, EmptyState } from '@arboria-tech/arboria-ui';
 
 import { Button } from '@/components/ui';
 import { Switch } from '@/components/ui/switch';
@@ -12,6 +12,7 @@ import { useMyAgents, useMyPreferences, setAgentActive } from '@/hooks/use-porta
 import { PagePortalHeader, SectionHeading } from '../../_shared/page-header';
 import { ProvenanceBadge } from '../../_shared/provenance-badge';
 import { RequestAgentModal } from './components/request-agent-modal';
+import { PortalLoadError } from '@/app/portal/_shared/portal-load-error';
 
 /**
  * Meus Agentes — quais dos agentes pré-aprovados pela Freitas entram nas
@@ -41,7 +42,7 @@ export default function PortalAgentesPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
 
   if (isLoading) return <LoaderComponent />;
-  if (isError) return <ErrorComponent />;
+  if (isError) return <PortalLoadError />;
 
   const paused = preferences?.paused_agent_ids ?? [];
 

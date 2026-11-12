@@ -2,7 +2,7 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { LoaderComponent, ErrorComponent } from '@arboria-tech/arboria-ui';
+import { LoaderComponent } from '@arboria-tech/arboria-ui';
 import {
   Button,
   Dialog,
@@ -26,6 +26,7 @@ import {
 } from '../../lib/repeat-model';
 import { saveLocalRequest, useLocalRequests } from '../../lib/local-requests';
 import { demoToday } from '@/lib/demo-clock';
+import { PortalLoadError } from '@/app/portal/_shared/portal-load-error';
 
 /** O hoje da demonstração (`?hoje=` ou a data atual). */
 const repeatToday = () =>
@@ -37,7 +38,7 @@ function RepeatPage() {
   const { quotation, isLoading, isError } = useMyQuotation(params.id);
   const { client, isError: clientError } = useMyClient();
   const local = useLocalRequests(client?.id);
-  if (isError || clientError) return <ErrorComponent />;
+  if (isError || clientError) return <PortalLoadError />;
   if (isLoading || !client || !local.loaded) return <LoaderComponent />;
   if (local.error) return <p role="alert">{local.error}</p>;
   if (!quotation || !isHistory(quotation.state))

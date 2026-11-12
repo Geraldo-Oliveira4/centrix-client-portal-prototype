@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Plus, ShieldAlert } from 'lucide-react';
-import { LoaderComponent, ErrorComponent, EmptyState } from '@arboria-tech/arboria-ui';
+import { LoaderComponent, EmptyState } from '@arboria-tech/arboria-ui';
 
 import {
   Button,
@@ -18,13 +18,14 @@ import { CARGO_PROFILE_LABELS } from '@/types/exporter';
 
 import { PagePortalHeader } from '../../_shared/page-header';
 import { PortalExporterModal } from '../../components/portal-exporter-modal';
+import { PortalLoadError } from '@/app/portal/_shared/portal-load-error';
 
 export default function PortalExportadoresPage() {
   const { exporters, isLoading, isError } = useMyExporters();
   const [modalOpen, setModalOpen] = useState(false);
 
   if (isLoading) return <LoaderComponent />;
-  if (isError) return <ErrorComponent />;
+  if (isError) return <PortalLoadError />;
 
   return (
     <div className="space-y-8">
