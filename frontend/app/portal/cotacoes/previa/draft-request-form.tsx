@@ -10,6 +10,7 @@ import {
 import type { Quote } from './model';
 import type { HardblockReport } from '../../_shared/demo/quotation-hardblocks';
 import { DraftAiAssist } from './draft-ai-assist';
+import { addDays } from '@/lib/demo-clock';
 
 export function DraftRequestForm({
   quotation: q,
@@ -45,7 +46,7 @@ export function DraftRequestForm({
       q.manualDraft || {
         values: {
           tipo_cotacao: 'REAL',
-          data_cotacao: '2026-09-13',
+          data_cotacao: q.today,
           service_type: 'IMPORTACAO',
           modal: 'MARITIMO',
           tipo_embarque: 'FCL',
@@ -57,7 +58,7 @@ export function DraftRequestForm({
           incoterm: q.incoterm,
           data_prontidao: q.readyDate,
           data_limite_necessidade: q.needDate,
-          desired_deadline: '2026-09-14T17:00',
+          desired_deadline: addDays(q.today, 1) + 'T17:00',
         },
         equipments:
           q.weight && q.volume

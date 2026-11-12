@@ -13,7 +13,7 @@ import {
   Ship,
   Sparkles,
 } from 'lucide-react';
-import { LoaderComponent, ErrorComponent } from '@arboria-tech/arboria-ui';
+import { LoaderComponent } from '@arboria-tech/arboria-ui';
 import {
   useMyQuotation,
   useMyRecommendation,
@@ -110,6 +110,7 @@ import {
   RequestSummary,
   WaitingResponses,
 } from '../components/quotation-preparation';
+import { PortalLoadError } from '@/app/portal/_shared/portal-load-error';
 
 const PORTAL_SI_API: SIApi = {
   api: portal_api,
@@ -135,7 +136,7 @@ export default function PortalCotacaoDetailPage() {
   const v2Stage = v2Released ? (overlay?.stage ?? null) : null;
 
   if (isLoading) return <LoaderComponent />;
-  if (isError || !quotation) return <ErrorComponent />;
+  if (isError || !quotation) return <PortalLoadError />;
 
   const early =
     v2Stage != null

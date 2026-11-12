@@ -11,6 +11,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import portal_api from '@/lib/portal-api';
 import type { CreateExporterPayload, Exporter } from '@/types/exporter';
+import { notifySuccess } from '@/lib/offline/notify';
 
 const BASE_URL = '/portal/exporters';
 
@@ -44,7 +45,7 @@ export const createMyExporter = async (
       payload,
     );
     globalMutate(BASE_URL);
-    toast.success('Exportador cadastrado com sucesso!');
+    notifySuccess('Exportador cadastrado com sucesso!');
     return response.data.exporter;
   } catch (err) {
     const status = axios.isAxiosError(err) ? err.response?.status : null;

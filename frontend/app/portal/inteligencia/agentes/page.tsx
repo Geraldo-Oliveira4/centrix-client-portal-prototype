@@ -1,7 +1,7 @@
 'use client';
 
 import { ArrowDown, ArrowUp, Minus, Wrench } from 'lucide-react';
-import { LoaderComponent, ErrorComponent, EmptyState } from '@arboria-tech/arboria-ui';
+import { LoaderComponent, EmptyState } from '@arboria-tech/arboria-ui';
 
 import {
   Table,
@@ -22,6 +22,7 @@ import {
   type RelativeTone,
   type AgentRow,
 } from '../lib/agent-helpers';
+import { PortalLoadError } from '@/app/portal/_shared/portal-load-error';
 
 /**
  * Dashboard 2 — Agentes. RANKING ILUSTRATIVO, painel inteiro atrás do selo
@@ -169,7 +170,7 @@ export default function AgentesPage() {
   const { data, isLoading, isError } = useMyQuotations();
 
   if (isLoading) return <LoaderComponent />;
-  if (isError || !data) return <ErrorComponent />;
+  if (isError || !data) return <PortalLoadError />;
 
   const rows = buildAgentRanking(data);
 

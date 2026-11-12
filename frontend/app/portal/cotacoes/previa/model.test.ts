@@ -11,6 +11,9 @@ import {
   validateCargo,
   dayDelta,
   money,
+  BASE_TODAY,
+  defaultSendAt,
+  validOffer,
 } from './model.ts';
 
 test('additional invitations preserve received proposals, deadlines and existing recipients', () => {
@@ -181,4 +184,37 @@ test('oferta única pode ser revisada, mas não produz ranking ou recomendação
   q.offers = [q.offers[1]];
   assert.equal(recommend(q), undefined);
   assert.equal(decisionError(q, 'beta'), null);
+});
+
+// Relógio da demonstração: o "hoje" é injetado, e a mesma fixture em outro dia
+// desloca tudo junto. Nenhum teste depende da data real.
+test('relógio injetado: ofertas, prontidão e eventos andam com o hoje', () => {
+  const base = createQuote('comparar', BASE_TODAY);
+  const later = createQuote('comparar', '2026-11-12');
+  assert.equal(later.today, '2026-11-12');
+  assert.equal(later.readyDate, '2026-11-17');
+  assert.equal(later.offers[0].validity, '2026-11-15');
+  assert.equal(later.events[0], '12/11, 09:40 — Propostas liberadas para sua escolha.');
+  assert.equal(later.sentAt, '10/11 às 09:20');
+  // A mesma decisão nos dois dias: as diferenças entre datas não mudam.
+  assert.equal(recommend(later)?.id, recommend(base)?.id);
+  assert.equal(
+    dayDelta(later.offers[0].arrival!, later.needDate),
+    dayDelta(base.offers[0].arrival!, base.needDate),
+  );
+});
+
+test('relógio injetado: validade vencida e agendamento são relativos ao hoje', () => {
+  const today = '2026-11-12';
+  const expired = createQuote('vencidas', today);
+  assert.ok(expired.offers.every((o) => !validOffer(o, today)));
+  assert.ok(createQuote('comparar', today).offers.every((o) => validOffer(o, today)));
+  const draft = createQuote('envio', today);
+  assert.equal(scheduleRequest(draft, defaultSendAt(today)).scheduledFor, '2026-11-13T09:00');
+  assert.throws(
+    () => scheduleRequest(draft, '2026-11-12T10:00'),
+    /após 12\/11\/2026 às 10:30/,
+  );
+  // O dia-base continua aceitando o que aceitava, e um dia passado é recusado.
+  assert.throws(() => scheduleRequest(draft, '2026-09-14T09:00'));
 });

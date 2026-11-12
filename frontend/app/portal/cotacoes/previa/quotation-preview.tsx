@@ -33,6 +33,9 @@ import {
   scenarios,
   labels,
   createQuote,
+  dayMonth,
+  defaultSendAt,
+  fullDay,
   recommend,
   validOffer,
   decisionError,
@@ -83,9 +86,12 @@ const marketMedian = 24100;
 export default function QuotationPreview({
   initialScenario,
   initialGuide = false,
+  today,
 }: {
   initialScenario: string;
   initialGuide?: boolean;
+  /** O hoje da demonstração (data atual ou `?hoje=`), decidido pela página. */
+  today: string;
 }) {
   const { collapsed } = useSidebar();
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -93,7 +99,7 @@ export default function QuotationPreview({
   const [scenario, setScenario] = useState(
     scenarioExists(initialScenario) ? initialScenario : 'comparar',
   );
-  const [q, setQ] = useState<Quote>(() => createQuote(scenario));
+  const [q, setQ] = useState<Quote>(() => createQuote(scenario, today));
   const [loaded, setLoaded] = useState(false);
   const [selection, setSelection] = useState<string | null>(null);
   // A barra fixa de decisão se registra: a Ajuda e a aba Demonstração sobem acima dela.
@@ -108,7 +114,7 @@ export default function QuotationPreview({
   const [failNext, setFailNext] = useState(false);
   const [revision, setRevision] = useState(0);
   const [sendMode, setSendMode] = useState<'now' | 'schedule'>('now');
-  const [sendAt, setSendAt] = useState('2026-09-14T09:00');
+  const [sendAt, setSendAt] = useState(() => defaultSendAt(today));
   const [inviteSelection, setInviteSelection] = useState<string[]>([]);
   const [viewedOffer, setViewedOffer] = useState<string | null>(null);
   const offerPreview = q.offers.find((offer) => offer.id === viewedOffer);
@@ -117,13 +123,15 @@ export default function QuotationPreview({
   );
 
   useEffect(() => {
-    let next = createQuote(scenario);
+    let next = createQuote(scenario, today);
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY + ':' + scenario);
       if (raw) {
         const saved = JSON.parse(raw);
         if (
           saved.id === scenario &&
+          // Prévia salva em outro dia fica para trás: as datas dela são de lá.
+          saved.today === today &&
           saved.stage in labels &&
           Array.isArray(saved.offers) &&
           Array.isArray(saved.events)
@@ -137,14 +145,14 @@ export default function QuotationPreview({
     }
     setQ(next);
     setSendMode(next.scheduledFor ? 'schedule' : 'now');
-    setSendAt(next.scheduledFor || '2026-09-14T09:00');
+    setSendAt(next.scheduledFor || defaultSendAt(today));
     setSelection(next.selected);
     setInspectedAgent(null);
     setExpanded(null);
     setModal(null);
     setError('');
     setLoaded(true);
-  }, [scenario, revision]);
+  }, [scenario, revision, today]);
 
   useEffect(() => {
     if (!loaded || q.id !== scenario) return;
@@ -191,7 +199,7 @@ export default function QuotationPreview({
   const isForm = q.stage === 'draft' || q.stage === 'needs-info';
   const isWaiting = q.stage === 'waiting' || q.stage === 'partial';
   const cheapestComplete = q.offers
-    .filter((o) => o.complete && validOffer(o))
+    .filter((o) => o.complete && validOffer(o, q.today))
     .sort((a, b) => a.total - b.total)[0];
   // Oferta cuja gaveta "Ver histórico" está aberta (antes: o agente do Raio X).
   const agentProfile = q.offers.find((o) => o.id === inspectedAgent) ?? null;
@@ -262,7 +270,7 @@ export default function QuotationPreview({
       {
         stage: 'waiting',
         scheduledFor: null,
-        sentAt: '13/09 às 10:30',
+        sentAt: dayMonth(q.today) + ' às 10:30',
         responseBy: q.responseBy,
         agentCount: q.targetAgents.length,
         offers: [],
@@ -420,7 +428,7 @@ export default function QuotationPreview({
                 </button>
               )}
               <small>
-                Relógio: 13/09/2026. Os cenários ficam salvos neste navegador.
+                Relógio: {fullDay(q.today)}. Os cenários ficam salvos neste navegador.
               </small>
             </div>
           </details>
@@ -783,7 +791,7 @@ export default function QuotationPreview({
                 {q.reason || 'Sem motivo adicional registrado.'}
               </p>
               <p>
-                Encerrada em 13/09/2026. Os dados e o histórico continuam
+                Encerrada em {fullDay(q.today)}. Os dados e o histórico continuam
                 disponíveis abaixo.
               </p>
               <button
@@ -860,7 +868,7 @@ export default function QuotationPreview({
                               className={
                                 (selected ? s.selectedRow : '') +
                                 ' ' +
-                                (!validOffer(o) ? s.expiredRow : '') +
+                                (!validOffer(o, q.today) ? s.expiredRow : '') +
                                 ' ' +
                                 (selectable ? s.selectableRow : '')
                               }
@@ -971,12 +979,12 @@ export default function QuotationPreview({
                                 <strong>{shortDate(o.validity)}</strong>
                                 <small
                                   className={
-                                    !validOffer(o) ? s.warningText : ''
+                                    !validOffer(o, q.today) ? s.warningText : ''
                                   }
                                 >
                                   {!o.validity
                                     ? 'Confirmar com agente'
-                                    : validOffer(o)
+                                    : validOffer(o, q.today)
                                       ? '2026'
                                       : 'Vencida'}
                                 </small>
@@ -1293,7 +1301,9 @@ export default function QuotationPreview({
             </details>
           </div>
           <footer className={s.pageFooter}>
-            <span>Atualização da base demonstrativa: 13/09, 09:40</span>
+            <span>
+              Atualização da base demonstrativa: {dayMonth(q.today)}, 09:40
+            </span>
             {!terminal(q.stage) && (
               <button
                 className={s.textButton}
@@ -1488,7 +1498,10 @@ export default function QuotationPreview({
                 </div>
                 <div>
                   <dt>Validade</dt>
-                  <dd>{shortDate(chosen.validity)} de 2026</dd>
+                  <dd>
+                    {shortDate(chosen.validity)}
+                    {chosen.validity ? ' de ' + chosen.validity.slice(0, 4) : ''}
+                  </dd>
                 </div>
                 <div>
                   <dt>Free time</dt>
@@ -1580,11 +1593,11 @@ export default function QuotationPreview({
                   <input
                     type="datetime-local"
                     value={sendAt}
-                    min="2026-09-13T10:31"
+                    min={q.today + 'T10:31'}
                     onChange={(event) => setSendAt(event.target.value)}
                   />
                   <small>
-                    Relógio da demonstração: 13/09/2026, 10:30. Programar não
+                    Relógio da demonstração: {fullDay(q.today)}, 10:30. Programar não
                     envia agora.
                   </small>
                 </label>

@@ -22,6 +22,7 @@ import type {
   RecommendationResult,
   ValidationBlock,
 } from '@/types/quotation';
+import { notifySuccess } from '@/lib/offline/notify';
 
 const fetchQuotations = async (
   url: string,
@@ -90,7 +91,7 @@ export const approveProposal = async (
     await portal_api.post(
       `/portal/quotations/${quotationId}/proposals/${proposalId}/approve`,
     );
-    toast.success('Proposta aprovada com sucesso!');
+    notifySuccess('Proposta aprovada com sucesso!');
     revalidateQuotation(quotationId);
     return true;
   } catch {
@@ -105,7 +106,7 @@ export const declineQuotation = async (
 ): Promise<boolean> => {
   try {
     await portal_api.post(`/portal/quotations/${quotationId}/decline`, payload);
-    toast.success('Cotação reprovada.');
+    notifySuccess('Cotação reprovada.');
     revalidateQuotation(quotationId);
     return true;
   } catch {
@@ -125,7 +126,7 @@ export const cancelQuotation = async (
     const { data } = await portal_api.post<{
       notifications?: { status: 'sent' | 'failed' }[];
     }>(`/portal/quotations/${quotationId}/cancel`, payload ?? {});
-    toast.success('Cotação cancelada.');
+    notifySuccess('Cotação cancelada.');
 
     const notifications = data.notifications ?? [];
     const failed = notifications.filter((n) => n.status === 'failed').length;
@@ -236,7 +237,7 @@ export const dispatchPortalRfq = async (
         `Solicitação enviada para ${sent} agente(s). Falha em ${failed}.`,
       );
     } else {
-      toast.success('Solicitação de cotação enviada aos agentes!');
+      notifySuccess('Solicitação de cotação enviada aos agentes!');
     }
     revalidateQuotation(quotationId);
     globalMutate(`/portal/quotations/${quotationId}/agents`);

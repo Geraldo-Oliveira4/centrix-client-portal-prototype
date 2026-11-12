@@ -11,6 +11,8 @@ import {
   SHIPMENT_INDICATOR_LABELS,
   shipmentIndicatorHref,
 } from '../embarques/lib/shipment-indicators';
+import { hojeParam } from '@/lib/demo-clock';
+import { useOfflineStatus } from '@/lib/offline/use-offline-status';
 
 /**
  * Approved UX demonstration. The scenario inside the iframe is illustrative.
@@ -32,6 +34,7 @@ export default function VisaoGeralPage() {
   const { shipments, isLoading, isError } = useMyShipments();
   const portfolio = useShipmentsWithPo(shipments);
   const [now] = useState(() => new Date());
+  const offline = useOfflineStatus().status === 'offline';
   const { indicators } = useShipmentIndicators(portfolio, now);
   // Objeto simples (sem Set) para atravessar para o realm do iframe.
   const portalIndicators = useMemo(
@@ -50,7 +53,8 @@ export default function VisaoGeralPage() {
   useEffect(() => {
     const hash = /^#(dia|operacao)$/.test(window.location.hash)
       ? window.location.hash : '#dia';
-    setSource('/prototypes/centrix-visao-geral/index.html?v=20261002-foco-3' + hash);
+    // `?hoje=` da pagina vira o relogio do iframe (lib/demo-clock.ts).
+    setSource('/prototypes/centrix-visao-geral/index.html?v=20261112-relogio' + hojeParam(window.location.search) + hash);
   }, []);
 
   useEffect(() => {
@@ -63,7 +67,7 @@ export default function VisaoGeralPage() {
       const child = iframe.contentWindow;
       if (!doc || !child) return;
       const syncHash = () => {
-        window.history.replaceState(window.history.state, '', window.location.pathname + child.location.hash);
+        window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + child.location.hash);
       };
       child.addEventListener('hashchange', syncHash);
       syncHash();
@@ -86,6 +90,10 @@ export default function VisaoGeralPage() {
       const pushIndicators = () => {
         (child as unknown as { portalIndicators: unknown }).portalIndicators =
           portalIndicators;
+        // Modo offline: os numeros sao das fixtures, e a linha nao pode dizer
+        // "dados reais" (ver lib/offline/).
+        (child as unknown as { portalIndicatorsSample: boolean }).portalIndicatorsSample =
+          offline;
         child.dispatchEvent(
           new (child as unknown as typeof globalThis).Event('portal-indicators'),
         );
@@ -103,7 +111,7 @@ export default function VisaoGeralPage() {
     // depois de um refresh.
     if (iframe.contentDocument?.readyState === 'complete') loaded();
     return () => { iframe.removeEventListener('load', loaded); disconnect(); };
-  }, [source, poReleased, portalIndicators]);
+  }, [source, poReleased, portalIndicators, offline]);
 
   return (
     <div className="space-y-4">

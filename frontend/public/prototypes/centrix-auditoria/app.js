@@ -12,10 +12,13 @@ const icon = name => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">$
 const badge = (text, tone = '') => `<span class="tag ${tone}">${esc(text)}</span>`;
 const button = (label, action, attributes = '', cls = '') => `<button class="btn ${cls}" data-action="${action}" ${attributes}>${label}</button>`;
 const blankFilters = () => ({ query:'', agent:'', supplier:'', from:'', to:'', preset:'all', expanded:false, scroll:0 });
-const storageKey = 'centrix-audit-review-v1';
+// Estado por DIA da demonstração (clock.js): uma amostra salva em outro dia traria as datas de lá.
+const storageKey = 'centrix-audit-review-v1:' + AuditClock.day;
+/** A amostra inicial, deslocada para o relógio da demonstração. */
+const seedOperations = () => AuditClock.shiftDeep(P.enrich(F.enrich(M.seed())));
 let saved;
 try { saved = JSON.parse(sessionStorage.getItem(storageKey)); } catch { saved = null; }
-let operations = P.enrich(F.enrich(saved?.operations || M.seed()));
+let operations = saved?.operations ? P.enrich(F.enrich(saved.operations)) : seedOperations();
 let drafts = saved?.drafts || {};
 let lists = saved?.lists || { preco:blankFilters(), performance:blankFilters() };
 let route, drawerContext, drawerTrigger, timer, intake = saved?.intake || {}, demoError = false;
@@ -79,7 +82,7 @@ function updateList() {
   $('#summary').innerHTML = `<div class="summary-line">${dim === 'preco' ? `<div class="summary-cell"><small>Valor para questionar</small><strong class="summary-value">${Object.entries(s.totals).length ? Object.entries(s.totals).map(([c,n]) => `<span class="currency">${money(n,c)}</span>`).join('') : '—'}</strong><small>Diferenças positivas · por moeda</small></div><div class="summary-cell"><small>Casos prontos</small><strong class="summary-value">${s.cases}</strong><small>Por cobrança e destinatário</small></div>` : `<div class="summary-cell"><small>Operações com desvio</small><strong class="summary-value">${s.deviations}</strong><small>Referência × realizado</small></div><div class="summary-cell"><small>Pedidos prontos</small><strong class="summary-value">${s.cases}</strong><small>Esclarecimentos por operação</small></div>`}<div class="summary-cell"><small>Cobertura do recorte</small><strong class="summary-value">${s.checked} <span class="muted">/ ${s.known}</span></strong><button data-action="coverage">${dim === 'preco' ? 'Cobranças com valores disponíveis' : 'Operações com verificação concluída'} · ver base</button></div></div>`;
   if (dim === 'preco') { freightBoard(base, f); return; }
   $('#presets').innerHTML = presets().map(([key,label]) => `<button class="preset ${f.preset === key ? 'active' : ''}" id="preset-${key}" data-action="preset" data-preset="${key}" aria-pressed="${f.preset === key}">${label}<span>${base.filter(op => M.matches(op,dim,key)).length}</span></button>`).join('');
-  $('#table-meta').innerHTML = `<span>${selected.length} ${selected.length === 1 ? 'operação' : 'operações'}${Object.entries(f).some(([k,v]) => ['query','agent','supplier','from','to'].includes(k) && v) ? ' · recorte aplicado' : ''}${f.preset !== 'all' ? ' · '+presets().find(([key]) => key === f.preset)?.[1] : ''}</span><span>Atualização da amostra: 13/09/2026</span>`;
+  $('#table-meta').innerHTML = `<span>${selected.length} ${selected.length === 1 ? 'operação' : 'operações'}${Object.entries(f).some(([k,v]) => ['query','agent','supplier','from','to'].includes(k) && v) ? ' · recorte aplicado' : ''}${f.preset !== 'all' ? ' · '+presets().find(([key]) => key === f.preset)?.[1] : ''}</span><span>Atualização da amostra: ${AuditClock.label(AuditClock.sample)}</span>`;
   if (f.from && f.to && f.from > f.to) { $('#list-results').innerHTML = `<div class="empty"><h3>Revise o período</h3><p>A data inicial deve ser anterior ou igual à final.</p></div>`; return; }
   if (demoError) { $('#list-results').innerHTML = `<div class="empty"><h3>Não foi possível concluir a consulta</h3><p>Falha simulada. Fontes e resultados anteriores foram preservados.</p>${button('Tentar novamente','retry','','primary')}</div>`; return; }
   $('#list-results').innerHTML = selected.length ? `<section class="panel table-wrap"><table class="audit-table"><thead><tr><th>Fornecedor / PO</th><th>Embarque / agente</th><th>${dim === 'preco' ? 'Diferença' : 'Desvio / compromisso'}</th><th>Situação</th><th><span class="muted">Próxima ação</span></th></tr></thead><tbody>${selected.map(row).join('')}</tbody></table></section>` : `<div class="empty"><h3>${operations.length ? 'Nenhuma operação neste recorte' : 'Ainda não há operações para conferir'}</h3><p>${operations.length ? 'Ajuste a busca ou limpe os filtros para voltar à carteira.' : 'Adicione uma operação ou use um exemplo demonstrativo.'}</p>${operations.length ? button('Limpar filtros','clear','','primary') : '<a class="btn primary" href="#auditoria/entrada/${route.dim}">Adicionar à auditoria</a>'}</div>`;
@@ -93,7 +96,7 @@ function freightBoard(base, f) {
   const clean = placed.filter(x => !x.column && result(x.op,'preco').status === 'clean');
   const s = M.summary(base,'preco');
   $('#summary').innerHTML = `<div class="summary-line"><div class="summary-cell"><small>Valor para questionar</small><strong class="summary-value">${Object.entries(s.totals).length ? Object.entries(s.totals).map(([c,n]) => `<span class="currency">${money(n,c)}</span>`).join('') : '—'}</strong><small>Diferenças positivas · por moeda</small></div><div class="summary-cell"><small>Casos prontos</small><strong class="summary-value">${s.cases}</strong><small>Por cobrança e destinatário</small></div><div class="summary-cell"><small>Cobertura do recorte</small><strong class="summary-value">${s.checked} <span class="muted">/ ${s.known}</span></strong><button data-action="coverage">Cobranças com valores disponíveis · ver base</button></div></div>`;
-  $('#table-meta').innerHTML = `<span>${base.length} ${base.length === 1 ? 'operação' : 'operações'}${['query','agent','supplier','from','to'].some(k => f[k]) ? ' · recorte aplicado' : ''}</span><span>Atualização da amostra: 13/09/2026</span>`;
+  $('#table-meta').innerHTML = `<span>${base.length} ${base.length === 1 ? 'operação' : 'operações'}${['query','agent','supplier','from','to'].some(k => f[k]) ? ' · recorte aplicado' : ''}</span><span>Atualização da amostra: ${AuditClock.label(AuditClock.sample)}</span>`;
   if (f.from && f.to && f.from > f.to) { $('#list-results').innerHTML = `<div class="empty"><h3>Revise o período</h3><p>A data inicial deve ser anterior ou igual à final.</p></div>`; return; }
   if (demoError) { $('#list-results').innerHTML = `<div class="empty"><h3>Não foi possível concluir a consulta</h3><p>Falha simulada. Fontes e resultados anteriores foram preservados.</p>${button('Tentar novamente','retry','','primary')}</div>`; return; }
   const card = op => {
@@ -239,7 +242,7 @@ function exportDraft(kind) {
     download(`Rascunho-${caseName}-DEMO.eml`,content,'message/rfc822');
   }
   d.exported = true;
-  op.logs.push({date:'2026-09-13',text:`${kind === 'email' ? 'Rascunho de e-mail' : 'Dossiê'} demonstrativo exportado para ${drawerContext.dim === 'preco' ? 'revisão financeira' : 'esclarecimento operacional'}. Envio não confirmado.`});
+  op.logs.push({date:AuditClock.day,text:`${kind === 'email' ? 'Rascunho de e-mail' : 'Dossiê'} demonstrativo exportado para ${drawerContext.dim === 'preco' ? 'revisão financeira' : 'esclarecimento operacional'}. Envio não confirmado.`});
   $('#communication-status').textContent = 'Rascunho exportado. Envio e resposta não confirmados.';
   persist(); toast('Material demonstrativo baixado. Nenhum envio realizado.');
 }
@@ -285,7 +288,7 @@ document.addEventListener('click', async event => {
     case 'demo': demoPanel(); break;
     case 'demo-error': closeDrawer(); demoError = true; if (route.page === 'list') updateList(); else location.hash = '#auditoria/'+route.dim; break;
     case 'retry': demoError = false; updateList(); toast('Consulta refeita com os dados preservados.'); break;
-    case 'reset': operations = P.enrich(F.enrich(M.seed())); drafts={}; lists={preco:blankFilters(),performance:blankFilters()}; intake={drafts:{}}; demoError=false; persist(); closeDrawer(); if (location.hash === '#auditoria/preco') render(); else location.hash='#auditoria/preco'; break;
+    case 'reset': operations = seedOperations(); drafts={}; lists={preco:blankFilters(),performance:blankFilters()}; intake={drafts:{}}; demoError=false; persist(); closeDrawer(); if (location.hash === '#auditoria/preco') render(); else location.hash='#auditoria/preco'; break;
   }
 });
 document.addEventListener('input', event => {

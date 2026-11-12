@@ -9,6 +9,7 @@ import { SidebarProvider } from './components/sidebar-context';
 import { DemoPanel } from './_shared/demo/demo-panel';
 import { SupportLauncher } from './_shared/support-launcher';
 import { OnboardingFlow } from './_shared/onboarding-flow';
+import { OfflineBanner } from './_shared/offline-banner';
 import { ModuleNotReleased } from './_shared/demo/module-not-released';
 import { isRouteReleased } from './_shared/demo/feature-flags';
 import { usePortalModuleFlags } from './_shared/demo/use-feature-flags';
@@ -80,6 +81,9 @@ export default function PortalLayout({
         <PortalSidebar />
         <main className="flex-1 min-w-0 overflow-auto">
           <PortalHeader />
+          {/* Modo offline (API indisponivel ou demonstracao forcada): faixa
+              presa ao topo do conteudo. Ver `lib/offline/`. */}
+          <OfflineBanner />
           {/* O guard troca so o MIOLO. Sidebar e header continuam: modulo
               fechado e uma porta fechada dentro do portal, nao uma sessao
               perdida, e o cliente precisa continuar enxergando por onde sair. */}

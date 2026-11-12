@@ -1,5 +1,24 @@
 // Demonstration-only data. No writes to the portal API.
-export const TODAY = '2026-09-13';
+//
+// RELÓGIO DA DEMONSTRAÇÃO (12/11/2026), mesma regra da Inteligência: as datas
+// abaixo são escritas contra a DATA-BASE `BASE_TODAY` e deslocadas inteiras para
+// o `today` de cada cotação (`createQuote(id, today)`), que é a data atual ou
+// `?hoje=AAAA-MM-DD`. Diferenças entre datas (validade, chegada x necessidade)
+// não mudam; nenhum "hoje" fica congelado. Os testes injetam `today`.
+import { addDays, shiftIso } from '../../../../lib/demo-clock.ts';
+
+export const BASE_TODAY = '2026-09-13';
+
+/** "DD/MM" de uma data `AAAA-MM-DD`. */
+export const dayMonth = (day: string) =>
+  day.slice(8, 10) + '/' + day.slice(5, 7);
+/** "DD/MM/AAAA" de uma data `AAAA-MM-DD`. */
+export const fullDay = (day: string) => dayMonth(day) + '/' + day.slice(0, 4);
+
+/** Horário padrão do envio programado: amanhã às 09:00. */
+export function defaultSendAt(today: string): string {
+  return addDays(today, 1) + 'T09:00';
+}
 export const STORAGE_KEY = 'centrix-quotation-preview-v1';
 export const availableAgents = [
   'Alpha Cargo',
@@ -34,7 +53,7 @@ export function inviteMoreAgents(q: Quote, names: string[]): Quote {
 
 export function receiveNextOffer(q: Quote): Quote {
   if (!['waiting', 'partial', 'ready'].includes(q.stage)) return q;
-  const next = createQuote('comparar').offers.find(
+  const next = createQuote('comparar', q.today).offers.find(
     (offer) =>
       q.targetAgents.includes(offer.agent) &&
       !q.offers.some((existing) => existing.id === offer.id),
@@ -83,6 +102,8 @@ export type Offer = {
 };
 export type Quote = {
   id: string;
+  /** O hoje da demonstração em que a cotação foi montada (`AAAA-MM-DD`). */
+  today: string;
   reference: string;
   supplier: string;
   po: string;
@@ -123,7 +144,7 @@ export const labels: Record<Stage, string> = {
   declined: 'Cotação recusada',
   cancelled: 'Cotação cancelada',
 };
-const offers: Offer[] = [
+const baseOffers: Offer[] = [
   {
     id: 'alpha',
     agent: 'Alpha Cargo',
@@ -211,9 +232,24 @@ export const scenarios = [
   ['recusada', 'Cotação recusada'],
   ['cancelada', 'Cotação cancelada'],
 ] as const;
-export function createQuote(id: string): Quote {
+/** As ofertas-base deslocadas para `today`. */
+function offersFor(today: string): Offer[] {
+  const move = (d: string | null) => (d ? shiftIso(d, BASE_TODAY, today) : d);
+  return structuredClone(baseOffers).map((o) => ({
+    ...o,
+    departure: move(o.departure),
+    arrival: move(o.arrival),
+    validity: move(o.validity),
+  }));
+}
+
+export function createQuote(id: string, today: string = BASE_TODAY): Quote {
+  // `d(n)`: n dias a partir do hoje da demonstração; `dm(n)`: o mesmo em "DD/MM".
+  const d = (n: number) => addDays(today, n);
+  const dm = (n: number) => dayMonth(d(n));
   const q: Quote = {
     id,
+    today,
     reference: 'COT-2026-0017',
     supplier: 'Hanwha Industrial',
     po: 'PO-2026-1194',
@@ -223,12 +259,12 @@ export function createQuote(id: string): Quote {
     modal: 'Marítimo',
     equipment: '1 × 40’ HC',
     incoterm: 'FOB',
-    readyDate: '2026-09-18',
-    needDate: '2026-10-18',
+    readyDate: d(5),
+    needDate: d(35),
     stage: 'ready',
-    offers: structuredClone(offers),
-    sentAt: '11/09 às 09:20',
-    responseBy: '14/09 às 17:00',
+    offers: offersFor(today),
+    sentAt: dm(-2) + ' às 09:20',
+    responseBy: dm(1) + ' às 17:00',
     agentCount: 3,
     targetAgents: ['Alpha Cargo', 'Beta Logistics', 'Gamma Comex'],
     selected: null,
@@ -238,9 +274,9 @@ export function createQuote(id: string): Quote {
     followup: false,
     reason: '',
     events: [
-      '13/09, 09:40 — Propostas liberadas para sua escolha.',
-      '12/09, 16:30 — Última proposta recebida.',
-      '11/09, 09:20 — Solicitação enviada para 3 agentes.',
+      dm(0) + ', 09:40 — Propostas liberadas para sua escolha.',
+      dm(-1) + ', 16:30 — Última proposta recebida.',
+      dm(-2) + ', 09:20 — Solicitação enviada para 3 agentes.',
     ],
   };
   if (id === 'complementar' || id === 'rascunho' || id === 'envio') {
@@ -256,23 +292,27 @@ export function createQuote(id: string): Quote {
     q.events =
       id === 'complementar'
         ? [
-            '12/09, 14:10 — Marina, da Freitas, solicitou peso bruto e volume para preparar a cotação.',
+            dm(-1) +
+              ', 14:10 — Marina, da Freitas, solicitou peso bruto e volume para preparar a cotação.',
           ]
-        : ['13/09, 09:00 — Rascunho iniciado por você.'];
+        : [dm(0) + ', 09:00 — Rascunho iniciado por você.'];
   }
   if (id === 'aguardando' || id === 'parciais') {
     q.stage = id === 'aguardando' ? 'waiting' : 'partial';
     q.offers = id === 'parciais' ? [q.offers[0]] : [];
-    q.events = ['11/09, 09:20 — Solicitação enviada para 3 agentes.'];
+    q.events = [dm(-2) + ', 09:20 — Solicitação enviada para 3 agentes.'];
     q.reference = id === 'aguardando' ? 'COT-2026-0016' : 'COT-2026-0015';
   }
   if (id === 'programado') {
     q.stage = 'scheduled';
     q.offers = [];
     q.sentAt = null;
-    q.scheduledFor = '2026-09-14T09:00';
+    q.scheduledFor = defaultSendAt(today);
     q.events = [
-      '13/09, 10:30 — Envio programado para 14/09 às 09:00 (simulação).',
+      dm(0) +
+        ', 10:30 — Envio programado para ' +
+        dm(1) +
+        ' às 09:00 (simulação).',
     ];
   }
   if (id === 'analise' || id === 'liberada' || id === 'fechada') {
@@ -280,13 +320,13 @@ export function createQuote(id: string): Quote {
       id === 'analise' ? 'review' : id === 'liberada' ? 'released' : 'closed';
     q.selected = 'beta';
     q.events.unshift(
-      '13/09, 10:10 — Você escolheu a oferta BT-3802, da Beta Logistics.',
+      dm(0) + ', 10:10 — Você escolheu a oferta BT-3802, da Beta Logistics.',
     );
     if (id !== 'analise')
-      q.events.unshift('13/09, 10:25 — Freitas liberou a escolha.');
+      q.events.unshift(dm(0) + ', 10:25 — Freitas liberou a escolha.');
     if (id === 'fechada')
       q.events.unshift(
-        '13/09, 10:40 — Contratação confirmada e embarque vinculado.',
+        dm(0) + ', 10:40 — Contratação confirmada e embarque vinculado.',
       );
   }
   if (id === 'devolvida')
@@ -294,7 +334,7 @@ export function createQuote(id: string): Quote {
       'A oferta anterior não contemplava as taxas de destino. Escolha uma condição completa para continuar.';
   if (id === 'vencidas')
     q.offers.forEach((o) => {
-      o.validity = '2026-09-12';
+      o.validity = d(-1);
     });
   if (id === 'sem-dados') {
     q.supplier = '';
@@ -312,12 +352,12 @@ export function createQuote(id: string): Quote {
       id === 'recusada'
         ? 'Condições fora do orçamento.'
         : 'A compra foi adiada pelo fornecedor.';
-    q.events.unshift('13/09, 10:10 — ' + labels[q.stage] + ': ' + q.reason);
+    q.events.unshift(dm(0) + ', 10:10 — ' + labels[q.stage] + ': ' + q.reason);
   }
   return q;
 }
-export function validOffer(offer: Offer) {
-  return !!offer.validity && offer.validity >= TODAY;
+export function validOffer(offer: Offer, today: string = BASE_TODAY) {
+  return !!offer.validity && offer.validity >= today;
 }
 export function recommend(q: Quote): Offer | undefined {
   if (q.stage !== 'ready' || !q.needDate || q.offers.length < 2)
@@ -325,7 +365,10 @@ export function recommend(q: Quote): Offer | undefined {
   return q.offers
     .filter(
       (o) =>
-        validOffer(o) && o.complete && !!o.arrival && o.arrival <= q.needDate,
+        validOffer(o, q.today) &&
+        o.complete &&
+        !!o.arrival &&
+        o.arrival <= q.needDate,
     )
     .sort((a, b) => a.total - b.total)[0];
 }
@@ -334,7 +377,7 @@ export function decisionError(q: Quote, offerId: string | null): string | null {
     return 'Esta cotação ainda não está liberada para escolha.';
   const offer = q.offers.find((o) => o.id === offerId);
   if (!offer) return 'Selecione uma proposta para continuar.';
-  if (!validOffer(offer))
+  if (!validOffer(offer, q.today))
     return offer.validity
       ? 'A validade desta oferta terminou. Solicite a revalidação.'
       : 'Confirme a validade com o agente antes de escolher.';
@@ -363,7 +406,7 @@ export function validateCargo(weight: string, volume: string): boolean {
   return parse(weight) && parse(volume);
 }
 
-// Wall-clock time in Sao Paulo; this prototype uses the fixed demo clock.
+// Wall-clock time in Sao Paulo, against the quotation's demo clock (`q.today`).
 export function scheduleRequest(q: Quote, when: string): Quote {
   if (q.stage !== 'draft' || q.sentAt)
     throw new Error('Somente um rascunho não enviado pode ser programado.');
@@ -376,10 +419,12 @@ export function scheduleRequest(q: Quote, when: string): Quote {
     !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(when) ||
     !Number.isFinite(parsed.getTime()) ||
     parsed.toISOString().slice(0, 16) !== when ||
-    when <= TODAY + 'T10:30'
+    when <= q.today + 'T10:30'
   )
     throw new Error(
-      'Escolha uma data e horário após 13/09/2026 às 10:30, no horário de Brasília.',
+      'Escolha uma data e horário após ' +
+        fullDay(q.today) +
+        ' às 10:30, no horário de Brasília.',
     );
   return {
     ...q,

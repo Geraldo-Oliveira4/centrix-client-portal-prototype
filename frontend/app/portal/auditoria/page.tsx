@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { hojeParam } from '@/lib/demo-clock';
 
 /** Approved UX demonstration. It uses illustrative sources, never client API data. */
 export default function AuditoriaPage() {
@@ -10,7 +11,8 @@ export default function AuditoriaPage() {
   useEffect(() => {
     const hash = /^#(auditoria|cotacao|embarque)(\/|$)/.test(window.location.hash)
       ? window.location.hash : '#auditoria/preco';
-    setSource('/prototypes/centrix-auditoria/index.html?embed=1&v=20261002-preco-1' + hash);
+    // `?hoje=` da pagina vira o relogio do iframe (lib/demo-clock.ts).
+    setSource('/prototypes/centrix-auditoria/index.html?embed=1&v=20261112-relogio' + hojeParam(window.location.search) + hash);
   }, []);
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export default function AuditoriaPage() {
       const child = iframe.contentWindow;
       if (!doc || !child) return;
       const syncHash = () => {
-        window.history.replaceState(window.history.state, '', window.location.pathname + child.location.hash);
+        window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + child.location.hash);
       };
       const restoreHash = () => {
         if (/^#(auditoria|cotacao|embarque)(\/|$)/.test(window.location.hash) && child.location.hash !== window.location.hash) child.location.hash = window.location.hash;

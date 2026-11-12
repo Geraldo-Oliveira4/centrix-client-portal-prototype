@@ -3,6 +3,7 @@ import type {
   ManualFormValues,
 } from '../../../cotacao/nova-cotacao/components/manual-form';
 import type { Quote } from '../previa/model';
+import { BASE_TODAY } from '../previa/model.ts';
 
 export type Habit = {
   id: string;
@@ -154,7 +155,16 @@ export const history = [
   },
 ];
 
-export function startRequest(source: Habit | null, routeId?: string): Quote {
+/**
+ * `today` é o hoje da demonstração (`lib/demo-clock.ts`); a tela passa o da URL
+ * (`?hoje=`) ou a data atual. O padrão só existe para os testes e chamadores
+ * que não exibem data.
+ */
+export function startRequest(
+  source: Habit | null,
+  routeId?: string,
+  today: string = BASE_TODAY,
+): Quote {
   const route = routes.find((r) => r.id === (routeId || source?.routeId));
   const draft = source
     ? reusableDraft(source.draft)
@@ -171,6 +181,7 @@ export function startRequest(source: Habit | null, routeId?: string): Quote {
       };
   return {
     id: 'nova-local',
+    today,
     reference: 'Nova solicitação',
     supplier: source?.supplier || '',
     product: draft.values.product || '',

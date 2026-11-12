@@ -1298,6 +1298,63 @@ um detalhe de uma linha?".**
 > Class names composed in `types/` are only picked up because
 > `./types/**/*.{ts,tsx}` is in the Tailwind `content` globs. Keep it there.
 
+## Modo offline — o protótipo nunca depende do backend (12/11/2026)
+
+**Regra:** uma demonstração não pode depender do backend (FastAPI + Postgres),
+que dorme ou é pausado. Offline é um modo **explícito e rotulado**, nunca um
+erro mascarado. Infra e diagnóstico: `docs/INFRA.md` na raiz.
+
+- **Um ponto só troca a fonte:** `lib/portal-api.ts` instala o adapter de
+  `lib/offline/offline-adapter.ts` quando o modo está ativo. Hooks e telas não
+  sabem que estão offline. Não importe o adapter em outro lugar (há teste que
+  trava isso) e não leia fixture direto numa tela.
+- **Quando liga** (`lib/offline/offline-mode.ts`, puro e testado): `?offline=1`
+  > escolha da sessão > `NEXT_PUBLIC_OFFLINE_DEMO=1` (zero chamada ao backend) >
+  teste de saúde antes da primeira chamada. **"Servidor no ar" não é "dados
+  disponíveis"**: o teste consulta `/portal/clients/me`, que lê o banco — nunca
+  `/health` nem `/docs`, que respondiam 200 com o banco fora. Qualquer chamada
+  que falhe por rede, timeout de 4 s (`REQUEST_TIMEOUT_MS`) ou **5xx** liga o modo
+  e é repetida nas fixtures; 4xx de API de pé continua erro. `=0`/`?offline=0`
+  desliga o modo.
+- **Sem "Aguarde o servidor inicializar".** As telas do portal usam
+  `PortalLoadError` (`_shared/portal-load-error.tsx`) no lugar do
+  `ErrorComponent` da lib: aviso curto + "Tentar de novo" + "Usar dados de
+  exemplo". Não volte a importar `ErrorComponent` em `/portal`.
+- **Instalação testável:** `lib/offline/install-fallback.ts` liga o modo a uma
+  instância do axios; `install-fallback.test.ts` o exercita contra um servidor
+  HTTP real devolvendo 500, pendurando e fechado.
+- **Fixtures** (`lib/offline/fixtures.ts`): os 15 cenários da prévia de
+  embarques (a mesma fonte de `scripts/preview-shipments-api.mjs`) + cotações do
+  Funil, agentes, exportadores e layout da Home. Tudo fictício, datas relativas
+  a `lib/demo-clock.ts` (`?hoje=`). Rota nova no portal = rota nova em
+  `offline-backend.ts`, senão ela responde 404 offline.
+- **Escrita é simulada, nunca fingida:** `offline-backend.ts` aplica o efeito
+  numa cópia em memória da aba e devolve `simulated`; o adapter avisa "Prévia:
+  nada foi enviado". Toast de sucesso de ação que grava passa por
+  `notifySuccess` (`lib/offline/notify.ts`), que fica calado offline. Envio de
+  arquivo recusa. Mutação nova: use `notifySuccess`, não `toast.success`.
+- **Nada de "dado real" sobre fixture:** offline, `ProvenanceBadge real` vira
+  "Dado de exemplo" e a linha de indicadores da Central diz "DADOS DE EXEMPLO"
+  (`useOfflineStatus`, `lib/offline/use-offline-status.ts`). Rótulo novo que
+  afirme dado real precisa do mesmo cuidado.
+- **A faixa** (`_shared/offline-banner.tsx`) é `sticky` no topo do `<main>`,
+  fundo opaco, com "Tentar de novo"; no celular só a frase principal. Ela não
+  disputa espaço com as barras presas ao rodapé nem com o "Ajuda".
+
+## Relógio da demonstração em todas as telas (12/11/2026)
+
+Nenhum "hoje" congelado. Regra da Inteligência (data-base + deslocamento +
+`?hoje=AAAA-MM-DD`) aplicada também em: `cotacoes/previa` e `embarques/previa`
+(`lib/demo-clock.ts`: `requestDemoToday` na página, `shiftFixture` /
+`shiftDateText`), Central de trabalho (`DEMO_CLOCK` em `centrix-visao-geral/data.js`),
+Auditoria e Radar (`public/prototypes/_shared/demo-clock.js`). Os hosts repassam
+`?hoje=` ao iframe (`hojeParam`). Auditoria e Radar andam em **semanas inteiras**
+(regra de dia útil da PTAX e séries semanais); a Radar desloca na SAÍDA (um
+`MutationObserver` em `centrix-radar/clock.js`), porque a ordenação "recentes"
+compara o dia do mês como texto. Os testes injetam o relógio; sem ele, ficam na
+data-base. Fixture nova com data: escreva contra a data-base da tela, nunca com
+"hoje" literal.
+
 ## Protótipo V2 — flags, Cotação V2 e Embarque via PO — 24/09/2026
 
 Três frentes construídas juntas, todas do **lado do cliente** e todas atrás de

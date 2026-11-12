@@ -1,0 +1,50 @@
+# Verificador de saúde do backend do protótipo (ver docs/INFRA.md).
+#
+# Roda a cada 15 minutos e sob demanda. Consulta uma rota que LÊ O BANCO
+# (scripts/check-health.mjs troca /health, /docs ou host puro por
+# /portal/clients/me): 200 em /health não prova que há dados.
+#
+# O endereço vem da VARIÁVEL do
+# repositório BACKEND_HEALTH_URL (Settings > Secrets and variables > Actions >
+# Variables) — nunca do código. Sem ela, o job termina com um aviso e sucesso.
+#
+# Quando o backend não responde, o job falha e o próprio GitHub avisa (e-mail
+# de "workflow run failed" para quem ativou o agendamento). O aviso no Slack é
+# opcional: só dispara se o SECRET SLACK_WEBHOOK_URL existir.
+
+name: Saúde do backend
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-health
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BACKEND_HEALTH_URL: ${{ vars.BACKEND_HEALTH_URL }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verificar /health
+        run: node scripts/check-health.mjs
+      - name: Avisar no Slack (opcional)
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -sS -X POST -H 'Content-Type: application/json' \
+            --data "{\"text\":\"Backend do protótipo Centrix sem resposta. Detalhes: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}" \
+            "$SLACK_WEBHOOK_URL"

@@ -6,12 +6,29 @@
 // createApiClient. Any 401/refresh-token bugfix must be applied here AND in the lib.
 // When createApiClient supports configurable session + loginPath, replace this file
 // with a thin wrapper (see frontend/lib/axios-config.ts).
+//
+// MODO OFFLINE: this instance is also the ONLY place where the portal's data
+// source switches between the API and the demo fixtures (`lib/offline/`). Before
+// the first request the health check (a DB-backed route) decides the mode for
+// the session; while offline every request is answered by `offlineAdapter`, and
+// any request that fails by network, 4 s timeout or 5xx switches over and is
+// replayed there. 4xx answers from a live API are never masked.
 
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { portalSession } from './portal-session';
+import { offlineAdapter } from './offline/offline-adapter';
+import { installOfflineFallback } from './offline/install-fallback';
+import { REQUEST_TIMEOUT_MS } from './offline/offline-mode';
+import {
+  ensureDataMode,
+  getOfflineStatus,
+  markOffline,
+} from './offline/offline-store';
 
 const portal_api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API,
+  // Acima de 4 s a chamada conta como servidor indisponivel (lib/offline/).
+  timeout: REQUEST_TIMEOUT_MS,
 });
 
 const decodeJwtExp = (token: string): number | null => {
@@ -129,5 +146,14 @@ portal_api.interceptors.response.use(
     }
   },
 );
+
+// Registered after the 401 handler: response interceptors run in order, so a
+// 401 is refreshed first and only what is still failing reaches the fallback.
+installOfflineFallback(portal_api, {
+  ensureMode: ensureDataMode,
+  getStatus: getOfflineStatus,
+  markOffline,
+  adapter: offlineAdapter,
+});
 
 export default portal_api;

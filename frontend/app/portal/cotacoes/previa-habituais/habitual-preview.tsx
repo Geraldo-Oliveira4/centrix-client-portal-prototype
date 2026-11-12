@@ -24,6 +24,7 @@ import {
   type Habit,
 } from './model';
 import s from './habitual.module.css';
+import { demoToday } from '@/lib/demo-clock';
 
 const KEY = 'centrix-habituais-preview-v1';
 const entries = [
@@ -91,7 +92,7 @@ export default function HabitualPreview({
     }
   };
   const begin = (item: Habit | null, route?: string) => {
-    setQ(startRequest(item, route));
+    setQ(startRequest(item, route, demoToday(window.location.search)));
     setSource(
       item
         ? item.name

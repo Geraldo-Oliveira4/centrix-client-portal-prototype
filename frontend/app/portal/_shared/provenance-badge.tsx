@@ -1,7 +1,8 @@
 'use client';
 
-import { CheckCircle2, FlaskConical, PlugZap } from 'lucide-react';
+import { CheckCircle2, CloudOff, FlaskConical, PlugZap } from 'lucide-react';
 
+import { useOfflineStatus } from '@/lib/offline/use-offline-status';
 import { cn } from '@/lib/utils';
 
 /**
@@ -19,6 +20,10 @@ import { cn } from '@/lib/utils';
  *
  * The rule the whole task rests on: nothing real should wear the preview badge,
  * and nothing fabricated should be shown without it.
+ *
+ * MODO OFFLINE (`lib/offline/`): with the API down the portal shows sample
+ * data, so `real` would be a lie. It turns into a neutral "Dado de exemplo"
+ * for as long as the mode is on; `preview` and `pending` stay as they are.
  */
 export type Provenance = 'real' | 'preview' | 'pending';
 
@@ -29,6 +34,20 @@ export function ProvenanceBadge({
   provenance: Provenance;
   className?: string;
 }) {
+  const offline = useOfflineStatus().status === 'offline';
+  if (provenance === 'real' && offline) {
+    return (
+      <span
+        className={cn(
+          'portal-small inline-flex items-center gap-1.5 rounded border border-border bg-muted px-2 py-0.5 font-medium text-portal-neutral',
+          className,
+        )}
+      >
+        <CloudOff className="h-4 w-4" />
+        Dado de exemplo
+      </span>
+    );
+  }
   if (provenance === 'real') {
     return (
       <span
