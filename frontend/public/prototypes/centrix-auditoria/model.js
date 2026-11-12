@@ -97,7 +97,7 @@
     let changed = false;
     if (dimension === 'preco') op.invoices.filter(i => !invoiceId || i.id === invoiceId).forEach(i => { if (!i.available || !i.reference) { i.available = true; i.reference = true; i.lines.forEach(l => { if (l.billed === null) l.billed = l.agreed; }); changed = true; } });
     if (dimension === 'performance') op.checks.forEach(c => { if (!c.original || !Number.isFinite(c.agreed)) { c.original = true; c.agreed = c.unit === 'dias' ? 35 : 1; changed = true; } });
-    if (changed) { op.version++; const after = dimension === 'preco' ? financial(op).checked.length : operational(op).evaluated.length; op.logs.push({ date: '2026-09-13', text: `Complemento demonstrativo v${op.version} em ${dimension === 'preco' ? 'preço' : 'performance'}${invoiceId ? ' · '+invoiceId : ''}: antes, ${before} verificações concluídas; depois, ${after}. Fonte pendente vinculada; outra dimensão preservada.` }); }
+    if (changed) { op.version++; const after = dimension === 'preco' ? financial(op).checked.length : operational(op).evaluated.length; op.logs.push({ date: (typeof AuditClock !== 'undefined' ? AuditClock.day : '2026-09-13'), text: `Complemento demonstrativo v${op.version} em ${dimension === 'preco' ? 'preço' : 'performance'}${invoiceId ? ' · '+invoiceId : ''}: antes, ${before} verificações concluídas; depois, ${after}. Fonte pendente vinculada; outra dimensão preservada.` }); }
     return changed;
   }
   function addExternal(ops, input) {
