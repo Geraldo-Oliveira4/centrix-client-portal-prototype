@@ -1,5 +1,55 @@
-/* All records below are fictional and share a fixed scenario clock. No API calls. */
-const NOW = new Date('2026-09-10T10:30:00-03:00');
+/* All records below are fictional. No API calls. */
+// RELÓGIO DA DEMONSTRAÇÃO (12/11/2026), mesma regra da Inteligência: a carteira é
+// escrita contra a DATA-BASE 10/09/2026 e DESLOCADA inteira para o hoje da
+// demonstração — a data atual, ou `?hoje=AAAA-MM-DD`. Diferenças entre datas
+// (prazo vencido, previsão alterada, dias parado) não mudam; a hora do cenário
+// continua 10h30. Datas ISO e textos "DD/MM", "DD/MM/AAAA" e "D set [2026]" são
+// deslocados em memória; o arquivo-fonte nunca muda. Sem `location` (testes), o
+// hoje é a data-base; o teste que quer outro hoje põe `location.search` no contexto.
+const BASE_DAY = '2026-09-10';
+const DEMO_CLOCK = (() => {
+  const MONTHS = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const validDay = d => /^\d{4}-\d{2}-\d{2}$/.test(d||'') && new Date(d+'T12:00:00Z').toISOString().slice(0,10) === d;
+  const add = (d, n) => new Date(Date.parse(d+'T12:00:00Z') + n*864e5).toISOString().slice(0,10);
+  const days = (a, b) => Math.round((Date.parse(b+'T12:00:00Z') - Date.parse(a+'T12:00:00Z'))/864e5);
+  function today(search, now){
+    const q = new URLSearchParams(search||'').get('hoje');
+    if (validDay(q)) return q;
+    const n = now instanceof Date ? now : new Date();
+    return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+  }
+  const day = typeof location !== 'undefined' && location ? today(location.search, new Date()) : BASE_DAY;
+  const offset = days(BASE_DAY, day);
+  const shiftIso = v => typeof v === 'string' && validDay(v.slice(0,10)) ? add(v.slice(0,10), offset) + v.slice(10) : v;
+  // Textos: só os formatos que o cenário usa, e só meses do cenário (ago-out), para
+  // não tocar em número que não é data (PO, valores, contêiner).
+  const year = BASE_DAY.slice(0,4);
+  const moved = (dd, mm, yyyy) => add(`${yyyy||year}-${mm}-${dd.padStart(2,'0')}`, offset);
+  function shiftText(s){
+    if (typeof s !== 'string' || !offset) return s;
+    return s
+      .replace(/\b(\d{2})\/(0[89]|10)(\/(\d{4}))?\b/g, (_, dd, mm, withYear, yyyy) => {
+        const d = moved(dd, mm, yyyy);
+        return `${d.slice(8,10)}/${d.slice(5,7)}` + (withYear ? `/${d.slice(0,4)}` : '');
+      })
+      .replace(/\b(\d{1,2}) (ago|set|out)( (\d{4}))?\b/g, (_, dd, mon, withYear, yyyy) => {
+        const d = moved(dd, String(MONTHS.indexOf(mon)+1).padStart(2,'0'), yyyy);
+        return `${Number(d.slice(8,10))} ${MONTHS[Number(d.slice(5,7))-1]}` + (withYear ? ` ${d.slice(0,4)}` : '');
+      });
+  }
+  // Uma carteira inteira: ISO onde é data, texto onde é frase. Ids não mudam.
+  function shiftDeep(value, key){
+    if (Array.isArray(value)) return value.map(v => shiftDeep(v));
+    if (value && typeof value === 'object') { for (const k of Object.keys(value)) value[k] = shiftDeep(value[k], k); return value; }
+    if (typeof value !== 'string' || key === 'id') return value;
+    return /^\d{4}-\d{2}-\d{2}/.test(value) ? shiftIso(value) : shiftText(value);
+  }
+  return {day, offset, today, shiftIso, shiftText, shiftDeep};
+})();
+const DEMO_DAY = DEMO_CLOCK.day;
+const NOW = new Date(DEMO_DAY + 'T10:30:00-03:00');
+/** Atalhos para os literais de data em work.js/app.js/operation.js. */
+const demoDate = DEMO_CLOCK.shiftIso, demoText = DEMO_CLOCK.shiftText;
 const STAGES = ['Em cotação','Aguardando embarque','Em transporte','Chegada ao destino'];
 const STAGE_NOTES = ['Propostas e decisão no Centrix','Contratação e reserva do transporte','Tracking do trecho internacional','Chegada ao porto ou aeroporto'];
 function record(id,name,po,stage,owner,status,opts={}){return {id,name,po,stage,owner,status,supplier:'Lumen Industrial',route:'Shanghai → Santos',modal:'Marítimo',since:'2026-09-07',milestone:'Chegada ao porto',date:'2026-09-24',baseline:'2026-09-24',blocked:false,risk:false,stale:false,source:'Atualização do agente',updated:'10/09 às 09h40',events:[],...opts};}
@@ -38,3 +88,5 @@ const RETURN_CONTEXT = {
 };
 for(const p of INITIAL_PROCESSES){if(p.waiting)Object.assign(p.waiting,RETURN_CONTEXT[p.id]);}
 INITIAL_PROCESSES.find(p=>p.id==='PR-26035').events.push({time:'Hoje, 08h20',title:'Posição de trânsito atualizada',text:'Previsão de chegada mantida. Nenhuma decisão solicitada.',source:'Tracking demonstrativo',informational:true});
+// Desloca a carteira inteira (datas, previsões, eventos) para o hoje da demonstração.
+DEMO_CLOCK.shiftDeep(INITIAL_PROCESSES);

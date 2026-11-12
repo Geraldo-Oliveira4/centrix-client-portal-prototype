@@ -11,7 +11,7 @@ function workItems(){
     return items;
   });
 }
-function urgency(w){return !w.deadline?'undated':new Date(w.deadline)<NOW?'overdue':w.deadline.startsWith('2026-09-10')?'today':'later';}
+function urgency(w){return !w.deadline?'undated':new Date(w.deadline)<NOW?'overdue':w.deadline.startsWith(DEMO_DAY)?'today':'later';}
 function workDeadline(w){return !w.deadline?'Sem prazo informado':`${urgency(w)==='overdue'?'Vencido · ':''}${stamp(w.deadline)}`;}
 function workSort(a,b){const rank={overdue:0,today:1,undated:2,later:3};return rank[urgency(a)]-rank[urgency(b)]||new Date(a.deadline||'2099-01-01')-new Date(b.deadline||'2099-01-01');}
 function filteredWork(ignoreFlag=false){

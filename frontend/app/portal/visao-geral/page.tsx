@@ -11,6 +11,7 @@ import {
   SHIPMENT_INDICATOR_LABELS,
   shipmentIndicatorHref,
 } from '../embarques/lib/shipment-indicators';
+import { hojeParam } from '@/lib/demo-clock';
 
 /**
  * Approved UX demonstration. The scenario inside the iframe is illustrative.
@@ -50,7 +51,8 @@ export default function VisaoGeralPage() {
   useEffect(() => {
     const hash = /^#(dia|operacao)$/.test(window.location.hash)
       ? window.location.hash : '#dia';
-    setSource('/prototypes/centrix-visao-geral/index.html?v=20261002-foco-3' + hash);
+    // `?hoje=` da pagina vira o relogio do iframe (lib/demo-clock.ts).
+    setSource('/prototypes/centrix-visao-geral/index.html?v=20261112-relogio' + hojeParam(window.location.search) + hash);
   }, []);
 
   useEffect(() => {

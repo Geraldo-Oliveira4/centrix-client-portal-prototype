@@ -38,3 +38,10 @@ test('shiftIso desloca data e data-hora preservando hora e fuso', () => {
   );
   assert.equal(shiftIso('sem data', '2026-09-13', '2026-09-23'), 'sem data');
 });
+
+test('hojeParam repassa só um ?hoje= válido', async () => {
+  const { hojeParam } = await import('./demo-clock.ts');
+  assert.equal(hojeParam('?hoje=2026-11-12&x=1'), '&hoje=2026-11-12');
+  assert.equal(hojeParam('?hoje=2026-02-30'), '');
+  assert.equal(hojeParam(''), '');
+});

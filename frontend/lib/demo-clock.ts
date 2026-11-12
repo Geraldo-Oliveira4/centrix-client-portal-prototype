@@ -94,3 +94,17 @@ export function requestDemoToday(
 ): string {
   return isValidDay(hoje) ? hoje : zonedDay(now, 'America/Sao_Paulo');
 }
+
+/**
+ * `&hoje=AAAA-MM-DD` para repassar o relógio da página ao iframe de um protótipo
+ * (que lê o próprio `location.search`), ou `''` quando a URL não fixa o hoje.
+ */
+export function hojeParam(search: string | null | undefined): string {
+  let hoje: string | null = null;
+  try {
+    hoje = new URLSearchParams(search ?? '').get('hoje');
+  } catch {
+    hoje = null;
+  }
+  return isValidDay(hoje) ? '&hoje=' + hoje : '';
+}
