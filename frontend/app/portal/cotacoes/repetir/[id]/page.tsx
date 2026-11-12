@@ -25,6 +25,11 @@ import {
   type LocalRequest,
 } from '../../lib/repeat-model';
 import { saveLocalRequest, useLocalRequests } from '../../lib/local-requests';
+import { demoToday } from '@/lib/demo-clock';
+
+/** O hoje da demonstração (`?hoje=` ou a data atual). */
+const repeatToday = () =>
+  demoToday(typeof window === 'undefined' ? '' : window.location.search);
 
 function RepeatPage() {
   const params = useParams<{ id: string }>();
@@ -86,7 +91,7 @@ function RepeatForm({
 }) {
   const router = useRouter();
   const [quote, setQuote] = useState(
-    () => resume?.quote || repeatQuotation(source),
+    () => resume?.quote || repeatQuotation(source, repeatToday()),
   );
   const [id] = useState(() => resume?.id || crypto.randomUUID());
   const [choosing, setChoosing] = useState(!resume && existing.length > 0);
@@ -320,7 +325,7 @@ function RepeatForm({
                   variant="outline"
                   key={h.id}
                   onClick={() => {
-                    const base = repeatQuotation(source);
+                    const base = repeatQuotation(source, repeatToday());
                     setQuote({
                       ...base,
                       supplier: h.supplier,

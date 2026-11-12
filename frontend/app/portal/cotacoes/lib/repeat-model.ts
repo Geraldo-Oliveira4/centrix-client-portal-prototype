@@ -1,6 +1,7 @@
 import type { PortalQuotation } from '../../../../types/portal';
 import type { ManualFormDraft } from '../../../cotacao/nova-cotacao/components/manual-form';
 import type { Quote } from '../previa/model';
+import { BASE_TODAY } from '../previa/model.ts';
 import { reusableDraft, startRequest } from '../previa-habituais/model.ts';
 
 export type LocalRequest = {
@@ -13,7 +14,11 @@ export type LocalRequest = {
   agents: string[];
 };
 
-export function repeatQuotation(source: PortalQuotation): Quote {
+/** `today`: o hoje da demonstração (`lib/demo-clock.ts`), passado pela tela. */
+export function repeatQuotation(
+  source: PortalQuotation,
+  today: string = BASE_TODAY,
+): Quote {
   // Normalize only stable source fields; transaction data is removed by the shared allow-list.
   const values = Object.fromEntries(
     Object.entries(source).filter(([, value]) => value != null),
@@ -38,7 +43,7 @@ export function repeatQuotation(source: PortalQuotation): Quote {
         source.temperatura_min != null || source.temperatura_max != null,
     },
   });
-  const blank = startRequest(null);
+  const blank = startRequest(null, undefined, today);
   return {
     ...blank,
     supplier: source.exporter_name || '',

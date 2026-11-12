@@ -73,3 +73,24 @@ export function shiftIso(
   if (!isValidDay(day)) return value;
   return addDays(day, offset) + value.slice(10);
 }
+
+/** A data de `now` no fuso `timeZone` (o servidor roda em UTC; a demo é no Brasil). */
+export function zonedDay(now: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+}
+
+/**
+ * O "hoje" de uma página renderizada no servidor: `?hoje=` válido, senão a data
+ * de Brasília — para a página e o navegador concordarem na virada do dia UTC.
+ */
+export function requestDemoToday(
+  hoje: string | null | undefined,
+  now: Date = new Date(),
+): string {
+  return isValidDay(hoje) ? hoje : zonedDay(now, 'America/Sao_Paulo');
+}
