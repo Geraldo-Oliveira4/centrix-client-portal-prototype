@@ -6,9 +6,19 @@
 // createApiClient. Any 401/refresh-token bugfix must be applied here AND in the lib.
 // When createApiClient supports configurable session + loginPath, replace this file
 // with a thin wrapper (see frontend/lib/axios-config.ts).
+//
+// MODO OFFLINE: this instance is also the ONLY place where the portal's data
+// source switches between the API and the demo fixtures (`lib/offline/`). Before
+// the first request the health check decides the mode for the session; while
+// offline every request is answered by `offlineAdapter`, and a network failure
+// mid-session (server went to sleep) switches over and replays the request
+// there. HTTP errors from a live API are never masked.
 
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { portalSession } from './portal-session';
+import { offlineAdapter } from './offline/offline-adapter';
+import { isNetworkFailure } from './offline/offline-mode';
+import { ensureDataMode, getOfflineStatus, markOffline } from './offline/offline-store';
 
 const portal_api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API,
@@ -71,6 +81,12 @@ const refreshAccessToken = async (): Promise<string | null> => {
   }
 };
 
+portal_api.interceptors.request.use(async (config) => {
+  const mode = await ensureDataMode();
+  if (mode.status === 'offline') config.adapter = offlineAdapter;
+  return config;
+});
+
 portal_api.interceptors.request.use((config) => {
   const session = portalSession.get();
   if (session?.accessToken) {
@@ -127,6 +143,20 @@ portal_api.interceptors.response.use(
     } finally {
       isRefreshing = false;
     }
+  },
+);
+
+portal_api.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const config = error.config;
+    const status = getOfflineStatus();
+    const explicitlyOnline = status.status === 'online' && status.explicit;
+    if (!config || explicitlyOnline || !isNetworkFailure(error)) {
+      return Promise.reject(error);
+    }
+    markOffline('network');
+    return offlineAdapter(config);
   },
 );
 

@@ -8,7 +8,9 @@ A API aceita somente GET/OPTIONS e recalcula datas ao iniciar.
 3. Em outro terminal: `npm run dev -- --port 3011 --hostname 127.0.0.1`.
 4. Abrir http://localhost:3011/portal/embarques.
 
-Esta API cobre lista/detalhe de embarques, cotações vinculadas e identidade demo.
+Esta API cobre lista/detalhe de embarques, cotações vinculadas, identidade demo e
+`/health`. Os cenários moram em `lib/offline/fixtures.ts`, a mesma fonte do modo
+offline do portal.
 Os demais módulos e operações de escrita precisam do backend completo.
 
 Validação: `npm run test:unit` e `npx tsc --noEmit --incremental false`.

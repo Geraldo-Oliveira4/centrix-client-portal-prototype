@@ -14,6 +14,7 @@ import type {
   PortalPreferences,
   UpdatePreferencesPayload,
 } from '@/types/portal-agent';
+import { notifySuccess } from '@/lib/offline/notify';
 
 const AGENTS_URL = '/portal/agents';
 const PREFERENCES_URL = '/portal/preferences';
@@ -95,7 +96,7 @@ export const setAgentActive = async (
 
   const result = await updateMyPreferences({ paused_agent_ids: next });
   if (result) {
-    toast.success(
+    notifySuccess(
       active
         ? 'Agente ativado nas suas próximas cotações.'
         : 'Agente pausado. Ele não entra nas suas próximas cotações.',

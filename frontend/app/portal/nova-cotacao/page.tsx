@@ -71,6 +71,7 @@ import type {
 } from '@/types/portal';
 import type { Quotation } from '@/types/quotation';
 import type { Exporter } from '@/types/exporter';
+import { notifySuccess } from '@/lib/offline/notify';
 
 type PagePhase = 'idle' | 'submitting' | 'done';
 
@@ -229,7 +230,7 @@ function PortalNovaCotacaoContent() {
       updateQuotationReview(quotation.id, (review) =>
         submitToFreitas(review, new Date().toISOString(), form),
       );
-      toast.success(`Solicitação ${quotation.reference} enviada à Freitas`);
+      notifySuccess(`Solicitação ${quotation.reference} enviada à Freitas`);
       markFirstStep('cotacao');
       router.push(`/portal/cotacoes?destaque=${quotation.id}`);
     },

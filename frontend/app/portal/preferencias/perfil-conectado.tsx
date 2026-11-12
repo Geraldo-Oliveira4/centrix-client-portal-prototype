@@ -33,6 +33,7 @@ import {
   ALL_ALERT_TYPES,
 } from '../embarques/lib/shipment-alerts';
 import { INCOTERM_OPTIONS, PORT_OPTIONS } from './lib/operation-options';
+import { notifySuccess } from '@/lib/offline/notify';
 
 /**
  * Minhas Preferências — configuração de conta, em dois blocos com estatutos
@@ -98,7 +99,7 @@ export default function PortalPreferenciasPage() {
       paused_agent_ids: blocked,
     });
     setSaving(false);
-    if (result) toast.success('Preferências salvas.');
+    if (result) notifySuccess('Preferências salvas.');
   };
 
   return (

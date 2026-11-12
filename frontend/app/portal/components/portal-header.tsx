@@ -25,7 +25,11 @@ export function PortalHeader() {
     router.replace('/portal/login');
   };
 
-  const initials = (client?.name ?? '??')
+  // Sem cliente carregado (API fora e modo offline desligado), o nome cai no
+  // usuario demo da sessao em vez de "—" / "??": o portal e sempre o Cliente Demo.
+  const displayName = client?.name ?? portalSession.get()?.user.name ?? null;
+
+  const initials = (displayName ?? '??')
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -61,7 +65,7 @@ export function PortalHeader() {
               Portal do Cliente
             </p>
             <p className="portal-body font-medium text-foreground">
-              {isLoading ? 'Carregando...' : client?.name ?? '—'}
+              {isLoading ? 'Carregando...' : displayName ?? '—'}
             </p>
           </div>
         </div>
