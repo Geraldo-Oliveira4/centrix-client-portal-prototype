@@ -1,6 +1,10 @@
 # Verificador de saúde do backend do protótipo (ver docs/INFRA.md).
 #
-# Roda a cada 15 minutos e sob demanda. O endereço vem da VARIÁVEL do
+# Roda a cada 15 minutos e sob demanda. Consulta uma rota que LÊ O BANCO
+# (scripts/check-health.mjs troca /health, /docs ou host puro por
+# /portal/clients/me): 200 em /health não prova que há dados.
+#
+# O endereço vem da VARIÁVEL do
 # repositório BACKEND_HEALTH_URL (Settings > Secrets and variables > Actions >
 # Variables) — nunca do código. Sem ela, o job termina com um aviso e sucesso.
 #

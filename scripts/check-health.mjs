@@ -1,16 +1,19 @@
 #!/usr/bin/env node
 // Verificador de saúde do backend do protótipo.
 //
-// Faz GET no endereço de saúde, mede o tempo e sai com erro se não houver
-// resposta 2xx dentro do prazo. O endereço NUNCA fica no código: vem da
+// Faz GET numa rota que USA O BANCO, mede o tempo e sai com erro em 5xx, outro
+// não-2xx ou timeout. "Servidor no ar" não é "dados disponíveis": em 11/2026 o
+// backend respondia 200 em /health e /docs enquanto toda rota de dados dava 500
+// (o banco tinha deixado de existir). Por isso /health, /docs ou só o host são
+// trocados por DB_PATH no mesmo host. O endereço NUNCA fica no código: vem da
 // variável de ambiente BACKEND_HEALTH_URL (no GitHub Actions, de uma variável
 // do repositório). Sem ela, avisa e sai com sucesso — um repositório sem a
 // variável configurada não deve acender alerta.
 //
-//   BACKEND_HEALTH_URL=https://<backend>/health node scripts/check-health.mjs
+//   BACKEND_HEALTH_URL=https://<backend>/portal/clients/me node scripts/check-health.mjs
 //
 // Variáveis:
-//   BACKEND_HEALTH_URL         endereço completo de saúde (ex.: .../health)
+//   BACKEND_HEALTH_URL         rota que lê o banco (padrão no mesmo host: /portal/clients/me)
 //   BACKEND_HEALTH_TIMEOUT_MS  prazo por tentativa, padrão 60000 (um serviço
 //                              que dorme pode levar dezenas de segundos para acordar)
 //   BACKEND_HEALTH_SLOW_MS     acima disto a resposta passa, mas com aviso, padrão 10000
@@ -42,9 +45,18 @@ try {
   fail('BACKEND_HEALTH_URL não é um endereço válido.');
   process.exit(1);
 }
-// O host aparece no log do Actions, mas o caminho e a query não: o endereço
-// pode carregar algo que não deveria ir para um log público.
-const label = parsed.host;
+// Rota que lê o banco (o cliente da sessão demo). Rotas que não tocam no banco
+// não servem de prova de saúde.
+const DB_PATH = '/portal/clients/me';
+const NO_DB_PATHS = ['', '/', '/health', '/docs', '/openapi.json'];
+if (NO_DB_PATHS.includes(parsed.pathname.replace(/\/+$/, '') || '/')) {
+  notice(`O caminho configurado não usa o banco; consultando ${DB_PATH} no mesmo host.`);
+  parsed.pathname = DB_PATH;
+  parsed.search = '';
+}
+// O host aparece no log do Actions; a query não, porque o endereço pode
+// carregar algo que não deveria ir para um log público.
+const label = parsed.host + parsed.pathname;
 
 const started = performance.now();
 const controller = new AbortController();
@@ -52,7 +64,7 @@ const timer = setTimeout(() => controller.abort(), timeoutMs);
 let status = null;
 let error = null;
 try {
-  const res = await fetch(url, {
+  const res = await fetch(parsed, {
     signal: controller.signal,
     headers: { 'cache-control': 'no-cache', 'user-agent': 'centrix-proto-health-check' },
   });
@@ -75,7 +87,8 @@ if (status !== null && status >= 200 && status < 300) {
 
 fail(
   status !== null
-    ? `${label} respondeu ${status} em ${elapsed} ms (esperado 2xx).`
+    ? `${label} respondeu ${status} em ${elapsed} ms (esperado 2xx)` +
+        (status >= 500 ? ': erro do servidor, provável banco indisponível.' : '.')
     : `${label} não respondeu (${error}) após ${elapsed} ms.`,
 );
 process.exit(1);
