@@ -19,7 +19,11 @@ import { portalSession } from './portal-session';
 import { offlineAdapter } from './offline/offline-adapter';
 import { installOfflineFallback } from './offline/install-fallback';
 import { REQUEST_TIMEOUT_MS } from './offline/offline-mode';
-import { ensureDataMode, getOfflineStatus, markOffline } from './offline/offline-store';
+import {
+  ensureDataMode,
+  getOfflineStatus,
+  markOffline,
+} from './offline/offline-store';
 
 const portal_api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API,
