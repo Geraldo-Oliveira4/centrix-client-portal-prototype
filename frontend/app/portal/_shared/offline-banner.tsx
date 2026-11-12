@@ -7,26 +7,16 @@
 // botão "Ajuda". Discreta de propósito — é aviso permanente, não alarme —, mas
 // nunca some enquanto o modo estiver ativo. Com a API de pé, não renderiza nada.
 
-import { useState, useSyncExternalStore } from 'react';
+import { useState } from 'react';
 import { CloudOff, RefreshCw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { offlineBannerText } from '@/lib/offline/offline-mode';
-import {
-  getOfflineStatus,
-  retryOnline,
-  subscribeOffline,
-  type OfflineStatus,
-} from '@/lib/offline/offline-store';
-
-const SERVER_SNAPSHOT: OfflineStatus = { status: 'checking' };
+import { retryOnline } from '@/lib/offline/offline-store';
+import { useOfflineStatus } from '@/lib/offline/use-offline-status';
 
 export function OfflineBanner() {
-  const status = useSyncExternalStore(
-    subscribeOffline,
-    getOfflineStatus,
-    () => SERVER_SNAPSHOT,
-  );
+  const status = useOfflineStatus();
   const [retrying, setRetrying] = useState(false);
   const [stillDown, setStillDown] = useState(false);
 

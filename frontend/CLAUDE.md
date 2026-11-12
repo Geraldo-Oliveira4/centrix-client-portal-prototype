@@ -1323,6 +1323,10 @@ erro mascarado. Infra e diagnóstico: `docs/INFRA.md` na raiz.
   nada foi enviado". Toast de sucesso de ação que grava passa por
   `notifySuccess` (`lib/offline/notify.ts`), que fica calado offline. Envio de
   arquivo recusa. Mutação nova: use `notifySuccess`, não `toast.success`.
+- **Nada de "dado real" sobre fixture:** offline, `ProvenanceBadge real` vira
+  "Dado de exemplo" e a linha de indicadores da Central diz "DADOS DE EXEMPLO"
+  (`useOfflineStatus`, `lib/offline/use-offline-status.ts`). Rótulo novo que
+  afirme dado real precisa do mesmo cuidado.
 - **A faixa** (`_shared/offline-banner.tsx`) é `sticky` no topo do `<main>`,
   fundo opaco, com "Tentar de novo"; no celular só a frase principal. Ela não
   disputa espaço com as barras presas ao rodapé nem com o "Ajuda".

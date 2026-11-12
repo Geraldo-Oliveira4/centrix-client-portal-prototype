@@ -28,7 +28,9 @@ function opRecordList(kind){
 function portalIndicatorsRow(){
   const list=typeof window!=='undefined'&&Array.isArray(window.portalIndicators)?window.portalIndicators:null;
   if(!list)return '';
-  return `<section class="real-indicators" aria-label="Indicadores reais dos seus embarques"><div class="real-indicators-head"><span class="eyebrow">SEUS EMBARQUES · DADOS REAIS</span><small>Os mesmos números de Início e Meus Embarques</small></div><div class="real-indicators-list">${list.map(i=>`<a href="${esc(i.href)}" target="_top" class="real-indicator ${i.key==='action'&&i.count>0?'is-action':''}"><span>${esc(i.label)}</span><strong>${Number(i.count)||0}</strong>${icon('chevron')}</a>`).join('')}</div></section>`;
+  // Modo offline do portal: o host avisa que os numeros sao de exemplo.
+  const sample=typeof window!=='undefined'&&window.portalIndicatorsSample===true;
+  return `<section class="real-indicators" aria-label="${sample?'Indicadores de exemplo dos embarques':'Indicadores reais dos seus embarques'}"><div class="real-indicators-head"><span class="eyebrow">${sample?'SEUS EMBARQUES · DADOS DE EXEMPLO':'SEUS EMBARQUES · DADOS REAIS'}</span><small>Os mesmos números de Início e Meus Embarques</small></div><div class="real-indicators-list">${list.map(i=>`<a href="${esc(i.href)}" target="_top" class="real-indicator ${i.key==='action'&&i.count>0?'is-action':''}"><span>${esc(i.label)}</span><strong>${Number(i.count)||0}</strong>${icon('chevron')}</a>`).join('')}</div></section>`;
 }
 const exampleSeal=()=>'<span class="example-seal" title="Cenário fictício de demonstração, separado dos seus embarques">Exemplo ilustrativo</span>';
 function renderOperation(){
