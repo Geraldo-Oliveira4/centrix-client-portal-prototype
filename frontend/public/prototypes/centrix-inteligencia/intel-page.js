@@ -277,7 +277,10 @@ function sortableHead(dim, sort) {
     return `<th scope="col" aria-sort="${dir}"><button type="button" class="sort-button${on ? ' active' : ''}" data-action="tab-sort" data-dim="${dim}" data-key="${key}">${head} <span aria-hidden="true">${arrow}</span></button></th>`;
   }).join('');
 }
-const rateCell = m => (m.base ? `${pctTxt(m.rate)}<small>${m.good ?? 0} de ${m.base}</small>` : '—<small>sem registro</small>');
+/* BASE PRIMEIRO, PERCENTUAL DEPOIS (subabas v2). Em toda taxa, "a de b" é o texto
+   principal e o percentual vem menor, ao lado da leitura: 4 de 5 diz mais que
+   80%, e um percentual sobre base pequena não ganha destaque que não merece. */
+const rateCell = m => (m.base ? `<span class="frac">${m.good ?? 0} de ${m.base}</span><small class="pct">${pctTxt(m.rate)}</small>` : '—<small>sem registro</small>');
 const transitCell = r => (r.transitMedian == null ? '—<small>sem saída e chegada</small>' : `${String(r.transitMedian).replace('.', ',')} dias<small>${r.transitN} com saída e chegada</small>`);
 function cellOf(dim, key, r) {
   if (key === 'name') {
@@ -330,7 +333,7 @@ function skuTable(rows, withExporter) {
    tabela. O que a ficha antiga mostrava a mais (evolução, uso e impacto, fatos
    fora da tabela) continua, recolhido em "Mais detalhes": nada se perde. */
 const daysTxt1 = v => (v == null ? '—' : String(v).replace('.', ',') + ' dias');
-const rateFact = (label, m) => [label, pctTxt(m.rate), m.base ? `${m.good ?? 0} de ${m.base}` : 'sem registro'];
+const rateFact = (label, m) => [label, m.base ? `${m.good ?? 0} de ${m.base}` : '—', m.base ? pctTxt(m.rate) : 'sem registro'];
 function sheetStrip(items) { return `<dl class="sheet-strip">${items.map(([k, v, small]) => `<div><dt>${k}</dt><dd>${v}</dd>${small ? `<small>${small}</small>` : ''}</div>`).join('')}</dl>`; }
 /** Os desvios de UM agente, do mesmo dado do bloco "Compromissos do serviço" (IE.commitments). */
 function agentDeviations(ops) {

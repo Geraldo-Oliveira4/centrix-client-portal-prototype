@@ -561,3 +561,10 @@ footer{font-size:13px;color:var(--muted-ink)}
 .onb-actions{position:sticky;bottom:0;background:#fff;margin:20px -28px -24px;padding:14px 28px 20px;border-top:1px solid var(--line)}
 @media(max-width:700px){.onb-actions{margin:16px -18px -18px;padding:12px 18px 16px}}
 .preview-tag{font-size:12px}
+
+/* ======================================================================
+   Subabas v2 (Agentes de carga, Exportadores, Rotas).
+   ====================================================================== */
+/* Item 1: base primeiro ("4 de 5"), percentual depois, menor e discreto. */
+.frac{display:block;font-size:15px;color:var(--ink);white-space:nowrap}
+table.compare td small.pct,.drawer-body td small.pct{font-size:14px;color:var(--muted-ink);margin-top:2px}

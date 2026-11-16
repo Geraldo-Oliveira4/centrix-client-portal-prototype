@@ -129,10 +129,14 @@
   /** Ordem padrão: volume, do maior para o menor. */
   const DEFAULT_SORT = { key: 'n', dir: 'desc' };
 
+  /** Colunas de taxa: ordenam pelo percentual e desempatam pela BASE maior. */
+  const RATE_KEYS = ['ready', 'docs', 'port', 'final', 'audit'];
   /**
    * Ordena as linhas. Ausente (null) vai SEMPRE para o fim, nos dois sentidos:
-   * "—" no topo de uma coluna leria como o primeiro colocado. Empate desempata
-   * pelo volume e depois pelo nome, para a ordem ser estável entre renders.
+   * "—" no topo de uma coluna leria como o primeiro colocado. Numa coluna de
+   * taxa, percentual igual desempata pela base maior (4 de 4 antes de 1 de 1,
+   * nos dois sentidos: é a leitura com mais lastro). Depois, volume e nome,
+   * para a ordem ser estável entre renders.
    */
   function sortRows(rows, sort = DEFAULT_SORT) {
     const get = SORT_VALUE[sort.key] || SORT_VALUE.n;
@@ -142,6 +146,7 @@
       const na = va == null, nb = vb == null;
       if (na !== nb) return na ? 1 : -1;
       if (!na && va !== vb) return (typeof va === 'string' ? va.localeCompare(vb, 'pt-BR') : va - vb) * sign;
+      if (!na && RATE_KEYS.includes(sort.key) && a[sort.key].base !== b[sort.key].base) return b[sort.key].base - a[sort.key].base;
       return b.n - a.n || a.name.localeCompare(b.name, 'pt-BR');
     });
   }
@@ -241,7 +246,7 @@
     return selection ? `Aba ${label} · ${nameOf(D, selection.dim, selection.id)}` : `Aba ${label}`;
   }
 
-  const api = { MIN_SAMPLE, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
+  const api = { MIN_SAMPLE, RATE_KEYS, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelTabs = api;
 })(typeof window !== 'undefined' ? window : globalThis);
