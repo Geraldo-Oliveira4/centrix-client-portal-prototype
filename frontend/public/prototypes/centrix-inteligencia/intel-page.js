@@ -58,7 +58,8 @@ function variationChip(k) {
   const tone = v.tone === 'good' ? 'good' : v.tone === 'bad' ? 'warn' : 'neutral';
   return `<span class="variation ${tone}"><span aria-hidden="true">${arrow}</span> ${esc(v.text)}</span>`;
 }
-const smallTag = n => `<span class="sample-tag" title="Com menos de 3 embarques a variação não é mostrada">Amostra pequena (n=${n})</span>`;
+const smallTag = (n, title = 'Com menos de 3 embarques a variação não é mostrada') => `<span class="sample-tag" title="${title}">Amostra pequena (n=${n})</span>`;
+const transitSmallTag = n => smallTag(n, 'Menos de 3 trânsitos com saída e chegada neste par de rota e agente');
 function spark(series) {
   const pts = series.map((m, i) => ({ i, v: m.value })).filter(p => p.v != null);
   if (pts.length < 2) return '<svg class="spark" viewBox="0 0 100 28" aria-hidden="true"></svg>';
@@ -314,7 +315,7 @@ function entityTab(dim, s) {
   const rows = IT.entityRows(D, s.cur, dim), c = TAB_COPY[dim];
   // O título do submódulo está no cabeçalho da página; aqui fica só a frase de apoio.
   let html = `<section class="block entity-tab" id="aba-${dim}" aria-label="${c.plural}"><p class="lead">${c.sub}</p>${factBand(dim, rows, s.cur.length)}${comparisonTable(dim, rows)}<p class="chart-caption">Dado, não veredito: as colunas são fatos do recorte, sem nota nem ranking. Com menos de 3 embarques a linha leva “Amostra pequena”.</p></section>`;
-  if (dim === 'ag') html += commitmentsBlock(s);
+  if (dim === 'ag') html = html.replace('</section>', '<p class="chart-caption">O trânsito depende da rota. Para comparar agentes de forma justa, veja a ficha do agente ou a ficha da rota.</p></section>') + commitmentsBlock(s);
   if (dim === 'rota') html += `<p class="chart-caption">O preço de mercado de cada rota fica no Radar. <a class="link" href="/portal/radar" target="_top">Abrir o Radar ↗</a> · <a class="link" href="#locais">Ver locais</a></p>`;
   return html;
 }
@@ -342,6 +343,40 @@ function agentDeviations(ops) {
   const item = ({ o, deviations }) => `<li><div class="dev-who"><b>${esc(company(o.supplier).name)}</b><small>${esc(o.po)} · ${esc(routeName(route(o.route)))}</small></div><ul class="dev-list">${deviations.map(c => `<li>${esc(c.name)}: <b>${c.actual} ${c.unit}</b><small>combinado ${c.agreed} ${c.unit}</small></li>`).join('')}</ul></li>`;
   return `<section class="detail-section" aria-labelledby="dt-dev"><h3 id="dt-dev">Compromissos do serviço · desvios</h3><p class="base-line">${dev.length} de ${rows.length} ${rows.length === 1 ? 'embarque' : 'embarques'} deste agente com desvio contra o combinado.</p>${dev.length ? `<ul class="dev-items">${dev.map(item).join('')}</ul>` : '<p class="muted">Nenhum desvio contra o combinado neste recorte.</p>'}<p class="chart-caption">Um desvio sozinho não atribui responsabilidade.</p></section>`;
 }
+/* CRUZAMENTOS NAS FICHAS (subabas v2). Lista empilhada em vez de tabela: a ficha
+   tem ~410px, e três números por linha não cabem numa tabela sem rolar. Cada
+   item traz o título, a contagem de embarques e pares rótulo: valor. */
+const transitBase = (median, n) => (median == null ? '—<small>sem saída e chegada</small>' : `${daysTxt1(median)}<small>${n} com saída e chegada</small>`);
+const shipCount = n => `${n} ${n === 1 ? 'embarque' : 'embarques'}`;
+/** Diferença NEUTRA em dias: sinal e número, sem cor ("+1,5 dia", "−2 dias", "igual"). */
+function diffTxt(d) {
+  if (d == null) return '—';
+  if (d === 0) return 'igual à mediana da rota';
+  const abs = Math.abs(d);
+  return `${d > 0 ? '+' : '−'}${String(abs).replace('.', ',')} ${abs < 2 ? 'dia' : 'dias'}`;
+}
+function crossList(items) {
+  return `<ul class="cross-list">${items.map(it => `<li><div class="cross-head"><b>${it.title}</b><span>${it.meta}</span></div><dl>${it.lines.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl></li>`).join('')}</ul>`;
+}
+/** Ficha do agente: "Trânsito por rota" (IntelTabs.agentRouteContext). */
+function agentRoutesSection(ops, id) {
+  const rows = IT.agentRouteContext(D, ops, id);
+  if (!rows.length) return '';
+  const items = rows.map(r => ({
+    title: esc(r.routeName), meta: shipCount(r.n) + (r.small ? ' ' + transitSmallTag(r.transitN) : ''),
+    lines: [['Trânsito mediano do agente', transitBase(r.transitMedian, r.transitN)], ['Mediana da rota', transitBase(r.routeMedian, r.routeN)], ['Diferença', diffTxt(r.diff)]],
+  }));
+  return `<section class="detail-section" aria-labelledby="dt-rotas"><h3 id="dt-rotas">Trânsito por rota</h3>${crossList(items)}<p class="chart-caption">O trânsito depende da rota: a diferença compara o agente com a mediana de todos os agentes do recorte na mesma rota. Mesma conta do Simulador (saída → chegada), sobre o período e os filtros desta tela; o Simulador usa o histórico próprio.</p></section>`;
+}
+/** Ficha da rota: "Agentes da rota", a comparação dentro da mesma rota num lugar só. */
+function routeAgentsSection(ops, id) {
+  const rows = IT.routeAgents(D, ops, id);
+  const items = rows.map(r => ({
+    title: esc(r.agentName), meta: shipCount(r.n) + (r.small ? ' ' + transitSmallTag(r.transitN) : ''),
+    lines: [['Trânsito mediano', transitBase(r.transitMedian, r.transitN)], ['Chegada ao destino no prazo', rateCell(r.port)]],
+  }));
+  return `<section class="detail-section" aria-labelledby="dt-ag"><h3 id="dt-ag">Agentes da rota</h3>${rows.length ? crossList(items) : '<p class="muted">Nenhum agente nesta rota no recorte.</p>'}<p class="chart-caption">Mesma rota, mesmos períodos e filtros: é onde a comparação entre agentes é justa. Com menos de 3 trânsitos, “Amostra pequena”.</p></section>`;
+}
 function entityDetailHtml(dim, id, s) {
   const ops = IT.entityOps(s.cur, dim, id), row = IT.entityRows(D, s.cur, dim).find(r => r.id === id);
   const actions = `<div class="entity-actions"><button class="button secondary" data-action="entity-filter" data-dim="${dim}" data-id="${esc(id)}">Filtrar por ${THIS[dim]}</button><button class="button secondary" data-action="entity-report" data-dim="${dim}" data-id="${esc(id)}">Preparar relatório</button>${link(FICHA[dim](id), 'Ver ficha completa →')}</div>`;
@@ -360,13 +395,12 @@ function entityDetailHtml(dim, id, s) {
     more = factList([rateFact('Entrega final no prazo', row.final), transit]);
   }
   if (dim === 'rota') {
-    const agents = IT.sortRows(IT.entityRows(D, ops, 'ag'));
-    fresh = `<section class="detail-section" aria-labelledby="dt-ag"><h3 id="dt-ag">Agentes nesta rota</h3>${table(['Agente', 'Embarques', 'Trânsito mediano', 'Chegada ao destino no prazo'], agents.map(r => `<tr><td><b>${esc(r.name)}</b></td><td>${r.n}${r.small ? smallTag(r.n) : ''}</td><td>${transitCell(r)}</td><td>${rateCell(r.port)}</td></tr>`).join(''))}</section><section class="detail-section" aria-labelledby="dt-sku"><h3 id="dt-sku">SKUs nesta rota</h3>${skuTable(IT.skuRows(D, ops), true)}<p class="chart-caption">SKU é do item: um embarque com dois SKUs conta nos dois.</p></section>`;
+    fresh = routeAgentsSection(ops, id) + `<section class="detail-section" aria-labelledby="dt-sku"><h3 id="dt-sku">SKUs nesta rota</h3>${skuTable(IT.skuRows(D, ops), true)}<p class="chart-caption">SKU é do item: um embarque com dois SKUs conta nos dois.</p></section>`;
     more = factList([rateFact('Prontidão no prazo', row.ready)]);
   }
   if (dim === 'ag') {
     const imp = IT.agentImpact(D, s.cur, id);
-    fresh = agentDeviations(ops) + `<section class="detail-section" aria-labelledby="dt-cob"><h3 id="dt-cob">Cobrança</h3><p class="sheet-line"><span>Conferências sem diferença</span><b>${row.audit.base ? `${row.audit.good ?? 0} de ${row.audit.base}` : 'nenhuma conferência concluída'}</b></p></section>`;
+    fresh = agentRoutesSection(s.cur, id) + agentDeviations(ops) + `<section class="detail-section" aria-labelledby="dt-cob"><h3 id="dt-cob">Cobrança</h3><p class="sheet-line"><span>Conferências sem diferença</span><b>${row.audit.base ? `${row.audit.good ?? 0} de ${row.audit.base}` : 'nenhuma conferência concluída'}</b></p></section>`;
     more = `<section class="detail-section" aria-labelledby="dt-imp"><h3 id="dt-imp">Uso e impacto</h3>${factList([
       ['Participação nos embarques', `${imp.share}%`, `${imp.n} de ${imp.total} no recorte · ${imp.routes.length} ${imp.routes.length === 1 ? 'rota' : 'rotas'}: ${esc(imp.routes.map(r => routeName(route(r))).join(', '))}`],
       ['Prazo do trânsito', imp.transitMedian == null ? '—' : String(imp.transitMedian).replace('.', ',') + ' dias (mediana)', `${imp.transitOverPlan} de ${imp.transitBase} acima do trânsito previsto na proposta`],

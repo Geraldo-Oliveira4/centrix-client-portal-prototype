@@ -227,6 +227,52 @@
     return parts.join(' · ');
   }
 
+  // ------------------------------------------------------ rota × agente ---
+  /**
+   * Embarques agrupados por par rota × agente, na ordem em que aparecem. É o
+   * agrupamento do Simulador (intel-sim.js::simulate chama esta função): as
+   * fichas e o Simulador partem do mesmo par e da mesma conta de trânsito.
+   */
+  function pairGroups(ops) {
+    const groups = new Map();
+    for (const o of ops) {
+      const key = o.route + '|' + o.agent;
+      const g = groups.get(key) || { route: o.route, agent: o.agent, ops: [] };
+      g.ops.push(o); groups.set(key, g);
+    }
+    return [...groups.values()];
+  }
+  /**
+   * Um par rota × agente em números: embarques, trânsito mediano (com o N de
+   * saída e chegada) e Chegada ao destino no prazo (a de b). Trânsito e mediana
+   * são os do Simulador; aqui não há P90 nem classificação, só o fato.
+   */
+  function pairStats(D, ops) {
+    return pairGroups(ops).map((g) => {
+      const transit = transitDays(D, g.ops);
+      return { route: g.route, agent: g.agent, routeName: nameOf(D, 'rota', g.route), agentName: nameOf(D, 'ag', g.agent), n: g.ops.length, transitMedian: median(transit), transitN: transit.length, small: transit.length < MIN_SAMPLE, port: rateOf(D.metric('port', g.ops)) };
+    });
+  }
+  const byVolume = (a, b) => b.n - a.n || a.routeName.localeCompare(b.routeName, 'pt-BR') || a.agentName.localeCompare(b.agentName, 'pt-BR');
+  /**
+   * CONTEXTO DE ROTA DO AGENTE: o trânsito de um agente depende das rotas que
+   * ele opera. Por rota atendida, o trânsito mediano do agente ao lado da
+   * mediana da rota (todos os agentes do recorte naquela rota, ele incluído) e
+   * a diferença em dias. A diferença é um número, não um juízo. "Amostra
+   * pequena" quando o agente tem menos de 3 trânsitos naquela rota.
+   */
+  function agentRouteContext(D, ops, agentId) {
+    return pairStats(D, ops).filter((p) => p.agent === agentId).sort(byVolume).map((p) => {
+      const all = transitDays(D, ops.filter((o) => o.route === p.route));
+      const routeMedian = median(all);
+      return { ...p, routeMedian, routeN: all.length, diff: p.transitMedian == null || routeMedian == null ? null : Math.round((p.transitMedian - routeMedian) * 10) / 10 };
+    });
+  }
+  /** Os agentes de UMA rota, para comparar dentro da mesma rota. Ordem por volume. */
+  function routeAgents(D, ops, routeId) {
+    return pairStats(D, ops).filter((p) => p.route === routeId).sort(byVolume);
+  }
+
   // ------------------------------------------------------------- detalhe ---
   /** Embarques da entidade dentro do recorte. */
   function entityOps(ops, dim, id) {
@@ -298,7 +344,7 @@
     return selection ? `Aba ${label} · ${nameOf(D, selection.dim, selection.id)}` : `Aba ${label}`;
   }
 
-  const api = { MIN_SAMPLE, RATE_KEYS, FACT_MIN_BASE, FACT_METRICS, FACT_EMPTY, rateRange, recortFact, concentrationLine, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
+  const api = { MIN_SAMPLE, RATE_KEYS, FACT_MIN_BASE, FACT_METRICS, FACT_EMPTY, rateRange, recortFact, concentrationLine, pairGroups, pairStats, agentRouteContext, routeAgents, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelTabs = api;
 })(typeof window !== 'undefined' ? window : globalThis);

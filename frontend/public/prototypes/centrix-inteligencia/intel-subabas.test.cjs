@@ -104,3 +104,73 @@ test('item 2: a linha de concentração preserva o que os três cartões diziam'
   assert.match(T.concentrationLine('rota', T.entityRows(D, cur, 'rota'), cur.length), /^5 rotas · 26 embarques · maior participação 35% \(Shanghai → Santos, 9 de 26\) · os 2 maiores somam 54%$/);
   assert.equal(T.concentrationLine('ag', [named('Só', rate(1, 1))].map((r) => ({ ...r, n: 1, share: 100, small: true })), 1), '1 agente · 1 embarque · maior participação 100% (Só, 1 de 1) · 1 com amostra pequena (menos de 3 embarques)');
 });
+
+// ------------------------------------------------------------- reconciliação ---
+// Os totais do recorte padrão NÃO mudam com as subabas v2 (regra do pedido).
+const TOTALS = {
+  ag: { alpha: 9, gamma: 7, delta: 6, beta: 4 },
+  rota: { shanghai: 9, ningbo: 5, genova: 4, hamburgo: 4, newyork: 4 },
+  exp: { east: 7, yang: 7, nord: 4, lig: 4, hud: 4 },
+};
+const sumBy = (rows, key) => rows.reduce((m, r) => { m[r[key]] = (m[r[key]] || 0) + r.n; return m; }, {});
+
+test('reconciliação: embarques por agente, rota e exportador são os de sempre e somam 26', () => {
+  assert.equal(cur.length, 26);
+  for (const dim of ['ag', 'rota', 'exp']) {
+    const got = Object.fromEntries(T.entityRows(D, cur, dim).map((r) => [r.id, r.n]));
+    assert.deepEqual(got, TOTALS[dim], dim);
+    assert.equal(Object.values(got).reduce((a, b) => a + b, 0), 26);
+  }
+});
+
+test('reconciliação: os cruzamentos das fichas somam os mesmos totais', () => {
+  const pairs = T.pairStats(D, cur);
+  assert.deepEqual(sumBy(pairs, 'agent'), TOTALS.ag);
+  assert.deepEqual(sumBy(pairs, 'route'), TOTALS.rota);
+  for (const id of Object.keys(TOTALS.ag)) assert.equal(T.agentRouteContext(D, cur, id).reduce((n, r) => n + r.n, 0), TOTALS.ag[id]);
+  for (const id of Object.keys(TOTALS.rota)) assert.equal(T.routeAgents(D, cur, id).reduce((n, r) => n + r.n, 0), TOTALS.rota[id]);
+});
+
+// ------------------------------------------------------------------ item 3 ---
+test('item 3: trânsito por rota do agente: mediana do agente, da rota e diferença', () => {
+  const beta = T.agentRouteContext(D, cur, 'beta');
+  assert.deepEqual(beta.map((r) => r.route), ['shanghai']); // o Beta Cargo só opera Shanghai → Santos
+  for (const id of Object.keys(TOTALS.ag)) {
+    const rows = T.agentRouteContext(D, cur, id);
+    assert.equal(rows.length, T.entityRows(D, cur, 'ag').find((r) => r.id === id).routes);
+    for (let i = 1; i < rows.length; i++) assert.ok(rows[i - 1].n >= rows[i].n, 'ordem por embarques do agente');
+    for (const r of rows) {
+      const mine = cur.filter((o) => o.route === r.route && o.agent === id), all = cur.filter((o) => o.route === r.route);
+      assert.equal(r.transitMedian, T.median(T.transitDays(D, mine)));
+      assert.equal(r.routeMedian, T.median(T.transitDays(D, all)));
+      assert.equal(r.routeN, T.transitDays(D, all).length);
+      assert.equal(r.small, r.transitN < 3);
+      if (r.transitMedian != null) assert.equal(r.diff, Math.round((r.transitMedian - r.routeMedian) * 10) / 10);
+      else assert.equal(r.diff, null);
+    }
+  }
+});
+
+test('item 3: as duas fichas dizem o mesmo número para o mesmo par', () => {
+  for (const agent of Object.keys(TOTALS.ag)) for (const a of T.agentRouteContext(D, cur, agent)) {
+    const b = T.routeAgents(D, cur, a.route).find((r) => r.agent === agent);
+    assert.deepEqual([b.n, b.transitMedian, b.transitN, b.port], [a.n, a.transitMedian, a.transitN, a.port]);
+  }
+  // Agente de uma rota só: o trânsito da rota na ficha é o trânsito mediano da linha dele na tabela.
+  const row = T.entityRows(D, cur, 'ag').find((r) => r.id === 'beta'), ctx = T.agentRouteContext(D, cur, 'beta')[0];
+  assert.deepEqual([ctx.transitMedian, ctx.transitN], [row.transitMedian, row.transitN]);
+});
+
+test('item 3: mesma conta do Simulador (mesmo par, mesma mediana, mesmo N) sobre os mesmos embarques', () => {
+  for (const ops of [cur, D.operations]) {
+    const sim = S.simulate(D, ops, {}).rows, pairs = T.pairStats(D, ops);
+    assert.equal(sim.length, pairs.length);
+    for (const p of pairs) {
+      const r = sim.find((x) => x.route === p.route && x.agent === p.agent);
+      assert.equal(r.n, p.transitN);
+      assert.equal(r.shipments, p.n);
+      assert.equal(r.small, p.small);
+      if (!r.small) assert.equal(r.median, p.transitMedian);
+    }
+  }
+});
