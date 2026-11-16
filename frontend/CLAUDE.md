@@ -1627,6 +1627,45 @@ isso. Não abra uma segunda.
 
 ### Inteligência (`/portal/inteligencia/`)
 
+**v4 — hierarquia e submódulos (revisão de 13/11/2026).** O que vale hoje para
+a Inteligência embutida (`public/prototypes/centrix-inteligencia`, iframe em
+`components/intelligence-preview.tsx`); o texto mais abaixo é histórico das
+telas React antigas.
+
+- **Cinco submódulos no menu lateral**, não abas: Visão geral, Exportadores,
+  Agentes de carga, Rotas e Simulador (Prévia). Cada um aponta para o hash que a
+  aba tinha (`#executivo`, `#executivo?aba=<id>`; `&sel=<id>` abre a ficha). O
+  submódulo ativo é derivado da URL por `inteligencia/lib/intel-submodules.ts`
+  (puro, testado). O host espelha o hash do iframe com `replaceState`, que não
+  dispara `hashchange`: por isso ele emite `centrix:intel-hash` e a sidebar
+  escuta os dois. Embutido (`?embed=1`) o iframe esconde a faixa de abas; aberto
+  direto, ela continua.
+- **Não existe aba, tela nem métrica de Preço.** Prazo é a Performance geral;
+  custo é assunto da Auditoria. Também não há perfis nem modos de leitura
+  (Completa/Objetiva saíram da tela).
+- **Visão geral em quatro níveis, ordem FIXA**: (1) Entrega final no prazo +
+  funil "Onde o prazo se perde" num card só; (2) Frete contratado e Embarques no
+  recorte; (3) Evolução, recolhível; (4) os cinco trechos. Os antigos cartões
+  "Prontidão no prazo" e "Chegada ao destino no prazo" moram nas linhas do funil.
+- **Personalização no modelo da Home** (`intel-personalize.js`, puro, testado):
+  temas Prazo/Custo/Volume e cards com liga/desliga, formato
+  `{ themes, enabled_cards }`, em `localStorage`
+  (`centrix:inteligencia:personalizacao`). Só liga e desliga; nunca reordena.
+- **"Filtros e ajustes"** é o único lugar de período, dos seis filtros e do
+  Personalizar; tudo é rascunho até "Aplicar". A lógica de filtro e período não
+  mudou (`intel-engine.js`).
+- **Introdução de primeira entrada** em três passos
+  (`centrix:inteligencia:onboarding-visto`; `?onboarding=1` força; espera as
+  boas-vindas do portal fecharem). O passo 2 grava a mesma personalização.
+- **"Ver detalhe"** de cada bloco sai de UM mapa
+  (`IntelPersonalize.DETAIL_LINKS`); os destinos ainda estão a validar.
+- **Ficha lateral** (~410px, `&sel=`): três indicadores + só o que não está na
+  linha da tabela; o resto fica em "Mais detalhes". Em Agentes, "Compromissos
+  do serviço" fica recolhido abaixo da lista.
+- **Simulador**: a coluna Resultado traz o selo e UMA frase (`IntelSim.reason`,
+  dos mesmos números de `classify`, testada contra o selo); o par antigo "Com
+  folga / No limite" fica em "ver cálculo".
+
 Quatro abas (`layout.tsx`): `performance/`, `agentes/`, `executivo/` e
 `radar/`. A raiz `/portal/inteligencia` é só um `redirect()` para `performance`
 — a antiga aba "Visão geral" **foi fundida** no Performance, porque "estou indo

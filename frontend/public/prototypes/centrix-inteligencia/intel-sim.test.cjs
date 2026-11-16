@@ -228,3 +228,55 @@ test('deslocado, o período padrão de 90 dias continua com os mesmos embarques 
   assert.deepEqual(prev(X), prev(D));
   assert.ok(prev(D).length >= 20);
 });
+
+// v4 (13/11/2026): a coluna Resultado traz UMA frase com o porquê de cada linha.
+test('frase do resultado: toda linha tem motivo e ele nunca contradiz o selo', () => {
+  let seen = { cabe: 0, apertado: 0, nao_cabe: 0, small: 0 };
+  // Varre várias datas desejadas para passar pelos três selos e pelas bordas.
+  for (let ahead = 5; ahead <= 70; ahead++) {
+    const r = S.simulate(D, all, { arriveBy: S.addDays(TODAY, ahead), today: TODAY });
+    for (const x of r.rows) {
+      const text = S.reason(x, r);
+      assert.ok(text.length > 10, `${x.route}/${x.agent} sem motivo`);
+      seen[x.small ? 'small' : x.status]++;
+      if (x.small) { assert.match(text, /sem estimativa/); continue; }
+      const med = Math.ceil(x.median);
+      if (x.status === 'cabe') {
+        assert.match(text, /^Chega /);
+        assert.doesNotMatch(text, /passa da data|depois da data|Chegaria/);
+        assert.ok(x.p90 <= r.available);
+        if (x.p90 < r.available) assert.ok(text.includes(`${r.available - x.p90} ${r.available - x.p90 === 1 ? 'dia' : 'dias'} de folga no P90`));
+        else assert.match(text, /sem folga/);
+      } else if (x.status === 'apertado') {
+        assert.match(text, /^Chega .* pela mediana, mas o P90 \(\d+ dias?\) passa da data\.$/);
+        assert.ok(text.includes(`P90 (${x.p90} `));
+        assert.ok(med <= r.available && x.p90 > r.available);
+      } else {
+        assert.match(text, /^Chegaria /);
+        assert.match(text, /depois da data/);
+        assert.doesNotMatch(text, /folga/);
+        assert.ok(med > r.available);
+      }
+      // "na semana pedida" só quando a chegada pela mediana cai mesmo na semana da data.
+      if (/Chegaria na semana pedida|Chega na semana pedida pela/.test(text)) assert.equal(S.weekStart(x.arrivalFrom), S.weekStart(r.arriveBy));
+    }
+  }
+  // A fixture inteira não tem par com amostra pequena; essa forma é coberta no teste seguinte.
+  for (const k of ['cabe', 'apertado', 'nao_cabe']) assert.ok(seen[k] > 0, `nenhuma linha ${k} exercitada`);
+});
+
+test('frase do resultado: formas combinadas', () => {
+  const result = { arriveBy: '2026-10-15', available: 32 };
+  const base = { small: false, median: 26, arrivalFrom: '2026-10-09', arrivalTo: '2026-10-10' };
+  assert.equal(S.reason({ ...base, p90: 27, status: 'cabe' }, result), 'Chega na semana de 05/10, com 5 dias de folga no P90.');
+  assert.equal(S.reason({ ...base, p90: 31, status: 'cabe' }, result), 'Chega na semana de 05/10, com 1 dia de folga no P90.');
+  assert.equal(S.reason({ ...base, median: 30, p90: 37, arrivalFrom: '2026-10-13', status: 'apertado' }, result), 'Chega na semana pedida pela mediana, mas o P90 (37 dias) passa da data.');
+  assert.equal(S.reason({ ...base, median: 34, p90: 37, arrivalFrom: '2026-10-17', status: 'nao_cabe' }, result), 'Chegaria na semana pedida, mas 2 dias depois da data.');
+  assert.equal(S.reason({ ...base, median: 40, p90: 44, arrivalFrom: '2026-10-23', status: 'nao_cabe' }, result), 'Chegaria na semana de 19/10, depois da data pedida.');
+  assert.equal(S.reason({ small: true }, result), 'Menos de 3 trânsitos no histórico: sem estimativa.');
+  assert.equal(S.reason({ ...base, p90: 27, status: null }, result), '');
+});
+
+test('colunas do Simulador: o resultado é uma coluna só, sem Preço', () => {
+  assert.deepEqual(S.COLUMNS.map(([, l]) => l), ['Rota', 'Agente de cargas', 'Histórico', 'Trânsito (mediana · P90)', 'Chegada estimada se embarcar agora', 'Resultado']);
+});

@@ -81,6 +81,33 @@
   }
 
   /**
+   * A frase do RESULTADO (v4): por que a linha cabe, está apertada ou não cabe.
+   * Sai dos MESMOS números que `classify` compara (dias disponíveis, mediana
+   * arredondada para cima e P90), então nunca contradiz o selo. Em semanas,
+   * como o resto do Simulador; "folga no P90" = dias que sobram entre a chegada
+   * do P90 e a data pedida.
+   */
+  function reason(row, result) {
+    if (!row) return '';
+    if (row.small) return `Menos de ${MIN_SAMPLE} trânsitos no histórico: sem estimativa.`;
+    if (!row.status || !result || !result.arriveBy) return '';
+    const available = result.available, med = Math.ceil(row.median), p90 = row.p90;
+    const days = (n) => `${n} ${n === 1 ? 'dia' : 'dias'}`;
+    const asked = (iso) => weekStart(iso) === weekStart(result.arriveBy);
+    if (row.status === 'nao_cabe') {
+      return asked(row.arrivalFrom)
+        ? `Chegaria na semana pedida, mas ${days(med - available)} depois da data.`
+        : `Chegaria na ${weekLabel(row.arrivalFrom)}, depois da data pedida.`;
+    }
+    if (row.status === 'apertado') {
+      return `Chega ${asked(row.arrivalFrom) ? 'na semana pedida' : 'na ' + weekLabel(row.arrivalFrom)} pela mediana, mas o P90 (${days(p90)}) passa da data.`;
+    }
+    const slack = available - p90;
+    const when = asked(row.arrivalFrom) && asked(row.arrivalTo) ? 'na semana pedida' : weekWindow(row.arrivalFrom, row.arrivalTo);
+    return slack > 0 ? `Chega ${when}, com ${days(slack)} de folga no P90.` : `Chega ${when}; no P90 (${days(p90)}) chega no dia pedido, sem folga.`;
+  }
+
+  /**
    * As linhas do simulador. `ops` já vem recortado pela página (período +
    * filtros globais); `route` opcional restringe a uma rota. Uma linha por
    * rota × agente com histórico.
@@ -142,7 +169,7 @@
     median: (r) => r.median,
     p90: (r) => r.p90,
   };
-  const COLUMNS = [['route', 'Rota'], ['agent', 'Agente de cargas'], ['shipments', 'Histórico'], ['median', 'Trânsito (mediana · P90)'], [null, 'Chegada estimada se embarcar agora'], [null, 'Data limite de embarque'], [null, 'Situação']];
+  const COLUMNS = [['route', 'Rota'], ['agent', 'Agente de cargas'], ['shipments', 'Histórico'], ['median', 'Trânsito (mediana · P90)'], [null, 'Chegada estimada se embarcar agora'], [null, 'Resultado']];
   const DEFAULT_SORT = { key: 'shipments', dir: 'desc' };
   /** Volume por padrão; ausente (amostra pequena) sempre no fim; empate por rota e agente. */
   function sortSimRows(rows, sort = DEFAULT_SORT) {
@@ -214,7 +241,7 @@
     ];
   }
 
-  const api = { MIN_SAMPLE, HIGH_PERCENTILE, STATUS, COLUMNS, DEFAULT_SORT, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, departureLabel, classify, simulate, sortSimRows, nextSort, readInputs, defaultArrival, howCalculated, addDays, diffDays, validIso };
+  const api = { MIN_SAMPLE, HIGH_PERCENTILE, STATUS, COLUMNS, DEFAULT_SORT, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, departureLabel, classify, reason, simulate, sortSimRows, nextSort, readInputs, defaultArrival, howCalculated, addDays, diffDays, validIso };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelSim = api;
 })(typeof window !== 'undefined' ? window : globalThis);

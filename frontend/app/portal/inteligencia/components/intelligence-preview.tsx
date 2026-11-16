@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { markFirstStep } from '../../_shared/use-first-steps';
+import { INTEL_HASH_EVENT } from '../lib/intel-submodules';
 
 /** Approved demo, isolated from operational APIs. */
 export function IntelligencePreview({ initialSection = 'executivo' }: { initialSection?: string }) {
@@ -27,6 +28,9 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
       // (testes e screenshots reproduzíveis). Sem ele, o hoje é a data atual.
       const hoje = here.get('hoje');
       if (hoje && /^\d{4}-\d{2}-\d{2}$/.test(hoje)) extra.set('hoje', hoje);
+      // `?onboarding=1` força a introdução da Inteligência (demos); sem ele, ela
+      // aparece só na primeira entrada (flag no localStorage, lida pelo iframe).
+      if (here.get('onboarding') === '1') extra.set('onboarding', '1');
       entry.current = extra.toString();
     }
     if (here.has('visao') || here.has('guia')) {
@@ -35,7 +39,7 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
       const q = here.toString();
       window.history.replaceState(window.history.state, '', window.location.pathname + (q ? '?' + q : '') + window.location.hash);
     }
-    setSource('/prototypes/centrix-inteligencia/index.html?embed=1&v=20261024-relogio-1' + (entry.current ? '&' + entry.current : '') + (window.location.hash || '#' + initialSection));
+    setSource('/prototypes/centrix-inteligencia/index.html?embed=1&v=20261113-v4-1' + (entry.current ? '&' + entry.current : '') + (window.location.hash || '#' + initialSection));
   }, [initialSection]);
 
   // "Primeiros passos": abrir a Inteligência conclui "Ver sua Inteligência";
@@ -62,6 +66,9 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
       const syncHash = () => {
         window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + child.location.hash);
         document.title = child.document.title;
+        // O menu lateral marca o submodulo ativo pelo hash, e `replaceState`
+        // nao dispara `hashchange`: o host avisa.
+        window.dispatchEvent(new Event(INTEL_HASH_EVENT));
       };
       const restoreHash = () => {
         const hash = window.location.hash || '#' + initialSection;
@@ -81,6 +88,6 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
 
   return source ? <>
     <style>{`@media(max-width:767px){main:has(iframe[data-intelligence])>header{flex-wrap:wrap;gap:8px}}`}</style>
-    <iframe data-intelligence ref={frame} src={source} title="Inteligência Centrix — leitura completa ou objetiva, com filtros" className="block w-full border-0" style={{ height: 'calc(100dvh - 150px)', minHeight: 580 }} />
+    <iframe data-intelligence ref={frame} src={source} title="Inteligência Centrix" className="block w-full border-0" style={{ height: 'calc(100dvh - 150px)', minHeight: 580 }} />
   </> : <p role="status">Carregando Inteligência…</p>;
 }
