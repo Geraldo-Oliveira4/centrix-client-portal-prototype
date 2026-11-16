@@ -206,3 +206,17 @@ test('item 4: "Quem atende este exportador" sai dos embarques existentes e recon
   assert.equal(total, 26);
   assert.deepEqual(T.exporterServers(D, cur, 'nao-existe'), []);
 });
+
+// ------------------------------------------------------------------ item 5 ---
+test('item 5: a origem do link entre fichas é lida de `de`, validada, e nunca aponta para a própria ficha', () => {
+  const p = (s) => new URLSearchParams(s), sel = { dim: 'ag', id: 'alpha' };
+  assert.equal(T.originParam('rota', 'shanghai'), 'rota:shanghai');
+  assert.deepEqual(T.readOrigin(D, p('aba=agentes&sel=alpha&de=rota:shanghai'), sel), { dim: 'rota', id: 'shanghai', tab: 'rotas', tabLabel: 'Rotas', name: 'Shanghai → Santos' });
+  assert.deepEqual(T.readOrigin(D, p('de=exp:east'), sel).tabLabel, 'Exportadores');
+  assert.equal(T.readOrigin(D, p('de=rota:nao-existe'), sel), null);
+  assert.equal(T.readOrigin(D, p('de=preco:x'), sel), null);
+  assert.equal(T.readOrigin(D, p('de=ag:alpha'), sel), null);
+  assert.equal(T.readOrigin(D, p(''), sel), null);
+  assert.equal(T.readOrigin(D, p('de=rota:shanghai'), null), null);
+  for (const [tab, dim] of Object.entries(T.DIM_OF_TAB)) assert.equal(T.TAB_OF_DIM[dim], tab);
+});

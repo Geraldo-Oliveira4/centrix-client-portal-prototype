@@ -100,6 +100,7 @@ export function intelSubmoduleHash(id: IntelSubmoduleId, currentHash = ''): stri
   const keep = !path.includes('/') && OVERVIEW_SECTIONS.has(path);
   const next = keep ? new URLSearchParams(params) : new URLSearchParams();
   next.delete('sel');
+  next.delete('de'); // origem do link entre fichas: some junto com a ficha
   if (id === 'geral') next.delete('aba');
   else next.set('aba', id);
   const query = next.toString();

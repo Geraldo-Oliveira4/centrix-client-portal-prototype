@@ -264,7 +264,7 @@ function currentTab() { return IT.readTab(params, extraTabs()); }
 /** Abas fora da família do retrovisor: o Simulador (o caminho do futuro). */
 function extraTabs() { return ['simulador']; }
 function tabNav(tab) {
-  const item = ([id, label], cls = '') => `<a href="${esc(url('executivo', { aba: id === 'geral' ? null : id, sel: null }))}" class="intel-tab${cls}${tab === id ? ' active' : ''}" data-tab="${id}" ${tab === id ? 'aria-current="page"' : ''}>${label}</a>`;
+  const item = ([id, label], cls = '') => `<a href="${esc(url('executivo', { aba: id === 'geral' ? null : id, sel: null, de: null }))}" class="intel-tab${cls}${tab === id ? ' active' : ''}" data-tab="${id}" ${tab === id ? 'aria-current="page"' : ''}>${label}</a>`;
   // O passado (o que aconteceu) e o futuro (o que decidir agora) ficam em dois
   // grupos, separados por um divisor; o futuro leva o selo "Prévia".
   return `<nav class="intel-tabs" aria-label="Abas da Inteligência"><div class="intel-tabs-past" role="group" aria-label="O que aconteceu">${IT.TABS.map(t => item(t)).join('')}</div><div class="intel-tabs-future" role="group" aria-label="O que decidir agora"><span class="tabs-divider" aria-hidden="true"></span>${item(['simulador', 'Simulador <span class="preview-tag">Prévia</span>'], ' future')}</div></nav>`;
@@ -374,12 +374,20 @@ function diffTxt(d) {
 function crossList(items) {
   return `<ul class="cross-list">${items.map(it => `<li><div class="cross-head"><b>${it.title}</b><span>${it.meta}</span></div><dl>${it.lines.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl></li>`).join('')}</ul>`;
 }
+/* FICHAS QUE SE CONVERSAM (subabas v2). Um link de ficha é um hash comum
+   (`aba`, `sel` e `de`, a origem): o Voltar do navegador volta para a ficha
+   anterior, e a ficha aberta por link mostra o rastro de onde veio. */
+const sheetLink = (dim, id, label, from) => `<a class="sheet-link" href="${esc(url('executivo', { aba: IT.TAB_OF_DIM[dim], sel: id, de: IT.originParam(from.dim, from.id) }))}">${label}</a>`;
+function sheetTrail(origin) {
+  if (!origin) return '';
+  return `<p class="sheet-trail"><a href="${esc(url('executivo', { aba: origin.tab, sel: origin.id, de: null }))}"><span aria-hidden="true">←</span> <span class="sr-only">Voltar para </span>${esc(origin.tabLabel)} · ${esc(origin.name)}</a></p>`;
+}
 /** Ficha do agente: "Trânsito por rota" (IntelTabs.agentRouteContext). */
 function agentRoutesSection(ops, id) {
   const rows = IT.agentRouteContext(D, ops, id);
   if (!rows.length) return '';
   const items = rows.map(r => ({
-    title: esc(r.routeName), meta: shipCount(r.n) + (r.small ? ' ' + transitSmallTag(r.transitN) : ''),
+    title: sheetLink('rota', r.route, esc(r.routeName), { dim: 'ag', id }), meta: shipCount(r.n) + (r.small ? ' ' + transitSmallTag(r.transitN) : ''),
     lines: [['Trânsito mediano do agente', transitBase(r.transitMedian, r.transitN)], ['Mediana da rota', transitBase(r.routeMedian, r.routeN)], ['Diferença', diffTxt(r.diff)]],
   }));
   return `<section class="detail-section" aria-labelledby="dt-rotas"><h3 id="dt-rotas">Trânsito por rota</h3>${crossList(items)}<p class="chart-caption">O trânsito depende da rota: a diferença compara o agente com a mediana de todos os agentes do recorte na mesma rota. Mesma conta do Simulador (saída → chegada), sobre o período e os filtros desta tela; o Simulador usa o histórico próprio.</p></section>`;
@@ -388,7 +396,7 @@ function agentRoutesSection(ops, id) {
 function routeAgentsSection(ops, id) {
   const rows = IT.routeAgents(D, ops, id);
   const items = rows.map(r => ({
-    title: esc(r.agentName), meta: shipCount(r.n) + (r.small ? ' ' + transitSmallTag(r.transitN) : ''),
+    title: sheetLink('ag', r.agent, esc(r.agentName), { dim: 'rota', id }), meta: shipCount(r.n) + (r.small ? ' ' + transitSmallTag(r.transitN) : ''),
     lines: [['Trânsito mediano', transitBase(r.transitMedian, r.transitN)], ['Chegada ao destino no prazo', rateCell(r.port)]],
   }));
   return `<section class="detail-section" aria-labelledby="dt-ag"><h3 id="dt-ag">Agentes da rota</h3>${rows.length ? crossList(items) : '<p class="muted">Nenhum agente nesta rota no recorte.</p>'}<p class="chart-caption">Mesma rota, mesmos períodos e filtros: é onde a comparação entre agentes é justa. Com menos de 3 trânsitos, “Amostra pequena”.</p></section>`;
@@ -398,7 +406,7 @@ function exporterServersSection(ops, id) {
   const rows = IT.exporterServers(D, ops, id);
   if (!rows.length) return '';
   const items = rows.map(r => ({
-    title: `${esc(r.agentName)} <span class="cross-sub">· ${esc(r.routeName)}</span>`, meta: shipCount(r.n) + (r.small ? ' ' + transitSmallTag(r.transitN) : ''),
+    title: `${sheetLink('ag', r.agent, esc(r.agentName), { dim: 'exp', id })} <span class="cross-sub">· ${esc(r.routeName)}</span>`, meta: shipCount(r.n) + (r.small ? ' ' + transitSmallTag(r.transitN) : ''),
     lines: [['Chegada ao destino no prazo', rateCell(r.port)], ['Trânsito mediano', transitBase(r.transitMedian, r.transitN)]],
   }));
   return `<section class="detail-section" aria-labelledby="dt-atende"><h3 id="dt-atende">Quem atende este exportador</h3>${crossList(items)}<p class="chart-caption">Agente de cargas e rota de cada embarque deste exportador no recorte. O resultado também depende deles: um desvio sozinho não atribui responsabilidade.</p></section>`;
@@ -454,18 +462,23 @@ function sheetMode(cls) {
 }
 function openEntity(dim, id) {
   const s = intelScope();
-  openDrawer(esc(IT.nameOf(D, dim, id)), entitySubtitle(dim, id, s), entityDetailHtml(dim, id, s));
+  openDrawer(esc(IT.nameOf(D, dim, id)), entitySubtitle(dim, id, s), sheetTrail(IT.readOrigin(D, params, { dim, id })) + entityDetailHtml(dim, id, s));
   sheetMode('entity-sheet');
 }
 /** Depois de desenhar a Visão geral/abas: abre o detalhe pedido pela URL. */
 function afterOverviewRender() {
   const sel = IT.readSelection(D, params, currentTab());
+  sheetHash = location.hash;
   if (sel) openEntity(sel.dim, sel.id);
 }
 /** Fechar o painel tira `sel` da URL sem nova navegação (e sem reabrir). */
+let sheetHash = '';   // o hash que desenhou a ficha aberta
 function stripSelection() {
   if (!params.has('sel')) return;
-  params.delete('sel');
+  // Fechou porque um link de DENTRO da ficha já levou para outro lugar (outra
+  // ficha, a ficha completa): a URL nova manda, não há o que limpar.
+  if (location.hash !== sheetHash) return;
+  params.delete('sel'); params.delete('de');
   const next = '#' + pagePath + (params.toString() ? '?' + params : '');
   history.replaceState(history.state, '', location.pathname + location.search + next);
   try { if (window.parent !== window) window.parent.history.replaceState(window.parent.history.state, '', window.parent.location.pathname + window.parent.location.search + next); } catch {}
@@ -764,10 +777,10 @@ document.addEventListener('click', e => {
   else if (a === 'intel-jump') { e.preventDefault(); jumpTo(id); }
   else if (a === 'intel-report') { reportEntity = null; openReportPanel(); }
   else if (a === 'tab-sort') { const dim = b.dataset.dim; tableSort.set(dim, IT.nextSort(tableSort.get(dim) || IT.DEFAULT_SORT, b.dataset.key)); render(); document.querySelector(`[data-action="tab-sort"][data-dim="${dim}"][data-key="${b.dataset.key}"]`)?.focus(); }
-  else if (a === 'entity-open') location.hash = url('executivo', { sel: b.dataset.id });
+  else if (a === 'entity-open') location.hash = url('executivo', { sel: b.dataset.id, de: null });
   else if (a === 'sim-sort') { simSort = IS.nextSort(simSort || IS.DEFAULT_SORT, b.dataset.key); render(); document.querySelector(`[data-action="sim-sort"][data-key="${b.dataset.key}"]`)?.focus(); }
   else if (a === 'sim-all-routes') setSimParam({ srota: null });
-  else if (a === 'entity-filter') { const gf = IT.filterByEntity(IE.readFilters(params), b.dataset.dim, b.dataset.id); params.delete('sel'); setGlobalFilters(gf); toast('Filtro aplicado a todas as abas.'); }
+  else if (a === 'entity-filter') { const gf = IT.filterByEntity(IE.readFilters(params), b.dataset.dim, b.dataset.id); params.delete('sel'); params.delete('de'); setGlobalFilters(gf); toast('Filtro aplicado a todas as abas.'); }
   else if (a === 'entity-report') { reportEntity = { dim: b.dataset.dim, id: b.dataset.id }; openReportPanel(); }
   else if (a === 'view-open') openView(id);
   else if (a === 'view-rename') { const input = document.querySelector(`[data-view-name="${CSS.escape(id)}"]`); saveViews(IL.renameView(intelViews, id, input && input.value)); notifyViewSaved(); render(); toast('Visão renomeada.'); }
@@ -784,7 +797,7 @@ document.addEventListener('click', e => {
 document.addEventListener('click', e => {
   const tr = e.target.closest('tr[data-row-dim]');
   if (!tr || e.target.closest('button, a, input, select, summary')) return;
-  location.hash = url('executivo', { sel: tr.dataset.rowId });
+  location.hash = url('executivo', { sel: tr.dataset.rowId, de: null });
 });
 // Setas trocam de aba quando o foco está na faixa (Home/End vão às pontas).
 document.addEventListener('keydown', e => {

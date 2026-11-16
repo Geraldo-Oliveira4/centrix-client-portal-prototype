@@ -594,3 +594,9 @@ table.compare tr.col-groups th+th{box-shadow:inset 0 -2px 0 var(--line),inset 12
 .group-tip:focus-visible{outline:3px solid #8b80b9;outline-offset:1px}
 .group-tip .tip{left:auto;right:0;font-weight:400}
 .cross-sub{font-weight:400;color:var(--muted-ink)}
+/* Item 5: links entre fichas e rastro de origem. */
+.sheet-link{color:var(--indigo);text-decoration:underline;text-underline-offset:3px}
+.sheet-link:focus-visible,.sheet-trail a:focus-visible{outline:3px solid #8b80b9;outline-offset:2px;border-radius:4px}
+.drawer-body .sheet-trail{margin:-6px 0 14px;font-size:14px}
+.sheet-trail a{display:inline-flex;align-items:center;gap:6px;min-height:32px;color:var(--muted-ink);text-decoration:underline;text-underline-offset:3px}
+.sheet-trail a:hover{color:var(--indigo)}

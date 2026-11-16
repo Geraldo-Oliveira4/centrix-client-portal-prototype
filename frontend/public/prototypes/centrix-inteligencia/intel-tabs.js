@@ -353,8 +353,25 @@
     const dim = DIM_OF_TAB[tab];
     const id = get('sel');
     if (!dim || !id) return null;
-    const known = dim === 'exp' ? D.companies.some((c) => c.id === id) : dim === 'ag' ? D.agents.some((a) => a.id === id) : D.routes.some((r) => r.id === id);
-    return known ? { dim, id } : null;
+    return knownEntity(D, dim, id) ? { dim, id } : null;
+  }
+  /** Subaba de cada dimensão (o inverso de DIM_OF_TAB), para os links entre fichas. */
+  const TAB_OF_DIM = { exp: 'exportadores', ag: 'agentes', rota: 'rotas' };
+  const knownEntity = (D, dim, id) => (dim === 'exp' ? D.companies.some((c) => c.id === id) : dim === 'ag' ? D.agents.some((a) => a.id === id) : dim === 'rota' ? D.routes.some((r) => r.id === id) : false);
+  /** Valor de `de` para um link entre fichas: "rota:shanghai". */
+  function originParam(dim, id) { return `${dim}:${id}`; }
+  /**
+   * FICHAS QUE SE CONVERSAM: a ficha aberta por link guarda de onde veio em
+   * `de=<dim>:<id>`, para mostrar o rastro "← Rotas · Shanghai → Santos". Origem
+   * desconhecida, ou igual à própria ficha, é ignorada.
+   */
+  function readOrigin(D, params, selection) {
+    const get = (k) => (typeof params.get === 'function' ? params.get(k) : params[k]);
+    const [dim, ...rest] = String(get('de') || '').split(':'), id = rest.join(':');
+    if (!selection || !TAB_OF_DIM[dim] || !knownEntity(D, dim, id)) return null;
+    if (dim === selection.dim && id === selection.id) return null;
+    const tab = TAB_OF_DIM[dim];
+    return { dim, id, tab, tabLabel: TABS.find(([t]) => t === tab)[1], name: nameOf(D, dim, id) };
   }
   /** O relatório menciona aba e entidade: "Aba Exportadores · Eastbridge Components". */
   function tabMention(D, tab, selection) {
@@ -363,7 +380,7 @@
     return selection ? `Aba ${label} · ${nameOf(D, selection.dim, selection.id)}` : `Aba ${label}`;
   }
 
-  const api = { MIN_SAMPLE, RATE_KEYS, FACT_MIN_BASE, FACT_METRICS, FACT_EMPTY, rateRange, recortFact, concentrationLine, pairGroups, pairStats, agentRouteContext, routeAgents, exporterServers, COLUMN_GROUPS, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
+  const api = { MIN_SAMPLE, RATE_KEYS, FACT_MIN_BASE, FACT_METRICS, FACT_EMPTY, rateRange, recortFact, concentrationLine, pairGroups, pairStats, agentRouteContext, routeAgents, exporterServers, COLUMN_GROUPS, TAB_OF_DIM, originParam, readOrigin, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelTabs = api;
 })(typeof window !== 'undefined' ? window : globalThis);

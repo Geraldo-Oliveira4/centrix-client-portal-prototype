@@ -75,6 +75,8 @@ test('trocar de submódulo preserva período e filtros e fecha a ficha', () => {
     '#executivo?period=days30&ag=alpha&aba=rotas',
   );
   assert.equal(intelSubmoduleHash('geral', '#executivo?aba=rotas&period=year'), '#executivo?period=year');
+  // A origem do link entre fichas (`de`) some junto com a ficha.
+  assert.equal(intelSubmoduleHash('rotas', '#executivo?aba=agentes&sel=alpha&de=rota:shanghai'), '#executivo?aba=rotas');
   // De uma ficha interna, os parâmetros dela não vazam para a página de abas.
   assert.equal(intelSubmoduleHash('agentes', '#fornecedores/east/resumo?variant=direto'), '#executivo?aba=agentes');
 });
