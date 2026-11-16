@@ -518,6 +518,18 @@ dialog.onb::backdrop{background:#1a1c31b3}
 .button.cta{background:var(--orange);border-color:var(--orange);color:var(--ink)}
 .onb .pers-card{padding:10px 12px}
 
+/* Simulador: o resultado é o selo + uma frase; o cálculo antigo fica recolhido. */
+.sim-question{font-size:18px;color:var(--ink);margin:0 0 12px}
+.sim-reason{display:block;margin-top:6px;font-size:14px;color:var(--ink);line-height:1.4;max-width:44ch}
+.sim-calc{margin-top:4px;font-size:13px}
+.sim-calc>summary{display:inline-flex;align-items:center;min-height:32px;cursor:pointer;color:var(--indigo);font-weight:600;text-decoration:underline;text-underline-offset:3px;list-style:none}
+.sim-calc>summary::-webkit-details-marker{display:none}
+.sim-calc>summary:focus-visible{outline:3px solid #8b80b9;outline-offset:2px;border-radius:4px}
+.sim-calc p{margin:4px 0 0;color:var(--muted-ink);font-size:13px;max-width:44ch}
+.sim-status{font-size:14px}
+.sim-today,.sim-history,.sim-rules{font-size:14px;color:var(--muted-ink)}
+.sim-form label{font-size:14px}
+
 @media(max-width:1100px){.lvl1{grid-template-columns:1fr;gap:24px}.lvl1 .hero-number{font-size:72px}}
 @media(max-width:900px){.stages{grid-template-columns:1fr}.stages li{border-right:0;border-bottom:1px solid var(--line)}.stages li:last-child{border-bottom:0}.stage-cell{grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center}.stage-cell b{grid-column:2;grid-row:1/4;font-size:26px}.stage-name,.stage-what,.stage-cell small{grid-column:1}}
 @media(max-width:700px){
