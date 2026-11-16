@@ -149,3 +149,27 @@ da página inteira**. Consequências medidas:
    tabela (v) que hoje não têm.
 5. Tema escuro por tokens próprios, com as superfícies e tintas do portal, no
    lugar da inversão para esta tela.
+
+## Depois dos ajustes (7b)
+
+Medido no navegador (Chromium), no claro e no escuro, sobre a Visão geral, a
+ficha de um agente e o Simulador: nenhum texto abaixo de 4,5:1 e nenhuma tinta
+verde ou vermelha. Pares de token calculados:
+
+| Par | Claro | Escuro |
+|---|---|---|
+| tinta sobre superfície | 16,74 | 12,89 |
+| tinta secundária sobre superfície | 7,26 | 6,39 |
+| tinta secundária sobre a superfície mais tingida | 6,19 | 4,73 |
+| tinta terciária (desabilitado, "0 no recorte") sobre superfície | 5,12 | 5,46 |
+| índigo (links, títulos) sobre superfície | 12,46 | 8,78 |
+| texto do botão primário | 12,46 | 4,73 |
+| texto do CTA sobre o acento | 7,71 | 7,71 |
+| aviso sobre o fundo de aviso | 5,60 | 6,02 |
+| contorno de campo sobre superfície (3:1) | 3,74 | 3,88 |
+| séries do gráfico sobre superfície (3:1) | 12,46 · 5,71 · 3,20 | 8,78 · 5,88 · 4,12 |
+
+O que ficou como estava, de propósito: o acento laranja como fio (coluna líder,
+aba ativa, faixa de insight) tem 2,17:1 sobre branco no claro. Ele nunca é o
+único sinal: a coluna líder também tem peso, a aba ativa tem `aria-current` e
+tinta própria, e a faixa de insight é texto.

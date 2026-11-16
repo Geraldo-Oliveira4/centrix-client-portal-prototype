@@ -1666,6 +1666,38 @@ telas React antigas.
   dos mesmos números de `classify`, testada contra o selo); o par antigo "Com
   folga / No limite" fica em "ver cálculo".
 
+**Subabas v2 (16/11/2026): Agentes de carga, Exportadores e Rotas.**
+
+- **Base primeiro, percentual depois.** Em toda taxa, "a de b" é o texto
+  principal e o percentual vem menor. A ordenação é pelo percentual e desempata
+  pela base maior (`IntelTabs.RATE_KEYS`).
+- **Fato do recorte** no lugar dos três cartões de resumo
+  (`IntelTabs.recortFact`): o intervalo de uma taxa, com a base de cada ponta,
+  só entre quem tem BASE DA MÉTRICA de 3 ou mais. Descreve, nunca julga. A
+  concentração continua numa linha discreta (`concentrationLine`).
+- **Rota × agente tem uma conta só**: `IntelTabs.pairGroups` agrupa para as
+  fichas ("Trânsito por rota", "Agentes da rota", "Quem atende este exportador")
+  E para o Simulador. As fichas seguem o período e os filtros da tela; o
+  Simulador usa o histórico próprio, então os números só coincidem no mesmo
+  recorte. Os cruzamentos saem dos embarques da fixture; nenhum dado foi criado.
+- **Exportadores** separa "Depende do exportador" de "Resultado da operação"
+  (`IntelTabs.COLUMN_GROUPS`).
+- **Fichas que se conversam**: link de ficha é hash comum (`aba`, `sel` e `de`,
+  a origem). O Voltar do navegador volta para a ficha anterior; `de` some ao
+  fechar e ao trocar de submódulo.
+- **Coluna líder** (`IntelTabs.LEAD_COLUMNS`) ganha peso, nunca cor de bom ou
+  ruim.
+- **Cores só por token.** `style.css` não tem hexadecimal fora dos dois blocos
+  de token (claro em `:root`, escuro em `html.theme-dark:root`). Não há verde
+  nem vermelho como juízo; variação é tinta neutra com seta e sinal; o acento
+  fica para insight. No escuro esta tela NÃO usa a inversão de
+  `_shared/theme-sync.css` (as outras quatro continuam usando): troca os valores
+  dos tokens pelos do portal. Cor nova entra como token, nos dois blocos.
+  Auditoria de partida em `docs/auditoria-visual-inteligencia.md`.
+- Totais por agente, rota e exportador estão travados em
+  `intel-subabas.test.cjs` (reconciliação).
+
+
 Quatro abas (`layout.tsx`): `performance/`, `agentes/`, `executivo/` e
 `radar/`. A raiz `/portal/inteligencia` é só um `redirect()` para `performance`
 — a antiga aba "Visão geral" **foi fundida** no Performance, porque "estou indo
