@@ -277,7 +277,7 @@ function sortableHead(dim, sort) {
     const on = sort.key === key, dir = on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
     const arrow = on ? (sort.dir === 'asc' ? '↑' : '↓') : '↕';
     const head = /^Chegada ao destino/.test(label) ? destTerm('Chegada ao destino') + label.slice('Chegada ao destino'.length) : label;
-    return `<th scope="col" class="${colWeight(dim, key)}" aria-sort="${dir}"><button type="button" class="sort-button${on ? ' active' : ''}" data-action="tab-sort" data-dim="${dim}" data-key="${key}">${head} <span aria-hidden="true">${arrow}</span></button></th>`;
+    return `<th scope="col" class="${colWeight(dim, key)}" aria-sort="${dir}"><button type="button" class="sort-button${on ? ' active' : ''}" data-action="tab-sort" data-dim="${dim}" data-key="${key}"><span class="sort-label">${head}</span> <span aria-hidden="true">${arrow}</span></button></th>`;
   }).join('');
 }
 /* BASE PRIMEIRO, PERCENTUAL DEPOIS (subabas v2). Em toda taxa, "a de b" é o texto

@@ -703,3 +703,7 @@ html.theme-dark:root{
   --focus:#b3aaf0;--shadow:#00000059;--backdrop:#0b0c1acc;--tip-bg:#0f1022
 }
 html.theme-dark:root img,html.theme-dark:root picture,html.theme-dark:root video,html.theme-dark:root canvas{filter:none}
+/* A tabela de 8 colunas cabe em 1440px sem rolar: célula alinhada ao cabeçalho. */
+table.compare td{padding:14px 12px}
+table.compare thead tr:last-child th{white-space:normal;vertical-align:bottom}
+table.compare .sort-button{line-height:1.3;min-width:84px}
