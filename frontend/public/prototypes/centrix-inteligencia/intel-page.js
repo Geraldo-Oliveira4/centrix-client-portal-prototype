@@ -1,7 +1,8 @@
 'use strict';
 /* Inteligência v4 (revisão de 13/11/2026): cabeçalho compacto, Visão geral em
-   quatro níveis de hierarquia fixa e painel "Filtros e ajustes" (filtros +
-   personalização por temas e cards, como na Home). Os filtros globais continuam mudando
+   quatro níveis de hierarquia fixa, painel "Filtros e ajustes" (filtros +
+   personalização por temas e cards, como na Home), introdução de primeira
+   entrada e ficha lateral nos submódulos. Os filtros globais continuam mudando
    TODO bloco, em todos os submódulos.
 
    Este arquivo só desenha. Os números saem de intel-engine.js (puro, testado),
@@ -23,7 +24,7 @@ let reportEntity = null;           // entidade do painel de detalhe que abriu o 
 let simSort = null;                // ordenação da tabela do Simulador, preservada entre renders
 let openFilterKey = null;          // dropdown de filtro aberto, preservado entre renders
 const openKpiHow = new Set();      // "Como é calculado" abertos, preservados entre renders
-let persDraft = null;                // rascunho do "Personalizar a Inteligência" (painel)
+let persDraft = null;                // rascunho do "Personalizar a Inteligência" (painel ou introdução)
 let adjustDraft = null;              // rascunho de período e filtros do painel "Filtros e ajustes"
 let evoOpen = true;                  // seção "Evolução" aberta por padrão, preservada entre renders
 let intelViews = (() => { try { return IL.loadViews(localStorage); } catch { return []; } })();
@@ -527,7 +528,7 @@ function openReportPanel(emailDone) {
    lógica de antes (OU dentro do filtro, E entre filtros); (2) Personalizar a
    Inteligência, no modelo do "Personalizar a Home". Tudo é RASCUNHO até
    "Aplicar": fechar o painel descarta, como o Cancelar da Home. */
-/** Os controles de temas e cards do painel. */
+/** Os controles de temas e cards. O mesmo HTML serve o painel e o passo 2 da introdução. */
 function persFieldsHtml() {
   const st = persDraft, groups = IP.cardsByTheme(st);
   const chips = IP.THEMES.map(([id, label]) => `<button type="button" class="theme-chip" data-pers-theme="${id}" aria-pressed="${st.themes.includes(id)}">${label}</button>`).join('');
@@ -569,7 +570,7 @@ function refreshAdjust(focusSelector) {
 function openAdjust() {
   adjustDraft = { period: params.get('period') || 'days90', start: params.get('start') || '', end: params.get('end') || '', gf: IE.readFilters(params) };
   persDraft = IP.normalize(intelPers); openFilterKey = null;
-  openDrawer('Filtros e ajustes', 'O recorte e os cards da Inteligência, num lugar só.', `<div class="fa"><section class="fa-section" aria-labelledby="fa-t1"><h3 id="fa-t1">Filtros</h3><div id="fa-filters">${adjustFiltersHtml()}</div></section><section class="fa-section" aria-labelledby="fa-t2"><h3 id="fa-t2">Personalizar a Inteligência</h3><p class="fa-help">Escolha os temas e ligue ou desligue cada card. A Visão geral mostra só os cards ligados dos temas escolhidos.</p><div data-pers-root>${persFieldsHtml()}</div><p class="pers-foot"><button type="button" class="text-button" data-action="pers-reset">Refazer personalização do zero</button> <span id="pers-reset-note" role="status"></span></p></section></div><div class="fa-actions" data-bottom-action-bar><span></span><span><button type="button" class="button secondary" data-action="fa-clear">Limpar filtros</button><button type="button" class="button" data-action="fa-apply">Aplicar</button></span></div>`);
+  openDrawer('Filtros e ajustes', 'O recorte e os cards da Inteligência, num lugar só.', `<div class="fa"><section class="fa-section" aria-labelledby="fa-t1"><h3 id="fa-t1">Filtros</h3><div id="fa-filters">${adjustFiltersHtml()}</div></section><section class="fa-section" aria-labelledby="fa-t2"><h3 id="fa-t2">Personalizar a Inteligência</h3><p class="fa-help">Escolha os temas e ligue ou desligue cada card. A Visão geral mostra só os cards ligados dos temas escolhidos.</p><div data-pers-root>${persFieldsHtml()}</div><p class="pers-foot"><button type="button" class="text-button" data-action="pers-reset">Refazer personalização do zero</button> <span id="pers-reset-note" role="status"></span></p></section></div><div class="fa-actions" data-bottom-action-bar><button type="button" class="text-button" data-action="onb-open">Ver introdução</button><span><button type="button" class="button secondary" data-action="fa-clear">Limpar filtros</button><button type="button" class="button" data-action="fa-apply">Aplicar</button></span></div>`);
   sheetMode('adjust-sheet');
 }
 function applyAdjust() {
@@ -585,6 +586,62 @@ function applyAdjust() {
   if (location.hash.slice(1) === next) { closeDrawer(); render(); } else location.hash = next;
   toast('Filtros e ajustes aplicados.');
 }
+
+/* ----------------------------------------------------------- introdução --- */
+/* ONBOARDING DA PRIMEIRA ENTRADA (v4), três passos no estilo do onboarding da
+   Home: pontos de progresso, Pular, Voltar. Aparece uma vez (flag em
+   localStorage; sem storage não abre sozinho); `?onboarding=1` força, para as
+   demos; "Ver introdução", no painel de ajustes, reabre. O passo 2 grava a
+   MESMA personalização do painel. Fechar por qualquer caminho marca como visto. */
+let onbStep = 0;
+function onbHtml() {
+  const dots = `<ol class="onb-dots" aria-label="Passo ${onbStep + 1} de 3">${[0, 1, 2].map(i => `<li${i === onbStep ? ' class="on" aria-current="step"' : ''}></li>`).join('')}</ol>`;
+  if (onbStep === 0) {
+    // A ilustração usa o número do recorte atual; sem dado, o exemplo da fixture.
+    const s = intelScope(), k = IE.kpi(D, 'final', s.cur, s.prev), v = k.variation, n = v ? Math.abs(v.delta) : 10;
+    const num = k.value == null ? '69%' : k.value + '%', vari = `${!v || v.direction === 'up' ? '↑' : v.direction === 'down' ? '↓' : '→'} ${n} ${n === 1 ? 'pt' : 'pts'}`;
+    return `${dots}<h2 id="onb-title" tabindex="-1">Bem-vindo à Inteligência</h2><p class="onb-lead">O retrato da sua operação: o que o histórico dos seus embarques mostra. O que precisa de ação hoje continua na Central de trabalho.</p><div class="onb-illus" role="img" aria-label="Todo indicador traz número, variação e conclusão"><div><b>${num}</b><span>número</span></div><i>+</i><div><b>${vari}</b><span>variação</span></div><i>+</i><div><b>frase</b><span>conclusão</span></div></div><p class="onb-strong">Mostramos o dado e a base; a decisão é sua.</p><div class="onb-actions"><button type="button" class="button secondary" data-onb="skip">Pular</button><button type="button" class="button cta" data-onb="next">Próximo</button></div>`;
+  }
+  if (onbStep === 1) return `${dots}<h2 id="onb-title" tabindex="-1">Personalizar a Inteligência</h2><p class="onb-lead">Escolha os temas e ligue ou desligue cada card. A Visão geral mostra só os cards ligados dos temas escolhidos.</p><div data-pers-root>${persFieldsHtml()}</div><p class="onb-note">Dá para refazer depois em Filtros e ajustes.</p><div class="onb-actions"><span><button type="button" class="button secondary" data-onb="back">Voltar</button><button type="button" class="button secondary" data-onb="skip-step">Pular por agora</button></span><button type="button" class="button cta" data-onb="save">Salvar e continuar</button></div>`;
+  const where = document.documentElement.classList.contains('embedded') ? 'nos submódulos do menu lateral' : 'nas abas no topo da página';
+  return `${dots}<h2 id="onb-title" tabindex="-1">Onde ir para ver mais</h2><p class="onb-lead">Os detalhes ficam ${where}. Cada bloco tem um “Ver detalhe” discreto no canto.</p><ul class="onb-list"><li><b>Exportadores · Agentes de carga · Rotas</b></li><li><b>Simulador</b> <span class="preview-tag">Prévia</span>: teste uma data de chegada.</li><li><b>Preparar relatório</b>: leve o recorte para a reunião.</li></ul><div class="onb-actions"><button type="button" class="button secondary" data-onb="back">Voltar</button><button type="button" class="button cta" data-onb="done">Começar</button></div>`;
+}
+function renderOnb() {
+  const d = document.getElementById('intel-onb');
+  d.innerHTML = `<div class="onb-body">${onbHtml()}</div>`;
+  d.scrollTop = 0;
+  d.querySelector('h2').focus();
+}
+function openOnboarding() {
+  if ($('#drawer').open) closeDrawer();
+  let d = document.getElementById('intel-onb');
+  if (!d) {
+    d = document.createElement('dialog');
+    d.id = 'intel-onb'; d.className = 'onb'; d.setAttribute('aria-labelledby', 'onb-title');
+    document.body.appendChild(d);
+    d.addEventListener('close', () => { IP.markOnboardingSeen(STORE); persDraft = null; });
+  }
+  persDraft = IP.normalize(intelPers); onbStep = 0;
+  if (!d.open) d.showModal();
+  renderOnb();
+}
+/* Embutida, a introdução espera o portal ficar livre: no primeiro acesso o
+   portal abre as próprias boas-vindas (um diálogo na janela de fora), e duas
+   introduções empilhadas não se leem. Sem host, ou sem acesso a ele, abre já. */
+function whenHostIdle(fn, tries = 0) {
+  let busy = false;
+  try { busy = window.parent !== window && !!window.parent.document.querySelector('[role="dialog"]'); } catch {}
+  if (busy && tries < 600) setTimeout(() => whenHostIdle(fn, tries + 1), 1000); else fn();
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-onb]'); if (!b) return;
+  const a = b.dataset.onb, d = document.getElementById('intel-onb');
+  if (a === 'skip' || a === 'done') { d.close(); return; }
+  if (a === 'save') { saveIntelPers(persDraft); render(); toast('Personalização salva.'); }
+  onbStep = a === 'back' ? onbStep - 1 : a === 'next' ? onbStep + 1 : 2;
+  persDraft = IP.normalize(intelPers);
+  renderOnb();
+});
 
 /* --------------------------------------------------------------- eventos --- */
 function setGlobalFilters(next) {
@@ -605,6 +662,7 @@ document.addEventListener('click', e => {
   }
   else if (a === 'pers-reset') { persDraft = IP.defaults(); refreshPers('[data-action="pers-reset"]'); const n = document.getElementById('pers-reset-note'); if (n) n.textContent = 'Padrão restaurado: todos os cards ligados. Aplique para salvar.'; }
   else if (a === 'pers-reset-now') { IP.clear(STORE); intelPers = IP.defaults(); render(); toast('Personalização refeita: todos os cards ligados.'); }
+  else if (a === 'onb-open') openOnboarding();
   else if (a === 'gfilter-remove') { const gf = IE.readFilters(params); gf[b.dataset.key] = gf[b.dataset.key].filter(v => v !== b.dataset.value); setGlobalFilters(gf); }
   else if (a === 'gfilter-clear') { openFilterKey = null; setGlobalFilters({}); }
   else if (a === 'kpi-how') {
@@ -647,7 +705,7 @@ document.addEventListener('keydown', e => {
   e.preventDefault(); all[next].focus();
 });
 // O evento `close` chega depois do render; se outro painel já abriu, não mexe nele.
-document.getElementById('drawer').addEventListener('close', () => { const d = document.getElementById('drawer'); if (d.open) return; d.classList.remove('entity-sheet', 'adjust-sheet'); d.innerHTML = ''; adjustDraft = null; persDraft = null; stripSelection(); });
+document.getElementById('drawer').addEventListener('close', () => { const d = document.getElementById('drawer'); if (d.open) return; d.classList.remove('entity-sheet', 'adjust-sheet'); d.innerHTML = ''; adjustDraft = null; if (!document.getElementById('intel-onb')?.open) persDraft = null; stripSelection(); });
 document.addEventListener('change', e => {
   const t = e.target;
   if (t.id === 'sim-route') { setSimParam({ srota: t.value || null }); return; }
@@ -759,10 +817,13 @@ document.addEventListener('keydown', e => {
   else if (!e.shiftKey && document.activeElement === lastItem) { e.preventDefault(); first.focus(); }
   else if (!g.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
 });
-/* Entrada pelo portal: `?view=<id>` abre a visão e `?guide=1` abre o guia. */
+/* Entrada pelo portal: `?view=<id>` abre a visão, `?guide=1` abre o guia e `?onboarding=1` força a introdução. */
 document.addEventListener('DOMContentLoaded', () => {
   const q = new URLSearchParams(location.search);
   const viewId = q.get('view');
   if (viewId && intelViews.some(v => v.id === viewId)) openView(viewId);
   if (q.get('guide') === '1') setTimeout(openGuide, 350);
+  // Introdução: na primeira entrada, ou sempre com `?onboarding=1` (demos). O
+  // mini-guia do tour do portal tem prioridade: dois diálogos de uma vez, não.
+  if (q.get('onboarding') === '1' || (q.get('guide') !== '1' && !IP.onboardingSeen(STORE))) setTimeout(() => whenHostIdle(openOnboarding), 300);
 });

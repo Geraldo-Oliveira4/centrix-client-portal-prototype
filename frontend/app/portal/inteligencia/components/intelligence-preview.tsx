@@ -28,6 +28,9 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
       // (testes e screenshots reproduzíveis). Sem ele, o hoje é a data atual.
       const hoje = here.get('hoje');
       if (hoje && /^\d{4}-\d{2}-\d{2}$/.test(hoje)) extra.set('hoje', hoje);
+      // `?onboarding=1` força a introdução da Inteligência (demos); sem ele, ela
+      // aparece só na primeira entrada (flag no localStorage, lida pelo iframe).
+      if (here.get('onboarding') === '1') extra.set('onboarding', '1');
       entry.current = extra.toString();
     }
     if (here.has('visao') || here.has('guia')) {

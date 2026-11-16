@@ -266,7 +266,7 @@ table.compare td .sample-tag{margin-top:4px}
 
 /* ======================================================================
    Inteligência v4 (revisão de 13/11/2026): hierarquia, cabeçalho compacto,
-   e painel "Filtros e ajustes".
+   painel "Filtros e ajustes", introdução e ficha lateral.
    Leitura: corpo de texto a partir de 14px e tinta com contraste AA (o texto
    de apoio usa --muted-ink, 7,3:1 sobre branco; --muted dava 5,4:1 a 12px).
    Só selos e rótulos de gráfico ficam abaixo de 14px.
@@ -468,6 +468,30 @@ table.compare td small,.drawer-body td small{font-size:13px;color:var(--muted-in
 .fa-actions>span{display:flex;gap:10px;flex-wrap:wrap}
 .fa-actions .text-button{font-size:14px;background:none;border:0;padding:6px 0;min-height:40px}
 
+/* Introdução (onboarding) em três passos, no estilo do onboarding da Home. */
+dialog.onb{inset:0;margin:auto;width:min(560px,calc(100vw - 24px));height:fit-content;max-height:calc(100dvh - 24px);border:0;border-radius:16px;box-shadow:0 24px 70px #1a1c3140;overflow:auto}
+dialog.onb::backdrop{background:#1a1c31b3}
+.onb-body{padding:28px 28px 24px}
+.onb-dots{list-style:none;display:flex;gap:6px;margin:0 0 20px;padding:0}
+.onb-dots li{width:10px;height:6px;border-radius:3px;background:#d4d6e3}
+.onb-dots li.on{width:32px;background:var(--orange)}
+.onb h2{font-size:26px;color:var(--ink);outline:0}
+.onb-lead{font-size:15px;line-height:1.55;color:var(--muted-ink);margin:8px 0 18px}
+.onb-illus{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:18px 12px;border-radius:12px;background:#f4f5fb}
+.onb-illus>div{display:grid;justify-items:center;gap:2px;padding:10px 16px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.onb-illus b{font:600 26px/1.2 NewBlack,Source,sans-serif;color:var(--indigo);white-space:nowrap}
+.onb-illus span{font-size:14px;color:var(--muted-ink)}
+.onb-illus i{font-style:normal;font-size:18px;color:var(--muted-ink)}
+.onb-strong{font-size:16px;color:var(--ink);margin:18px 0 0}
+.onb-note{font-size:14px;color:var(--muted-ink);margin:8px 0 0}
+.onb-list{list-style:none;margin:0;padding:0;display:grid;gap:12px;font-size:16px;color:var(--ink)}
+.onb-list b{font-weight:600}
+.onb-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:24px}
+.onb-actions .button{margin-top:0;min-height:44px}
+.onb-actions>span{display:flex;gap:10px;flex-wrap:wrap}
+.button.cta{background:var(--orange);border-color:var(--orange);color:var(--ink)}
+.onb .pers-card{padding:10px 12px}
+
 @media(max-width:1100px){.lvl1{grid-template-columns:1fr;gap:24px}.lvl1 .hero-number{font-size:72px}}
 @media(max-width:900px){.stages{grid-template-columns:1fr}.stages li{border-right:0;border-bottom:1px solid var(--line)}.stages li:last-child{border-bottom:0}.stage-cell{grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center}.stage-cell b{grid-column:2;grid-row:1/4;font-size:26px}.stage-name,.stage-what,.stage-cell small{grid-column:1}}
 @media(max-width:700px){
@@ -486,6 +510,8 @@ table.compare td small,.drawer-body td small{font-size:13px;color:var(--muted-in
   .support-number{font-size:32px}
   .fa{grid-template-columns:1fr}.fa-actions{margin:16px -18px -20px;padding:12px 18px}
   .fa-actions>span{flex:1 1 100%}.fa-actions .button{flex:1}
+  .onb-body{padding:22px 18px 18px}.onb h2{font-size:23px}.onb-illus>div{padding:8px 10px}.onb-illus b{font-size:21px}
+  .onb-actions .button{flex:1 1 auto}
   .sim-reason,.sim-calc p{max-width:none}
 }
 @media(max-width:420px){.fa-grid{grid-template-columns:1fr}.fa-grid .fa-field .fsel-menu{left:0;right:auto}.sheet-strip{grid-template-columns:1fr 1fr}}
@@ -493,4 +519,6 @@ table.compare td small,.drawer-body td small{font-size:13px;color:var(--muted-in
 footer{font-size:13px;color:var(--muted-ink)}
 .demo{font-size:13px;color:#4a5066}
 @media(max-width:700px){.demo{font-size:12px}footer{flex-wrap:wrap;gap:8px}}
+.onb-actions{position:sticky;bottom:0;background:#fff;margin:20px -28px -24px;padding:14px 28px 20px;border-top:1px solid var(--line)}
+@media(max-width:700px){.onb-actions{margin:16px -18px -18px;padding:12px 18px 16px}}
 .preview-tag{font-size:12px}
