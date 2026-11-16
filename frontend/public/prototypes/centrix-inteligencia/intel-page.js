@@ -295,10 +295,26 @@ function cellOf(dim, key, r) {
   if (key === 'agents' || key === 'routes') return String(r[key]);
   return rateCell(r[key]);
 }
+/** Linha de grupos acima do cabeçalho (só onde IntelTabs.COLUMN_GROUPS define; hoje, Exportadores). */
+function groupHead(dim) {
+  const groups = IT.COLUMN_GROUPS[dim];
+  if (!groups) return '';
+  const keys = IT.COLUMNS[dim].map(([k]) => k);
+  let cells = '', at = 0;
+  for (const g of groups) {
+    const start = keys.indexOf(g.keys[0]);
+    if (start > at) cells += `<td colspan="${start - at}"></td>`;
+    const tip = g.tip ? ` <span class="group-tip has-tip" tabindex="0" aria-describedby="tip-${dim}-${g.keys[0]}">${ICON.info}<span class="sr-only">Sobre este grupo</span><span class="tip" role="tooltip" id="tip-${dim}-${g.keys[0]}">${esc(g.tip)}</span></span>` : '';
+    cells += `<th scope="colgroup" colspan="${g.keys.length}"><span class="group-label">${esc(g.label)}</span>${tip}</th>`;
+    at = start + g.keys.length;
+  }
+  if (at < keys.length) cells += `<td colspan="${keys.length - at}"></td>`;
+  return `<tr class="col-groups">${cells}</tr>`;
+}
 function comparisonTable(dim, rows) {
   const sort = tableSort.get(dim) || IT.DEFAULT_SORT, sorted = IT.sortRows(rows, sort);
   if (!sorted.length) return '<p class="muted">Nenhum registro neste recorte.</p>';
-  return `<div class="table-wrap"><table class="compare"><thead><tr>${sortableHead(dim, sort)}</tr></thead><tbody>${sorted.map(r => `<tr class="clickable" data-row-dim="${dim}" data-row-id="${esc(r.id)}">${IT.COLUMNS[dim].map(([key]) => `<td>${cellOf(dim, key, r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="compare"><thead>${groupHead(dim)}<tr>${sortableHead(dim, sort)}</tr></thead><tbody>${sorted.map(r => `<tr class="clickable" data-row-dim="${dim}" data-row-id="${esc(r.id)}">${IT.COLUMNS[dim].map(([key]) => `<td>${cellOf(dim, key, r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 const TAB_COPY = {
   exp: { plural: 'Exportadores', noun: 'exportadores', sub: 'Quem vende e embarca a mercadoria. Ordenado por volume; clique numa linha para abrir a ficha (o antigo Raio X).' },
@@ -377,6 +393,16 @@ function routeAgentsSection(ops, id) {
   }));
   return `<section class="detail-section" aria-labelledby="dt-ag"><h3 id="dt-ag">Agentes da rota</h3>${rows.length ? crossList(items) : '<p class="muted">Nenhum agente nesta rota no recorte.</p>'}<p class="chart-caption">Mesma rota, mesmos períodos e filtros: é onde a comparação entre agentes é justa. Com menos de 3 trânsitos, “Amostra pequena”.</p></section>`;
 }
+/** Ficha do exportador: "Quem atende este exportador", um item por agente × rota. */
+function exporterServersSection(ops, id) {
+  const rows = IT.exporterServers(D, ops, id);
+  if (!rows.length) return '';
+  const items = rows.map(r => ({
+    title: `${esc(r.agentName)} <span class="cross-sub">· ${esc(r.routeName)}</span>`, meta: shipCount(r.n) + (r.small ? ' ' + transitSmallTag(r.transitN) : ''),
+    lines: [['Chegada ao destino no prazo', rateCell(r.port)], ['Trânsito mediano', transitBase(r.transitMedian, r.transitN)]],
+  }));
+  return `<section class="detail-section" aria-labelledby="dt-atende"><h3 id="dt-atende">Quem atende este exportador</h3>${crossList(items)}<p class="chart-caption">Agente de cargas e rota de cada embarque deste exportador no recorte. O resultado também depende deles: um desvio sozinho não atribui responsabilidade.</p></section>`;
+}
 function entityDetailHtml(dim, id, s) {
   const ops = IT.entityOps(s.cur, dim, id), row = IT.entityRows(D, s.cur, dim).find(r => r.id === id);
   const actions = `<div class="entity-actions"><button class="button secondary" data-action="entity-filter" data-dim="${dim}" data-id="${esc(id)}">Filtrar por ${THIS[dim]}</button><button class="button secondary" data-action="entity-report" data-dim="${dim}" data-id="${esc(id)}">Preparar relatório</button>${link(FICHA[dim](id), 'Ver ficha completa →')}</div>`;
@@ -391,7 +417,7 @@ function entityDetailHtml(dim, id, s) {
   const evolution = `<section class="detail-section" aria-labelledby="dt-evo"><h3 id="dt-evo">Evolução · últimos 6 meses</h3>${lineChart(keys.map(([k]) => IE.monthly(D, k, base, s.range.end)), keys, true)}<p class="chart-caption">Percentual no prazo por mês do compromisso de prontidão, com os filtros atuais.</p></section>`;
   let fresh = '', more = '';
   if (dim === 'exp') {
-    fresh = `<section class="detail-section" aria-labelledby="dt-sku"><h3 id="dt-sku">SKUs deste exportador</h3>${skuTable(IT.skuRows(D, ops), false)}<p class="chart-caption">SKU é do item: um embarque com dois SKUs conta nos dois.</p></section>`;
+    fresh = exporterServersSection(s.cur, id) + `<section class="detail-section" aria-labelledby="dt-sku"><h3 id="dt-sku">SKUs deste exportador</h3>${skuTable(IT.skuRows(D, ops), false)}<p class="chart-caption">SKU é do item: um embarque com dois SKUs conta nos dois.</p></section>`;
     more = factList([rateFact('Entrega final no prazo', row.final), transit]);
   }
   if (dim === 'rota') {

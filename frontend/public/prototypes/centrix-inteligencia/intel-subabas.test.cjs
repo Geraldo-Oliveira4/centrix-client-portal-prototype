@@ -174,3 +174,35 @@ test('item 3: mesma conta do Simulador (mesmo par, mesma mediana, mesmo N) sobre
     }
   }
 });
+
+// ------------------------------------------------------------------ item 4 ---
+test('item 4: grupos de Exportadores cobrem colunas vizinhas e deixam identidade e volume de fora', () => {
+  const keys = T.COLUMNS.exp.map(([k]) => k), groups = T.COLUMN_GROUPS.exp;
+  assert.deepEqual(groups.map((g) => g.label), ['Depende do exportador', 'Resultado da operação']);
+  assert.deepEqual(groups[0].keys, ['ready', 'docs']);
+  assert.deepEqual(groups[1].keys, ['port', 'freightAvg']);
+  for (const g of groups) { const i = keys.indexOf(g.keys[0]); assert.ok(i >= 0); assert.deepEqual(keys.slice(i, i + g.keys.length), g.keys); }
+  const grouped = groups.flatMap((g) => g.keys);
+  assert.deepEqual(keys.filter((k) => !grouped.includes(k)), ['name', 'country', 'n']);
+  assert.match(groups[1].tip, /Um desvio sozinho não atribui responsabilidade\./);
+  assert.equal(T.COLUMN_GROUPS.ag, undefined);
+  assert.equal(T.COLUMN_GROUPS.rota, undefined);
+});
+
+test('item 4: "Quem atende este exportador" sai dos embarques existentes e reconcilia', () => {
+  let total = 0;
+  for (const id of Object.keys(TOTALS.exp)) {
+    const rows = T.exporterServers(D, cur, id), mine = cur.filter((o) => o.supplier === id);
+    assert.equal(rows.reduce((n, r) => n + r.n, 0), TOTALS.exp[id]);
+    total += rows.reduce((n, r) => n + r.n, 0);
+    for (const r of rows) {
+      const g = mine.filter((o) => o.agent === r.agent && o.route === r.route);
+      assert.equal(r.n, g.length);
+      assert.deepEqual(r.port, { rate: D.metric('port', g).rate, good: D.metric('port', g).good, base: D.metric('port', g).eligible.length });
+      assert.equal(r.transitMedian, T.median(T.transitDays(D, g)));
+    }
+    for (let i = 1; i < rows.length; i++) assert.ok(rows[i - 1].n >= rows[i].n);
+  }
+  assert.equal(total, 26);
+  assert.deepEqual(T.exporterServers(D, cur, 'nao-existe'), []);
+});

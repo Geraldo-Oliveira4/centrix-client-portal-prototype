@@ -586,3 +586,11 @@ table.compare td small.pct,.drawer-body td small.pct{font-size:14px;color:var(--
 .cross-list dd small{font-size:14px;color:var(--muted-ink)}
 .cross-list dd .frac{display:inline}
 .cross-list dd small.pct{display:inline;margin-left:6px}
+/* Item 4: grupos de colunas em Exportadores e "Quem atende este exportador". */
+table.compare tr.col-groups th,table.compare tr.col-groups td{background:#fff;border-bottom:0;padding:10px 12px 6px;white-space:nowrap}
+table.compare tr.col-groups th{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-ink);text-align:left;box-shadow:inset 0 -2px 0 var(--line)}
+table.compare tr.col-groups th+th{box-shadow:inset 0 -2px 0 var(--line),inset 12px 0 0 #fff}
+.group-tip{position:relative;display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;vertical-align:middle;color:var(--muted-ink);cursor:help;text-transform:none;letter-spacing:0}
+.group-tip:focus-visible{outline:3px solid #8b80b9;outline-offset:1px}
+.group-tip .tip{left:auto;right:0;font-weight:400}
+.cross-sub{font-weight:400;color:var(--muted-ink)}

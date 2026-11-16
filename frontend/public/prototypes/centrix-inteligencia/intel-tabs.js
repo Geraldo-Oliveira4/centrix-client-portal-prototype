@@ -126,6 +126,18 @@
     ag: [['name', 'Agente de cargas'], ['n', 'Embarques'], ['routes', 'Rotas atendidas'], ['transitMedian', 'Trânsito mediano'], ['port', 'Chegada ao destino no prazo'], ['final', 'Entrega final no prazo'], ['audit', 'Cobrança sem diferença'], ['freightAvg', 'Frete médio']],
     rota: [['name', 'Rota'], ['n', 'Embarques'], ['agents', 'Agentes'], ['transitMedian', 'Trânsito mediano'], ['port', 'Chegada ao destino no prazo'], ['final', 'Entrega final no prazo'], ['freightAvg', 'Frete médio']],
   };
+  /**
+   * GRUPOS DE COLUNAS (subabas v2). Em Exportadores, o que depende do exportador
+   * fica separado do resultado da operação, que também depende do agente e da
+   * rota. Identidade e volume (Exportador, País, Embarques) ficam fora dos
+   * grupos. As chaves de um grupo são colunas vizinhas de COLUMNS (há teste).
+   */
+  const COLUMN_GROUPS = {
+    exp: [
+      { label: 'Depende do exportador', keys: ['ready', 'docs'] },
+      { label: 'Resultado da operação', keys: ['port', 'freightAvg'], tip: 'O resultado também depende do agente de cargas e da rota. Um desvio sozinho não atribui responsabilidade.' },
+    ],
+  };
   /** Ordem padrão: volume, do maior para o menor. */
   const DEFAULT_SORT = { key: 'n', dir: 'desc' };
 
@@ -268,6 +280,13 @@
       return { ...p, routeMedian, routeN: all.length, diff: p.transitMedian == null || routeMedian == null ? null : Math.round((p.transitMedian - routeMedian) * 10) / 10 };
     });
   }
+  /**
+   * "Quem atende este exportador": os pares agente × rota usados por ele, dos
+   * embarques que já existem (cada embarque tem exportador, agente e rota).
+   */
+  function exporterServers(D, ops, exporterId) {
+    return pairStats(D, entityOps(ops, 'exp', exporterId)).sort(byVolume);
+  }
   /** Os agentes de UMA rota, para comparar dentro da mesma rota. Ordem por volume. */
   function routeAgents(D, ops, routeId) {
     return pairStats(D, ops).filter((p) => p.route === routeId).sort(byVolume);
@@ -344,7 +363,7 @@
     return selection ? `Aba ${label} · ${nameOf(D, selection.dim, selection.id)}` : `Aba ${label}`;
   }
 
-  const api = { MIN_SAMPLE, RATE_KEYS, FACT_MIN_BASE, FACT_METRICS, FACT_EMPTY, rateRange, recortFact, concentrationLine, pairGroups, pairStats, agentRouteContext, routeAgents, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
+  const api = { MIN_SAMPLE, RATE_KEYS, FACT_MIN_BASE, FACT_METRICS, FACT_EMPTY, rateRange, recortFact, concentrationLine, pairGroups, pairStats, agentRouteContext, routeAgents, exporterServers, COLUMN_GROUPS, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelTabs = api;
 })(typeof window !== 'undefined' ? window : globalThis);
