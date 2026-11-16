@@ -27,6 +27,7 @@ const openKpiHow = new Set();      // "Como é calculado" abertos, preservados e
 let persDraft = null;                // rascunho do "Personalizar a Inteligência" (painel ou introdução)
 let adjustDraft = null;              // rascunho de período e filtros do painel "Filtros e ajustes"
 let evoOpen = true;                  // seção "Evolução" aberta por padrão, preservada entre renders
+let commitmentsOpen = false;         // "Compromissos do serviço" recolhido por padrão
 let intelViews = (() => { try { return IL.loadViews(localStorage); } catch { return []; } })();
 const FILTER_KEYS = IE.FILTERS.map(f => f.key);
 function saveViews(next) { intelViews = next; try { IL.saveViews(localStorage, intelViews); } catch {} }
@@ -194,11 +195,15 @@ function trechosBlock(s) {
   return `<section class="card trechos" id="bloco-performance" aria-labelledby="t-performance"><h2 id="t-performance">Performance · Onde os tempos excedem o previsto</h2><p class="card-sub">Dias corridos por trecho concluído; cada trecho abre a base. Por parceiro e por rota, veja os submódulos.</p><ol class="stages">${cells}</ol><p class="chart-caption">Trechos sem desvio ficam em cinza; os que têm desvio ganham destaque. O desvio localiza o trecho, não a causa nem o responsável.</p>${detailLink('trechos')}</section>`;
 }
 function commitmentsBlock(s) {
-  // Mora na aba Agentes de carga desde 23/10/2026: é o combinado com o AGENTE.
+  // Mora no submódulo Agentes de carga desde 23/10/2026: é o combinado com o AGENTE.
+  // v4: RECOLHIDO por padrão. A lista de agentes fica curta e nada se perde; os
+  // desvios de cada agente também aparecem na ficha dele. Manter ou tirar da
+  // página é decisão do time (registrado na PR).
   const rows = IE.commitments(D, s.cur).sort((a, b) => (a.status === 'deviation' ? 0 : 1) - (b.status === 'deviation' ? 0 : 1)), LABEL = { deviation: 'Desvio identificado', clean: 'Sem desvio', missing: 'Falta informação' };
   const dev = rows.filter(r => r.status === 'deviation').length;
   const ctl = c => `${esc(c.name)}: ${c.actual} ${c.unit} <small>combinado ${c.agreed} ${c.unit}</small>`;
-  return `<section class="block" id="bloco-compromissos" aria-labelledby="t-compromissos">${blockHead('compromissos', 'Compromissos do serviço', `Prazos e condições combinados com o agente × o realizado. ${dev} de ${rows.length} com desvio. Relatório de leitura: um desvio sozinho não atribui responsabilidade.`)}${rows.length ? table(['Exportador / PO', 'Agente / rota', 'Desvios', 'Situação'], rows.map(({ o, deviations, status }) => `<tr><td>${esc(company(o.supplier).name)}<small>${esc(o.po)} · ${esc(o.id)}</small></td><td>${esc(agent(o.agent).name)}<small>${esc(routeName(route(o.route)))}</small></td><td>${deviations.length ? deviations.map(ctl).join('<br>') : '—'}</td><td><span class="pill ${status === 'clean' ? 'good' : ''}">${LABEL[status]}</span></td></tr>`).join('')) : '<p class="muted">Nenhum embarque neste recorte.</p>'}</section>`;
+  const open = commitmentsOpen || pagePath === 'compromissos';
+  return `<details class="fold commitments" id="bloco-compromissos" data-fold="commitments" ${open ? 'open' : ''}><summary><h2 id="t-compromissos">Compromissos do serviço <span class="fold-count">· ${dev} de ${rows.length} com desvio</span></h2><span class="fold-toggle" aria-hidden="true"></span></summary><p class="card-sub">Prazos e condições combinados com o agente × o realizado. Relatório de leitura: um desvio sozinho não atribui responsabilidade. Os desvios de cada agente também aparecem na ficha dele.</p>${rows.length ? table(['Exportador / PO', 'Agente / rota', 'Desvios', 'Situação'], rows.map(({ o, deviations, status }) => `<tr><td>${esc(company(o.supplier).name)}<small>${esc(o.po)} · ${esc(o.id)}</small></td><td>${esc(agent(o.agent).name)}<small>${esc(routeName(route(o.route)))}</small></td><td>${deviations.length ? deviations.map(ctl).join('<br>') : '—'}</td><td><span class="pill ${status === 'clean' ? 'good' : ''}">${LABEL[status]}</span></td></tr>`).join('')) : '<p class="muted">Nenhum embarque neste recorte.</p>'}</details>`;
 }
 
 /* ------------------------------------------------------------ cabeçalho --- */
@@ -321,42 +326,60 @@ function skuTable(rows, withExporter) {
   if (!rows.length) return '<p class="muted">Nenhum SKU neste recorte.</p>';
   return table(['SKU', withExporter ? 'Exportador' : 'Rotas', 'Embarques'], rows.map(r => `<tr><td><b>${esc(r.sku)}</b><small>${esc(r.desc)}</small></td><td>${withExporter ? esc(r.exporters.map(id => company(id)?.name || id).join(', ')) : esc(r.routes.map(id => routeName(route(id))).join(', '))}</td><td>${r.n}${r.small ? smallTag(r.n) : ''}</td></tr>`).join(''));
 }
+/* FICHA LATERAL (v4). Três indicadores no topo e só o que NÃO está na linha da
+   tabela. O que a ficha antiga mostrava a mais (evolução, uso e impacto, fatos
+   fora da tabela) continua, recolhido em "Mais detalhes": nada se perde. */
+const daysTxt1 = v => (v == null ? '—' : String(v).replace('.', ',') + ' dias');
+const rateFact = (label, m) => [label, pctTxt(m.rate), m.base ? `${m.good ?? 0} de ${m.base}` : 'sem registro'];
+function sheetStrip(items) { return `<dl class="sheet-strip">${items.map(([k, v, small]) => `<div><dt>${k}</dt><dd>${v}</dd>${small ? `<small>${small}</small>` : ''}</div>`).join('')}</dl>`; }
+/** Os desvios de UM agente, do mesmo dado do bloco "Compromissos do serviço" (IE.commitments). */
+function agentDeviations(ops) {
+  const rows = IE.commitments(D, ops), dev = rows.filter(r => r.status === 'deviation');
+  const item = ({ o, deviations }) => `<li><div class="dev-who"><b>${esc(company(o.supplier).name)}</b><small>${esc(o.po)} · ${esc(routeName(route(o.route)))}</small></div><ul class="dev-list">${deviations.map(c => `<li>${esc(c.name)}: <b>${c.actual} ${c.unit}</b><small>combinado ${c.agreed} ${c.unit}</small></li>`).join('')}</ul></li>`;
+  return `<section class="detail-section" aria-labelledby="dt-dev"><h3 id="dt-dev">Compromissos do serviço · desvios</h3><p class="base-line">${dev.length} de ${rows.length} ${rows.length === 1 ? 'embarque' : 'embarques'} deste agente com desvio contra o combinado.</p>${dev.length ? `<ul class="dev-items">${dev.map(item).join('')}</ul>` : '<p class="muted">Nenhum desvio contra o combinado neste recorte.</p>'}<p class="chart-caption">Um desvio sozinho não atribui responsabilidade.</p></section>`;
+}
 function entityDetailHtml(dim, id, s) {
   const ops = IT.entityOps(s.cur, dim, id), row = IT.entityRows(D, s.cur, dim).find(r => r.id === id);
-  const actions = `<div class="entity-actions"><button class="button" data-action="entity-filter" data-dim="${dim}" data-id="${esc(id)}">Filtrar por ${THIS[dim]}</button><button class="button secondary" data-action="entity-report" data-dim="${dim}" data-id="${esc(id)}">Preparar relatório</button>${link(FICHA[dim](id), 'Ver ficha completa →')}</div>`;
-  if (!row) return actions + `<div class="empty"><h2>Sem embarques neste recorte</h2><p>Altere o período ou os filtros para ver o histórico de ${THIS[dim]}.</p></div>`;
-  const facts = [
-    ['Embarques', `${row.n}`, `${row.share}% do recorte${row.small ? ' · amostra pequena' : ''}`],
-    ['Prontidão no prazo', pctTxt(row.ready.rate), row.ready.base ? `${row.ready.good} de ${row.ready.base}` : 'sem registro'],
-    [destTerm('Chegada ao destino') + ' no prazo', pctTxt(row.port.rate), row.port.base ? `${row.port.good} de ${row.port.base}` : 'sem registro'],
-    ['Entrega final no prazo', pctTxt(row.final.rate), row.final.base ? `${row.final.good} de ${row.final.base}` : 'sem registro'],
-    ['Trânsito mediano', row.transitMedian == null ? '—' : String(row.transitMedian).replace('.', ',') + ' dias', `${row.transitN} com saída e chegada`],
-    ['Frete médio', row.freightAvg == null ? '—' : money(row.freightAvg), 'frete internacional contratado'],
-  ];
+  const actions = `<div class="entity-actions"><button class="button secondary" data-action="entity-filter" data-dim="${dim}" data-id="${esc(id)}">Filtrar por ${THIS[dim]}</button><button class="button secondary" data-action="entity-report" data-dim="${dim}" data-id="${esc(id)}">Preparar relatório</button>${link(FICHA[dim](id), 'Ver ficha completa →')}</div>`;
+  if (!row) return `<div class="empty"><h2>Sem embarques neste recorte</h2><p>Altere o período ou os filtros para ver o histórico de ${THIS[dim]}.</p></div>` + actions;
+  const transit = ['Trânsito mediano', daysTxt1(row.transitMedian), `${row.transitN} com saída e chegada`];
+  const freight = ['Frete médio', row.freightAvg == null ? '—' : money(row.freightAvg), 'frete internacional'];
+  const strip = dim === 'exp'
+    ? [rateFact('Prontidão no prazo', row.ready), rateFact('Documentação sem correção', row.docs), freight]
+    : [transit, rateFact('Entrega final no prazo', row.final), freight];
   const base = IT.entityOps(IE.applyFilters(D.operations, s.gf), dim, id);
   const keys = [['ready', 'Prontidão', 's1'], ['port', 'Chegada ao destino', 's2'], ['final', 'Entrega final', 's3']];
-  const evolution = `<section class="detail-section" aria-labelledby="dt-evo"><h3 id="dt-evo">Evolução · últimos 6 meses</h3>${lineChart(keys.map(([k]) => IE.monthly(D, k, base, s.range.end)), keys)}<p class="chart-caption">Percentual no prazo por mês do compromisso de prontidão, com os filtros atuais.</p></section>`;
-  let extra = '';
-  if (dim === 'exp') extra = `<section class="detail-section" aria-labelledby="dt-sku"><h3 id="dt-sku">SKUs deste exportador</h3>${skuTable(IT.skuRows(D, ops), false)}<p class="chart-caption">SKU é do item: um embarque com dois SKUs conta nos dois.</p></section>`;
+  const evolution = `<section class="detail-section" aria-labelledby="dt-evo"><h3 id="dt-evo">Evolução · últimos 6 meses</h3>${lineChart(keys.map(([k]) => IE.monthly(D, k, base, s.range.end)), keys, true)}<p class="chart-caption">Percentual no prazo por mês do compromisso de prontidão, com os filtros atuais.</p></section>`;
+  let fresh = '', more = '';
+  if (dim === 'exp') {
+    fresh = `<section class="detail-section" aria-labelledby="dt-sku"><h3 id="dt-sku">SKUs deste exportador</h3>${skuTable(IT.skuRows(D, ops), false)}<p class="chart-caption">SKU é do item: um embarque com dois SKUs conta nos dois.</p></section>`;
+    more = factList([rateFact('Entrega final no prazo', row.final), transit]);
+  }
   if (dim === 'rota') {
     const agents = IT.sortRows(IT.entityRows(D, ops, 'ag'));
-    extra = `<section class="detail-section" aria-labelledby="dt-ag"><h3 id="dt-ag">Agentes nesta rota</h3>${table(['Agente', 'Embarques', 'Trânsito mediano', 'Chegada ao destino no prazo'], agents.map(r => `<tr><td><b>${esc(r.name)}</b></td><td>${r.n}${r.small ? smallTag(r.n) : ''}</td><td>${transitCell(r)}</td><td>${rateCell(r.port)}</td></tr>`).join(''))}</section><section class="detail-section" aria-labelledby="dt-sku"><h3 id="dt-sku">SKUs nesta rota</h3>${skuTable(IT.skuRows(D, ops), true)}</section>`;
+    fresh = `<section class="detail-section" aria-labelledby="dt-ag"><h3 id="dt-ag">Agentes nesta rota</h3>${table(['Agente', 'Embarques', 'Trânsito mediano', 'Chegada ao destino no prazo'], agents.map(r => `<tr><td><b>${esc(r.name)}</b></td><td>${r.n}${r.small ? smallTag(r.n) : ''}</td><td>${transitCell(r)}</td><td>${rateCell(r.port)}</td></tr>`).join(''))}</section><section class="detail-section" aria-labelledby="dt-sku"><h3 id="dt-sku">SKUs nesta rota</h3>${skuTable(IT.skuRows(D, ops), true)}<p class="chart-caption">SKU é do item: um embarque com dois SKUs conta nos dois.</p></section>`;
+    more = factList([rateFact('Prontidão no prazo', row.ready)]);
   }
   if (dim === 'ag') {
-    const imp = IT.agentImpact(D, s.cur, id), devs = IE.commitments(D, ops).filter(c => c.status === 'deviation').length;
-    extra = `<section class="detail-section" aria-labelledby="dt-imp"><h3 id="dt-imp">Uso e impacto</h3>${factList([
+    const imp = IT.agentImpact(D, s.cur, id);
+    fresh = agentDeviations(ops) + `<section class="detail-section" aria-labelledby="dt-cob"><h3 id="dt-cob">Cobrança</h3><p class="sheet-line"><span>Conferências sem diferença</span><b>${row.audit.base ? `${row.audit.good ?? 0} de ${row.audit.base}` : 'nenhuma conferência concluída'}</b></p></section>`;
+    more = `<section class="detail-section" aria-labelledby="dt-imp"><h3 id="dt-imp">Uso e impacto</h3>${factList([
       ['Participação nos embarques', `${imp.share}%`, `${imp.n} de ${imp.total} no recorte · ${imp.routes.length} ${imp.routes.length === 1 ? 'rota' : 'rotas'}: ${esc(imp.routes.map(r => routeName(route(r))).join(', '))}`],
       ['Prazo do trânsito', imp.transitMedian == null ? '—' : String(imp.transitMedian).replace('.', ',') + ' dias (mediana)', `${imp.transitOverPlan} de ${imp.transitBase} acima do trânsito previsto na proposta`],
       ['Cotado × cobrado', imp.auditBase ? `${imp.auditDiffCount} de ${imp.auditBase}` : '—', imp.auditBase ? `conferências concluídas com diferença${imp.auditDiffUsd ? ` · ${money(imp.auditDiffUsd)} fundamentados, não recuperados` : ''}${imp.auditPending ? ` · ${imp.auditPending} em esclarecimento ou não auditados` : ''}` : 'nenhuma conferência concluída'],
-      ['Compromissos do serviço', `${devs} de ${ops.length}`, 'embarques com desvio contra o combinado'],
+      rateFact('Prontidão no prazo', row.ready),
     ])}<p class="chart-caption">Desvio observado não atribui responsabilidade ao agente.</p></section>`;
   }
-  return actions + `<section class="detail-section" aria-labelledby="dt-facts"><h3 id="dt-facts">Fatos principais</h3>${factList(facts)}</section>` + evolution + extra;
+  return sheetStrip(strip) + fresh + `<details class="fold sheet-more"><summary><h3>Mais detalhes · evolução e uso</h3><span class="fold-toggle" aria-hidden="true"></span></summary>${evolution}${more}</details>` + actions;
 }
-function entitySubtitle(dim, id) {
-  if (dim === 'exp') { const c = company(id); return `${c.city}, ${c.country} · Exportador · ${periodText()}`; }
-  if (dim === 'ag') { const a = agent(id); return `Agente de carga · ${a.preferred ? 'Preferido no cadastro' : 'Sem preferência cadastral'} · ${periodText()}`; }
-  const r = route(id); return `${r.mode} · ${r.equipment} · ${periodText()}`;
+/** Subtítulo da ficha: a base primeiro ("4 embarques · 1 rota"), com o selo de amostra quando vale. */
+function entitySubtitle(dim, id, s) {
+  const row = IT.entityRows(D, s.cur, dim).find(r => r.id === id);
+  if (!row) return esc(periodText());
+  const n = `${row.n} ${row.n === 1 ? 'embarque' : 'embarques'}`, tag = row.small ? ' ' + smallTag(row.n) : '';
+  if (dim === 'exp') { const c = company(id); return `${n} · ${esc(c.city)}, ${esc(c.country)}${tag}`; }
+  if (dim === 'ag') return `${n} · ${row.routes} ${row.routes === 1 ? 'rota' : 'rotas'}${agent(id).preferred ? ' · Preferido no cadastro' : ''}${tag}`;
+  const r = route(id); return `${n} · ${row.agents} ${row.agents === 1 ? 'agente' : 'agentes'} · ${esc(r.mode)} · ${esc(r.equipment)}${tag}`;
 }
 /** O "×" das gavetas vira um botão "Fechar" por extenso nas fichas e no painel de ajustes. */
 function sheetMode(cls) {
@@ -367,7 +390,7 @@ function sheetMode(cls) {
 }
 function openEntity(dim, id) {
   const s = intelScope();
-  openDrawer(esc(IT.nameOf(D, dim, id)), esc(entitySubtitle(dim, id)), entityDetailHtml(dim, id, s));
+  openDrawer(esc(IT.nameOf(D, dim, id)), entitySubtitle(dim, id, s), entityDetailHtml(dim, id, s));
   sheetMode('entity-sheet');
 }
 /** Depois de desenhar a Visão geral/abas: abre o detalhe pedido pela URL. */
@@ -728,10 +751,10 @@ document.addEventListener('click', e => {
   persDraft = IP.toggleTheme(persDraft, b.dataset.persTheme);
   refreshPers(`[data-pers-theme="${b.dataset.persTheme}"]`);
 });
-// Dobra "Evolução": o estado sobrevive ao redesenho.
+// Dobras ("Evolução", "Compromissos do serviço"): o estado sobrevive ao redesenho.
 document.addEventListener('toggle', e => {
   const d = e.target; if (!d.dataset || !d.dataset.fold) return;
-  if (d.dataset.fold === 'evo') evoOpen = d.open;
+  if (d.dataset.fold === 'evo') evoOpen = d.open; else if (d.dataset.fold === 'commitments') commitmentsOpen = d.open;
 }, true);
 document.addEventListener('toggle', e => {
   const d = e.target; if (!d.matches || !d.matches('details.fsel')) return;
