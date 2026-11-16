@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { markFirstStep } from '../../_shared/use-first-steps';
+import { INTEL_HASH_EVENT } from '../lib/intel-submodules';
 
 /** Approved demo, isolated from operational APIs. */
 export function IntelligencePreview({ initialSection = 'executivo' }: { initialSection?: string }) {
@@ -62,6 +63,9 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
       const syncHash = () => {
         window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + child.location.hash);
         document.title = child.document.title;
+        // O menu lateral marca o submodulo ativo pelo hash, e `replaceState`
+        // nao dispara `hashchange`: o host avisa.
+        window.dispatchEvent(new Event(INTEL_HASH_EVENT));
       };
       const restoreHash = () => {
         const hash = window.location.hash || '#' + initialSection;

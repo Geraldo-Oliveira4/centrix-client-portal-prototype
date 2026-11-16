@@ -1,8 +1,11 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import type { MouseEvent } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  ChevronDown,
   FileText,
   Gauge,
   LayoutDashboard,
@@ -28,6 +31,16 @@ import {
 
 import type { PortalModule } from '../_shared/demo/feature-flags';
 import { usePortalModuleFlags } from '../_shared/demo/use-feature-flags';
+import {
+  INTEL_BASE_PATH,
+  INTEL_HASH_EVENT,
+  INTEL_SUBMODULES,
+  activeIntelSubmodule,
+  intelSubmoduleHash,
+  isIntelPath,
+  type IntelSubmodule,
+  type IntelSubmoduleId,
+} from '../inteligencia/lib/intel-submodules';
 
 import { useSidebar } from './sidebar-context';
 
@@ -43,6 +56,9 @@ interface NavItem {
   icon: LucideIcon;
   module?: PortalModule;
   beta?: boolean;
+  // Submodulos (v4, 13/11/2026): as abas da Inteligencia viraram itens do menu.
+  // O destino de cada um e um HASH da mesma rota (`inteligencia/lib/intel-submodules.ts`).
+  submodules?: IntelSubmodule[];
 }
 
 // DOIS GRUPOS POR FREQUENCIA DE USO (30/09/2026, feedback de marketing: "todos
@@ -71,7 +87,13 @@ const NAV_GROUPS: { id: string; label: string; quiet: boolean; items: NavItem[] 
     label: 'Performance',
     quiet: true,
     items: [
-      { href: '/portal/inteligencia', label: 'Inteligência', icon: Sparkles, module: 'inteligencia' },
+      {
+        href: INTEL_BASE_PATH,
+        label: 'Inteligência',
+        icon: Sparkles,
+        module: 'inteligencia',
+        submodules: INTEL_SUBMODULES,
+      },
       { href: '/portal/radar', label: 'Radar', icon: Radar, module: 'radar', beta: true },
       { href: '/portal/auditoria', label: 'Auditoria', icon: Scale, module: 'auditoria' },
     ],
@@ -102,10 +124,113 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
     ),
   })).filter((group) => group.items.length > 0);
 
+  // O SUBMODULO ATIVO VEM DA URL. As cinco telas da Inteligencia dividem a
+  // mesma rota e se distinguem pelo hash, que o `usePathname` nao enxerga: o
+  // menu le `window.location.hash` e reage ao `hashchange` (clique aqui no
+  // menu, voltar/avancar) e ao aviso do host quando a navegacao acontece DENTRO
+  // do iframe (`IntelligencePreview` espelha o hash com `replaceState`, que nao
+  // dispara evento nenhum sozinho).
+  const [hash, setHash] = useState('');
+  useEffect(() => {
+    const read = () => setHash(window.location.hash);
+    read();
+    window.addEventListener('hashchange', read);
+    window.addEventListener(INTEL_HASH_EVENT, read);
+    return () => {
+      window.removeEventListener('hashchange', read);
+      window.removeEventListener(INTEL_HASH_EVENT, read);
+    };
+  }, [pathname]);
+  const activeSubmodule = activeIntelSubmodule(pathname, hash);
+  // `null` = segue a rota (aberto dentro da Inteligencia, fechado fora). O
+  // clique na seta fixa a escolha ate a proxima troca de rota.
+  const [submenuOpen, setSubmenuOpen] = useState<boolean | null>(null);
+  useEffect(() => setSubmenuOpen(null), [pathname]);
+
+  const goToSubmodule = (event: MouseEvent, id: IntelSubmoduleId) => {
+    if (mobile) toggleMobile();
+    // Ja dentro da Inteligencia a troca e so de hash: o host repassa ao iframe
+    // e periodo e filtros sao preservados, como as abas faziam. De fora, o
+    // Link navega para a rota com o hash de destino.
+    if (!isIntelPath(pathname)) return;
+    event.preventDefault();
+    const next = intelSubmoduleHash(id, window.location.hash);
+    if (window.location.hash !== next) window.location.hash = next;
+  };
+
+  const renderSubmodules = (item: NavItem, active: boolean) => {
+    const open = submenuOpen ?? active;
+    const listId = 'menu-sub-inteligencia';
+    return (
+      <li key={item.href}>
+        <div
+          className={cn(
+            'flex min-h-11 items-center rounded-lg text-sm transition-colors',
+            active
+              ? 'bg-brand-indigo text-white dark:bg-brand-indigo-700'
+              : 'text-portal-neutral hover:bg-muted hover:text-foreground',
+          )}
+        >
+          <Link
+            href={item.href + intelSubmoduleHash('geral')}
+            onClick={(event) => goToSubmodule(event, 'geral')}
+            aria-current={active && !activeSubmodule ? 'page' : undefined}
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <item.icon className="h-4 w-4 shrink-0" />
+            <span className={cn(active && 'font-semibold')}>{item.label}</span>
+          </Link>
+          {/* Fora do Link: <button> dentro de <a> e HTML invalido. */}
+          <button
+            type="button"
+            onClick={() => setSubmenuOpen(!open)}
+            aria-expanded={open}
+            aria-controls={listId}
+            aria-label={open ? 'Recolher submódulos de Inteligência' : 'Expandir submódulos de Inteligência'}
+            className="flex h-11 w-10 shrink-0 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />
+          </button>
+        </div>
+        {open && (
+          <ul id={listId} aria-label="Submódulos de Inteligência" className="mt-1 space-y-1">
+            {item.submodules!.map((sub) => {
+              const current = activeSubmodule === sub.id;
+              return (
+                <li key={sub.id}>
+                  <Link
+                    href={item.href + intelSubmoduleHash(sub.id)}
+                    onClick={(event) => goToSubmodule(event, sub.id)}
+                    aria-current={current ? 'page' : undefined}
+                    className={cn(
+                      'flex min-h-11 items-center gap-2 rounded-lg py-2 pl-10 pr-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      current
+                        ? 'bg-brand-indigo-100 font-semibold text-brand-indigo'
+                        : 'text-portal-neutral hover:bg-muted hover:text-foreground',
+                    )}
+                  >
+                    <span>{sub.label}</span>
+                    {sub.preview && (
+                      <span className="portal-small ml-auto rounded-full border border-brand-indigo-800/20 bg-brand-indigo-100 px-1.5 font-normal text-brand-indigo">
+                        Prévia
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </li>
+    );
+  };
+
   const renderItem = (item: NavItem, quiet: boolean) => {
     const Icon = item.icon;
     const active =
       pathname === item.href || pathname.startsWith(item.href + '/');
+    // Recolhida, a Inteligencia e so o icone (sem submodulos), como os outros.
+    if (item.submodules && !slim) return renderSubmodules(item, active);
     const link = (
       <Link
         href={item.href}
