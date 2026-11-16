@@ -304,15 +304,16 @@ const TAB_COPY = {
   ag: { plural: 'Agentes de carga', noun: 'agentes', sub: 'Quem contrata e acompanha o transporte. Ordenado por volume; clique numa linha para abrir a ficha, com os desvios e a cobrança do agente.' },
   rota: { plural: 'Rotas', noun: 'rotas', sub: 'Origem → destino internacional. Ordenado por volume; clique numa linha para abrir a ficha, com agentes e SKUs da rota.' },
 };
-function tabSummaryRow(dim, rows, total) {
-  const t = IT.tabSummary(rows, total), c = TAB_COPY[dim];
-  const card = (label, value, small) => `<div class="tab-stat"><span>${label}</span><b>${value}</b>${small ? `<small>${small}</small>` : ''}</div>`;
-  return `<div class="tab-stats">${card(`${c.plural} no recorte`, t.count, `${total} embarques`)}${t.top ? card('Maior participação', `${t.top.share}%`, `${esc(t.top.name)} · ${t.top.n} de ${total}`) : ''}${t.top2Share != null ? card('Os 2 maiores somam', `${t.top2Share}%`, 'dos embarques do recorte') : ''}${t.smallCount ? card('Com amostra pequena', t.smallCount, 'menos de 3 embarques') : ''}</div>`;
+/* FATO DO RECORTE (subabas v2): uma frase calculada (IntelTabs.recortFact) no
+   lugar dos três cartões de concentração; a concentração continua, numa linha
+   discreta logo abaixo. Respeita período e filtros como o resto da tela. */
+function factBand(dim, rows, total) {
+  return `<div class="fact-band" role="note" aria-label="Fato do recorte"><p class="fact-text">${esc(IT.recortFact(dim, rows).text)}</p><p class="fact-conc">${esc(IT.concentrationLine(dim, rows, total))}</p></div>`;
 }
 function entityTab(dim, s) {
   const rows = IT.entityRows(D, s.cur, dim), c = TAB_COPY[dim];
   // O título do submódulo está no cabeçalho da página; aqui fica só a frase de apoio.
-  let html = `<section class="block entity-tab" id="aba-${dim}" aria-label="${c.plural}"><p class="lead">${c.sub}</p>${tabSummaryRow(dim, rows, s.cur.length)}${comparisonTable(dim, rows)}<p class="chart-caption">Dado, não veredito: as colunas são fatos do recorte, sem nota nem ranking. Com menos de 3 embarques a linha leva “Amostra pequena”.</p></section>`;
+  let html = `<section class="block entity-tab" id="aba-${dim}" aria-label="${c.plural}"><p class="lead">${c.sub}</p>${factBand(dim, rows, s.cur.length)}${comparisonTable(dim, rows)}<p class="chart-caption">Dado, não veredito: as colunas são fatos do recorte, sem nota nem ranking. Com menos de 3 embarques a linha leva “Amostra pequena”.</p></section>`;
   if (dim === 'ag') html += commitmentsBlock(s);
   if (dim === 'rota') html += `<p class="chart-caption">O preço de mercado de cada rota fica no Radar. <a class="link" href="/portal/radar" target="_top">Abrir o Radar ↗</a> · <a class="link" href="#locais">Ver locais</a></p>`;
   return html;

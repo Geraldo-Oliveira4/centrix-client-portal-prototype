@@ -30,3 +30,77 @@ test('item 1: as colunas de taxa das três subabas estão cobertas pelo desempat
     for (const [key] of T.COLUMNS[dim]) if (r[key] && typeof r[key] === 'object' && 'base' in r[key]) assert.ok(T.RATE_KEYS.includes(key), `${dim}.${key}`);
   }
 });
+
+// ------------------------------------------------------------------ item 2 ---
+const JUDGE = /melhor|pior|lidera|ranking|\bnota\b|recomend|\bbom\b|\bruim\b|vence|destaque|pre[çc]o/i;
+const named = (name, port, extra = {}) => ({ id: name, name, n: 5, port, ready: rate(0, 0), docs: rate(0, 0), ...extra });
+
+test('item 2: intervalo com a base de cada ponta', () => {
+  const rows = [named('Alpha', rate(4, 7)), named('Gamma', rate(4, 5)), named('Delta', rate(3, 4))];
+  const r = T.rateRange(rows, 'port');
+  assert.deepEqual(r.min, { id: 'Alpha', name: 'Alpha', rate: 57, good: 4, base: 7 });
+  assert.deepEqual(r.max, { id: 'Gamma', name: 'Gamma', rate: 80, good: 4, base: 5 });
+  assert.equal(T.recortFact('ag', rows).text, 'Chegada ao destino no prazo vai de 57% (Alpha, 4 de 7) a 80% (Gamma, 4 de 5) entre os agentes com base de 3 ou mais.');
+  assert.equal(T.recortFact('rota', rows).text, 'Chegada ao destino no prazo vai de 57% (Alpha, 4 de 7) a 80% (Gamma, 4 de 5) entre as rotas com base de 3 ou mais.');
+});
+
+test('item 2: base da MÉTRICA menor que 3 fica fora, mesmo com muitos embarques', () => {
+  const rows = [named('Alpha', rate(4, 7)), named('Gamma', rate(4, 5)), { ...named('Beta', rate(0, 2)), n: 40 }, { ...named('Zeta', rate(2, 2)), n: 40 }];
+  const r = T.rateRange(rows, 'port');
+  assert.equal(r.count, 2);
+  assert.equal(r.min.name, 'Alpha');
+  assert.equal(r.max.name, 'Gamma');
+  assert.ok(!/Beta|Zeta/.test(T.recortFact('ag', rows).text));
+});
+
+test('item 2: empate nas pontas fica com a base maior; taxa igual em todos não vira intervalo falso', () => {
+  const tied = [named('Pequeno', rate(3, 4)), named('Grande', rate(6, 8)), named('Topo', rate(5, 5))];
+  assert.equal(T.rateRange(tied, 'port').min.name, 'Grande');
+  const flat = [named('A', rate(3, 4)), named('B', rate(6, 8))];
+  assert.equal(T.rateRange(flat, 'port').flat, true);
+  assert.equal(T.recortFact('ag', flat).text, 'Chegada ao destino no prazo é de 75% em ambos entre os agentes com base de 3 ou mais.');
+  assert.equal(T.recortFact('rota', [...flat, named('C', rate(9, 12))]).text, 'Chegada ao destino no prazo é de 75% em todas entre as rotas com base de 3 ou mais.');
+});
+
+test('item 2: um só item com base, ou nenhum, mostra a frase neutra', () => {
+  assert.equal(T.rateRange([named('Só', rate(4, 7)), named('Beta', rate(1, 2))], 'port'), null);
+  assert.equal(T.recortFact('ag', [named('Só', rate(4, 7)), named('Beta', rate(1, 2))]).text, 'Poucos itens com base de 3 ou mais neste recorte.');
+  assert.equal(T.recortFact('exp', []).text, T.FACT_EMPTY);
+  assert.equal(T.recortFact('rota', [named('X', rate(0, 0))]).text, T.FACT_EMPTY);
+});
+
+test('item 2: exportadores juntam Prontidão e Documentação; com uma só métrica, só ela', () => {
+  const both = [named('East', rate(0, 0), { ready: rate(5, 6), docs: rate(6, 7) }), named('Yang', rate(0, 0), { ready: rate(7, 7), docs: rate(4, 7) })];
+  assert.equal(T.recortFact('exp', both).text, 'Prontidão no prazo vai de 83% (East, 5 de 6) a 100% (Yang, 7 de 7) e Documentação sem correção, de 57% (Yang, 4 de 7) a 86% (East, 6 de 7), entre os exportadores com base de 3 ou mais.');
+  const one = both.map((r) => ({ ...r, docs: rate(1, 2) }));
+  assert.equal(T.recortFact('exp', one).text, 'Prontidão no prazo vai de 83% (East, 5 de 6) a 100% (Yang, 7 de 7) entre os exportadores com base de 3 ou mais.');
+});
+
+test('item 2: na fixture, as três frases são calculadas, sem palavra de julgamento e só com base de 3 ou mais', () => {
+  for (const dim of ['ag', 'exp', 'rota']) {
+    const rows = T.entityRows(D, cur, dim), f = T.recortFact(dim, rows);
+    assert.ok(f.ranges.length >= 1, dim);
+    assert.doesNotMatch(f.text, JUDGE);
+    for (const r of f.ranges) for (const e of [r.min, r.max]) {
+      assert.ok(e.base >= 3);
+      const src = rows.find((x) => x.id === e.id)[r.key];
+      assert.deepEqual([e.rate, e.good, e.base], [src.rate, src.good, src.base]);
+      assert.ok(f.text.includes(`${e.rate}% (${e.name}, ${e.good} de ${e.base})`));
+    }
+  }
+  assert.equal(T.recortFact('ag', T.entityRows(D, cur, 'ag')).text, 'Chegada ao destino no prazo vai de 57% (Alpha Logistics, 4 de 7) a 80% (Gamma Freight, 4 de 5) entre os agentes com base de 3 ou mais.');
+});
+
+test('item 2: a frase responde ao recorte (filtro muda o texto; recorte vazio cai na frase neutra)', () => {
+  const full = T.recortFact('ag', T.entityRows(D, cur, 'ag')).text;
+  const one = E.applyFilters(cur, { rota: ['shanghai'] });
+  assert.notEqual(T.recortFact('ag', T.entityRows(D, one, 'ag')).text, full);
+  assert.equal(T.recortFact('ag', T.entityRows(D, [], 'ag')).text, T.FACT_EMPTY);
+});
+
+test('item 2: a linha de concentração preserva o que os três cartões diziam', () => {
+  assert.equal(T.concentrationLine('ag', T.entityRows(D, cur, 'ag'), cur.length), '4 agentes · 26 embarques · maior participação 35% (Alpha Logistics, 9 de 26) · os 2 maiores somam 62%');
+  assert.match(T.concentrationLine('exp', T.entityRows(D, cur, 'exp'), cur.length), /^5 exportadores · 26 embarques · maior participação 27% \(.+, 7 de 26\) · os 2 maiores somam 54%/);
+  assert.match(T.concentrationLine('rota', T.entityRows(D, cur, 'rota'), cur.length), /^5 rotas · 26 embarques · maior participação 35% \(Shanghai → Santos, 9 de 26\) · os 2 maiores somam 54%$/);
+  assert.equal(T.concentrationLine('ag', [named('Só', rate(1, 1))].map((r) => ({ ...r, n: 1, share: 100, small: true })), 1), '1 agente · 1 embarque · maior participação 100% (Só, 1 de 1) · 1 com amostra pequena (menos de 3 embarques)');
+});

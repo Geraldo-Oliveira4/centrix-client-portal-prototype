@@ -568,3 +568,8 @@ footer{font-size:13px;color:var(--muted-ink)}
 /* Item 1: base primeiro ("4 de 5"), percentual depois, menor e discreto. */
 .frac{display:block;font-size:15px;color:var(--ink);white-space:nowrap}
 table.compare td small.pct,.drawer-body td small.pct{font-size:14px;color:var(--muted-ink);margin-top:2px}
+/* Item 2: fato do recorte (uma frase) + linha discreta de concentração. */
+.fact-band{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:0 0 16px}
+.fact-text{font-size:17px;line-height:1.45;color:var(--ink);max-width:95ch}
+.fact-conc{font-size:14px;color:var(--muted-ink);margin-top:6px}
+@media(max-width:700px){.fact-band{padding:14px 16px}.fact-text{font-size:16px}}

@@ -175,6 +175,58 @@
     };
   }
 
+  // ------------------------------------------------------- fato do recorte ---
+  /**
+   * FATO DO RECORTE (subabas v2). No lugar dos três cartões de concentração, uma
+   * frase calculada que descreve o INTERVALO de uma taxa entre os itens da
+   * subaba: mínimo e máximo, cada ponta com a própria base. Só descreve; nunca
+   * julga (sem "melhor", "pior", "lidera"). Entra na conta só quem tem BASE DA
+   * MÉTRICA de 3 ou mais (o "de 7" da chegada, não o total de embarques).
+   */
+  const FACT_MIN_BASE = 3;
+  const FACT_METRICS = {
+    ag: [['port', 'Chegada ao destino no prazo']],
+    exp: [['ready', 'Prontidão no prazo'], ['docs', 'Documentação sem correção']],
+    rota: [['port', 'Chegada ao destino no prazo']],
+  };
+  const FACT_NOUN = { ag: ['agente', 'agentes', 'os'], exp: ['exportador', 'exportadores', 'os'], rota: ['rota', 'rotas', 'as'] };
+  const FACT_EMPTY = `Poucos itens com base de ${FACT_MIN_BASE} ou mais neste recorte.`;
+  /**
+   * Mínimo e máximo de uma taxa entre as linhas com base suficiente. `null` com
+   * menos de dois itens (um item só não é intervalo). Empate na ponta fica com
+   * a base maior e, depois, com o nome: a frase é a mesma entre renders.
+   */
+  function rateRange(rows, key, minBase = FACT_MIN_BASE) {
+    const ok = rows.filter((r) => r[key] && r[key].rate != null && r[key].base >= minBase);
+    if (ok.length < 2) return null;
+    const pick = (sign) => [...ok].sort((a, b) => (a[key].rate - b[key].rate) * sign || b[key].base - a[key].base || a.name.localeCompare(b.name, 'pt-BR'))[0];
+    const end = (r) => ({ id: r.id, name: r.name, rate: r[key].rate, good: r[key].good, base: r[key].base });
+    const min = end(pick(1)), max = end(pick(-1));
+    return { key, count: ok.length, min, max, flat: min.rate === max.rate };
+  }
+  const endText = (e) => `${e.rate}% (${e.name}, ${e.good} de ${e.base})`;
+  /** A frase da faixa. Sem intervalo em nenhuma métrica, a frase neutra. */
+  function recortFact(dim, rows) {
+    const [, plural, art] = FACT_NOUN[dim];
+    const ranges = FACT_METRICS[dim].map(([key, label]) => ({ label, range: rateRange(rows, key) })).filter((x) => x.range);
+    if (!ranges.length) return { text: FACT_EMPTY, ranges: [] };
+    const scope = `entre ${art} ${plural} com base de ${FACT_MIN_BASE} ou mais`;
+    const part = ({ label, range }, first) => (range.flat
+      ? `${label}${first ? ' é de' : ', de'} ${range.min.rate}% em ${range.count === 2 ? (art === 'as' ? 'ambas' : 'ambos') : (art === 'as' ? 'todas' : 'todos')}`
+      : `${label}${first ? ' vai de' : ', de'} ${endText(range.min)} a ${endText(range.max)}`);
+    const body = ranges.length === 1 ? `${part(ranges[0], true)} ${scope}` : `${part(ranges[0], true)} e ${part(ranges[1], false)}, ${scope}`;
+    return { text: body + '.', ranges: ranges.map((x) => x.range) };
+  }
+  /** A linha discreta de concentração: tudo o que os três cartões diziam. */
+  function concentrationLine(dim, rows, total) {
+    const t = tabSummary(rows, total), [one, many] = FACT_NOUN[dim];
+    const parts = [`${t.count} ${t.count === 1 ? one : many}`, `${total} ${total === 1 ? 'embarque' : 'embarques'}`];
+    if (t.top) parts.push(`maior participação ${t.top.share}% (${t.top.name}, ${t.top.n} de ${total})`);
+    if (t.top2Share != null) parts.push(`os 2 maiores somam ${t.top2Share}%`);
+    if (t.smallCount) parts.push(`${t.smallCount} com amostra pequena (menos de ${MIN_SAMPLE} embarques)`);
+    return parts.join(' · ');
+  }
+
   // ------------------------------------------------------------- detalhe ---
   /** Embarques da entidade dentro do recorte. */
   function entityOps(ops, dim, id) {
@@ -246,7 +298,7 @@
     return selection ? `Aba ${label} · ${nameOf(D, selection.dim, selection.id)}` : `Aba ${label}`;
   }
 
-  const api = { MIN_SAMPLE, RATE_KEYS, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
+  const api = { MIN_SAMPLE, RATE_KEYS, FACT_MIN_BASE, FACT_METRICS, FACT_EMPTY, rateRange, recortFact, concentrationLine, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelTabs = api;
 })(typeof window !== 'undefined' ? window : globalThis);
