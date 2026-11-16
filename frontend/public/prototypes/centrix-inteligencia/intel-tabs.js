@@ -138,6 +138,13 @@
       { label: 'Resultado da operação', keys: ['port', 'freightAvg'], tip: 'O resultado também depende do agente de cargas e da rota. Um desvio sozinho não atribui responsabilidade.' },
     ],
   };
+  /**
+   * COLUNA LÍDER (subabas v2): a coluna que a tabela existe para mostrar ganha
+   * peso (sublinhado de acento no cabeçalho, valores em semibold); as demais
+   * ficam em tinta secundária. É peso, não juízo: nenhuma cor de bom ou ruim,
+   * e a ordem padrão continua sendo o volume.
+   */
+  const LEAD_COLUMNS = { ag: ['port'], exp: ['ready', 'docs'], rota: ['port'] };
   /** Ordem padrão: volume, do maior para o menor. */
   const DEFAULT_SORT = { key: 'n', dir: 'desc' };
 
@@ -380,7 +387,7 @@
     return selection ? `Aba ${label} · ${nameOf(D, selection.dim, selection.id)}` : `Aba ${label}`;
   }
 
-  const api = { MIN_SAMPLE, RATE_KEYS, FACT_MIN_BASE, FACT_METRICS, FACT_EMPTY, rateRange, recortFact, concentrationLine, pairGroups, pairStats, agentRouteContext, routeAgents, exporterServers, COLUMN_GROUPS, TAB_OF_DIM, originParam, readOrigin, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
+  const api = { MIN_SAMPLE, RATE_KEYS, FACT_MIN_BASE, FACT_METRICS, FACT_EMPTY, rateRange, recortFact, concentrationLine, pairGroups, pairStats, agentRouteContext, routeAgents, exporterServers, COLUMN_GROUPS, LEAD_COLUMNS, TAB_OF_DIM, originParam, readOrigin, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelTabs = api;
 })(typeof window !== 'undefined' ? window : globalThis);

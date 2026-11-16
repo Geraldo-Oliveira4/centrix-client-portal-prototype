@@ -270,12 +270,14 @@ function tabNav(tab) {
   return `<nav class="intel-tabs" aria-label="Abas da Inteligência"><div class="intel-tabs-past" role="group" aria-label="O que aconteceu">${IT.TABS.map(t => item(t)).join('')}</div><div class="intel-tabs-future" role="group" aria-label="O que decidir agora"><span class="tabs-divider" aria-hidden="true"></span>${item(['simulador', 'Simulador <span class="preview-tag">Prévia</span>'], ' future')}</div></nav>`;
 }
 /* Cabeçalho ordenável: botão por coluna, `aria-sort` no th. */
+/** Peso da coluna: líder, discreta, ou neutra (o nome, que é a identidade da linha). */
+const colWeight = (dim, key) => (key === 'name' ? '' : IT.LEAD_COLUMNS[dim].includes(key) ? 'lead-col' : 'quiet-col');
 function sortableHead(dim, sort) {
   return IT.COLUMNS[dim].map(([key, label]) => {
     const on = sort.key === key, dir = on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
     const arrow = on ? (sort.dir === 'asc' ? '↑' : '↓') : '↕';
     const head = /^Chegada ao destino/.test(label) ? destTerm('Chegada ao destino') + label.slice('Chegada ao destino'.length) : label;
-    return `<th scope="col" aria-sort="${dir}"><button type="button" class="sort-button${on ? ' active' : ''}" data-action="tab-sort" data-dim="${dim}" data-key="${key}">${head} <span aria-hidden="true">${arrow}</span></button></th>`;
+    return `<th scope="col" class="${colWeight(dim, key)}" aria-sort="${dir}"><button type="button" class="sort-button${on ? ' active' : ''}" data-action="tab-sort" data-dim="${dim}" data-key="${key}">${head} <span aria-hidden="true">${arrow}</span></button></th>`;
   }).join('');
 }
 /* BASE PRIMEIRO, PERCENTUAL DEPOIS (subabas v2). Em toda taxa, "a de b" é o texto
@@ -314,7 +316,7 @@ function groupHead(dim) {
 function comparisonTable(dim, rows) {
   const sort = tableSort.get(dim) || IT.DEFAULT_SORT, sorted = IT.sortRows(rows, sort);
   if (!sorted.length) return '<p class="muted">Nenhum registro neste recorte.</p>';
-  return `<div class="table-wrap"><table class="compare"><thead>${groupHead(dim)}<tr>${sortableHead(dim, sort)}</tr></thead><tbody>${sorted.map(r => `<tr class="clickable" data-row-dim="${dim}" data-row-id="${esc(r.id)}">${IT.COLUMNS[dim].map(([key]) => `<td>${cellOf(dim, key, r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="compare"><thead>${groupHead(dim)}<tr>${sortableHead(dim, sort)}</tr></thead><tbody>${sorted.map(r => `<tr class="clickable" data-row-dim="${dim}" data-row-id="${esc(r.id)}">${IT.COLUMNS[dim].map(([key]) => `<td class="${colWeight(dim, key)}">${cellOf(dim, key, r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 const TAB_COPY = {
   exp: { plural: 'Exportadores', noun: 'exportadores', sub: 'Quem vende e embarca a mercadoria. Ordenado por volume; clique numa linha para abrir a ficha (o antigo Raio X).' },

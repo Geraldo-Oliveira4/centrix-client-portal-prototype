@@ -220,3 +220,10 @@ test('item 5: a origem do link entre fichas é lida de `de`, validada, e nunca a
   assert.equal(T.readOrigin(D, p('de=rota:shanghai'), null), null);
   for (const [tab, dim] of Object.entries(T.DIM_OF_TAB)) assert.equal(T.TAB_OF_DIM[dim], tab);
 });
+
+// ------------------------------------------------------------------ item 6 ---
+test('item 6: colunas líderes existem em cada tabela e a ordem padrão continua por volume', () => {
+  assert.deepEqual(T.LEAD_COLUMNS, { ag: ['port'], exp: ['ready', 'docs'], rota: ['port'] });
+  for (const [dim, keys] of Object.entries(T.LEAD_COLUMNS)) for (const k of keys) assert.ok(T.COLUMNS[dim].some(([key]) => key === k), `${dim}.${k}`);
+  assert.deepEqual(T.DEFAULT_SORT, { key: 'n', dir: 'desc' });
+});
