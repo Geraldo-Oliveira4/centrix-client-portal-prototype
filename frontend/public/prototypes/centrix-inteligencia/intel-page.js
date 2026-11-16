@@ -88,12 +88,12 @@ function kpiHowBody(key, gf) {
   const lines = IE.kpiDefinition(D, key, gf);
   return `<div class="kpi-how-body" id="kpi-how-${key}" ${openKpiHow.has(key) ? '' : 'hidden'}><p class="kpi-how-title">Como é calculado · ${KPI_NAMES[key]} <span class="example-tag">Dado de exemplo</span></p><dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
 }
-/** Variação curta, em pontos ("↑ 34 pts"); o texto completo fica no title e para leitor de tela. */
+/** Variação curta, em pontos, com seta E sinal ("↑ +34 pts", "↓ −25 pts"): a direção nunca depende de cor; o texto completo fica no title e para leitor de tela. */
 function variationPts(k) {
   if (!k || k.small || !k.variation) return '';
   const v = k.variation, arrow = v.direction === 'up' ? '↑' : v.direction === 'down' ? '↓' : '→';
   const tone = v.tone === 'good' ? 'good' : v.tone === 'bad' ? 'warn' : 'neutral', n = Math.abs(v.delta);
-  return `<span class="variation ${tone}" title="${esc(v.text)}"><span aria-hidden="true">${arrow} ${v.direction === 'flat' ? 'igual' : `${n} ${n === 1 ? 'pt' : 'pts'}`}</span><span class="sr-only">${esc(v.text)}</span></span>`;
+  return `<span class="variation ${tone}" title="${esc(v.text)}"><span aria-hidden="true">${arrow} ${v.direction === 'flat' ? 'igual' : `${v.direction === 'up' ? '+' : '−'}${n} ${n === 1 ? 'pt' : 'pts'}`}</span><span class="sr-only">${esc(v.text)}</span></span>`;
 }
 /* Gráficos em tela estreita (ou dentro da ficha lateral) usam um viewBox menor:
    o SVG escala inteiro, e com o viewBox largo o texto dos eixos ficaria ilegível. */
@@ -316,7 +316,7 @@ function groupHead(dim) {
 function comparisonTable(dim, rows) {
   const sort = tableSort.get(dim) || IT.DEFAULT_SORT, sorted = IT.sortRows(rows, sort);
   if (!sorted.length) return '<p class="muted">Nenhum registro neste recorte.</p>';
-  return `<div class="table-wrap"><table class="compare"><thead>${groupHead(dim)}<tr>${sortableHead(dim, sort)}</tr></thead><tbody>${sorted.map(r => `<tr class="clickable" data-row-dim="${dim}" data-row-id="${esc(r.id)}">${IT.COLUMNS[dim].map(([key]) => `<td class="${colWeight(dim, key)}">${cellOf(dim, key, r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="compare"><thead>${groupHead(dim)}<tr>${sortableHead(dim, sort)}</tr></thead><tbody>${sorted.map(r => `<tr class="clickable${params.get('sel') === r.id ? ' is-open' : ''}" data-row-dim="${dim}" data-row-id="${esc(r.id)}">${IT.COLUMNS[dim].map(([key]) => `<td class="${colWeight(dim, key)}">${cellOf(dim, key, r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 const TAB_COPY = {
   exp: { plural: 'Exportadores', noun: 'exportadores', sub: 'Quem vende e embarca a mercadoria. Ordenado por volume; clique numa linha para abrir a ficha (o antigo Raio X).' },
