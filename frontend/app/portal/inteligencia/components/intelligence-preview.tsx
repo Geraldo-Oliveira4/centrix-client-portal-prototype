@@ -36,7 +36,7 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
       const q = here.toString();
       window.history.replaceState(window.history.state, '', window.location.pathname + (q ? '?' + q : '') + window.location.hash);
     }
-    setSource('/prototypes/centrix-inteligencia/index.html?embed=1&v=20261024-relogio-1' + (entry.current ? '&' + entry.current : '') + (window.location.hash || '#' + initialSection));
+    setSource('/prototypes/centrix-inteligencia/index.html?embed=1&v=20261113-v4-1' + (entry.current ? '&' + entry.current : '') + (window.location.hash || '#' + initialSection));
   }, [initialSection]);
 
   // "Primeiros passos": abrir a Inteligência conclui "Ver sua Inteligência";
@@ -85,6 +85,6 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
 
   return source ? <>
     <style>{`@media(max-width:767px){main:has(iframe[data-intelligence])>header{flex-wrap:wrap;gap:8px}}`}</style>
-    <iframe data-intelligence ref={frame} src={source} title="Inteligência Centrix — leitura completa ou objetiva, com filtros" className="block w-full border-0" style={{ height: 'calc(100dvh - 150px)', minHeight: 580 }} />
+    <iframe data-intelligence ref={frame} src={source} title="Inteligência Centrix" className="block w-full border-0" style={{ height: 'calc(100dvh - 150px)', minHeight: 580 }} />
   </> : <p role="status">Carregando Inteligência…</p>;
 }

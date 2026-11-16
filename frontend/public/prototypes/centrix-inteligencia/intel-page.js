@@ -1,26 +1,31 @@
 'use strict';
-/* Inteligência personalizável (02/10/2026, feedback do Orsi): UMA página contínua,
-   dois modos (Completa | Objetiva), blocos que o cliente liga e desliga como na
-   Home, e uma barra de filtros global que muda TODO bloco nos dois modos.
+/* Inteligência v4 (revisão de 13/11/2026): cabeçalho compacto, Visão geral em
+   quatro níveis de hierarquia fixa e painel "Filtros e ajustes" (filtros +
+   personalização por temas e cards, como na Home). Os filtros globais continuam mudando
+   TODO bloco, em todos os submódulos.
 
-   Este arquivo só desenha. Os números saem de intel-engine.js (puro, testado) e
-   a visibilidade dos blocos de intel-layout.js (puro, testado). Usa os helpers de
-   app.js (esc, money, link, panel, table, periodRange, params...) em tempo de
-   chamada, por isso é carregado ANTES de app.js e não executa nada sozinho. */
+   Este arquivo só desenha. Os números saem de intel-engine.js (puro, testado),
+   os cards visíveis de intel-personalize.js (puro, testado) e as visões salvas
+   de intel-layout.js. Usa os helpers de app.js (esc, money, link, panel, table,
+   periodRange, params...) em tempo de chamada, por isso é carregado ANTES de
+   app.js e não executa nada sozinho. */
 
-const IE = window.IntelEngine, IL = window.IntelLayout, IT = window.IntelTabs, IS = window.IntelSim;
-/* Completa/Objetiva escondido (23/10/2026, a confirmar com o Orsi): com a chave
-   desligada a página fica sempre na Completa, inclusive para quem tinha salvo a
-   Objetiva. O código dos dois modos continua inteiro; religar é trocar a chave. */
-const MODE_SWITCH = typeof CLIENT_FLAGS === 'undefined' || CLIENT_FLAGS.modeSwitch !== false;
-const effectiveLayout = l => (MODE_SWITCH ? l : IL.setMode(l, 'completa'));
-let intelLayout = effectiveLayout((() => { try { return IL.load(localStorage); } catch { return IL.defaults(); } })());
+const IE = window.IntelEngine, IL = window.IntelLayout, IT = window.IntelTabs, IS = window.IntelSim, IP = window.IntelPersonalize;
+/* v4 (13/11/2026): não há mais modos de leitura nem ordem de blocos. A Visão
+   geral tem UMA hierarquia fixa e o cliente liga e desliga cards por tema
+   (intel-personalize.js). `intelLayout` continua existindo só porque as visões
+   salvas ainda viajam com ele (IntelLayout.captureView). */
+const STORE = (() => { try { return window.localStorage; } catch { return null; } })();
+let intelLayout = IL.setMode((() => { try { return IL.load(localStorage); } catch { return IL.defaults(); } })(), 'completa');
+let intelPers = IP.load(STORE);      // temas e cards ligados da Visão geral
 const tableSort = new Map();       // ordenação de cada tabela de aba (dim -> {key, dir}), preservada entre renders
 let reportEntity = null;           // entidade do painel de detalhe que abriu o relatório
 let simSort = null;                // ordenação da tabela do Simulador, preservada entre renders
 let openFilterKey = null;          // dropdown de filtro aberto, preservado entre renders
 const openKpiHow = new Set();      // "Como é calculado" abertos, preservados entre renders
-let customizeDraft = null;          // rascunho do "Personalizar" até Salvar
+let persDraft = null;                // rascunho do "Personalizar a Inteligência" (painel)
+let adjustDraft = null;              // rascunho de período e filtros do painel "Filtros e ajustes"
+let evoOpen = true;                  // seção "Evolução" aberta por padrão, preservada entre renders
 let intelViews = (() => { try { return IL.loadViews(localStorage); } catch { return []; } })();
 const FILTER_KEYS = IE.FILTERS.map(f => f.key);
 function saveViews(next) { intelViews = next; try { IL.saveViews(localStorage, intelViews); } catch {} }
@@ -28,7 +33,8 @@ function saveViews(next) { intelViews = next; try { IL.saveViews(localStorage, i
    "Salvar uma visão". O host (IntelligencePreview) ouve e marca. */
 function notifyViewSaved() { try { if (window.parent !== window) window.parent.postMessage({ type: 'centrix:first-step', id: 'visao' }, location.origin); } catch {} }
 
-function saveIntelLayout(next) { intelLayout = effectiveLayout(IL.normalize(next)); try { IL.save(localStorage, intelLayout); } catch {} }
+function saveIntelLayout(next) { intelLayout = IL.setMode(IL.normalize(next), 'completa'); try { IL.save(localStorage, intelLayout); } catch {} }
+function saveIntelPers(next) { intelPers = IP.normalize(next); IP.save(STORE, intelPers); }
 
 /* ---------------------------------------------------------------- dados --- */
 function intelScope() {
@@ -63,56 +69,128 @@ function kpiValue(key, k) { return k.value == null ? '—' : key === 'freight' ?
    da cotação até ali. O termo leva a dica em `title` e por extenso para leitor de tela. */
 const destTerm = (t) => `<span class="term" title="${IE.DESTINATION_HINT}">${t}</span><span class="sr-only"> (${IE.DESTINATION_HINT.toLowerCase()})</span>`;
 const KPI_LABELS = { ready: 'Prontidão no prazo', port: `${destTerm('Chegada ao destino')} no prazo`, freight: 'Frete contratado', count: 'Embarques no recorte' };
-/** "ⓘ Como é calculado": fonte, fórmula, período e filtros (intel-engine.js::kpiDefinition). */
-function kpiHow(key, gf) {
-  const id = 'kpi-how-' + key, open = openKpiHow.has(key);
+/* Ícones do portal (lucide, traço 1,75) embutidos: o protótipo não carrega a lib. */
+const svgIcon = body => `<svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+const ICON = {
+  sliders: svgIcon('<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>'),
+  info: svgIcon('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>'),
+};
+const KPI_NAMES = { ready: 'Prontidão no prazo', port: 'Chegada ao destino no prazo', final: 'Entrega final no prazo', freight: 'Frete contratado', count: 'Embarques no recorte' };
+/** "Como é calculado": um "i" discreto que abre fonte, fórmula, período e filtros (intel-engine.js::kpiDefinition). */
+function kpiHowButton(key) {
+  const open = openKpiHow.has(key);
+  return `<button type="button" class="info-button" data-action="kpi-how" data-id="${key}" aria-expanded="${open}" aria-controls="kpi-how-${key}" aria-label="Como é calculado: ${KPI_NAMES[key]}" title="Como é calculado">${ICON.info}</button>`;
+}
+function kpiHowBody(key, gf) {
   const lines = IE.kpiDefinition(D, key, gf);
-  return `<button type="button" class="kpi-how" data-action="kpi-how" data-id="${key}" aria-expanded="${open}" aria-controls="${id}"><span aria-hidden="true">ⓘ</span> Como é calculado</button><div class="kpi-how-body" id="${id}" ${open ? '' : 'hidden'}><span class="example-tag">Dado de exemplo</span><dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
+  return `<div class="kpi-how-body" id="kpi-how-${key}" ${openKpiHow.has(key) ? '' : 'hidden'}><p class="kpi-how-title">Como é calculado · ${KPI_NAMES[key]} <span class="example-tag">Dado de exemplo</span></p><dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
 }
-function kpiCard(key, s, withSpark) {
-  const k = IE.kpi(D, key, s.cur, s.prev), series = withSpark ? IE.monthly(D, key, s.cur.length ? IE.applyFilters(D.operations, s.gf) : [], s.range.end) : null;
-  const a = key === 'count' ? null : D.metric(key, s.cur);
-  const base = key === 'count' ? `${s.cur.length} de ${s.all.length} no período` : a.m.amount ? `${a.eligible.length} de ${s.cur.length} com valor` : `${a.good} de ${a.eligible.length} elegíveis`;
-  return `<article class="kpi"><span class="kpi-label">${KPI_LABELS[key]}</span><b>${kpiValue(key, k)}</b>${k.small ? smallTag(k.n) : variationChip(k)}<small>${base}</small><small class="kpi-period">No período selecionado</small>${withSpark ? spark(series) : ''}${kpiHow(key, s.gf)}</article>`;
+/** Variação curta, em pontos ("↑ 34 pts"); o texto completo fica no title e para leitor de tela. */
+function variationPts(k) {
+  if (!k || k.small || !k.variation) return '';
+  const v = k.variation, arrow = v.direction === 'up' ? '↑' : v.direction === 'down' ? '↓' : '→';
+  const tone = v.tone === 'good' ? 'good' : v.tone === 'bad' ? 'warn' : 'neutral', n = Math.abs(v.delta);
+  return `<span class="variation ${tone}" title="${esc(v.text)}"><span aria-hidden="true">${arrow} ${v.direction === 'flat' ? 'igual' : `${n} ${n === 1 ? 'pt' : 'pts'}`}</span><span class="sr-only">${esc(v.text)}</span></span>`;
 }
-function lineChart(series, keys) {
-  const W = 560, H = 190, L = 34, B = 26, T = 10, R = 10, n = series[0].length;
+/* Gráficos em tela estreita (ou dentro da ficha lateral) usam um viewBox menor:
+   o SVG escala inteiro, e com o viewBox largo o texto dos eixos ficaria ilegível. */
+const chartNarrow = () => window.innerWidth < 600;
+/* Três séries distinguíveis sem depender só da cor: traço (cheio, tracejado,
+   pontilhado) e marcador (círculo, quadrado, losango) mudam junto. */
+function chartMark(cls, cx, cy, title) {
+  if (cls === 's2') return `<rect class="mark ${cls}" x="${cx - 3.2}" y="${cy - 3.2}" width="6.4" height="6.4">${title}</rect>`;
+  if (cls === 's3') return `<path class="mark ${cls}" d="M${cx} ${cy - 4.4}L${cx + 4.4} ${cy}L${cx} ${cy + 4.4}L${cx - 4.4} ${cy}Z">${title}</path>`;
+  return `<circle class="mark ${cls}" cx="${cx}" cy="${cy}" r="3.4">${title}</circle>`;
+}
+function lineChart(series, keys, narrow = chartNarrow()) {
+  const W = narrow ? 340 : 560, H = narrow ? 200 : 190, L = 38, B = 26, T = 10, R = 12, n = series[0].length;
   const x = i => L + (i / (n - 1)) * (W - L - R), y = v => T + (1 - v / 100) * (H - T - B);
   const grid = [0, 50, 100].map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}%</text>`).join('');
-  const lines = keys.map(([key, , cls], s) => { const pts = series[s].map((m, i) => (m.value == null ? null : `${x(i)},${y(m.value)}`)).filter(Boolean); return `<polyline class="series ${cls}" points="${pts.join(' ')}"/>` + series[s].map((m, i) => (m.value == null ? '' : `<circle class="series ${cls}" cx="${x(i)}" cy="${y(m.value)}" r="3"><title>${keys[s][1]} · ${m.label}: ${m.value}% (n=${m.base})</title></circle>`)).join(''); }).join('');
+  const lines = keys.map(([, label, cls], s) => { const pts = series[s].map((m, i) => (m.value == null ? null : `${x(i)},${y(m.value)}`)).filter(Boolean); return `<polyline class="series ${cls}" points="${pts.join(' ')}"/>` + series[s].map((m, i) => (m.value == null ? '' : chartMark(cls, x(i), y(m.value), `<title>${label} · ${m.label}: ${m.value}% (n=${m.base})</title>`))).join(''); }).join('');
   const labels = series[0].map((m, i) => `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${m.label}</text>`).join('');
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Prazo por etapa nos últimos 6 meses">${grid}${lines}${labels}</svg><div class="chart-legend">${keys.map(([, label, cls]) => `<span><i class="${cls}"></i>${label}</span>`).join('')}</div>`;
+  const legend = keys.map(([, label, cls]) => `<span><svg class="legend-line" viewBox="0 0 34 10" width="34" height="10" aria-hidden="true"><line class="series ${cls}" x1="1" x2="33" y1="5" y2="5"/>${chartMark(cls, 17, 5, '')}</svg>${label}</span>`).join('');
+  return `<svg class="chart${narrow ? ' narrow' : ''}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Prazo por etapa nos últimos 6 meses">${grid}${lines}${labels}</svg><div class="chart-legend">${legend}</div>`;
 }
-function barChart(series) {
-  const W = 560, H = 190, L = 50, B = 26, T = 10, R = 10, n = series.length, max = Math.max(1, ...series.map(m => m.value || 0));
-  const bw = (W - L - R) / n * 0.6, x = i => L + (i + 0.5) * ((W - L - R) / n), y = v => T + (1 - v / max) * (H - T - B);
-  const bars = series.map((m, i) => (m.value == null ? '' : `<rect class="bar" x="${x(i) - bw / 2}" y="${y(m.value)}" width="${bw}" height="${H - B - y(m.value)}" rx="3"><title>${m.label}: ${money(m.value)} (n=${m.n})</title></rect>`)).join('');
+const kLabel = v => (v >= 1000 ? Math.round(v / 1000) + 'k' : String(Math.round(v)));
+/** Barras com o valor NO TOPO; o mês em curso (`currentYm`) sai mais claro e rotulado como incompleto. */
+function barChart(series, currentYm, narrow = chartNarrow()) {
+  const W = narrow ? 340 : 560, H = narrow ? 210 : 200, L = 34, B = 26, T = 34, R = 10, n = series.length, max = Math.max(1, ...series.map(m => m.value || 0));
+  const slot = (W - L - R) / n, bw = slot * 0.56, x = i => L + (i + 0.5) * slot, y = v => T + (1 - v / max) * (H - T - B);
+  const bars = series.map((m, i) => {
+    if (m.value == null) return '';
+    const partial = m.ym === currentYm;
+    return `<rect class="bar${partial ? ' partial' : ''}" x="${x(i) - bw / 2}" y="${y(m.value)}" width="${bw}" height="${H - B - y(m.value)}" rx="3"><title>${m.label}: ${money(m.value)} (n=${m.n})${partial ? ' · mês em curso' : ''}</title></rect><text class="bar-value" x="${x(i)}" y="${y(m.value) - 6}" text-anchor="middle">${kLabel(m.value)}</text>${partial ? `<text class="bar-note" x="${L + (i + 1) * slot - 2}" y="${y(m.value) - 21}" text-anchor="end">${narrow ? 'em curso' : 'mês em curso'}</text>` : ''}`;
+  }).join('');
   const labels = series.map((m, i) => `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${m.label}</text>`).join('');
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Frete contratado por mês">${[0, max].map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v ? Math.round(v / 1000) + 'k' : 0}</text>`).join('')}${bars}${labels}</svg>`;
+  const partial = series.some(m => m.ym === currentYm && m.value != null);
+  return `<svg class="chart${narrow ? ' narrow' : ''}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Frete contratado por mês${partial ? '; o último mês está em curso' : ''}">${[0, max].map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v ? kLabel(v) : 0}</text>`).join('')}${bars}${labels}</svg>${partial ? '<div class="chart-legend"><span><i class="swatch-partial"></i>Barra clara: mês em curso, ainda incompleto</span></div>' : ''}`;
 }
 
 /* --------------------------------------------------------------- blocos --- */
 function blockHead(id, title, sub) { return `<div class="block-head"><div><h2 id="t-${id}">${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div></div>`; }
-function heroBlock(s) {
-  const k = IE.kpi(D, 'final', s.cur, s.prev), a = D.metric('final', s.cur), series = IE.monthly(D, 'final', IE.applyFilters(D.operations, s.gf), s.range.end);
-  return `<section class="block hero" id="bloco-destaque" aria-labelledby="t-destaque">${blockHead('destaque', 'Entrega final no prazo', 'Entregas no destino até o compromisso final original, entre as que têm comprovante.')}<div class="hero-body"><b class="hero-number">${pctTxt(k.value)}</b><div>${k.small ? smallTag(k.n) : variationChip(k)}<small>${a.good} de ${a.eligible.length} entregas com comprovante · ${s.cur.length - a.eligible.length} ainda em curso</small></div>${spark(series)}</div><p class="chart-caption">A linha mostra a taxa mês a mês nos últimos 6 meses, pelo mês do compromisso de prontidão.</p></section>`;
+/** "Ver detalhe": link discreto no canto do bloco. Destinos num mapa só (IntelPersonalize.DETAIL_LINKS). */
+function detailLink(cardId) {
+  const d = IP.DETAIL_LINKS[cardId];
+  if (!d) return '';
+  // Para o portal, o relógio da demonstração (?hoje=) acompanha o link.
+  const hoje = new URLSearchParams(location.search).get('hoje');
+  const href = d.kind === 'portal' ? d.href + (hoje ? '?hoje=' + encodeURIComponent(hoje) : '') : url('executivo', { aba: d.aba, sel: null });
+  return `<p class="detail-row"><a class="detail-link" href="${esc(href)}" ${d.kind === 'portal' ? 'target="_top"' : ''} title="${esc(d.name)}">Ver detalhe<span class="sr-only"> em ${esc(d.name)}</span> <span aria-hidden="true">→</span></a></p>`;
 }
-function funnelBlock(s) {
-  const f = IE.funnel(D, s.cur);
-  return `<section class="block" id="bloco-funil" aria-labelledby="t-funil">${blockHead('funil', 'Onde o prazo se perde', 'A mesma carteira em três momentos: quanto chega no prazo a cada etapa.')}<ol class="funnel">${f.steps.map(st => `<li><span>${st.key === 'port' ? destTerm(st.label) : st.label}</span><div class="funnel-track"><span style="width:${st.rate || 0}%"></span></div><b>${pctTxt(st.rate)}</b><small>${st.good ?? 0} de ${st.base}</small></li>`).join('')}</ol><p class="insight-line">${f.drop ? `A maior queda é de <strong>${f.drop.from}</strong> para <strong>${f.drop.to}</strong>: −${f.drop.points} pontos.` : 'Nenhuma queda de prazo entre as etapas neste recorte.'}</p></section>`;
+/* NÍVEL 1: o resultado (Entrega final no prazo) e onde ele se perde (o funil),
+   num card só, o maior da página. Os antigos cartões "Prontidão no prazo" e
+   "Chegada ao destino no prazo" moram nas linhas do funil: variação, base,
+   tendência e "Como é calculado" vieram junto. */
+function resultCard(s, vis) {
+  const hero = vis.has('entrega_final'), fun = vis.has('funil');
+  if (!hero && !fun) return '';
+  const base = IE.applyFilters(D.operations, s.gf);
+  let left = '', right = '';
+  if (hero) {
+    const k = IE.kpi(D, 'final', s.cur, s.prev), a = D.metric('final', s.cur), series = IE.monthly(D, 'final', base, s.range.end);
+    const body = k.value == null
+      ? '<p class="no-data">Ainda não há entrega final com comprovante neste recorte.</p>'
+      : `<b class="hero-number">${k.value}%</b><div class="hero-var">${k.small ? smallTag(k.n) : variationChip(k)}</div><p class="base-line">${a.good} de ${a.eligible.length} entregas com comprovante · ${s.cur.length - a.eligible.length} ainda em curso</p>${spark(series)}<p class="spark-caption">Taxa mês a mês nos últimos 6 meses, pelo mês do compromisso de prontidão.</p>`;
+    left = `<div class="lvl1-hero" id="bloco-destaque"><h2 id="t-destaque">Entrega final no prazo</h2><p class="card-sub">Entregas no destino até o compromisso final original, entre as que têm comprovante.</p>${body}${detailLink('entrega_final')}</div>`;
+  }
+  if (fun) {
+    const f = IE.funnel(D, s.cur);
+    const rows = f.steps.map(st => {
+      const k = IE.kpi(D, st.key, s.cur, s.prev), series = IE.monthly(D, st.key, base, s.range.end);
+      const name = st.key === 'port' ? 'Chegada ao destino<small>porto ou aeroporto de descarga</small>' : st.label;
+      const baseTxt = st.base ? `${st.good ?? 0} de ${st.base}${st.key === 'final' ? ' com comprovante' : ' elegíveis'}` : 'sem registro neste recorte';
+      return `<li><div class="fn-name"><span>${name}</span><small>${baseTxt}</small></div><div class="funnel-track" aria-hidden="true"><span style="width:${st.rate || 0}%"></span></div><b class="fn-pct">${st.rate == null ? '<small>sem dado</small>' : st.rate + '%'}</b><span class="fn-var">${variationPts(k)}</span>${spark(series)}${kpiHowButton(st.key)}${kpiHowBody(st.key, s.gf)}</li>`;
+    }).join('');
+    right = `<div class="lvl1-funnel" id="bloco-funil"><h2 id="t-funil">Onde o prazo se perde</h2><p class="card-sub">A mesma carteira em três momentos: quanto chega no prazo a cada etapa.</p><ol class="funnel">${rows}</ol><p class="insight-line accent">${f.drop ? `A maior queda é de <strong>${f.drop.from}</strong> para <strong>${f.drop.to}</strong>: −${f.drop.points} pontos.` : 'Nenhuma queda de prazo entre as etapas neste recorte.'}</p>${detailLink('funil')}</div>`;
+  }
+  return `<section class="card lvl1${hero && fun ? '' : ' single'}" aria-label="O resultado e onde ele se perde">${left}${right}</section>`;
 }
-function kpisBlock(s, withSpark) {
-  return `<section class="block" id="bloco-kpis" aria-label="Indicadores"><div class="kpis">${['ready', 'port', 'freight', 'count'].map(k => kpiCard(k, s, withSpark)).join('')}</div>${withSpark ? '<p class="chart-caption">Cada linha mostra o indicador mês a mês nos últimos 6 meses.</p>' : ''}</section>`;
+/* NÍVEL 2: apoio. Frete contratado e Embarques no recorte, lado a lado. */
+function supportCard(key, s, cardId) {
+  const k = IE.kpi(D, key, s.cur, s.prev), series = IE.monthly(D, key, s.cur.length ? IE.applyFilters(D.operations, s.gf) : [], s.range.end);
+  const a = key === 'count' ? null : D.metric(key, s.cur);
+  const baseTxt = key === 'count' ? `${s.cur.length} de ${s.all.length} no período` : `${a.eligible.length} de ${s.cur.length} com valor`;
+  const value = k.value == null ? '<p class="no-data">Sem frete contratado neste recorte.</p>' : `<b class="support-number">${kpiValue(key, k)}</b><div>${k.small ? smallTag(k.n) : variationChip(k)}</div>`;
+  return `<article class="card support" id="bloco-${cardId}" aria-labelledby="t-${cardId}"><div class="support-main"><div class="card-top"><h2 id="t-${cardId}">${KPI_NAMES[key]}</h2>${kpiHowButton(key)}</div>${value}<p class="base-line">${baseTxt}</p></div>${k.value == null ? '' : spark(series)}${kpiHowBody(key, s.gf)}${detailLink(cardId)}</article>`;
 }
-function chartsBlock(s) {
+/* NÍVEL 3: evolução, recolhível e aberta por padrão. */
+function evolutionBlock(s, vis) {
+  const prazo = vis.has('evolucao_prazo'), frete = vis.has('evolucao_frete');
+  if (!prazo && !frete) return '';
   const base = IE.applyFilters(D.operations, s.gf);
   const keys = [['ready', 'Prontidão', 's1'], ['port', 'Chegada ao destino', 's2'], ['final', 'Entrega final', 's3']];
-  return `<section class="block" id="bloco-graficos" aria-labelledby="t-graficos">${blockHead('graficos', 'Evolução', '')}<div class="charts"><div class="chart-card"><h3>Prazo por etapa · últimos 6 meses</h3>${lineChart(keys.map(([k]) => IE.monthly(D, k, base, s.range.end)), keys)}<p class="chart-caption">Percentual no prazo em cada etapa, por mês do compromisso de prontidão. Meses recentes ainda têm cargas em curso.</p></div><div class="chart-card"><h3>Frete por mês</h3>${barChart(IE.monthly(D, 'freight', base, s.range.end))}<p class="chart-caption">Frete internacional contratado (USD) por mês do compromisso de prontidão. Exclui taxas e trecho terrestre.</p></div></div></section>`;
+  const c1 = prazo ? `<div class="chart-card"><h3>Prazo por etapa · últimos 6 meses</h3>${lineChart(keys.map(([k]) => IE.monthly(D, k, base, s.range.end)), keys)}<p class="chart-caption">Percentual no prazo em cada etapa, por mês do compromisso de prontidão. Meses recentes ainda têm cargas em curso.</p></div>` : '';
+  const c2 = frete ? `<div class="chart-card"><h3>Frete por mês</h3>${barChart(IE.monthly(D, 'freight', base, s.range.end), D.cutoff.slice(0, 7))}<p class="chart-caption">Frete internacional contratado (USD) por mês do compromisso de prontidão. Exclui taxas e trecho terrestre.</p></div>` : '';
+  return `<details class="fold evo" id="bloco-graficos" data-fold="evo" ${evoOpen ? 'open' : ''}><summary><h2 id="t-graficos">Evolução</h2><span class="fold-toggle" aria-hidden="true"></span></summary><div class="charts${prazo && frete ? '' : ' single'}">${c1}${c2}</div></details>`;
 }
-function performanceBlock(s) {
-  // Abas (23/10/2026): na Visão geral fica só a leitura por ETAPA. As tabelas de
-  // Exportadores e Agentes moraram aqui e agora são as abas de mesmo nome.
-  return `<section class="block" id="bloco-performance" aria-labelledby="t-performance">${blockHead('performance', 'Performance', 'Onde os tempos excedem o previsto em cada etapa da cadeia. Por parceiro e por rota, veja as abas acima.')}${stagePanel(s.cur)}</section>`;
+/* NÍVEL 4: detalhe por trecho. Cinco trechos em sequência; sem desvio em cinza,
+   com desvio em destaque. Cada trecho continua abrindo a base (stageDrawer). */
+function trechosBlock(s) {
+  const cells = D.stages.map(st => {
+    const e = s.cur.filter(o => o[st.from] && o[st.to]), bad = e.filter(o => D.days(o[st.from], o[st.to]) > st.plan(o));
+    return `<li><button type="button" class="stage-cell${bad.length ? ' has-dev' : ''}" data-action="stage" data-id="${st.id}"><span class="stage-name">${esc(st.label)}</span><b>${bad.length}/${e.length}</b><span class="stage-what">acima do previsto</span><small>${e.length} de ${s.cur.length} com marcos</small></button></li>`;
+  }).join('');
+  return `<section class="card trechos" id="bloco-performance" aria-labelledby="t-performance"><h2 id="t-performance">Performance · Onde os tempos excedem o previsto</h2><p class="card-sub">Dias corridos por trecho concluído; cada trecho abre a base. Por parceiro e por rota, veja os submódulos.</p><ol class="stages">${cells}</ol><p class="chart-caption">Trechos sem desvio ficam em cinza; os que têm desvio ganham destaque. O desvio localiza o trecho, não a causa nem o responsável.</p>${detailLink('trechos')}</section>`;
 }
 function commitmentsBlock(s) {
   // Mora na aba Agentes de carga desde 23/10/2026: é o combinado com o AGENTE.
@@ -121,9 +199,6 @@ function commitmentsBlock(s) {
   const ctl = c => `${esc(c.name)}: ${c.actual} ${c.unit} <small>combinado ${c.agreed} ${c.unit}</small>`;
   return `<section class="block" id="bloco-compromissos" aria-labelledby="t-compromissos">${blockHead('compromissos', 'Compromissos do serviço', `Prazos e condições combinados com o agente × o realizado. ${dev} de ${rows.length} com desvio. Relatório de leitura: um desvio sozinho não atribui responsabilidade.`)}${rows.length ? table(['Exportador / PO', 'Agente / rota', 'Desvios', 'Situação'], rows.map(({ o, deviations, status }) => `<tr><td>${esc(company(o.supplier).name)}<small>${esc(o.po)} · ${esc(o.id)}</small></td><td>${esc(agent(o.agent).name)}<small>${esc(routeName(route(o.route)))}</small></td><td>${deviations.length ? deviations.map(ctl).join('<br>') : '—'}</td><td><span class="pill ${status === 'clean' ? 'good' : ''}">${LABEL[status]}</span></td></tr>`).join('')) : '<p class="muted">Nenhum embarque neste recorte.</p>'}</section>`;
 }
-function questionBlock(id, title, q, target) {
-  return `<section class="block question" id="bloco-${id}" aria-labelledby="t-${id}"><h2 id="t-${id}">${title}</h2><div class="q-metric"><b>${esc(q.metric)}</b>${q.kpi ? (q.kpi.small ? smallTag(q.kpi.n) : variationChip(q.kpi)) : ''}</div><p class="insight-line">${esc(q.conclusion)}</p><button class="link-button" data-action="intel-details" data-id="${target}">Ver detalhes →</button></section>`;
-}
 
 /* ------------------------------------------------------------ cabeçalho --- */
 /** Nas fichas (fora da visão geral) os filtros globais continuam valendo: os chips dizem isso. */
@@ -131,15 +206,34 @@ function globalFilterChips() {
   const gf = IE.readFilters(params);
   return IE.FILTERS.flatMap(f => (gf[f.key] || []).map(v => `<button class="filter-chip" data-action="gfilter-remove" data-key="${f.key}" data-value="${esc(v)}" aria-label="Remover filtro ${esc(f.label)}">${esc(f.label)}: ${esc(f.name(D, v))} ×</button>`)).join('');
 }
-function filterBar(s) {
-  const chips = IE.FILTERS.flatMap(f => (s.gf[f.key] || []).map(v => `<button class="filter-chip" data-action="gfilter-remove" data-key="${f.key}" data-value="${esc(v)}" aria-label="Remover filtro ${esc(f.label)}: ${esc(f.name(D, v))}">${esc(f.label)}: ${esc(f.name(D, v))} ×</button>`));
-  const dropdown = f => {
-    // Lista e contagem da base INTEIRA (todos os períodos); desabilitada quando não
-    // sobra embarque no período + outros filtros. Opção nunca some.
-    const sel = s.gf[f.key] || [], opts = IE.filterOptions(D, D.operations, s.all, s.gf, f.key);
-    return `<details class="fsel" data-fkey="${f.key}" ${openFilterKey === f.key ? 'open' : ''}><summary>${f.label}${sel.length ? ` <b>${sel.length}</b>` : ''}</summary><div class="fsel-menu" role="group" aria-label="${f.label}"><div class="fsel-actions"><button type="button" class="text-button" data-action="gfilter-all" data-key="${f.key}" aria-label="Selecionar todas as opções de ${f.label} com embarques no recorte">Selecionar todos</button><button type="button" class="text-button" data-action="gfilter-clear-one" data-key="${f.key}" aria-label="Limpar o filtro ${f.label}" ${sel.length ? '' : 'disabled'}>Limpar</button></div><p class="fsel-hint">Entre parênteses, embarques em toda a base.</p>${opts.map(o => `<label class="${o.disabled ? 'is-disabled' : ''}" title="${o.available} no recorte atual"><input type="checkbox" data-gfilter="${f.key}" value="${esc(o.value)}" ${o.selected ? 'checked' : ''} ${o.disabled ? 'disabled' : ''}> <span>${esc(o.label)} (${o.count})</span>${o.disabled ? '<small>0 no recorte</small>' : ''}</label>`).join('')}</div></details>`;
-  };
-  return `<section class="filterbar" aria-label="Filtros do relatório"><div class="filter-row">${IE.FILTERS.map(dropdown).join('')}<span class="fcount" aria-live="polite"><b>${s.cur.length}</b> de ${s.all.length} embarques</span></div>${chips.length ? `<div class="filter-chips">${chips.join('')}<button class="text-button" data-action="gfilter-clear" aria-label="Limpar todos os filtros">Limpar filtros</button>${raioX(s.gf)}</div>` : ''}${(s.gf.sku || []).length ? '<p class="note-small">Filtro de SKU: entra o embarque que contém o SKU; frete e prazos continuam sendo do embarque inteiro.</p>' : ''}</section>`;
+/* CABEÇALHO COMPACTO (v4). Duas linhas: (1) trilha, título do submódulo com o
+   selo "Exemplo ilustrativo" e, à direita, "Filtros e ajustes" e "Preparar
+   relatório"; (2) chips com o resumo do recorte. Período, os seis filtros e o
+   Personalizar saíram da primeira tela e vivem no painel "Filtros e ajustes". */
+const TAB_TITLE = { geral: 'Visão geral', exportadores: 'Exportadores', agentes: 'Agentes de carga', rotas: 'Rotas', simulador: 'Simulador de cenários' };
+/* ESTADO DE CLIENTE NOVO (07/10/2026). Este protótipo não tem embarques reais
+   ligados à Inteligência: o que aparece é sempre a fixture fictícia de data.js.
+   O selo é FIXO; a frase que o explica mora na dica dele (foco, toque ou mouse). */
+const EXAMPLE_TAG = '<span class="example-tag has-tip" tabindex="0" aria-describedby="example-tip">Exemplo ilustrativo<span class="tip" role="tooltip" id="example-tip">Seus dados reais substituem este exemplo assim que houver embarques.</span></span>';
+/** "16/08 a 13/11/2026": o ano só se repete quando as duas datas são de anos diferentes. */
+function shortRange(a, b) { return `${a.slice(0, 4) === b.slice(0, 4) ? a.slice(8, 10) + '/' + a.slice(5, 7) : fullDate(a)} a ${fullDate(b)}`; }
+function headChips(s, tab, ss) {
+  const sim = tab === 'simulador', chips = [];
+  if (sim) chips.push(`<span class="chip">${esc(simHistoryLine(IS.readInputs(D, params), ss))}</span>`);
+  else if (!s.range.valid) chips.push('<span class="chip warn">Período inválido: revise as datas em Filtros e ajustes</span>');
+  else {
+    const label = periodNames[params.get('period') || 'days90'] || 'Personalizado', p = IE.previousRange(s.range);
+    chips.push(`<span class="chip">${esc(label)} · <b>${shortRange(s.range.start, s.range.end)}</b></span>`);
+    chips.push(`<span class="chip" title="${esc(IE.comparisonCaption(s.range))}">comparado com ${shortRange(p.start, p.end)}</span>`);
+  }
+  chips.push(`<span class="chip"><b>${ss.cur.length}</b> de ${ss.all.length} embarques</span>`);
+  const filters = IE.FILTERS.flatMap(f => (s.gf[f.key] || []).map(v => `<button class="filter-chip" data-action="gfilter-remove" data-key="${f.key}" data-value="${esc(v)}" aria-label="Remover filtro ${esc(f.label)}: ${esc(f.name(D, v))}">${esc(f.label)}: ${esc(f.name(D, v))} <span aria-hidden="true">×</span></button>`));
+  return `<div class="head-chips" role="status">${chips.join('')}<span class="chip-note">${sim ? 'O período do painel não se aplica ao Simulador' : 'Base: compromisso de prontidão no período'}</span>${filters.length ? `<span class="chip-filters">${filters.join('')}<button class="text-button" data-action="gfilter-clear" aria-label="Limpar todos os filtros">Limpar</button>${raioX(s.gf)}</span>` : ''}</div>`;
+}
+function intelHead(tab, s, ss) {
+  const title = TAB_TITLE[tab] + (tab === 'simulador' ? ' <span class="preview-tag">Prévia</span>' : '');
+  const adjust = `<button class="button quiet" data-action="intel-adjust">${ICON.sliders}<span>Filtros e ajustes</span>${s.active ? `<b class="count-dot" title="Filtros ativos">${s.active}<span class="sr-only"> filtros ativos</span></b>` : ''}</button>`;
+  return `<header class="intel-head"><div><p class="crumb">Inteligência</p><div class="intel-title"><h1 tabindex="-1">${title}</h1>${EXAMPLE_TAG}</div></div><div class="intel-head-actions">${adjust}${tab === 'simulador' ? '' : '<button class="button" data-action="intel-report">Preparar relatório</button>'}</div></header>${headChips(s, tab, ss)}`;
 }
 /* Atalho para o Raio X do exportador: só com UM exportador marcado. Desde as abas
    (23/10/2026) o Raio X é o DETALHE da aba Exportadores, aberto em painel com o
@@ -154,19 +248,6 @@ function periodStripLine(s) {
   const label = periodNames[params.get('period') || 'days90'] || 'Personalizado';
   return s.range.valid ? IE.periodStrip(s.range, label, s.cur.length) : 'Período inválido — revise as datas';
 }
-function periodBar() {
-  const r = periodRange();
-  return `<div class="context"><label>Período <select id="period" aria-label="Período">${Object.entries(periodNames).map(([v, t]) => `<option value="${v}" ${(params.get('period') || 'days90') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label><span class="period-range">${r.valid ? fullDate(r.start) + ' a ' + fullDate(r.end) : 'Revise as datas'}</span>${params.get('period') === 'custom' ? action('Editar datas', 'edit-period', '', 'text-button') : ''}<span class="base">Base: compromisso de prontidão no período</span></div>${periodEditor()}`;
-}
-function modeSwitch() {
-  return `<div class="segmented" role="radiogroup" aria-label="Modo de leitura">${IL.MODES.map(([m, label]) => `<button role="radio" aria-checked="${intelLayout.mode === m}" data-action="intel-mode" data-id="${m}">${label}</button>`).join('')}</div>`;
-}
-
-/* ESTADO DE CLIENTE NOVO (07/10/2026). Este protótipo não tem embarques reais
-   ligados à Inteligência: o que aparece é sempre a fixture fictícia de data.js.
-   O selo é FIXO e diz isso; quando houver embarques, os dados reais entram no
-   lugar do exemplo (spec-onboarding-backend.md). */
-const EXAMPLE_NOTE = '<p class="example-note"><span class="example-tag">Exemplo ilustrativo</span> Seus dados reais substituem este exemplo assim que houver embarques.</p>';
 
 /* ---------------------------------------------------------------- abas --- */
 /* Abas (23/10/2026, semanal de produto). Período e filtros ficam ACIMA das abas
@@ -210,9 +291,9 @@ function comparisonTable(dim, rows) {
   return `<div class="table-wrap"><table class="compare"><thead><tr>${sortableHead(dim, sort)}</tr></thead><tbody>${sorted.map(r => `<tr class="clickable" data-row-dim="${dim}" data-row-id="${esc(r.id)}">${IT.COLUMNS[dim].map(([key]) => `<td>${cellOf(dim, key, r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 const TAB_COPY = {
-  exp: { plural: 'Exportadores', noun: 'exportadores', sub: 'Quem vende e embarca a mercadoria. Ordenado por volume; clique numa linha para ver o detalhe (o antigo Raio X).' },
-  ag: { plural: 'Agentes de carga', noun: 'agentes', sub: 'Quem contrata e acompanha o transporte. Ordenado por volume; clique numa linha para ver uso, prazo e cobrança.' },
-  rota: { plural: 'Rotas', noun: 'rotas', sub: 'Origem → destino internacional. Ordenado por volume; clique numa linha para ver agentes e SKUs da rota.' },
+  exp: { plural: 'Exportadores', noun: 'exportadores', sub: 'Quem vende e embarca a mercadoria. Ordenado por volume; clique numa linha para abrir a ficha (o antigo Raio X).' },
+  ag: { plural: 'Agentes de carga', noun: 'agentes', sub: 'Quem contrata e acompanha o transporte. Ordenado por volume; clique numa linha para abrir a ficha, com os desvios e a cobrança do agente.' },
+  rota: { plural: 'Rotas', noun: 'rotas', sub: 'Origem → destino internacional. Ordenado por volume; clique numa linha para abrir a ficha, com agentes e SKUs da rota.' },
 };
 function tabSummaryRow(dim, rows, total) {
   const t = IT.tabSummary(rows, total), c = TAB_COPY[dim];
@@ -221,7 +302,8 @@ function tabSummaryRow(dim, rows, total) {
 }
 function entityTab(dim, s) {
   const rows = IT.entityRows(D, s.cur, dim), c = TAB_COPY[dim];
-  let html = `<section class="block" id="aba-${dim}" aria-labelledby="t-aba-${dim}">${blockHead('aba-' + dim, c.plural, c.sub)}${tabSummaryRow(dim, rows, s.cur.length)}${comparisonTable(dim, rows)}<p class="chart-caption">Dado, não veredito: as colunas são fatos do recorte, sem nota nem ranking. Com menos de 3 embarques a linha leva “Amostra pequena”.</p></section>`;
+  // O título do submódulo está no cabeçalho da página; aqui fica só a frase de apoio.
+  let html = `<section class="block entity-tab" id="aba-${dim}" aria-label="${c.plural}"><p class="lead">${c.sub}</p>${tabSummaryRow(dim, rows, s.cur.length)}${comparisonTable(dim, rows)}<p class="chart-caption">Dado, não veredito: as colunas são fatos do recorte, sem nota nem ranking. Com menos de 3 embarques a linha leva “Amostra pequena”.</p></section>`;
   if (dim === 'ag') html += commitmentsBlock(s);
   if (dim === 'rota') html += `<p class="chart-caption">O preço de mercado de cada rota fica no Radar. <a class="link" href="/portal/radar" target="_top">Abrir o Radar ↗</a> · <a class="link" href="#locais">Ver locais</a></p>`;
   return html;
@@ -275,10 +357,17 @@ function entitySubtitle(dim, id) {
   if (dim === 'ag') { const a = agent(id); return `Agente de carga · ${a.preferred ? 'Preferido no cadastro' : 'Sem preferência cadastral'} · ${periodText()}`; }
   const r = route(id); return `${r.mode} · ${r.equipment} · ${periodText()}`;
 }
+/** O "×" das gavetas vira um botão "Fechar" por extenso nas fichas e no painel de ajustes. */
+function sheetMode(cls) {
+  const d = $('#drawer'), c = d.querySelector('.close');
+  d.classList.remove('entity-sheet', 'adjust-sheet');
+  if (cls) d.classList.add(cls);
+  if (cls && c) { c.textContent = 'Fechar'; c.classList.add('close-text'); c.setAttribute('aria-label', 'Fechar'); }
+}
 function openEntity(dim, id) {
   const s = intelScope();
   openDrawer(esc(IT.nameOf(D, dim, id)), esc(entitySubtitle(dim, id)), entityDetailHtml(dim, id, s));
-  $('#drawer').classList.add('entity-sheet');
+  sheetMode('entity-sheet');
 }
 /** Depois de desenhar a Visão geral/abas: abre o detalhe pedido pela URL. */
 function afterOverviewRender() {
@@ -295,35 +384,13 @@ function stripSelection() {
 }
 
 /* --------------------------------------------------------------- página --- */
-function geralTab(s, visible) {
-  if (!visible.size) return '<div class="empty"><h2>Todos os blocos estão ocultos</h2><p>Ligue um bloco em “Personalizar” ou restaure o padrão.</p><button class="button" data-action="intel-customize">Personalizar</button></div>';
-  // A ORDEM vem do layout (Personalizar ou visão "Minha operação"). Destaque e
-  // funil continuam lado a lado, no lugar do primeiro dos dois.
-  const order = IL.visibleBlocks(intelLayout);
-  let html = '';
-  if (intelLayout.mode === 'completa') {
-    const render1 = { kpis: () => kpisBlock(s, true), graficos: () => chartsBlock(s), performance: () => performanceBlock(s) };
-    let pairDone = false;
-    for (const id of order) {
-      if (id === 'destaque' || id === 'funil') {
-        if (pairDone) continue;
-        pairDone = true;
-        const top = [visible.has('destaque') && heroBlock(s), visible.has('funil') && funnelBlock(s)].filter(Boolean);
-        if (top.length) html += `<div class="split ${top.length === 1 ? 'single' : ''}">${top.join('')}</div>`;
-      } else if (render1[id]) html += render1[id]();
-    }
-  } else {
-    const q = IE.questions(D, s.cur, s.prev);
-    const Q = { q_prazo: ['Estou entregando no prazo?', q.prazo, 'destaque'], q_frete: ['Quanto estou pagando de frete?', q.frete, 'graficos'], q_parceiros: ['Com quem trabalho melhor?', q.parceiros, 'performance'], q_perda: ['Onde o prazo se perde?', q.perda, 'funil'] };
-    let group = [];
-    const flush = () => { if (group.length) html += `<div class="questions">${group.join('')}</div>`; group = []; };
-    for (const id of order) {
-      if (id === 'kpis') { flush(); html += kpisBlock(s, false); }
-      else if (Q[id]) group.push(questionBlock(id, Q[id][0], Q[id][1], Q[id][2]));
-    }
-    flush();
-  }
-  return html;
+function geralTab(s) {
+  // A ORDEM É FIXA (a hierarquia): resultado, apoio, evolução, detalhe por trecho.
+  // Personalizar só liga e desliga cards (intel-personalize.js).
+  const vis = new Set(IP.visibleCards(intelPers));
+  if (!vis.size) return '<div class="card empty"><h2>Todos os cards estão desligados</h2><p>A Visão geral mostra só os cards ligados dos temas escolhidos. Volte ao padrão ou escolha os cards em “Filtros e ajustes”.</p><div class="empty-actions"><button class="button" data-action="pers-reset-now">Refazer personalização do zero</button><button class="button secondary" data-action="intel-adjust">Filtros e ajustes</button></div></div>';
+  const support = [vis.has('frete') && supportCard('freight', s, 'frete'), vis.has('embarques') && supportCard('count', s, 'embarques')].filter(Boolean);
+  return resultCard(s, vis) + (support.length ? `<div class="support-row${support.length === 1 ? ' single' : ''}">${support.join('')}</div>` : '') + evolutionBlock(s, vis) + (vis.has('trechos') ? trechosBlock(s) : '');
 }
 /** Conteúdo das abas que não são do retrovisor (o Simulador). */
 function extraTabContent(tab, s) { return tab === 'simulador' ? simulatorTab(s) : ''; }
@@ -361,7 +428,7 @@ function simTable(result) {
 function simHow(s) {
   const open = openKpiHow.has('sim');
   const lines = IS.howCalculated(D, s.gf, IS.readWindow(params), D.cutoff);
-  return `<button type="button" class="kpi-how" data-action="kpi-how" data-id="sim" aria-expanded="${open}" aria-controls="kpi-how-sim"><span aria-hidden="true">ⓘ</span> Como é calculado</button><div class="kpi-how-body sim-how" id="kpi-how-sim" ${open ? '' : 'hidden'}><span class="example-tag">Dado de exemplo</span><dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
+  return `<button type="button" class="kpi-how" data-action="kpi-how" data-id="sim" aria-expanded="${open}" aria-controls="kpi-how-sim">${ICON.info} Como é calculado</button><div class="kpi-how-body sim-how" id="kpi-how-sim" ${open ? '' : 'hidden'}><span class="example-tag">Dado de exemplo</span><dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
 }
 /* Recorte do Simulador: a JANELA de histórico dele (não o período do painel) +
    os filtros globais. Também alimenta a barra de filtros quando a aba está aberta. */
@@ -377,7 +444,7 @@ function simulatorTab(s) {
   const inputs = IS.readInputs(D, params), today = D.cutoff, ss = simScope(s);
   const result = IS.simulate(D, ss.cur, { route: inputs.route, arriveBy: inputs.arriveBy, today });
   const routes = D.routes.filter(r => IE.applyFilters(D.operations, s.gf).some(o => o.route === r.id) || r.id === inputs.route);
-  const form = `<form class="sim-form" id="sim-form" onsubmit="return false"><label>Rota (origem → destino)<select id="sim-route"><option value="">Todas as rotas com histórico</option>${routes.map(r => `<option value="${r.id}" ${inputs.route === r.id ? 'selected' : ''}>${esc(routeName(r))}</option>`).join('')}</select></label><label>Quero chegar até<input id="sim-date" type="date" value="${inputs.arriveBy}" min="${IS.addDays(today, 1)}" aria-describedby="sim-today"></label><label>Histórico<select id="sim-window" aria-describedby="sim-history">${IS.WINDOWS.map(([id, label]) => `<option value="${id}" ${inputs.window === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label><p id="sim-today" class="sim-today">Hoje na demonstração: ${fullDate(today)}. A simulação considera embarque a partir de hoje. Agente, incoterm e os outros filtros acima também valem aqui.</p></form><p id="sim-history" class="sim-history" role="status"><b>${esc(simHistoryLine(inputs, ss))}</b> · O período do painel não se aplica ao Simulador: para trânsito, o histórico longo é o que dá confiança.</p>`;
+  const form = `<form class="sim-form" id="sim-form" onsubmit="return false"><label>Rota (origem → destino)<select id="sim-route"><option value="">Todas as rotas com histórico</option>${routes.map(r => `<option value="${r.id}" ${inputs.route === r.id ? 'selected' : ''}>${esc(routeName(r))}</option>`).join('')}</select></label><label>Quero chegar até<input id="sim-date" type="date" value="${inputs.arriveBy}" min="${IS.addDays(today, 1)}" aria-describedby="sim-today"></label><label>Histórico<select id="sim-window" aria-describedby="sim-history">${IS.WINDOWS.map(([id, label]) => `<option value="${id}" ${inputs.window === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label><p id="sim-today" class="sim-today">Hoje na demonstração: ${fullDate(today)}. A simulação considera embarque a partir de hoje. Agente, incoterm e os outros filtros de “Filtros e ajustes” também valem aqui.</p></form><p id="sim-history" class="sim-history" role="status"><b>${esc(simHistoryLine(inputs, ss))}</b> · O período do painel não se aplica ao Simulador: para trânsito, o histórico longo é o que dá confiança.</p>`;
   const c = result.counts;
   const when = result.arriveBy ? `${fullDate(result.arriveBy)} (${IS.weekLabel(result.arriveBy)}, ${result.available} ${result.available === 1 ? 'dia' : 'dias'} a partir de hoje)` : '';
   let msg = '';
@@ -390,26 +457,24 @@ function simulatorTab(s) {
   const summary = result.arriveBy && result.available > 0 && result.rows.some(r => !r.small && r.status) ? `<p class="sim-summary" role="status">Para chegar até ${esc(when)}: <b>${c.cabe}</b> ${c.cabe === 1 ? 'cabe' : 'cabem'} na data · <b>${c.apertado}</b> ${c.apertado === 1 ? 'apertado' : 'apertados'} · <b>${c.nao_cabe}</b> não ${c.nao_cabe === 1 ? 'cabe' : 'cabem'}${c.small ? ` · <b>${c.small}</b> sem estimativa (amostra pequena)` : ''}.</p>` : '';
   const showTable = result.rows.length && !['past', 'no_date', 'no_history'].includes(result.state);
   const rules = `<ul class="sim-rules">${['cabe', 'apertado', 'nao_cabe', 'small'].map(k => `<li>${simStatus({ small: k === 'small', status: k })} ${IS.STATUS[k].rule}</li>`).join('')}</ul>`;
-  return `<section class="block sim" id="aba-simulador" aria-labelledby="t-sim"><div class="block-head"><div><h2 id="t-sim">Simulador de cenários <span class="preview-tag">Prévia</span></h2><p>Quero chegar até uma data. Qual rota e qual agente cabem?</p></div></div><p class="sim-disclaimer" role="note"><b>Estimativa baseada no histórico. Não é garantia de prazo.</b> O resultado sai em semanas, não em dia exato.</p>${form}${simHow(s)}${summary}${msg}${showTable ? simTable(result) : ''}${showTable ? rules : ''}<p class="chart-caption">Classificação factual sobre o trânsito registrado, sem nota nem recomendação. Ordenado por volume de embarques no histórico. Custos ficam fora desta prévia.</p></section>`;
+  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)"><p class="lead sim-question">Quero chegar até uma data. Qual rota e qual agente cabem?</p><p class="sim-disclaimer" role="note"><b>Estimativa baseada no histórico. Não é garantia de prazo.</b> O resultado sai em semanas, não em dia exato.</p>${form}${simHow(s)}${summary}${msg}${showTable ? simTable(result) : ''}${showTable ? rules : ''}<p class="chart-caption">Classificação factual sobre o trânsito registrado, sem nota nem recomendação. Ordenado por volume de embarques no histórico. Custos ficam fora desta prévia.</p></section>`;
 }
 function setSimParam(changes) { location.hash = url('executivo', changes); }
 function intelOverview() {
-  const s = intelScope(), mode = intelLayout.mode, visible = new Set(IL.visibleBlocks(intelLayout)), tab = currentTab();
-  const actions = `${MODE_SWITCH && tab === 'geral' ? modeSwitch() : ''}${tab === 'geral' ? '<button class="button secondary" data-action="intel-customize">Personalizar</button>' : ''}${tab === 'simulador' ? '' : '<button class="button secondary" data-action="intel-report">Preparar relatório</button>'}`;
-  // No Simulador a faixa fixa diz o HISTÓRICO usado (a janela dele), não o período do painel.
+  const s = intelScope(), tab = currentTab();
+  // No Simulador o recorte é o HISTÓRICO dele (a janela própria), não o período do painel.
   const sim = tab === 'simulador', ss = sim ? simScope(s) : s;
-  const strip = sim ? `Simulador · ${simHistoryLine(IS.readInputs(D, params), ss)} · o período do painel não se aplica aqui` : periodStripLine(s);
-  let html = `<div class="heading"><div><h1 tabindex="-1">Inteligência</h1><p>${mode === 'completa' ? 'O retrato da sua operação: números principais e evolução na Visão geral; o detalhe por exportador, agente e rota nas abas.' : 'As quatro perguntas da sua operação, respondidas em uma linha cada.'}</p>${EXAMPLE_NOTE}</div><div class="actions intel-actions">${actions}</div></div><p class="period-strip" role="status" aria-live="polite">${esc(strip)}</p>${viewChips()}`;
-  html += periodBar() + filterBar(ss);
-  html += sim ? '' : `<p class="comparison-caption">${s.range.valid ? IE.comparisonCaption(s.range) : ''}${s.cur.length && s.cur.length < IE.MIN_SAMPLE ? ' ' + smallTag(s.cur.length) + ' Com menos de 3 embarques as variações não são mostradas.' : ''}</p>`;
+  let html = intelHead(tab, s, ss) + viewChips();
+  if ((s.gf.sku || []).length) html += '<p class="note-small">Filtro de SKU: SKU é do item. Entra o embarque que contém o SKU; frete e prazos continuam sendo do embarque inteiro.</p>';
+  if (!sim && s.cur.length && s.cur.length < IE.MIN_SAMPLE) html += `<p class="comparison-caption">${smallTag(s.cur.length)} Com menos de 3 embarques as variações não são mostradas.</p>`;
   html += tabNav(tab);
   const extra = extraTabContent(tab, s);
   if (extra) return html + extra;
   if (!s.cur.length) {
-    return html + `<div class="empty"><h2>Nenhum embarque neste recorte</h2><p>${s.active ? 'Os filtros escolhidos não têm embarques no período.' : 'Não há embarques no período escolhido.'}</p>${s.active ? '<button class="button" data-action="gfilter-clear">Limpar filtros</button>' : ''}</div>`;
+    return html + `<div class="empty"><h2>Nenhum embarque neste recorte</h2><p>${s.active ? 'Os filtros escolhidos não têm embarques no período.' : 'Não há embarques no período escolhido.'}</p>${s.active ? '<button class="button" data-action="gfilter-clear">Limpar filtros</button>' : '<button class="button" data-action="intel-adjust">Filtros e ajustes</button>'}</div>`;
   }
   if (IT.DIM_OF_TAB[tab]) return html + entityTab(IT.DIM_OF_TAB[tab], s);
-  return html + geralTab(s, visible);
+  return html + geralTab(s);
 }
 
 /* ------------------------------------------------------- visões salvas --- */
@@ -431,12 +496,13 @@ function shareLink() {
   try { return top.location.origin + top.location.pathname + location.hash; } catch { return location.href; }
 }
 function openReportPanel(emailDone) {
+  sheetMode('');
   // Aberto do painel de detalhe, o relatório é DAQUELA entidade: o atalho de
   // conversa olha o filtro como se ela estivesse filtrada. O conteúdo do
   // relatório não muda (Orsi vai definir); muda só a menção a aba/entidade.
   const s = intelScope(), ctx = IE.reportContext(reportEntity ? IT.filterByEntity(s.gf, reportEntity.dim, reportEntity.id) : s.gf);
   const mention = IT.tabMention(D, currentTab(), reportEntity);
-  const summary = IE.viewSummary(D, s.gf, periodNames[params.get('period') || 'days90'] || 'Personalizado', s.cur.length) + (mention ? ` · ${mention}` : '') + ` · Leitura ${intelLayout.mode === 'completa' ? 'completa' : 'objetiva'}`;
+  const summary = IE.viewSummary(D, s.gf, periodNames[params.get('period') || 'days90'] || 'Personalizado', s.cur.length) + (mention ? ` · ${mention}` : '');
   const talk = [
     ctx.exporter ? `<a class="button" href="${esc(url('relatorios/revisao', { supplier: ctx.exporter }))}">Preparar revisão com ${esc(company(ctx.exporter).name)}</a><p class="muted small">Abre Relatórios › Revisão de exportador com este período e estes filtros.</p>` : '',
     ctx.plannedRouteAgent ? `<div class="planned"><div><b>Revisão de rota ou agente</b> <span class="pill">Planejado</span></div><p class="muted small">Comparáveis, desvios e pauta com o parceiro. Ainda sem geração nesta prévia.</p><button class="button secondary" disabled>Preparar revisão</button></div>` : '',
@@ -445,8 +511,8 @@ function openReportPanel(emailDone) {
   const email = emailDone
     ? `<div class="success" role="status"><b>Agendado (simulação)</b><p>Envio ${esc(emailDone.freq)} para ${esc(emailDone.to.join(', '))}. Nada foi enviado nesta prévia.</p></div>`
     : `<form id="report-email" class="report-form" novalidate><label>Frequência<select id="report-freq"><option value="semanal">Semanal</option><option value="mensal">Mensal</option></select></label><label>Destinatários<input id="report-to" type="text" placeholder="nome@empresa.com, outro@empresa.com" aria-describedby="report-to-error" required></label><p id="report-to-error" class="form-error" role="alert"></p><button class="button" type="submit">Agendar envio</button></form>`;
-  openDrawer('Preparar relatório', esc(summary), `<p class="period-strip in-report">${esc(periodStripLine(s))}</p><p class="muted">A visão atual — período, filtros, modo e blocos — é o relatório.</p>
-    <section class="report-section" aria-labelledby="rs-1"><h3 id="rs-1">Salvar como minha visão</h3>${currentTab() !== 'geral' ? `<p class="muted small">A visão guarda também a aba (${esc(IT.tabMention(D, currentTab(), null).replace('Aba ', ''))}).</p>` : ''}<form id="view-form" class="report-form"><label>Nome da visão<input id="view-name" type="text" maxlength="60" required placeholder="Ex.: Shanghai FOB"></label><button class="button" type="submit">Salvar</button></form><p class="muted small">Aparece como atalho no topo da Inteligência e restaura período, filtros, modo e blocos.</p></section>
+  openDrawer('Preparar relatório', esc(summary), `<p class="period-strip in-report">${esc(periodStripLine(s))}</p><p class="muted">A visão atual (período, filtros e cards ligados) é o relatório.</p>
+    <section class="report-section" aria-labelledby="rs-1"><h3 id="rs-1">Salvar como minha visão</h3>${currentTab() !== 'geral' ? `<p class="muted small">A visão guarda também a aba (${esc(IT.tabMention(D, currentTab(), null).replace('Aba ', ''))}).</p>` : ''}<form id="view-form" class="report-form"><label>Nome da visão<input id="view-name" type="text" maxlength="60" required placeholder="Ex.: Shanghai FOB"></label><button class="button" type="submit">Salvar</button></form><p class="muted small">Aparece como atalho no topo da Inteligência e restaura período e filtros.</p></section>
     <section class="report-section" aria-labelledby="rs-2"><h3 id="rs-2">Levar para uma conversa</h3>${talk}<p class="small">${link('relatorios', 'Ver todos os relatórios')}</p></section>
     <section class="report-section" aria-labelledby="rs-3"><h3 id="rs-3">Receber e compartilhar</h3>
       <div class="share-item"><div><b>Enviar por e-mail</b> ${PREVIEW}</div>${email}</div>
@@ -455,14 +521,69 @@ function openReportPanel(emailDone) {
     </section>`);
 }
 
-/* --------------------------------------------------------- personalizar --- */
-function openCustomize() {
-  customizeDraft = IL.normalize(intelLayout);
-  renderCustomize();
+/* ---------------------------------------------------- filtros e ajustes --- */
+/* PAINEL "FILTROS E AJUSTES" (v4, pedido do Vitor). Um lugar só, atrás de um
+   botão discreto: (1) Filtros: período + os seis filtros globais, com a MESMA
+   lógica de antes (OU dentro do filtro, E entre filtros); (2) Personalizar a
+   Inteligência, no modelo do "Personalizar a Home". Tudo é RASCUNHO até
+   "Aplicar": fechar o painel descarta, como o Cancelar da Home. */
+/** Os controles de temas e cards do painel. */
+function persFieldsHtml() {
+  const st = persDraft, groups = IP.cardsByTheme(st);
+  const chips = IP.THEMES.map(([id, label]) => `<button type="button" class="theme-chip" data-pers-theme="${id}" aria-pressed="${st.themes.includes(id)}">${label}</button>`).join('');
+  const cards = groups.length
+    ? groups.map(g => `<div class="pers-group" role="group" aria-label="${g.label}"><p class="pers-group-title">${g.label}</p>${g.cards.map(c => `<label class="pers-card"><input type="checkbox" role="switch" data-pers-card="${c.id}" ${c.on ? 'checked' : ''}><span><b>${c.label}</b><small>${c.desc}</small></span></label>`).join('')}</div>`).join('')
+    : '<p class="muted">Escolha ao menos um tema acima para ver os cards disponíveis.</p>';
+  return `<p class="pers-eyebrow">Temas (${st.themes.length} de ${IP.THEMES.length})</p><div class="theme-chips">${chips}</div><p class="pers-eyebrow">Cards</p>${cards}`;
 }
-function renderCustomize() {
-  const mode = customizeDraft.mode, on = new Set(IL.visibleBlocks(customizeDraft));
-  openDrawer('Personalizar', `Modo ${mode === 'completa' ? 'Completa' : 'Objetiva'} · escolha os blocos que aparecem`, `<p class="muted">As escolhas ficam salvas para você neste navegador. Os filtros e o período não mudam.</p><div class="cust-list">${IL.orderedBlocks(customizeDraft, mode).map(b => `<label class="cust-row"><span><b>${b.label}</b><small>${b.desc}</small></span><input type="checkbox" role="switch" data-cust="${b.id}" ${on.has(b.id) ? 'checked' : ''}></label>`).join('')}</div><div class="cust-actions"><button class="text-button" data-action="intel-cust-reset">Restaurar padrão</button><span><button class="button secondary" data-action="close">Cancelar</button> <button class="button" data-action="intel-cust-save">Salvar</button></span></div>`);
+/** Redesenha só os controles de personalização do diálogo aberto e devolve o foco ao controle usado. */
+function refreshPers(focusSelector) {
+  document.querySelectorAll('dialog[open] [data-pers-root]').forEach(el => { el.innerHTML = persFieldsHtml(); });
+  if (focusSelector) document.querySelector('dialog[open] ' + focusSelector)?.focus();
+}
+function draftScope() {
+  const d = adjustDraft, sim = currentTab() === 'simulador', range = periodRange({ period: d.period, start: d.start, end: d.end });
+  // No Simulador a contagem é sobre o histórico dele; o período escolhido vale nos outros submódulos.
+  const all = sim ? IS.inWindow(D.operations, IS.readWindow(params), D.cutoff) : range.valid ? IE.inRange(D.operations, range) : [];
+  return { sim, range, all, cur: IE.applyFilters(all, d.gf) };
+}
+function draftDropdown(f, sc) {
+  // Lista e contagem da base INTEIRA (todos os períodos); desabilitada quando não
+  // sobra embarque no período + outros filtros. Opção nunca some.
+  const sel = adjustDraft.gf[f.key] || [], opts = IE.filterOptions(D, D.operations, sc.all, adjustDraft.gf, f.key);
+  const value = !sel.length ? (f.key === 'rota' ? 'Todas' : 'Todos') : sel.length === 1 ? f.name(D, sel[0]) : `${sel.length} selecionados`;
+  return `<div class="fa-field"><span class="fa-label" id="fa-l-${f.key}">${f.label}</span><details class="fsel" data-fkey="${f.key}" ${openFilterKey === f.key ? 'open' : ''}><summary aria-labelledby="fa-l-${f.key} fa-v-${f.key}"><span class="fsel-value" id="fa-v-${f.key}">${esc(value)}</span></summary><div class="fsel-menu" role="group" aria-label="${f.label}"><div class="fsel-actions"><button type="button" class="text-button" data-action="dfilter-all" data-key="${f.key}" aria-label="Selecionar todas as opções de ${f.label} com embarques no recorte">Selecionar todos</button><button type="button" class="text-button" data-action="dfilter-clear-one" data-key="${f.key}" aria-label="Limpar o filtro ${f.label}" ${sel.length ? '' : 'disabled'}>Limpar</button></div><p class="fsel-hint">Entre parênteses, embarques em toda a base.</p>${opts.map(o => `<label class="${o.disabled ? 'is-disabled' : ''}" title="${o.available} no recorte atual"><input type="checkbox" data-dfilter="${f.key}" value="${esc(o.value)}" ${o.selected ? 'checked' : ''} ${o.disabled ? 'disabled' : ''}> <span>${esc(o.label)} (${o.count})</span>${o.disabled ? '<small>0 no recorte</small>' : ''}</label>`).join('')}</div></details></div>`;
+}
+function adjustFiltersHtml() {
+  const d = adjustDraft, sc = draftScope(), custom = d.period === 'custom', bad = !sc.sim && !sc.range.valid;
+  const period = `<label class="fa-field"><span class="fa-label">Período</span><select id="fa-period">${Object.entries(periodNames).map(([v, t]) => `<option value="${v}" ${d.period === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>`;
+  const dates = custom ? `<div class="fa-dates"><label class="fa-field"><span class="fa-label">De</span><input id="fa-start" type="date" max="${D.cutoff}" value="${esc(d.start || '')}" aria-describedby="fa-range"></label><label class="fa-field"><span class="fa-label">Até</span><input id="fa-end" type="date" max="${D.cutoff}" value="${esc(d.end || '')}" aria-describedby="fa-range"></label></div>` : '';
+  const rangeTxt = bad ? `Escolha datas válidas: o início deve ser anterior ou igual ao fim, até ${fullDate(D.cutoff)}.` : `${fullDate(sc.range.start)} a ${fullDate(sc.range.end)}${sc.sim ? ' · o Simulador usa o histórico próprio, escolhido na tela dele' : ''}`;
+  return `<div class="fa-grid">${period}${IE.FILTERS.map(f => draftDropdown(f, sc)).join('')}</div>${dates}<p id="fa-range" class="fa-range${bad ? ' is-error' : ''}" ${bad ? 'role="alert"' : ''}>${rangeTxt}</p><p class="fa-count" role="status">Mostrando <b>${sc.cur.length}</b> de ${sc.all.length} embarques</p>${(d.gf.sku || []).length ? '<p class="note-small">SKU é do item: entra o embarque que contém o SKU; frete e prazos continuam sendo do embarque inteiro.</p>' : ''}`;
+}
+function refreshAdjust(focusSelector) {
+  const root = document.getElementById('fa-filters'); if (!root) return;
+  root.innerHTML = adjustFiltersHtml();
+  if (focusSelector) root.querySelector(focusSelector)?.focus();
+}
+function openAdjust() {
+  adjustDraft = { period: params.get('period') || 'days90', start: params.get('start') || '', end: params.get('end') || '', gf: IE.readFilters(params) };
+  persDraft = IP.normalize(intelPers); openFilterKey = null;
+  openDrawer('Filtros e ajustes', 'O recorte e os cards da Inteligência, num lugar só.', `<div class="fa"><section class="fa-section" aria-labelledby="fa-t1"><h3 id="fa-t1">Filtros</h3><div id="fa-filters">${adjustFiltersHtml()}</div></section><section class="fa-section" aria-labelledby="fa-t2"><h3 id="fa-t2">Personalizar a Inteligência</h3><p class="fa-help">Escolha os temas e ligue ou desligue cada card. A Visão geral mostra só os cards ligados dos temas escolhidos.</p><div data-pers-root>${persFieldsHtml()}</div><p class="pers-foot"><button type="button" class="text-button" data-action="pers-reset">Refazer personalização do zero</button> <span id="pers-reset-note" role="status"></span></p></section></div><div class="fa-actions" data-bottom-action-bar><span></span><span><button type="button" class="button secondary" data-action="fa-clear">Limpar filtros</button><button type="button" class="button" data-action="fa-apply">Aplicar</button></span></div>`);
+  sheetMode('adjust-sheet');
+}
+function applyAdjust() {
+  const d = adjustDraft;
+  if (d.period === 'custom' && !periodRange({ period: 'custom', start: d.start, end: d.end }).valid) { refreshAdjust('#fa-start'); return; }
+  saveIntelPers(persDraft);
+  const q = new URLSearchParams(params); IE.writeFilters(q, d.gf);
+  if (d.period !== 'days90' || q.has('period')) q.set('period', d.period);
+  if (d.period === 'custom') { q.set('start', d.start); q.set('end', d.end); } else { q.delete('start'); q.delete('end'); }
+  const next = pagePath + (q.toString() ? '?' + q : '');
+  adjustDraft = null; persDraft = null; openFilterKey = null;
+  // Com a URL igual não há hashchange: fecha e redesenha aqui (a personalização pode ter mudado).
+  if (location.hash.slice(1) === next) { closeDrawer(); render(); } else location.hash = next;
+  toast('Filtros e ajustes aplicados.');
 }
 
 /* --------------------------------------------------------------- eventos --- */
@@ -474,17 +595,18 @@ function jumpTo(id) { const el = document.getElementById('bloco-' + id); if (el)
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-action]'); if (!b) return;
   const a = b.dataset.action, id = b.dataset.id;
-  if (a === 'intel-mode') { saveIntelLayout(IL.setMode(intelLayout, id)); render(); }
-  else if (a === 'intel-customize') openCustomize();
-  else if (a === 'intel-cust-reset') { customizeDraft = IL.reset(customizeDraft); renderCustomize(); }
-  else if (a === 'intel-cust-save') { saveIntelLayout(customizeDraft); customizeDraft = null; closeDrawer(); render(); toast('Personalização salva.'); }
+  if (a === 'intel-adjust') openAdjust();
+  else if (a === 'fa-apply') applyAdjust();
+  else if (a === 'fa-clear') { adjustDraft.gf = {}; openFilterKey = null; refreshAdjust('#fa-period'); }
+  else if (a === 'dfilter-all' || a === 'dfilter-clear-one') {
+    const key = b.dataset.key;
+    adjustDraft.gf = a === 'dfilter-all' ? { ...adjustDraft.gf, [key]: IE.selectAllValues(D, D.operations, draftScope().all, adjustDraft.gf, key) } : IE.clearFilter(adjustDraft.gf, key);
+    openFilterKey = key; refreshAdjust(`details[data-fkey="${key}"] summary`);
+  }
+  else if (a === 'pers-reset') { persDraft = IP.defaults(); refreshPers('[data-action="pers-reset"]'); const n = document.getElementById('pers-reset-note'); if (n) n.textContent = 'Padrão restaurado: todos os cards ligados. Aplique para salvar.'; }
+  else if (a === 'pers-reset-now') { IP.clear(STORE); intelPers = IP.defaults(); render(); toast('Personalização refeita: todos os cards ligados.'); }
   else if (a === 'gfilter-remove') { const gf = IE.readFilters(params); gf[b.dataset.key] = gf[b.dataset.key].filter(v => v !== b.dataset.value); setGlobalFilters(gf); }
   else if (a === 'gfilter-clear') { openFilterKey = null; setGlobalFilters({}); }
-  else if (a === 'gfilter-all' || a === 'gfilter-clear-one') {
-    const key = b.dataset.key, s = intelScope();
-    const gf = a === 'gfilter-all' ? { ...s.gf, [key]: IE.selectAllValues(D, D.operations, s.all, s.gf, key) } : IE.clearFilter(s.gf, key);
-    openFilterKey = key; setGlobalFilters(gf);
-  }
   else if (a === 'kpi-how') {
     const open = b.getAttribute('aria-expanded') !== 'true';
     if (open) openKpiHow.add(id); else openKpiHow.delete(id);
@@ -509,13 +631,6 @@ document.addEventListener('click', e => {
     else { field.select(); toast('Selecione e copie o link no campo.'); }
   }
   else if (a === 'report-pdf') toast('Disponível na versão final.');
-  else if (a === 'intel-details') {
-    // "Ver detalhes" leva à seção da Completa. Se o cliente a escondeu, ela volta
-    // a aparecer: o pedido explícito vence a escolha anterior, e o toast diz isso.
-    let next = IL.setMode(intelLayout, 'completa'); const hidden = !IL.visibleBlocks(next).includes(id);
-    if (hidden) next = IL.setVisible(next, 'completa', id, true);
-    saveIntelLayout(next); render(); requestAnimationFrame(() => jumpTo(id)); if (hidden) toast('Bloco reexibido na leitura completa.');
-  }
 });
 // A linha inteira abre o detalhe (o botão do nome é a porta do teclado).
 document.addEventListener('click', e => {
@@ -532,20 +647,34 @@ document.addEventListener('keydown', e => {
   e.preventDefault(); all[next].focus();
 });
 // O evento `close` chega depois do render; se outro painel já abriu, não mexe nele.
-document.getElementById('drawer').addEventListener('close', () => { const d = document.getElementById('drawer'); if (d.open) return; d.classList.remove('entity-sheet'); stripSelection(); });
+document.getElementById('drawer').addEventListener('close', () => { const d = document.getElementById('drawer'); if (d.open) return; d.classList.remove('entity-sheet', 'adjust-sheet'); d.innerHTML = ''; adjustDraft = null; persDraft = null; stripSelection(); });
 document.addEventListener('change', e => {
   const t = e.target;
   if (t.id === 'sim-route') { setSimParam({ srota: t.value || null }); return; }
   if (t.id === 'sim-window') { setSimParam({ janela: t.value === IS.DEFAULT_WINDOW ? null : t.value }); return; }
   if (t.id === 'sim-date') { if (IS.validIso(t.value)) setSimParam({ chegada: t.value }); return; }
-  if (t.dataset && t.dataset.gfilter) {
-    const gf = IE.readFilters(params), key = t.dataset.gfilter, set = new Set(gf[key]);
+  if (t.id === 'fa-period') { adjustDraft.period = t.value; if (t.value !== 'custom') { adjustDraft.start = ''; adjustDraft.end = ''; } refreshAdjust(t.value === 'custom' ? '#fa-start' : '#fa-period'); return; }
+  if (t.id === 'fa-start' || t.id === 'fa-end') { adjustDraft[t.id === 'fa-start' ? 'start' : 'end'] = t.value; refreshAdjust('#' + t.id); return; }
+  if (t.dataset && t.dataset.dfilter) {
+    const key = t.dataset.dfilter, set = new Set(adjustDraft.gf[key] || []);
     if (t.checked) set.add(t.value); else set.delete(t.value);
-    gf[key] = [...set]; openFilterKey = key; setGlobalFilters(gf);
-  } else if (t.dataset && t.dataset.cust && customizeDraft) {
-    customizeDraft = IL.setVisible(customizeDraft, customizeDraft.mode, t.dataset.cust, t.checked);
+    adjustDraft.gf = { ...adjustDraft.gf, [key]: [...set] }; openFilterKey = key;
+    refreshAdjust(`input[data-dfilter="${key}"][value="${CSS.escape(t.value)}"]`);
+  } else if (t.dataset && t.dataset.persCard && persDraft) {
+    persDraft = IP.setCard(persDraft, t.dataset.persCard, t.checked);
+    refreshPers(`[data-pers-card="${t.dataset.persCard}"]`);
   }
 });
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-pers-theme]'); if (!b || !persDraft) return;
+  persDraft = IP.toggleTheme(persDraft, b.dataset.persTheme);
+  refreshPers(`[data-pers-theme="${b.dataset.persTheme}"]`);
+});
+// Dobra "Evolução": o estado sobrevive ao redesenho.
+document.addEventListener('toggle', e => {
+  const d = e.target; if (!d.dataset || !d.dataset.fold) return;
+  if (d.dataset.fold === 'evo') evoOpen = d.open;
+}, true);
 document.addEventListener('toggle', e => {
   const d = e.target; if (!d.matches || !d.matches('details.fsel')) return;
   if (d.open) { openFilterKey = d.dataset.fkey; document.querySelectorAll('details.fsel[open]').forEach(x => { if (x !== d) x.open = false; }); }
@@ -580,8 +709,8 @@ document.addEventListener('submit', e => {
    (foco preso, Esc fecha); no celular vira folha de baixo, marcada como barra
    de rodapé para o botão Ajuda do portal subir acima dela. */
 const GUIDE_STEPS = [
-  { target: '.kpis .kpi', title: 'Como ler um indicador', body: 'Cada indicador traz três coisas: o número do recorte, a variação contra o período anterior de mesma duração e uma conclusão em uma frase. Com menos de 3 embarques aparece “Amostra pequena” e a variação some.' },
-  { target: '.context', title: 'Filtros e modos', body: 'Os filtros recortam todos os blocos: dentro de um filtro vale qualquer opção marcada; entre filtros, todos juntos. Completa mostra o retrato inteiro; Objetiva, as quatro perguntas em uma linha cada.' },
+  { target: '.lvl1', fallback: '.intel-head', title: 'Como ler um indicador', body: 'Cada indicador traz três coisas: o número do recorte, a variação contra o período anterior de mesma duração e uma conclusão em uma frase. Com menos de 3 embarques aparece “Amostra pequena” e a variação some.' },
+  { target: '[data-action="intel-adjust"]', title: 'Filtros e ajustes', body: 'Os filtros recortam todos os blocos: dentro de um filtro vale qualquer opção marcada; entre filtros, todos juntos. No mesmo painel você escolhe os temas e liga ou desliga cada card da Visão geral.' },
   { target: '.views-row', fallback: '[data-action="intel-report"]', title: 'Minhas visões e relatório', body: '“Minha operação” já está em Minhas visões, com as rotas que você escolheu. Salve outros recortes como visão e use “Preparar relatório” para resumir e compartilhar o que está na tela.' },
 ];
 let guideIndex = -1, guideReturnFocus = null;
