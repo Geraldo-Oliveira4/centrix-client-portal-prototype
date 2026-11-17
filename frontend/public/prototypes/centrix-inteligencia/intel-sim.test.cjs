@@ -31,70 +31,18 @@ test('janela de semanas: segunda-feira da semana, nunca o dia', () => {
   assert.equal(S.weekWindow('2026-10-17', '2026-10-20'), 'entre a semana de 12/10 e a de 19/10');
 });
 
-test('classificação: Cabe (P90 cabe), Apertado (só a mediana), Não cabe (nem a mediana)', () => {
-  assert.equal(S.classify(32, 32, 32), 'cabe');
-  assert.equal(S.classify(32, 32, 33), 'apertado');
-  assert.equal(S.classify(32, 33, 35), 'nao_cabe');
-  const r = S.simulate(D, all, { arriveBy: '2026-10-15', today: TODAY }); // 32 dias
-  assert.equal(r.state, 'ok');
-  assert.equal(r.available, 32);
-  assert.equal(row(r, 'ningbo', 'alpha').status, 'apertado'); // 32 / 33
-  assert.equal(row(r, 'ningbo', 'gamma').status, 'cabe'); // 32 / 32
-  assert.equal(row(r, 'shanghai', 'beta').status, 'nao_cabe'); // 34 / 37
-  assert.equal(row(r, 'newyork', 'delta').status, 'cabe');
-  assert.deepEqual(r.counts, { cabe: 10, apertado: 2, nao_cabe: 3, small: 0 });
-});
-
-test('data limite de embarque = data desejada − P90 (com folga) e − mediana (no limite)', () => {
-  const r = S.simulate(D, all, { arriveBy: '2026-10-31', today: TODAY });
-  const beta = row(r, 'shanghai', 'beta');
-  assert.equal(beta.median, 34);
-  assert.equal(beta.p90, 37);
-  assert.equal(beta.departBySafe, '2026-09-24');
-  assert.equal(beta.departByMedian, '2026-09-27');
-  assert.equal(beta.arrivalFrom, S.addDays(TODAY, 34));
-  assert.equal(beta.arrivalTo, S.addDays(TODAY, 37));
-  assert.deepEqual(S.departureLabel('2026-09-24', TODAY), { text: 'Até a semana de 21/09', passed: false });
-  assert.deepEqual(S.departureLabel(TODAY, TODAY), { text: 'Esta semana', passed: false }); // ainda dá para embarcar nesta semana
-  assert.deepEqual(S.departureLabel('2026-09-01', TODAY), { text: 'Já passou', passed: true });
-  // Mediana fracionária arredonda para cima nas datas (lado conservador).
-  const frac = S.simulate(D, [{ route: 'ningbo', agent: 'alpha', depart: '2026-01-01', arrive: '2026-01-11' }, { route: 'ningbo', agent: 'alpha', depart: '2026-01-01', arrive: '2026-01-12' }, { route: 'ningbo', agent: 'alpha', depart: '2026-01-01', arrive: '2026-01-11' }, { route: 'ningbo', agent: 'alpha', depart: '2026-01-01', arrive: '2026-01-12' }], { arriveBy: '2026-10-01', today: TODAY });
-  assert.equal(frac.rows[0].median, 10.5);
-  assert.equal(frac.rows[0].departByMedian, S.addDays('2026-10-01', -11));
-});
-
 test('amostra pequena: menos de 3 trânsitos não estima; 3 já estima', () => {
   const pair = all.filter((o) => o.route === 'genova' && o.agent === 'alpha' && o.depart && o.arrive);
   const two = S.simulate(D, pair.slice(0, 2), { arriveBy: '2026-11-30', today: TODAY });
   assert.equal(two.rows[0].small, true);
-  assert.equal(two.rows[0].status, 'small');
   assert.equal(two.rows[0].median, null);
-  assert.equal(two.state, 'all_small');
   const three = S.simulate(D, pair.slice(0, 3), { arriveBy: '2026-11-30', today: TODAY });
   assert.equal(three.rows[0].small, false);
-  assert.equal(three.rows[0].status, 'cabe');
   // Embarque sem chegada conta como embarque, não como trânsito.
   const open = all.filter((o) => o.route === 'genova' && o.agent === 'alpha');
   const r = S.simulate(D, open, { arriveBy: '2026-11-30', today: TODAY });
   assert.equal(r.rows[0].shipments, open.length);
   assert.equal(r.rows[0].n, open.filter((o) => o.depart && o.arrive).length);
-});
-
-test('estados vazios: sem data, data passada, sem histórico, tudo pequeno, nada cabe', () => {
-  assert.equal(S.simulate(D, all, { arriveBy: '', today: TODAY }).state, 'no_date');
-  assert.equal(S.simulate(D, all, { arriveBy: '2026-13-40', today: TODAY }).state, 'no_date');
-  assert.equal(S.simulate(D, all, { arriveBy: TODAY, today: TODAY }).state, 'past');
-  assert.equal(S.simulate(D, all, { arriveBy: '2026-09-01', today: TODAY }).state, 'past');
-  const beta = all.filter((o) => o.agent === 'beta');
-  const none = S.simulate(D, beta, { route: 'ningbo', arriveBy: '2026-10-18', today: TODAY });
-  assert.equal(none.state, 'no_history');
-  assert.deepEqual(none.rows, []);
-  assert.equal(S.simulate(D, [], { arriveBy: '2026-10-18', today: TODAY }).state, 'no_history');
-  const last90 = all.filter((o) => o.readyPlan >= '2026-06-16');
-  assert.equal(S.simulate(D, last90, { arriveBy: '2026-10-18', today: TODAY }).state, 'all_small');
-  const close = S.simulate(D, all, { arriveBy: '2026-09-30', today: TODAY }); // 17 dias: nada chega
-  assert.equal(close.state, 'all_nao_cabe');
-  assert.equal(close.earliestArrival, S.addDays(TODAY, 18)); // Nova York, mediana 18
 });
 
 test('rota opcional restringe; filtros globais já chegam aplicados nos embarques', () => {
@@ -103,42 +51,6 @@ test('rota opcional restringe; filtros globais já chegam aplicados nos embarque
   const fob = E.applyFilters(all, E.readFilters(new URLSearchParams('inc=CIF')));
   assert.ok(S.simulate(D, fob, { arriveBy: '2026-10-31', today: TODAY }).rows.every((x) => fob.some((o) => o.route === x.route && o.agent === x.agent)));
 });
-
-test('ordenação: volume por padrão, amostra pequena no fim, clique inverte', () => {
-  const r = S.simulate(D, all, { arriveBy: '2026-10-31', today: TODAY });
-  const sorted = S.sortSimRows(r.rows);
-  assert.equal(sorted[0].route + sorted[0].agent, 'shanghaibeta'); // 10 embarques
-  for (let i = 1; i < sorted.length; i++) assert.ok(sorted[i - 1].shipments >= sorted[i].shipments);
-  const byMed = S.sortSimRows(r.rows, { key: 'median', dir: 'asc' });
-  assert.equal(byMed[0].route, 'newyork');
-  const withSmall = [...r.rows, { route: 'x', agent: 'y', routeName: 'Aaa', agentName: 'Zz', shipments: 99, n: 1, small: true, median: null, p90: null }];
-  assert.equal(S.sortSimRows(withSmall, { key: 'median', dir: 'desc' }).at(-1).small, true);
-  assert.equal(S.sortSimRows(withSmall, { key: 'median', dir: 'asc' }).at(-1).small, true);
-  assert.deepEqual(S.nextSort(S.DEFAULT_SORT, 'shipments'), { key: 'shipments', dir: 'asc' });
-  assert.deepEqual(S.nextSort(S.DEFAULT_SORT, 'route'), { key: 'route', dir: 'asc' });
-});
-
-test('dado, não veredito: nada de custo, score ou recomendação no resultado', () => {
-  const r = S.simulate(D, all, { arriveBy: '2026-10-15', today: TODAY });
-  // Os nomes da fixture ("Gamma Freight") ficam fora: o que se checa são as CHAVES e os rótulos.
-  const text = JSON.stringify(r.rows.map((x) => Object.keys(x))) + JSON.stringify(S.STATUS) + JSON.stringify(S.COLUMNS);
-  assert.ok(!/freight|saving|economia|custo|score|recomend|melhor|pior/i.test(text));
-  assert.ok(!r.rows.some((x) => 'freight' in x || 'cost' in x));
-});
-
-test('entradas na URL: rota válida, data desejada com padrão de 32 dias; viajam na visão salva', () => {
-  const p = new URLSearchParams('aba=simulador&srota=genova&chegada=2026-11-02');
-  assert.deepEqual(S.readInputs(D, p), { route: 'genova', arriveBy: '2026-11-02', explicit: true, window: '12m' });
-  assert.deepEqual(S.readInputs(D, new URLSearchParams('srota=lua')), { route: '', arriveBy: S.addDays(TODAY, 32), explicit: false, window: '12m' });
-  const v = L.captureView('Meu cenário', p, L.defaults(), E.FILTERS.map((f) => f.key));
-  assert.equal(new URLSearchParams(v.query).get('chegada'), '2026-11-02');
-  assert.equal(new URLSearchParams(v.query).get('srota'), 'genova');
-  const how = S.howCalculated(D, {}, 'Este ano').map((l) => l.label);
-  assert.deepEqual(how, ['Fonte', 'Fórmula', 'Histórico', 'Filtros que se aplicam']);
-});
-
-// ---------------------------------------------------------------------------
-// Janela própria do Simulador e relógio da demonstração (24/10/2026)
 
 test('janela do Simulador: 6 meses, 12 meses (padrão) e todo o histórico, pela data de saída', () => {
   assert.equal(S.DEFAULT_WINDOW, '12m');
@@ -157,20 +69,14 @@ test('janela do Simulador: 6 meses, 12 meses (padrão) e todo o histórico, pela
 });
 
 test('12 meses sustentam o Simulador: ao menos 3 rotas com 3 agentes de n>=3', () => {
-  const r = S.simulate(D, S.inWindow(all, '12m', TODAY), { arriveBy: '2026-10-31', today: TODAY });
+  const r = S.simulate(D, S.inWindow(all, '12m', TODAY));
   const byRoute = {};
   for (const x of r.rows.filter((x) => x.n >= 3)) byRoute[x.route] = (byRoute[x.route] || 0) + 1;
   assert.ok(Object.values(byRoute).filter((k) => k >= 3).length >= 3, JSON.stringify(byRoute));
-  assert.equal(r.state, 'ok');
   // Nova York × Gamma só existe a mais de 12 meses: aparece só em "Todo o histórico".
   assert.ok(!r.rows.some((x) => x.route === 'newyork' && x.agent === 'gamma'));
-  const tudo = S.simulate(D, S.inWindow(all, 'tudo', TODAY), { arriveBy: '2026-10-31', today: TODAY });
+  const tudo = S.simulate(D, S.inWindow(all, 'tudo', TODAY));
   assert.ok(tudo.rows.some((x) => x.route === 'newyork' && x.agent === 'gamma' && !x.small));
-});
-
-test('12 meses abre com os três resultados (Cabe, Apertado, Não cabe) na data padrão relativa', () => {
-  const r = S.simulate(D, S.inWindow(all, '12m', TODAY), { arriveBy: S.readInputs(D, new URLSearchParams('')).arriveBy, today: TODAY });
-  assert.ok(r.counts.cabe > 0 && r.counts.apertado > 0 && r.counts.nao_cabe > 0, JSON.stringify(r.counts));
 });
 
 test('janela na URL e na visão salva; visão antiga (sem janela) abre com 12 meses', () => {
@@ -211,11 +117,9 @@ test('deslocamento: o corte vira o hoje e TODAS as diferenças entre datas se pr
   assert.equal(D.operations[0].readyPlan, '2026-03-02', 'a fonte não muda');
   // Para trás também funciona, e a classificação do Simulador é a mesma.
   const Y = D.shift('2026-01-01');
-  const rx = S.simulate(X, S.inWindow(X.operations, '12m', X.cutoff), { arriveBy: S.addDays(X.cutoff, 32), today: X.cutoff });
-  const ry = S.simulate(Y, S.inWindow(Y.operations, '12m', Y.cutoff), { arriveBy: S.addDays(Y.cutoff, 32), today: Y.cutoff });
-  const base = S.simulate(D, S.inWindow(all, '12m', TODAY), { arriveBy: S.addDays(TODAY, 32), today: TODAY });
-  assert.deepEqual(rx.counts, base.counts);
-  assert.deepEqual(ry.counts, base.counts);
+  const res = (DD) => { const p = S.plan(DD, S.inWindow(DD.operations, '12m', DD.cutoff), S.readTask(DD, new URLSearchParams(''), DD.cutoff), DD.cutoff); return [p.state, p.coverToday, p.coverP90, p.coverMedian, S.diffDays(DD.cutoff, p.limitP90)]; };
+  assert.deepEqual(res(X), res(D));
+  assert.deepEqual(res(Y), res(D));
 });
 
 test('deslocado, o período padrão de 90 dias continua com os mesmos embarques e a base anterior', () => {
@@ -230,53 +134,23 @@ test('deslocado, o período padrão de 90 dias continua com os mesmos embarques 
 });
 
 // v4 (13/11/2026): a coluna Resultado traz UMA frase com o porquê de cada linha.
-test('frase do resultado: toda linha tem motivo e ele nunca contradiz o selo', () => {
-  let seen = { cabe: 0, apertado: 0, nao_cabe: 0, small: 0 };
-  // Varre várias datas desejadas para passar pelos três selos e pelas bordas.
-  for (let ahead = 5; ahead <= 70; ahead++) {
-    const r = S.simulate(D, all, { arriveBy: S.addDays(TODAY, ahead), today: TODAY });
-    for (const x of r.rows) {
-      const text = S.reason(x, r);
-      assert.ok(text.length > 10, `${x.route}/${x.agent} sem motivo`);
-      seen[x.small ? 'small' : x.status]++;
-      if (x.small) { assert.match(text, /sem estimativa/); continue; }
-      const med = Math.ceil(x.median);
-      if (x.status === 'cabe') {
-        assert.match(text, /^Chega /);
-        assert.doesNotMatch(text, /passa da data|depois da data|Chegaria/);
-        assert.ok(x.p90 <= r.available);
-        if (x.p90 < r.available) assert.ok(text.includes(`${r.available - x.p90} ${r.available - x.p90 === 1 ? 'dia' : 'dias'} de folga no P90`));
-        else assert.match(text, /sem folga/);
-      } else if (x.status === 'apertado') {
-        assert.match(text, /^Chega .* pela mediana, mas o P90 \(\d+ dias?\) passa da data\.$/);
-        assert.ok(text.includes(`P90 (${x.p90} `));
-        assert.ok(med <= r.available && x.p90 > r.available);
-      } else {
-        assert.match(text, /^Chegaria /);
-        assert.match(text, /depois da data/);
-        assert.doesNotMatch(text, /folga/);
-        assert.ok(med > r.available);
-      }
-      // "na semana pedida" só quando a chegada pela mediana cai mesmo na semana da data.
-      if (/Chegaria na semana pedida|Chega na semana pedida pela/.test(text)) assert.equal(S.weekStart(x.arrivalFrom), S.weekStart(r.arriveBy));
-    }
-  }
-  // A fixture inteira não tem par com amostra pequena; essa forma é coberta no teste seguinte.
-  for (const k of ['cabe', 'apertado', 'nao_cabe']) assert.ok(seen[k] > 0, `nenhuma linha ${k} exercitada`);
-});
 
-test('frase do resultado: formas combinadas', () => {
-  const result = { arriveBy: '2026-10-15', available: 32 };
-  const base = { small: false, median: 26, arrivalFrom: '2026-10-09', arrivalTo: '2026-10-10' };
-  assert.equal(S.reason({ ...base, p90: 27, status: 'cabe' }, result), 'Chega na semana de 05/10, com 5 dias de folga no P90.');
-  assert.equal(S.reason({ ...base, p90: 31, status: 'cabe' }, result), 'Chega na semana de 05/10, com 1 dia de folga no P90.');
-  assert.equal(S.reason({ ...base, median: 30, p90: 37, arrivalFrom: '2026-10-13', status: 'apertado' }, result), 'Chega na semana pedida pela mediana, mas o P90 (37 dias) passa da data.');
-  assert.equal(S.reason({ ...base, median: 34, p90: 37, arrivalFrom: '2026-10-17', status: 'nao_cabe' }, result), 'Chegaria na semana pedida, mas 2 dias depois da data.');
-  assert.equal(S.reason({ ...base, median: 40, p90: 44, arrivalFrom: '2026-10-23', status: 'nao_cabe' }, result), 'Chegaria na semana de 19/10, depois da data pedida.');
-  assert.equal(S.reason({ small: true }, result), 'Menos de 3 trânsitos no histórico: sem estimativa.');
-  assert.equal(S.reason({ ...base, p90: 27, status: null }, result), '');
+// S3 (17/11/2026): cobertura empírica, a de b, em faixas neutras.
+test('cobertura: fração dos trânsitos que couberam na margem, inclusiva', () => {
+  assert.deepEqual(S.coverage([30, 31, 32, 40], 32), { good: 3, base: 4, pct: 75 });
+  assert.deepEqual(S.coverage([30, 31, 32, 40], 29), { good: 0, base: 4, pct: 0 });
+  assert.deepEqual(S.coverage([], 10), { good: null, base: 0, pct: null });
+  assert.equal(S.coverageBand({ good: 13, base: 14 }), 'Cobre 9 de 10');
+  assert.equal(S.coverageBand({ good: 4, base: 10 }), 'Cobre 4 de 10');
+  assert.equal(S.coverageBand({ good: 10, base: 10 }), 'Cobre 10 de 10');
+  assert.equal(S.coverageBand({ good: null, base: 2 }), null);
 });
-
-test('colunas do Simulador: o resultado é uma coluna só, sem Preço', () => {
-  assert.deepEqual(S.COLUMNS.map(([, l]) => l), ['Rota', 'Agente de cargas', 'Histórico', 'Trânsito (mediana · P90)', 'Chegada estimada se embarcar agora', 'Resultado']);
+test('resultado padrão: exemplo preenchido, com limites P90/mediana e cobertura contada', () => {
+  const t = S.readTask(D, new URLSearchParams(''), TODAY);
+  const r = S.plan(D, S.inWindow(all, '12m', TODAY), t, TODAY);
+  assert.equal(r.state, 'ok');
+  assert.ok(r.coverP90.good / r.coverP90.base >= 0.9);
+  assert.ok(r.coverMedian.good / r.coverMedian.base >= 0.5);
+  assert.ok(r.limitP90 <= r.limitMedian);
+  assert.ok(!/cabe|apertado|recomend|melhor|pior/i.test(JSON.stringify(Object.keys(r))));
 });

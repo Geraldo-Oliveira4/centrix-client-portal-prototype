@@ -374,6 +374,8 @@
    */
   function readOrigin(D, params, selection) {
     const get = (k) => (typeof params.get === 'function' ? params.get(k) : params[k]);
+    // Ficha aberta a partir do Simulador (S4, 17/11/2026): o rastro volta para ele.
+    if (selection && get('de') === 'sim') return { dim: 'sim', id: null, tab: 'simulador', tabLabel: 'Simulador', name: 'a simulação' };
     const [dim, ...rest] = String(get('de') || '').split(':'), id = rest.join(':');
     if (!selection || !TAB_OF_DIM[dim] || !knownEntity(D, dim, id)) return null;
     if (dim === selection.dim && id === selection.id) return null;

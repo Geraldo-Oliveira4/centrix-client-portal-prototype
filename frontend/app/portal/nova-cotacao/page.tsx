@@ -33,6 +33,7 @@ import { allowsAutoFill, quotationSources } from '@/app/portal/_shared/demo/clie
 import { DataSourceStrip } from '@/app/portal/_shared/demo/data-source-strip';
 import { useClientKind } from '@/app/portal/_shared/demo/use-client-profile';
 import { flattenQuotations } from '@/app/portal/inteligencia/lib/intel-helpers';
+import { simulatorPrefill } from '@/app/portal/inteligencia/lib/simulator-quotation';
 import { useQuotationUploadFlow } from '@/hooks/use-quotation-upload-flow';
 import {
   ManualForm,
@@ -113,6 +114,7 @@ function usePrefillFromParams(): {
   routeLabel: string | null;
   origin: PortalQuotationOriginFields | null;
   fromWelcome: boolean;
+  fromSimulator: boolean;
 } {
   const params = useSearchParams();
   const modal = params.get('modal');
@@ -126,7 +128,21 @@ function usePrefillFromParams(): {
   // pelo cliente, então vale também para o SaaS puro.
   const fromWelcome = params.get(WELCOME_SOURCE_PARAM) === WELCOME_SOURCE;
 
+  // "Solicitar cotação com esta rota e data" do Simulador (S8, 17/11/2026):
+  // rota, modal e data-alvo que o PRÓPRIO cliente definiu. Leitura pura em
+  // `inteligencia/lib/simulator-quotation.ts`; nenhum agente vem junto.
+  const fromSim = useMemo(() => simulatorPrefill(new URLSearchParams(params.toString())), [params]);
+
   return useMemo(() => {
+    if (fromSim) {
+      return {
+        values: fromSim.values as Partial<ManualFormValues>,
+        routeLabel: fromSim.routeLabel,
+        origin: null,
+        fromWelcome: false,
+        fromSimulator: true,
+      };
+    }
     const values: Partial<ManualFormValues> = {};
     if (modal === 'MARITIMO' || modal === 'AEREO' || modal === 'RODOVIARIO') {
       values.modal = modal;
@@ -143,8 +159,10 @@ function usePrefillFromParams(): {
       routeLabel: Object.keys(values).length > 0 ? routeLabel : null,
       origin: fromWelcome ? null : radarOriginFields(origem, routeLabel),
       fromWelcome,
+      fromSimulator: false,
     };
   }, [
+    fromSim,
     modal,
     portoEmbarque,
     portoDestino,
@@ -163,6 +181,7 @@ function PortalNovaCotacaoContent() {
     routeLabel,
     origin,
     fromWelcome,
+    fromSimulator,
   } = usePrefillFromParams();
   // COTACAO V2 (RQ-1). Com a flag ligada o cliente nao escolhe agentes: o envio
   // vai para a fila de revisao da Freitas, e a tela de sucesso com o
@@ -174,7 +193,7 @@ function PortalNovaCotacaoContent() {
   const autoFill = allowsAutoFill(clientKind);
   // O que o próprio cliente escolheu nas boas-vindas entra mesmo no SaaS puro;
   // o que o sistema deduz (Radar) só entra com a operação Freitas.
-  const usePrefill = autoFill || fromWelcome;
+  const usePrefill = autoFill || fromWelcome || fromSimulator;
   const [phase, setPhase] = useState<PagePhase>('idle');
   const [createdQuotation, setCreatedQuotation] = useState<Quotation | null>(null);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
@@ -373,7 +392,18 @@ function PortalNovaCotacaoContent() {
         </div>
       )}
 
-      {autoFill && !fromWelcome && routeLabel && (
+      {fromSimulator && routeLabel && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-indigo-800/30 bg-brand-indigo-100 px-4 py-3">
+          <Sparkles className="h-6 w-6 shrink-0 text-brand-indigo" />
+          <p className="portal-body text-foreground/80">
+            Rota, modal e data preenchidos com a sua simulação na Inteligência (
+            <span className="font-medium text-foreground">{routeLabel}</span>).
+            Nenhum agente foi escolhido. Confira e complete o resto da carga.
+          </p>
+        </div>
+      )}
+
+      {autoFill && !fromWelcome && !fromSimulator && routeLabel && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-indigo-800/30 bg-brand-indigo-100 px-4 py-3">
           <Radar className="h-6 w-6 shrink-0 text-brand-indigo" />
           <p className="portal-body text-foreground/80">
