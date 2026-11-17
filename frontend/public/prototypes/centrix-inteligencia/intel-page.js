@@ -268,7 +268,7 @@ const EXAMPLE_TAG = '<span class="example-tag has-tip" tabindex="0" aria-describ
 function shortRange(a, b) { return `${a.slice(0, 4) === b.slice(0, 4) ? a.slice(8, 10) + '/' + a.slice(5, 7) : fullDate(a)} a ${fullDate(b)}`; }
 function headChips(s, tab, ss) {
   const sim = tab === 'simulador', chips = [];
-  if (sim) chips.push(`<span class="chip">${esc(simHistoryLine(IS.readInputs(D, params), ss))}</span>`);
+  if (sim) { /* S1: o Simulador diz a base no próprio resultado; o topo fica com os filtros. */ }
   else if (!s.range.valid) chips.push('<span class="chip warn">Período inválido: revise as datas em Filtros e ajustes</span>');
   else {
     const label = periodNames[params.get('period') || 'days90'] || 'Personalizado', p = IE.previousRange(s.range);
@@ -277,9 +277,9 @@ function headChips(s, tab, ss) {
     chips.push(`<button type="button" class="chip chip-edit" data-action="intel-adjust" data-field="period" aria-label="${esc(label)}, ${shortRange(s.range.start, s.range.end)}. Alterar o período em Filtros e ajustes">${esc(label)} · <b>${shortRange(s.range.start, s.range.end)}</b></button>`);
     chips.push(`<button type="button" class="chip chip-edit" data-action="intel-adjust" data-field="period" title="${esc(IE.comparisonCaption(s.range))}" aria-label="Comparado com ${shortRange(p.start, p.end)}. ${esc(IE.comparisonCaption(s.range))} Alterar o período em Filtros e ajustes">comparado com ${shortRange(p.start, p.end)}</button>`);
   }
-  chips.push(`<span class="chip"><b>${ss.cur.length}</b> de ${ss.all.length} embarques</span>`);
+  if (!sim) chips.push(`<span class="chip"><b>${ss.cur.length}</b> de ${ss.all.length} embarques</span>`);
   const filters = IE.FILTERS.flatMap(f => (s.gf[f.key] || []).map(v => `<button class="filter-chip" data-action="gfilter-remove" data-key="${f.key}" data-value="${esc(v)}" aria-label="Remover filtro ${esc(f.label)}: ${esc(f.name(D, v))}">${esc(f.label)}: ${esc(f.name(D, v))} <span aria-hidden="true">×</span></button>`));
-  return `<div class="head-chips" role="status">${chips.join('')}<span class="chip-note">${sim ? 'O período do painel não se aplica ao Simulador' : 'Base: compromisso de prontidão no período'}</span>${filters.length ? `<span class="chip-filters">${filters.join('')}<button class="text-button" data-action="gfilter-clear" aria-label="Limpar todos os filtros">Limpar</button>${raioX(s.gf)}</span>` : ''}</div>`;
+  return `<div class="head-chips" role="status">${chips.join('')}${sim ? '' : '<span class="chip-note">Base: compromisso de prontidão no período</span>'}${filters.length ? `<span class="chip-filters">${filters.join('')}<button class="text-button" data-action="gfilter-clear" aria-label="Limpar todos os filtros">Limpar</button>${raioX(s.gf)}</span>` : ''}</div>`;
 }
 function intelHead(tab, s, ss) {
   const title = TAB_TITLE[tab] + (tab === 'simulador' ? ' <span class="preview-tag">Prévia</span>' : '');
@@ -629,24 +629,51 @@ function simHistoryLine(inputs, ss) {
   const n = inputs.route ? ss.cur.filter(o => o.route === inputs.route).length : ss.cur.length;
   return `Histórico usado: ${IS.windowLabel(inputs.window).toLowerCase()} · ${n} ${n === 1 ? 'embarque' : 'embarques'} ${inputs.route ? 'nesta rota' : 'em todas as rotas'}`;
 }
+/* ENTRADA EM LINGUAGEM DE TAREFA (S1, 17/11/2026). Uma faixa só: o modo num
+   controle segmentado discreto ("Quero chegar até" / "Vou embarcar em"),
+   origem → destino, modal (obrigatório, sem padrão escondido) e a data. O
+   secundário mora em "Ajustes", recolhido. Abre com um exemplo fictício
+   preenchido e o resultado à vista; "Limpar e começar do zero" esvazia tudo. */
+let simAdjustOpen = false;
+function simModalOptions(task) {
+  // Rodoviário só aparece se houver base para ele.
+  return IS.MODALS.filter(([id]) => id !== 'rodoviario' || D.routes.some(r => IS.modalOfRoute(D, r.id) === id) || task.modal === id);
+}
+function simTaskBar(task) {
+  const today = D.cutoff, chegar = task.mode === 'chegar';
+  const seg = IS.MODES.map(([id, label]) => `<button type="button" role="radio" aria-checked="${task.mode === id}" data-action="sim-mode" data-mode="${id}">${label}</button>`).join('');
+  const routes = D.routes.map(r => `<option value="${r.id}" ${task.route === r.id ? 'selected' : ''}>${esc(routeName(r))}</option>`).join('');
+  const modals = simModalOptions(task).map(([id, label]) => `<option value="${id}" ${task.modal === id ? 'selected' : ''}>${label}</option>`).join('');
+  const date = chegar ? task.target : task.departure;
+  const adjust = `<details class="fold sim-adjust" ${simAdjustOpen ? 'open' : ''} data-sim-adjust><summary><span class="sim-adjust-title">Ajustes</span><span class="fold-toggle" aria-hidden="true"></span></summary><div class="sim-adjust-body"><label class="st-field">Período do histórico<select id="sim-window">${IS.WINDOWS.map(([id, label]) => `<option value="${id}" ${task.window === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div></details>`;
+  return `<form class="sim-task" id="sim-task" onsubmit="return false" aria-label="O que você quer simular">
+    <div class="segmented sim-mode" role="radiogroup" aria-label="O que você quer saber">${seg}</div>
+    <div class="sim-task-fields">
+      <label class="st-field st-route">Origem → destino<select id="sim-route"><option value="">Escolha a rota</option>${routes}</select></label>
+      <label class="st-field">Modal<select id="sim-modal" required aria-required="true"><option value="">Escolha o modal</option>${modals}</select></label>
+      <label class="st-field">${chegar ? 'Data-alvo' : 'Data de embarque'}<input id="sim-date" type="date" value="${esc(date || '')}" min="${chegar ? IS.addDays(today, 1) : today}" aria-describedby="sim-today"></label>
+    </div>
+    <p class="sim-task-foot"><span id="sim-today">${task.blank ? '' : 'Exemplo fictício preenchido · '}Hoje na demonstração: ${fullDate(today)}</span><button type="button" class="text-button" data-action="sim-clear">Limpar e começar do zero</button></p>
+  </form>${adjust}`;
+}
+const dm = iso => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '';
+function simResultBand(r) {
+  const t = r.task, ask = t.mode === 'chegar' ? 'a data-alvo' : 'a data de embarque';
+  if (r.state === 'no_route') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Escolha a origem → destino para simular.</p></div>`;
+  if (r.state === 'no_modal') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Escolha o modal. Marítimo e aéreo nunca se misturam no histórico.</p></div>`;
+  if (r.state === 'no_date') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Escolha ${ask}.</p></div>`;
+  if (r.state === 'no_history') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Sem histórico suficiente para esta rota e modal.</p><p class="fact-conc">${r.route.n} ${r.route.n === 1 ? 'embarque' : 'embarques'} com saída e chegada registradas; são precisos ${IS.MIN_SAMPLE}. Nada é simulado sem base.</p></div>`;
+  if (r.state === 'past') return `<div class="fact-band sim-result" role="status"><p class="fact-text">${t.mode === 'chegar' ? 'A data-alvo' : 'A data de embarque'} já passou: hoje, nesta demonstração, é ${fullDate(r.today)}.</p></div>`;
+  if (r.state === 'before_min') return `<div class="fact-band sim-result" role="status"><p class="fact-text">A data-alvo é anterior ao menor trânsito do histórico.</p><p class="fact-conc">Embarcando hoje (${dm(r.today)}), o trânsito mais curto registrado (${r.route.min} dias, em ${r.route.n} embarques) chegaria em ${dm(IS.addDays(r.today, r.route.min))}.</p></div>`;
+  if (t.mode === 'chegar') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Para chegar até ${dm(t.target)}, embarcar até <b>${dm(r.limitP90)}</b> cobre 9 de 10 embarques parecidos (P90); até <b>${dm(r.limitMedian)}</b> cobre metade (mediana).</p><p class="fact-conc">Embarcando hoje (${dm(r.today)}), ${r.coverToday.good} de ${r.coverToday.base} embarques parecidos chegaram até a data-alvo.</p></div>`;
+  return `<div class="fact-band sim-result" role="status"><p class="fact-text">Embarcando em ${dm(t.departure)}, metade dos embarques parecidos chegou até <b>${dm(r.arrivalMedian)}</b> (mediana) e 9 de 10 até <b>${dm(r.arrivalP90)}</b> (P90).</p></div>`;
+}
 function simulatorTab(s) {
-  const inputs = IS.readInputs(D, params), today = D.cutoff, ss = simScope(s);
-  const result = IS.simulate(D, ss.cur, { route: inputs.route, arriveBy: inputs.arriveBy, today });
-  const routes = D.routes.filter(r => IE.applyFilters(D.operations, s.gf).some(o => o.route === r.id) || r.id === inputs.route);
-  const form = `<form class="sim-form" id="sim-form" onsubmit="return false"><label>Rota (origem → destino)<select id="sim-route"><option value="">Todas as rotas com histórico</option>${routes.map(r => `<option value="${r.id}" ${inputs.route === r.id ? 'selected' : ''}>${esc(routeName(r))}</option>`).join('')}</select></label><label>Quero chegar até<input id="sim-date" type="date" value="${inputs.arriveBy}" min="${IS.addDays(today, 1)}" aria-describedby="sim-today"></label><label>Histórico<select id="sim-window" aria-describedby="sim-history">${IS.WINDOWS.map(([id, label]) => `<option value="${id}" ${inputs.window === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label><p id="sim-today" class="sim-today">Hoje na demonstração: ${fullDate(today)}. A simulação considera embarque a partir de hoje. Agente, incoterm e os outros filtros de “Filtros e ajustes” também valem aqui.</p></form><p id="sim-history" class="sim-history" role="status"><b>${esc(simHistoryLine(inputs, ss))}</b> · O período do painel não se aplica ao Simulador: para trânsito, o histórico longo é o que dá confiança.</p>`;
-  const c = result.counts;
-  const when = result.arriveBy ? `${fullDate(result.arriveBy)} (${IS.weekLabel(result.arriveBy)}, ${result.available} ${result.available === 1 ? 'dia' : 'dias'} a partir de hoje)` : '';
-  let msg = '';
-  const clear = s.active ? '<button class="button secondary" data-action="gfilter-clear">Limpar filtros</button>' : '';
-  if (result.state === 'past') msg = `<div class="empty sim-empty"><h3>Essa data já passou</h3><p>Hoje, nesta demonstração, é ${fullDate(today)}. Escolha uma data de chegada a partir de ${fullDate(IS.addDays(today, 1))}.</p></div>`;
-  else if (result.state === 'no_date') msg = `<div class="empty sim-empty"><h3>Escolha a data desejada de chegada</h3><p>Com a data, a tabela mostra quais rotas e agentes cabem.</p></div>`;
-  else if (result.state === 'no_history') msg = `<div class="empty sim-empty"><h3>Sem histórico para esta rota</h3><p>Nenhum embarque ${inputs.route ? 'nesta rota ' : ''}no período e nos filtros atuais. Sem histórico não há estimativa.</p>${clear}${inputs.route ? '<button class="button secondary" data-action="sim-all-routes">Ver todas as rotas</button>' : ''}</div>`;
-  else if (result.state === 'all_small') msg = `<div class="note sim-note"><b>Amostra pequena em todos os pares.</b> Nenhum agente tem ${IS.MIN_SAMPLE} ou mais trânsitos registrados ${inputs.route ? 'nesta rota ' : ''}em ${esc(IS.windowLabel(inputs.window).toLowerCase())}, então não há estimativa.${inputs.window !== 'tudo' ? ' Amplie para “Todo o histórico” no seletor acima.' : ''}</div>`;
-  else if (result.state === 'all_nao_cabe') msg = `<div class="note sim-note"><b>Nenhum agente cabe nesta data.</b> Embarcando hoje, a mediana mais curta deste recorte chega ${IS.weekWindow(result.earliestArrival, result.earliestArrival)}. Para caber, escolha uma data a partir dessa semana.</div>`;
-  const summary = result.arriveBy && result.available > 0 && result.rows.some(r => !r.small && r.status) ? `<p class="sim-summary" role="status">Para chegar até ${esc(when)}: <b>${c.cabe}</b> ${c.cabe === 1 ? 'cabe' : 'cabem'} na data · <b>${c.apertado}</b> ${c.apertado === 1 ? 'apertado' : 'apertados'} · <b>${c.nao_cabe}</b> não ${c.nao_cabe === 1 ? 'cabe' : 'cabem'}${c.small ? ` · <b>${c.small}</b> sem estimativa (amostra pequena)` : ''}.</p>` : '';
-  const showTable = result.rows.length && !['past', 'no_date', 'no_history'].includes(result.state);
-  const rules = `<ul class="sim-rules">${['cabe', 'apertado', 'nao_cabe', 'small'].map(k => `<li>${simStatus({ small: k === 'small', status: k })} ${IS.STATUS[k].rule}</li>`).join('')}</ul>`;
-  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)"><p class="lead sim-question">Quero chegar até uma data. Qual rota e qual agente cabem?</p><p class="sim-disclaimer" role="note"><b>Estimativa baseada no histórico. Não é garantia de prazo.</b> O resultado sai em semanas, não em dia exato.</p>${form}${simHow(s)}${summary}${msg}${showTable ? simTable(result) : ''}${showTable ? rules : ''}<p class="chart-caption">Classificação factual sobre o trânsito registrado, sem nota nem recomendação. Ordenado por volume de embarques no histórico. Custos ficam fora desta prévia.</p></section>`;
+  const today = D.cutoff, ss = simScope(s), task = IS.readTask(D, params, today);
+  const r = IS.plan(D, ss.cur, task, today);
+  const old = IS.simulate(D, ss.cur, { route: task.route, arriveBy: task.mode === 'chegar' ? task.target : '', today });
+  const showTable = r.state === 'ok' && task.mode === 'chegar' && old.rows.length;
+  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${simHow(s)}${showTable ? simTable(old) : ''}<p class="chart-caption">Histórico, não garantia. Sem nota nem recomendação. Custos ficam fora desta prévia.</p></section>`;
 }
 function setSimParam(changes) { location.hash = url('executivo', changes); }
 function intelOverview() {
@@ -881,6 +908,8 @@ document.addEventListener('click', e => {
   else if (a === 'entity-open') location.hash = url('executivo', { sel: b.dataset.id, de: null });
   else if (a === 'sim-sort') { simSort = IS.nextSort(simSort || IS.DEFAULT_SORT, b.dataset.key); render(); document.querySelector(`[data-action="sim-sort"][data-key="${b.dataset.key}"]`)?.focus(); }
   else if (a === 'sim-all-routes') setSimParam({ srota: null });
+  else if (a === 'sim-mode') setSimParam({ smodo: b.dataset.mode === 'embarcar' ? 'embarcar' : null });
+  else if (a === 'sim-clear') { setSimParam({ sinicio: 'vazio', srota: null, smodal: null, chegada: null, sembarque: null, smodo: null }); toast('Simulador limpo: escolha rota, modal e data.'); }
   else if (a === 'entity-filter') { const gf = IT.filterByEntity(IE.readFilters(params), b.dataset.dim, b.dataset.id); params.delete('sel'); params.delete('de'); setGlobalFilters(gf); toast('Filtro aplicado a todas as abas.'); }
   else if (a === 'entity-report') { reportEntity = { dim: b.dataset.dim, id: b.dataset.id }; openReportPanel(); }
   else if (a === 'view-open') openView(id);
@@ -913,8 +942,9 @@ document.getElementById('drawer').addEventListener('close', () => { const d = do
 document.addEventListener('change', e => {
   const t = e.target;
   if (t.id === 'sim-route') { setSimParam({ srota: t.value || null }); return; }
+  if (t.id === 'sim-modal') { setSimParam({ smodal: t.value || null }); return; }
   if (t.id === 'sim-window') { setSimParam({ janela: t.value === IS.DEFAULT_WINDOW ? null : t.value }); return; }
-  if (t.id === 'sim-date') { if (IS.validIso(t.value)) setSimParam({ chegada: t.value }); return; }
+  if (t.id === 'sim-date') { if (IS.validIso(t.value) || !t.value) setSimParam(IS.readTask(D, params).mode === 'embarcar' ? { sembarque: t.value || null } : { chegada: t.value || null }); return; }
   if (t.id === 'fa-period') { adjustDraft.period = t.value; if (t.value !== 'custom') { adjustDraft.start = ''; adjustDraft.end = ''; } refreshAdjust(t.value === 'custom' ? '#fa-start' : '#fa-period'); return; }
   if (t.id === 'fa-start' || t.id === 'fa-end') { adjustDraft[t.id === 'fa-start' ? 'start' : 'end'] = t.value; refreshAdjust('#' + t.id); return; }
   if (t.dataset && t.dataset.dfilter) {
@@ -949,6 +979,7 @@ document.addEventListener('toggle', e => {
   }
   if (shifted) d.querySelector('summary')?.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
 }, true);
+document.addEventListener('toggle', e => { if (e.target.matches && e.target.matches('[data-sim-adjust]')) simAdjustOpen = e.target.open; }, true);
 document.addEventListener('toggle', e => {
   const d = e.target; if (!d.matches || !d.matches('details.fsel')) return;
   if (d.open) { openFilterKey = d.dataset.fkey; document.querySelectorAll('details.fsel[open]').forEach(x => { if (x !== d) x.open = false; }); }

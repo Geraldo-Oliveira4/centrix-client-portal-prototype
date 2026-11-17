@@ -238,7 +238,91 @@
     ];
   }
 
-  const api = { MIN_SAMPLE, HIGH_PERCENTILE, STATUS, COLUMNS, DEFAULT_SORT, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, departureLabel, classify, reason, simulate, sortSimRows, nextSort, readInputs, defaultArrival, howCalculated, addDays, diffDays, validIso };
+  // ====================================================== SIMULADOR V2 ===
+  // (17/11/2026, revisão com o Vitor e o Vinicius.) A pergunta do analista de
+  // comex: "preciso da carga até [data]; até quando embarcar, em que rota e com
+  // qual agente de carga?". A tarefa entra numa linha (modo, rota, modal, data)
+  // e o resultado sai em frase e cobertura "a de b", EMPÍRICA: a fração dos
+  // embarques do histórico cujo trânsito coube na margem. Nada de modelo que
+  // invente probabilidade, nada de veredito.
+  const MODES = [['chegar', 'Quero chegar até'], ['embarcar', 'Vou embarcar em']];
+  const MODALS = [['maritimo', 'Marítimo'], ['aereo', 'Aéreo'], ['rodoviario', 'Rodoviário']];
+  const MODAL_OF = { 'Marítimo': 'maritimo', 'Aéreo': 'aereo', 'Rodoviário': 'rodoviario' };
+  /** O exemplo fictício com que o Simulador abre (S1): rota, modal e data à vista, nunca escondidos. */
+  const EXAMPLE = { route: 'ningbo', modal: 'maritimo', targetDays: 45, departureDays: 14 };
+  const modalOfRoute = (D, id) => { const r = D.routes.find((x) => x.id === id); return r ? MODAL_OF[r.mode] || '' : ''; };
+  const modalLabel = (id) => (MODALS.find(([m]) => m === id) || [null, ''])[1];
+
+  /**
+   * A tarefa, da URL (parâmetros ADITIVOS; `srota`, `chegada` e `janela` são os
+   * de antes). Sem parâmetro nenhum, o exemplo. `sinicio=vazio` ("Limpar e
+   * começar do zero") deixa tudo em branco, inclusive o modal.
+   */
+  function readTask(D, params, today = D.cutoff) {
+    const get = (k) => (typeof params.get === 'function' ? params.get(k) : params[k]);
+    const blank = get('sinicio') === 'vazio';
+    const route = D.routes.some((r) => r.id === get('srota')) ? get('srota') : blank ? '' : EXAMPLE.route;
+    const modal = MODALS.some(([m]) => m === get('smodal')) ? get('smodal') : blank ? '' : EXAMPLE.modal;
+    const target = validIso(get('chegada')) ? get('chegada') : blank ? '' : addDays(today, EXAMPLE.targetDays);
+    const departure = validIso(get('sembarque')) ? get('sembarque') : blank ? '' : addDays(today, EXAMPLE.departureDays);
+    return { mode: get('smodo') === 'embarcar' ? 'embarcar' : 'chegar', route, modal, target, departure, window: readWindow(params), blank };
+  }
+
+  /** Mediana (a MESMA das fichas, IntelTabs.median) e P90 (posto mais próximo) de uma lista de trânsitos. */
+  function stats(values) {
+    const v = values.filter((x) => typeof x === 'number').sort((a, b) => a - b);
+    if (!v.length) return { n: 0, median: null, p90: null, min: null, spread: null, values: v };
+    const med = median(v), p90 = percentile(v, HIGH_PERCENTILE);
+    return { n: v.length, median: med, p90, min: v[0], spread: Math.round((p90 - med) * 10) / 10, values: v };
+  }
+  /** Cobertura: quantos trânsitos couberam na margem (em dias, inclusiva). Empírica, a de b. */
+  function coverage(values, margin) {
+    const base = values.length;
+    if (!base || margin == null) return { good: null, base, pct: null };
+    const good = values.filter((t) => t <= margin).length;
+    return { good, base, pct: Math.round((good / base) * 100) };
+  }
+
+  /** Os embarques do cliente para a tarefa: rota e modal, com chegada e saída registradas para o trânsito. */
+  function taskOps(D, ops, task) {
+    return ops.filter((o) => o.route === task.route && modalOfRoute(D, o.route) === task.modal);
+  }
+
+  /**
+   * O resultado da tarefa. `ops` já vem na janela do histórico e com os filtros
+   * globais. Estados: sem rota, sem modal, sem data, data passada, sem histórico
+   * (menos de MIN_SAMPLE trânsitos na rota e modal), data-alvo antes do menor
+   * trânsito, ok.
+   */
+  function plan(D, ops, task, today = D.cutoff) {
+    const out = { task, today, state: 'ok' };
+    if (!task.route) return { ...out, state: 'no_route' };
+    if (!task.modal) return { ...out, state: 'no_modal' };
+    const date = task.mode === 'chegar' ? task.target : task.departure;
+    if (!validIso(date)) return { ...out, state: 'no_date' };
+    const mine = taskOps(D, ops, task);
+    const route = stats(Tabs.transitDays(D, mine));
+    out.route = route;
+    out.registered = { with: mine.filter((o) => o.depart && o.arrive).length, total: mine.length };
+    out.agents = Tabs.pairGroups(mine).map((g) => ({ agent: g.agent, name: Tabs.nameOf(D, 'ag', g.agent), shipments: g.ops.length, ...stats(Tabs.transitDays(D, g.ops)) }));
+    if (route.n < MIN_SAMPLE) return { ...out, state: 'no_history' };
+    if (task.mode === 'chegar') {
+      const available = diffDays(today, date);
+      out.available = available;
+      if (available <= 0) return { ...out, state: 'past' };
+      if (available < route.min) return { ...out, state: 'before_min' };
+      out.limitP90 = addDays(date, -route.p90);
+      out.limitMedian = addDays(date, -Math.ceil(route.median));
+      out.coverToday = coverage(route.values, available);
+    } else {
+      if (diffDays(today, date) < 0) return { ...out, state: 'past' };
+      out.arrivalMedian = addDays(date, Math.ceil(route.median));
+      out.arrivalP90 = addDays(date, route.p90);
+    }
+    return out;
+  }
+
+  const api = { MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, STATUS, COLUMNS, DEFAULT_SORT, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, departureLabel, classify, reason, simulate, sortSimRows, nextSort, readInputs, defaultArrival, howCalculated, addDays, diffDays, validIso };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelSim = api;
 })(typeof window !== 'undefined' ? window : globalThis);
