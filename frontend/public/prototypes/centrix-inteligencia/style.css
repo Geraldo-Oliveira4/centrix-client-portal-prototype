@@ -468,6 +468,14 @@ table.compare td small,.drawer-body td small{font-size:13px;color:var(--ink-2)}
 .sheet-more{border-top:1px solid var(--line);margin-top:8px}
 .entity-sheet .facts{grid-template-columns:1fr 1fr}
 .entity-sheet .entity-actions{margin:18px 0 0;padding-top:16px;border-top:1px solid var(--line)}
+/* A5: UMA divisória entre todas as seções das três fichas (agente, exportador,
+   rota), a mesma linha fina: seção, "Mais detalhes" e ações. */
+.entity-sheet .drawer-body .detail-section{margin:0;padding:18px 0;border-top:1px solid var(--line)}
+.entity-sheet .drawer-body .sheet-more{margin:0;border-top:1px solid var(--line)}
+.entity-sheet .drawer-body .sheet-more .detail-section:first-of-type{border-top:0;padding-top:4px}
+.entity-sheet .drawer-body .sheet-trail+.sheet-strip,.entity-sheet .drawer-body .sheet-strip{margin-bottom:18px}
+.entity-sheet .cross-list>li:last-child,.entity-sheet .detail-section>.sheet-line:last-child{border-bottom:0;padding-bottom:0}
+.entity-sheet .drawer-body .detail-section>.chart-caption:last-child{margin-bottom:0}
 .entity-sheet .drawer-body table{min-width:340px}
 .entity-sheet .drawer-body td,.entity-sheet .drawer-body th{padding:10px 10px}
 
