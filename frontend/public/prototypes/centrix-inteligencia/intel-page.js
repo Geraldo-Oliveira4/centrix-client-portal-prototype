@@ -394,10 +394,25 @@ function crossList(items) {
    (`aba`, `sel` e `de`, a origem): o Voltar do navegador volta para a ficha
    anterior, e a ficha aberta por link mostra o rastro de onde veio. */
 const sheetLink = (dim, id, label, from) => `<a class="sheet-link" href="${esc(url('executivo', { aba: IT.TAB_OF_DIM[dim], sel: id, de: IT.originParam(from.dim, from.id) }))}">${label}</a>`;
+/* B4 (17/11/2026): a ficha aberta por link de outra ficha ganha um "← Voltar"
+   visível no topo, que leva à ficha de origem. Quando a pessoa chegou por um
+   clique nesta sessão, o Voltar é o do navegador (não empilha histórico); num
+   link compartilhado com `de=`, ele navega para a origem. */
+let sheetNav = [];   // hashes de onde saiu um link entre fichas, nesta sessão
 function sheetTrail(origin) {
   if (!origin) return '';
-  return `<p class="sheet-trail"><a href="${esc(url('executivo', { aba: origin.tab, sel: origin.id, de: null }))}"><span aria-hidden="true">←</span> <span class="sr-only">Voltar para </span>${esc(origin.tabLabel)} · ${esc(origin.name)}</a></p>`;
+  return `<p class="sheet-trail"><a class="sheet-back" data-sheet-back href="${esc(url('executivo', { aba: origin.tab, sel: origin.id, de: null }))}"><span aria-hidden="true">←</span> Voltar</a><span class="sheet-from">para ${esc(origin.tabLabel)} · ${esc(origin.name)}</span></p>`;
 }
+document.addEventListener('click', e => {
+  const link = e.target.closest('a.sheet-link');
+  if (link) { sheetNav.push(location.hash); return; }
+  const back = e.target.closest('[data-sheet-back]');
+  if (!back) return;
+  const target = back.getAttribute('href');
+  const key = h => { const q = new URLSearchParams(String(h).split('?')[1] || ''); return (q.get('aba') || '') + '|' + (q.get('sel') || ''); };
+  if (sheetNav.length && key(sheetNav[sheetNav.length - 1]) === key(target)) { e.preventDefault(); sheetNav.pop(); history.back(); }
+  else sheetNav = [];
+});
 /** Ficha do agente: "Trânsito por rota" (IntelTabs.agentRouteContext). */
 function agentRoutesSection(ops, id) {
   const rows = IT.agentRouteContext(D, ops, id);

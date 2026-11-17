@@ -646,6 +646,11 @@ table.compare tr.col-groups th+th{box-shadow:inset 0 -2px 0 var(--line),inset 12
 .sheet-link:focus-visible,.sheet-trail a:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
 .drawer-body .sheet-trail{margin:-6px 0 14px;font-size:14px}
 .sheet-trail a{display:inline-flex;align-items:center;gap:6px;min-height:32px;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px}
+/* B4: "← Voltar" visível (botão secundário) + de onde veio, em texto. */
+.sheet-trail{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.sheet-trail a.sheet-back{min-height:36px;padding:4px 14px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);font-weight:600;text-decoration:none}
+.sheet-trail a.sheet-back:hover{background:var(--tint);color:var(--ink)}
+.sheet-from{font-size:14px;color:var(--ink-2)}
 .sheet-trail a:hover{color:var(--indigo)}
 /* Item 6: peso visual. Coluna líder com sublinhado de acento e valores em
    semibold; as demais em tinta secundária (AA). Peso, nunca cor de bom ou ruim. */
