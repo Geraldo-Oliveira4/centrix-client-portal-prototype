@@ -290,6 +290,11 @@ function sortableHead(dim, sort) {
    principal e o percentual vem menor, ao lado da leitura: 4 de 5 diz mais que
    80%, e um percentual sobre base pequena não ganha destaque que não merece. */
 const rateCell = m => (m.base ? `<span class="frac">${m.good ?? 0} de ${m.base}</span><small class="pct">${pctTxt(m.rate)}</small>` : '—<small>sem registro</small>');
+/** A6: "Cobrança sem diferença" sempre com número e base ("0 de 0 conferências" + a frase, quando não há conferência). */
+function auditCell(m) {
+  const a = IT.auditFigure(m);
+  return a.note ? `<span class="frac">${a.main}</span><small>${a.unit} · ${a.note}</small>` : `<span class="frac">${a.main}</span><small class="pct">${pctTxt(a.pct)}</small>`;
+}
 const transitCell = r => (r.transitMedian == null ? '—<small>sem saída e chegada</small>' : `${String(r.transitMedian).replace('.', ',')} dias<small>${r.transitN} com saída e chegada</small>`);
 function cellOf(dim, key, r) {
   if (key === 'name') {
@@ -301,6 +306,7 @@ function cellOf(dim, key, r) {
   if (key === 'transitMedian') return transitCell(r);
   if (key === 'freightAvg') return r.freightAvg == null ? '—' : money(r.freightAvg);
   if (key === 'agents' || key === 'routes') return String(r[key]);
+  if (key === 'audit') return auditCell(r.audit);
   return rateCell(r[key]);
 }
 /** Linha de grupos acima do cabeçalho (só onde IntelTabs.COLUMN_GROUPS define; hoje, Exportadores). */
@@ -442,11 +448,11 @@ function entityDetailHtml(dim, id, s) {
   }
   if (dim === 'ag') {
     const imp = IT.agentImpact(D, s.cur, id);
-    fresh = agentRoutesSection(s.cur, id) + agentDeviations(ops) + `<section class="detail-section" aria-labelledby="dt-cob"><h3 id="dt-cob">Cobrança</h3><p class="sheet-line"><span>Conferências sem diferença</span><b>${row.audit.base ? `${row.audit.good ?? 0} de ${row.audit.base}` : 'nenhuma conferência concluída'}</b></p></section>`;
+    fresh = agentRoutesSection(s.cur, id) + agentDeviations(ops) + `<section class="detail-section" aria-labelledby="dt-cob"><h3 id="dt-cob">Cobrança</h3>${(a => `<p class="sheet-line"><span>Conferências sem diferença</span><b>${a.main} ${a.unit}</b></p>${a.note ? `<p class="chart-caption">${a.note[0].toUpperCase() + a.note.slice(1)}.</p>` : ''}`)(IT.auditFigure(row.audit))}</section>`;
     more = `<section class="detail-section" aria-labelledby="dt-imp"><h3 id="dt-imp">Uso e impacto</h3>${factList([
       ['Participação nos embarques', `${imp.share}%`, `${imp.n} de ${imp.total} no recorte · ${imp.routes.length} ${imp.routes.length === 1 ? 'rota' : 'rotas'}: ${esc(imp.routes.map(r => routeName(route(r))).join(', '))}`],
       ['Prazo do trânsito', imp.transitMedian == null ? '—' : String(imp.transitMedian).replace('.', ',') + ' dias (mediana)', `${imp.transitOverPlan} de ${imp.transitBase} acima do trânsito previsto na proposta`],
-      ['Cotado × cobrado', imp.auditBase ? `${imp.auditDiffCount} de ${imp.auditBase}` : '—', imp.auditBase ? `conferências concluídas com diferença${imp.auditDiffUsd ? ` · ${money(imp.auditDiffUsd)} fundamentados, não recuperados` : ''}${imp.auditPending ? ` · ${imp.auditPending} em esclarecimento ou não auditados` : ''}` : 'nenhuma conferência concluída'],
+      ['Cotado × cobrado', imp.auditBase ? `${imp.auditDiffCount} de ${imp.auditBase}` : '0 de 0', imp.auditBase ? `conferências concluídas com diferença${imp.auditDiffUsd ? ` · ${money(imp.auditDiffUsd)} fundamentados, não recuperados` : ''}${imp.auditPending ? ` · ${imp.auditPending} em esclarecimento ou não auditados` : ''}` : 'nenhuma conferência concluída'],
       rateFact('Prontidão no prazo', row.ready),
     ])}<p class="chart-caption">Desvio observado não atribui responsabilidade ao agente.</p></section>`;
   }
