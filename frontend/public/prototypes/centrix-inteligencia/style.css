@@ -766,3 +766,7 @@ table.compare .sort-button{line-height:1.3;min-width:84px}
 .mini-bars.compact .mb-bar{max-width:14px}
 .funnel-legend{margin:10px 0 0}
 .support .mini-bars{align-self:end;margin:0}
+
+/* D4: aviso de dependência da integração ao sistema de gestão. Discreto (corpo
+   de 14px, filete à esquerda), mas legível: tinta --ink-2 em AA. */
+.integrated-notice{margin:10px 0 0;padding:8px 12px;border-left:3px solid var(--line-strong);background:var(--surface-2);font-size:14px;line-height:1.45;color:var(--ink-2)}

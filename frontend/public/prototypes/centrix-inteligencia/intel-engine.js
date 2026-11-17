@@ -187,25 +187,27 @@
     count: 'Contagem dos embarques no recorte (período + filtros).',
   };
   /**
-   * As quatro linhas do "Como é calculado" de um KPI: fonte, fórmula, período e
-   * filtros. Fonte e fórmula saem da definição da métrica na fixture (dado de
-   * exemplo); o que ela não diz vira "A definir com dados", nunca um palpite.
+   * As linhas do "Como é calculado" de um KPI: fonte, fórmula, período e filtros
+   * (D4: fonte e fórmula validadas saem do mapa único, intel-sources.js; fonte
+   * não validada diz "Fonte a confirmar"). Métrica que depende da integração
+   * ao sistema de gestão ganha a quinta linha, "Disponibilidade".
    */
   function kpiDefinition(D, key, filters) {
     const m = (D.metrics || {})[key];
-    const source = key === 'count' ? 'Embarques da base filtrados pelo período (compromisso de prontidão).' : (m && m.source) || 'A definir com dados';
+    const source = Sources.sourceOf(key);   // D4: fonte só pelo mapa único (intel-sources.js)
     const formula = Sources.formulaOf(key) || KPI_FORMULA[key] || (m && m.definition) || 'A definir com dados';
     const active = FILTERS.filter((f) => (filters[f.key] || []).length);
     const filterLine = (active.length
       ? `Ativos: ${active.map((f) => `${f.label} (${filters[f.key].map((v) => f.name(D, v)).join(', ')})`).join('; ')}.`
       : 'Todos os filtros globais (exportador, agente, rota, incoterm, país, SKU).')
       + ' Com SKU, frete e prazos continuam sendo do embarque inteiro.';
+    const notice = Sources.noticeOf(key);
     return [
       { label: 'Fonte', text: source },
       { label: 'Fórmula', text: formula },
       { label: 'Período', text: 'Compromisso de prontidão dentro do período selecionado; variação contra o período anterior: mês de calendário contra o mês anterior inteiro; janela móvel contra a janela anterior de mesma duração.' },
       { label: 'Filtros que se aplicam', text: filterLine },
-    ];
+    ].concat(notice ? [{ label: 'Disponibilidade', text: notice, notice: true }] : []);
   }
 
   // ------------------------------------------------------------ métricas ---

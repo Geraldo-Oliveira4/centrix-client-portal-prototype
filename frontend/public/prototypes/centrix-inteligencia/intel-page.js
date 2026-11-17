@@ -112,7 +112,7 @@ function kpiHowButton(key, slot = '') {
 }
 function kpiHowBody(key, gf, slot = '') {
   const lines = IE.kpiDefinition(D, key, gf), id = key + (slot ? '-' + slot : '');
-  return `<div class="kpi-how-body" id="kpi-how-${id}" ${openKpiHow.has(id) ? '' : 'hidden'}><p class="kpi-how-title">Como é calculado · ${KPI_NAMES[key]} <span class="example-tag">Dado de exemplo</span></p><dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
+  return `<div class="kpi-how-body" id="kpi-how-${id}" ${openKpiHow.has(id) ? '' : 'hidden'}><p class="kpi-how-title">Como é calculado · ${KPI_NAMES[key]} <span class="example-tag">Dado de exemplo</span></p><dl>${lines.filter(l => !l.notice).map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl>${lines.filter(l => l.notice).map(l => `<p class="integrated-notice">${esc(l.text)}</p>`).join('')}</div>`;
 }
 /** Variação curta, em pontos, com seta E sinal ("↑ +34 pts", "↓ −25 pts"): a direção nunca depende de cor; o texto completo fica no title e para leitor de tela. */
 function variationPts(k) {
@@ -192,7 +192,7 @@ function resultCard(s, vis) {
     const body = k.value == null
       ? '<p class="no-data">Ainda não há entrega final realizada neste recorte.</p>'
       : `<b class="hero-number">${k.value}%</b><div class="hero-var">${k.small ? smallTag(k.n) : variationChip(k)}</div><p class="base-line">${a.good} de ${a.eligible.length} entregas realizadas · ${s.cur.length - a.eligible.length} ainda em curso</p>${miniBars('final', series)}`;
-    left = `<div class="lvl1-hero" id="bloco-destaque"><div class="card-top"><h2 id="t-destaque">Entrega final no prazo</h2>${kpiHowButton('final', 'hero')}</div><p class="card-sub">Entregas recebidas pelo cliente (fábrica ou armazém final) até a data prevista de entrega, entre as realizadas que tinham data prevista.</p>${kpiHowBody('final', s.gf, 'hero')}${body}</div>`;
+    left = `<div class="lvl1-hero" id="bloco-destaque"><div class="card-top"><h2 id="t-destaque">Entrega final no prazo</h2>${kpiHowButton('final', 'hero')}</div><p class="card-sub">Entregas recebidas pelo cliente (fábrica ou armazém final) até a data prevista de entrega, entre as realizadas que tinham data prevista.</p>${body}${kpiHowBody('final', s.gf, 'hero')}</div>`;
   }
   if (fun) {
     const f = IE.funnel(D, s.cur);
