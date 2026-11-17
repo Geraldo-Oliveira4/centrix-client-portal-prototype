@@ -1,3 +1,5 @@
+> **Superado em parte em 17/11/2026 (Simulador v2):** o resultado deixou de classificar em Cabe/Apertado/Não cabe e passou a ser cobertura empírica a de b, com fonte do histórico, perna nacional e ação de cotação. Ver `frontend/CLAUDE.md`, "Simulador v2". O texto abaixo é histórico.
+
 # Simulador de cenários (Prévia): lógica, entradas, saídas e dados reais
 
 Para: Mauro (integração) e Vitor (revisão técnica). Data: 23/10/2026.
