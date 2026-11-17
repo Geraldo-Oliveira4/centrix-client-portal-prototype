@@ -659,10 +659,44 @@ function simMeasures(r) {
     : `<li>${r.task.mode === 'chegar' ? 'Considera a chegada ao porto. A entrega final depende de dados de clientes integrados.' : 'A entrega final não entra: depende de dados de clientes integrados.'}${r.leg.n ? ` (${r.leg.n} ${r.leg.n === 1 ? 'embarque' : 'embarques'} com entrega registrada; são precisos ${IS.MIN_SAMPLE}.)` : ''}</li>`;
   return `<ul class="sim-measures">${port}${final}</ul>`;
 }
+/* COMPARAÇÃO POR AGENTE (S4): tabela no padrão das outras subabas (cabeçalho,
+   coluna líder com peso, divisórias finas, ordem por volume, ordenação por
+   coluna). Cobertura é a coluna líder. Nenhuma linha destacada como melhor. */
+let simAgentSort = null;
+function simAgentTable(r) {
+  const chegar = r.task.mode === 'chegar', sort = simAgentSort || IS.DEFAULT_AGENT_SORT;
+  const cols = [['name', 'Agente de carga'], ['shipments', 'Embarques'], ['median', 'Trânsito mediano'], ['p90', 'P90'], ['spread', 'Variação do trânsito'],
+    chegar ? ['cover', 'Cobertura'] : ['limit', 'Chegada ao destino'], ...(chegar ? [['limit', 'Embarque limite']] : []), [null, 'Trânsito prometido (dias)'], [null, 'Prometido × histórico']];
+  const lead = chegar ? 'cover' : 'limit';
+  const head = cols.map(([key, label]) => {
+    const cls = key === lead ? 'lead-col' : key === 'name' ? '' : 'quiet-col';
+    if (!key) return `<th scope="col" class="${cls}"><span class="th-plain">${label}</span></th>`;
+    const on = sort.key === key, dir = on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+    return `<th scope="col" class="${cls}" aria-sort="${dir}"><button type="button" class="sort-button${on ? ' active' : ''}" data-action="sim-agent-sort" data-key="${key}"><span class="sort-label">${label}</span> <span aria-hidden="true">${on ? (sort.dir === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>`;
+  }).join('');
+  const days = v => String(v).replace('.', ',');
+  const body = IS.sortAgents(r.agents, sort).map(a => {
+    const link = `<a class="sheet-link" href="${esc(url('executivo', { aba: 'agentes', sel: a.agent, de: 'sim' }))}"><b>${esc(a.name)}</b></a>`;
+    const tds = [`<td>${link}</td>`, `<td class="quiet-col">${a.shipments}${a.small ? smallTag(a.n) : ''}</td>`];
+    if (a.small) {
+      tds.push(`<td class="quiet-col">—<small>${a.n} com saída e chegada</small></td>`, '<td class="quiet-col">—</td>', '<td class="quiet-col">—</td>', `<td class="lead-col">—<small>sem cobertura calculada</small></td>`);
+      if (chegar) tds.push('<td class="quiet-col">—</td>');
+    } else {
+      tds.push(`<td class="quiet-col">${days(a.median)} dias<small>${a.n} com saída e chegada</small></td>`, `<td class="quiet-col">${a.p90} dias</td>`, `<td class="quiet-col">${days(a.spread)} ${a.spread === 1 ? 'dia' : 'dias'}<small>P90 − mediana</small></td>`);
+      if (chegar) tds.push(`<td class="lead-col"><span class="frac">${a.cover.good} de ${a.cover.base}</span><small class="pct">${a.cover.pct}% · ${esc(IS.coverageBand(a.cover))}</small></td>`, `<td class="quiet-col">${dm(a.limitP90)} <small>P90 · ${dm(a.limitMedian)} pela mediana</small></td>`);
+      else tds.push(`<td class="lead-col"><span class="frac">até ${dm(a.arrivalP90)}</span><small>P90 · ${dm(a.arrivalMedian)} pela mediana</small></td>`);
+    }
+    const prom = a.promised ? a.promised.days : '';
+    tds.push(`<td class="quiet-col"><label class="sr-only" for="prom-${a.agent}">Trânsito prometido por ${esc(a.name)}, em dias</label><input class="prom-input" id="prom-${a.agent}" type="number" inputmode="numeric" min="1" max="365" placeholder="—" value="${prom}" data-sim-prom="${a.agent}"></td>`);
+    tds.push(`<td class="quiet-col">${!a.promised ? '<small>Digite o prazo da proposta</small>' : a.small ? `prometeu ${a.promised.days} dias<small>histórico pequeno para comparar</small>` : `prometeu ${a.promised.days}; mediana ${days(a.median)}, P90 ${a.p90}<small>o histórico cumpriu ${a.promised.days} dias em ${a.promised.good} de ${a.promised.base}</small>`}</td>`);
+    return `<tr>${tds.join('')}</tr>`;
+  }).join('');
+  return `<section class="sim-agents" aria-labelledby="sim-agents-t"><h2 id="sim-agents-t" class="sim-h2">Por agente de carga</h2><div class="table-wrap"><table class="compare sim-agents-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div><p class="chart-caption">Dado, não veredito: as colunas são fatos do histórico, sem nota nem ranking. Com menos de ${IS.MIN_SAMPLE} embarques, “Amostra pequena” e nenhuma cobertura calculada. O prometido é o que a proposta diz; o histórico mostra quantas vezes ele foi cumprido.</p></section>`;
+}
 function simulatorTab(s) {
   const today = D.cutoff, ss = simScope(s), task = IS.readTask(D, params, today);
   const r = IS.plan(D, ss.cur, task, today);
-  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${simHow(s)}<p class="chart-caption">Histórico, não garantia. Sem nota nem recomendação. Custos ficam fora desta prévia.</p></section>`;
+  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${r.state === 'ok' && r.agents.length ? simAgentTable(r) : ''}${simHow(s)}<p class="chart-caption">Histórico, não garantia. Sem nota nem recomendação. Custos ficam fora desta prévia.</p></section>`;
 }
 function setSimParam(changes) { location.hash = url('executivo', changes); }
 function intelOverview() {
@@ -896,6 +930,7 @@ document.addEventListener('click', e => {
   else if (a === 'tab-sort') { const dim = b.dataset.dim; tableSort.set(dim, IT.nextSort(tableSort.get(dim) || IT.DEFAULT_SORT, b.dataset.key)); render(); document.querySelector(`[data-action="tab-sort"][data-dim="${dim}"][data-key="${b.dataset.key}"]`)?.focus(); }
   else if (a === 'entity-open') location.hash = url('executivo', { sel: b.dataset.id, de: null });
   else if (a === 'sim-all-routes') setSimParam({ srota: null });
+  else if (a === 'sim-agent-sort') { simAgentSort = IS.nextAgentSort(simAgentSort || IS.DEFAULT_AGENT_SORT, b.dataset.key); render(); document.querySelector(`[data-action="sim-agent-sort"][data-key="${b.dataset.key}"]`)?.focus(); }
   else if (a === 'sim-mode') setSimParam({ smodo: b.dataset.mode === 'embarcar' ? 'embarcar' : null });
   else if (a === 'sim-clear') { setSimParam({ sinicio: 'vazio', srota: null, smodal: null, chegada: null, sembarque: null, smodo: null }); toast('Simulador limpo: escolha rota, modal e data.'); }
   else if (a === 'entity-filter') { const gf = IT.filterByEntity(IE.readFilters(params), b.dataset.dim, b.dataset.id); params.delete('sel'); params.delete('de'); setGlobalFilters(gf); toast('Filtro aplicado a todas as abas.'); }
@@ -930,6 +965,7 @@ document.getElementById('drawer').addEventListener('close', () => { const d = do
 document.addEventListener('change', e => {
   const t = e.target;
   if (t.id === 'sim-route') { setSimParam({ srota: t.value || null }); return; }
+  if (t.dataset && t.dataset.simProm) { const m = IS.readTask(D, params).promised, n = Number(t.value); if (Number.isInteger(n) && n >= 1 && n <= 365) m[t.dataset.simProm] = n; else delete m[t.dataset.simProm]; setSimParam({ sprom: IS.writePromised(m) }); return; }
   if (t.id === 'sim-modal') { setSimParam({ smodal: t.value || null }); return; }
   if (t.id === 'sim-window') { setSimParam({ janela: t.value === IS.DEFAULT_WINDOW ? null : t.value }); return; }
   if (t.id === 'sim-date') { if (IS.validIso(t.value) || !t.value) setSimParam(IS.readTask(D, params).mode === 'embarcar' ? { sembarque: t.value || null } : { chegada: t.value || null }); return; }

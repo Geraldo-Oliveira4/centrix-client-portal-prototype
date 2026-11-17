@@ -139,7 +139,24 @@
     const modal = MODALS.some(([m]) => m === get('smodal')) ? get('smodal') : blank ? '' : EXAMPLE.modal;
     const target = validIso(get('chegada')) ? get('chegada') : blank ? '' : addDays(today, EXAMPLE.targetDays);
     const departure = validIso(get('sembarque')) ? get('sembarque') : blank ? '' : addDays(today, EXAMPLE.departureDays);
-    return { mode: get('smodo') === 'embarcar' ? 'embarcar' : 'chegar', route, modal, target, departure, window: readWindow(params), blank };
+    return { mode: get('smodo') === 'embarcar' ? 'embarcar' : 'chegar', route, modal, target, departure, window: readWindow(params), blank, promised: readPromised(get('sprom')) };
+  }
+
+  /**
+   * "Trânsito prometido (dias)" por agente (S4), o que a proposta diz, digitado
+   * pelo cliente: `sprom=alpha:40,beta:35`. Só inteiros de 1 a 365; o resto é
+   * ignorado.
+   */
+  function readPromised(raw) {
+    const out = {};
+    for (const part of String(raw || '').split(',')) {
+      const [id, v] = part.split(':'), n = Number(v);
+      if (id && Number.isInteger(n) && n >= 1 && n <= 365) out[id] = n;
+    }
+    return out;
+  }
+  function writePromised(map) {
+    return Object.entries(map).filter(([, v]) => Number.isInteger(v)).map(([k, v]) => `${k}:${v}`).join(',') || null;
   }
 
   /** Mediana (a MESMA das fichas, IntelTabs.median) e P90 (posto mais próximo) de uma lista de trânsitos. */
@@ -190,7 +207,8 @@
     // isso. Nunca se trata chegada ao porto como chegada à fábrica.
     out.leg = stats(mine.filter((o) => o.arrive && o.final).map((o) => D.days(o.arrive, o.final)));
     out.basis = out.leg.n >= MIN_SAMPLE ? 'final' : 'port';
-    out.agents = Tabs.pairGroups(mine).map((g) => ({ agent: g.agent, name: Tabs.nameOf(D, 'ag', g.agent), shipments: g.ops.length, ...stats(Tabs.transitDays(D, g.ops)) }));
+    out.agents = Tabs.pairGroups(mine).map((g) => ({ agent: g.agent, name: Tabs.nameOf(D, 'ag', g.agent), shipments: g.ops.length, ...stats(Tabs.transitDays(D, g.ops)) }))
+      .map((a) => ({ ...a, small: a.n < MIN_SAMPLE }));
     if (route.n < MIN_SAMPLE) return { ...out, state: 'no_history' };
     if (task.mode === 'chegar') {
       const available = diffDays(today, date);
@@ -219,10 +237,55 @@
         out.finalP90 = addDays(out.arrivalP90, out.leg.p90);
       }
     }
+    agentRows(out);
     return out;
   }
 
-  const api = { MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, coverageBand, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, simulate, howCalculated, addDays, diffDays, validIso };
+  /**
+   * S4: uma linha por agente de carga da rota e modal. Cobertura e embarque
+   * limite saem da MESMA margem do resultado; com menos de MIN_SAMPLE trânsitos,
+   * "Amostra pequena" e nada calculado. Prometido × histórico só quando o
+   * cliente digitou o prometido. Nenhuma linha é "a melhor".
+   */
+  function agentRows(out) {
+    const t = out.task;
+    out.agents = out.agents.map((a) => {
+      const row = { ...a };
+      const promised = t.promised[a.agent];
+      if (promised) row.promised = { days: promised, ...(a.small ? {} : coverage(a.values, promised)) };
+      if (a.small) return row;
+      if (t.mode === 'chegar') {
+        row.cover = coverage(a.values, out.margin);
+        row.limitP90 = addDays(out.portTarget, -a.p90);
+        row.limitMedian = addDays(out.portTarget, -Math.ceil(a.median));
+      } else {
+        row.arrivalMedian = addDays(t.departure, Math.ceil(a.median));
+        row.arrivalP90 = addDays(t.departure, a.p90);
+      }
+      return row;
+    });
+  }
+  const AGENT_SORT = {
+    name: (r) => r.name, shipments: (r) => r.shipments, median: (r) => r.median, p90: (r) => r.p90, spread: (r) => r.spread,
+    cover: (r) => (r.cover ? r.cover.pct : null), limit: (r) => r.limitP90 || r.arrivalP90 || null,
+  };
+  const DEFAULT_AGENT_SORT = { key: 'shipments', dir: 'desc' };
+  /** Volume por padrão, como nas outras subabas; sem valor (amostra pequena) sempre no fim. */
+  function sortAgents(rows, sort = DEFAULT_AGENT_SORT) {
+    const get = AGENT_SORT[sort.key] || AGENT_SORT.shipments, sign = sort.dir === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const va = get(a), vb = get(b), na = va == null, nb = vb == null;
+      if (na !== nb) return na ? 1 : -1;
+      if (!na && va !== vb) return (typeof va === 'string' ? va.localeCompare(vb, 'pt-BR') : va - vb) * sign;
+      return b.shipments - a.shipments || a.name.localeCompare(b.name, 'pt-BR');
+    });
+  }
+  function nextAgentSort(cur, key) {
+    if (cur && cur.key === key) return { key, dir: cur.dir === 'desc' ? 'asc' : 'desc' };
+    return { key, dir: key === 'name' || key === 'limit' ? 'asc' : 'desc' };
+  }
+
+  const api = { readPromised, writePromised, agentRows, sortAgents, nextAgentSort, DEFAULT_AGENT_SORT, MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, coverageBand, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, simulate, howCalculated, addDays, diffDays, validIso };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelSim = api;
 })(typeof window !== 'undefined' ? window : globalThis);
