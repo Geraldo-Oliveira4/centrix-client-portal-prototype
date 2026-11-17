@@ -220,11 +220,13 @@ test('entrada: exemplo preenchido sem parâmetro; "Limpar" esvazia tudo, inclusi
   assert.equal(S.readTask(D, new URLSearchParams('smodo=embarcar&sembarque=2026-11-20'), TODAY).departure, '2026-11-20');
 });
 
-// ------------------------------------------------ F1: exemplo com nuance ---
+// ------------------------------------- F1/E5: exemplo com embarque no futuro ---
 // A data-alvo do exemplo é "hoje + N", com N escolhido pelo motor, e acompanha
-// ?hoje=. Testado no "hoje" da demonstração das capturas e na data base.
-for (const today of ['2026-11-13', D.cutoff, '2027-03-02']) {
-  test(`F1: exemplo de abertura com cobertura parcial embarcando hoje (hoje = ${today})`, () => {
+// ?hoje=. E5: o embarque limite pelo P90 fica depois de hoje e a cobertura de
+// hoje é parcial (menor que 100%). Testado no "hoje" das capturas, na data
+// real desta entrega, na data base e numa data adiante.
+for (const today of ['2026-11-13', '2026-11-17', D.cutoff, '2027-03-02']) {
+  test(`E5: exemplo de abertura com embarque limite pelo P90 depois de hoje e cobertura parcial (hoje = ${today})`, () => {
     const DD = D.shift(today);
     const ops = S.inWindow(DD.operations, '12m', today);
     const raw = S.readTask(DD, new URLSearchParams(''), today);
@@ -234,20 +236,31 @@ for (const today of ['2026-11-13', D.cutoff, '2027-03-02']) {
     assert.equal(t.target, S.addDays(today, S.exampleTargetDays(DD, ops, raw, today, { ref: R })), 'relativa ao hoje');
     const r = S.plan(DD, ops, t, today, { ref: R });
     assert.equal(r.state, 'ok');
-    assert.ok(r.coverToday.pct >= 40 && r.coverToday.pct <= 80, `cobertura de hoje ${r.coverToday.good} de ${r.coverToday.base}`);
-    assert.ok(r.limitMedian > today, 'o embarque limite pela mediana é posterior a hoje');
-    // O limite P90 fica o mais perto possível de hoje: um dia a mais de data-alvo já passa do teto.
-    const next = S.plan(DD, ops, { ...t, target: S.addDays(t.target, 1) }, today, { ref: R });
-    assert.ok(next.coverToday.pct > S.EXAMPLE.coverMax);
+    assert.ok(r.limitP90 > today, `embarque limite pelo P90 (${r.limitP90}) depois de hoje`);
+    assert.ok(r.limitMedian > today, 'o limite pela mediana também');
+    assert.doesNotMatch(S.resultText(r).head, /já passou/, 'a frase não abre com "já passou"');
+    assert.ok(r.coverToday.pct < 100, `cobertura de hoje parcial: ${r.coverToday.good} de ${r.coverToday.base}`);
+    // O menor N: um dia a menos de data-alvo já devolve o limite para hoje ou antes.
+    const prev = S.plan(DD, ops, { ...t, target: S.addDays(t.target, -1) }, today, { ref: R });
+    assert.ok(prev.state !== 'ok' || prev.limitP90 <= today);
   });
 }
-test('F1: limite P90 depois de hoje implica cobertura de hoje de 90% ou mais (por isso o exemplo não pede os dois)', () => {
+test('E5: limite P90 depois de hoje implica cobertura de hoje de 90% ou mais (por isso a faixa de 40% a 80% não cabe junto)', () => {
   const ops = S.inWindow(D.operations, '12m', D.cutoff);
   const t = S.readTask(D, new URLSearchParams(''), D.cutoff);
+  let seen = 0;
   for (let n = 30; n <= 90; n++) {
     const r = S.plan(D, ops, { ...t, target: S.addDays(D.cutoff, n) }, D.cutoff, { ref: R });
-    if (r.state === 'ok' && r.limitP90 > D.cutoff) assert.ok(r.coverToday.pct >= 90, `n=${n}`);
+    if (r.state === 'ok' && r.limitP90 > D.cutoff) { seen++; assert.ok(r.coverToday.pct >= 90, `n=${n}`); }
   }
+  assert.ok(seen > 0);
+});
+test('E5: com "Meus embarques" o exemplo também abre com o limite P90 no futuro (ou cai na reserva)', () => {
+  const ops = S.inWindow(D.operations, '12m', D.cutoff);
+  const raw = S.readTask(D, new URLSearchParams('sfonte=meus'), D.cutoff);
+  const t = S.withExampleTarget(D, ops, raw, D.cutoff, { ref: R });
+  const r = S.plan(D, ops, t, D.cutoff, { ref: R });
+  if (t.target !== S.addDays(D.cutoff, S.EXAMPLE.targetDays)) assert.ok(r.state === 'ok' && r.limitP90 > D.cutoff);
 });
 test('F1: data-alvo na URL vale como está; "Limpar" continua esvaziando tudo', () => {
   const ops = S.inWindow(D.operations, '12m', TODAY);

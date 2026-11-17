@@ -135,11 +135,11 @@
   /**
    * O exemplo fictício com que o Simulador abre (S1): rota, modal e data à vista,
    * nunca escondidos. A data-alvo NÃO é fixa (F1, 17/11/2026): é "hoje + N dias",
-   * com N escolhido pelo próprio motor (exampleTargetDays) para que embarcar hoje
-   * cubra parte do histórico, entre coverMin e coverMax %. `targetDays` é só a
-   * reserva quando não há base para escolher.
+   * com N escolhido pelo próprio motor (exampleTargetDays). Desde E5 o critério
+   * é o embarque limite pelo P90 DEPOIS de hoje (o exemplo não abre com "já
+   * passou"). `targetDays` é só a reserva quando não há base para escolher.
    */
-  const EXAMPLE = { route: 'ningbo', modal: 'maritimo', targetDays: 60, departureDays: 14, coverMin: 40, coverMax: 80 };
+  const EXAMPLE = { route: 'ningbo', modal: 'maritimo', targetDays: 60, departureDays: 14 };
   const modalOfRoute = (D, id) => { const r = D.routes.find((x) => x.id === id); return r ? MODAL_OF[r.mode] || '' : ''; };
   const modalLabel = (id) => (MODALS.find(([m]) => m === id) || [null, ''])[1];
 
@@ -162,22 +162,24 @@
   }
 
   /**
-   * F1: o N do exemplo. O maior N em que embarcar hoje cobre entre coverMin e
-   * coverMax % dos embarques parecidos (a cobertura cresce com N, então a busca
-   * para no primeiro N acima do teto). O MAIOR N deixa o embarque limite pelo
-   * P90 o mais perto possível de hoje. Ele não fica DEPOIS de hoje, e não pode:
-   * limite P90 depois de hoje ⇔ margem ≥ P90 ⇔ cobertura de hoje ≥ 90%. Quem
-   * fica no futuro é o limite pela mediana. Sem base, a reserva EXAMPLE.targetDays.
+   * E5 (17/11/2026): o N do exemplo é o MENOR N em que o embarque limite pelo
+   * P90 fica depois de hoje e embarcar hoje ainda não cobre todo o histórico
+   * (cobertura < 100%). O menor N é o que deixa a cobertura de hoje mais
+   * parcial possível com o limite no futuro.
+   *
+   * Por que não entre 40% e 80% (o critério do F1): limite P90 depois de hoje
+   * ⇔ margem > P90 ⇔ cobertura de hoje ≥ 90% (o P90 é o menor trânsito que
+   * cobre 90% dos casos). As duas exigências não cabem juntas; E5 escolheu o
+   * limite no futuro (a manchete não abre com "já passou"). Na referência do
+   * exemplo isso dá 50 de 52 (96%) embarcando hoje. Sem N que sirva, a reserva
+   * EXAMPLE.targetDays.
    */
   function exampleTargetDays(D, ops, task, today, opts = {}) {
-    let best = null;
     for (let n = 1; n <= 365; n++) {
       const r = plan(D, ops, { ...task, mode: 'chegar', target: addDays(today, n) }, today, opts);
-      if (r.state !== 'ok') continue;
-      if (r.coverToday.pct > EXAMPLE.coverMax) break;
-      if (r.coverToday.pct >= EXAMPLE.coverMin) best = n;
+      if (r.state === 'ok' && r.limitP90 > today && r.coverToday.pct < 100) return n;
     }
-    return best == null ? EXAMPLE.targetDays : best;
+    return EXAMPLE.targetDays;
   }
   /** A tarefa com a data-alvo do exemplo calculada sobre o histórico (só quando ela veio do exemplo). */
   function withExampleTarget(D, ops, task, today, opts = {}) {
