@@ -304,6 +304,12 @@
     const route = stats(Tabs.transitDays(D, mine));
     out.route = route;
     out.registered = { with: mine.filter((o) => o.depart && o.arrive).length, total: mine.length };
+    // S2: a PERNA NACIONAL (chegada ao destino → entrega ao cliente: desembaraço
+    // e transporte), do histórico da mesma fonte. Só entra com base de
+    // MIN_SAMPLE ou mais; sem ela, o resultado é sobre a chegada ao destino e diz
+    // isso. Nunca se trata chegada ao porto como chegada à fábrica.
+    out.leg = stats(mine.filter((o) => o.arrive && o.final).map((o) => D.days(o.arrive, o.final)));
+    out.basis = out.leg.n >= MIN_SAMPLE ? 'final' : 'port';
     out.agents = Tabs.pairGroups(mine).map((g) => ({ agent: g.agent, name: Tabs.nameOf(D, 'ag', g.agent), shipments: g.ops.length, ...stats(Tabs.transitDays(D, g.ops)) }));
     if (route.n < MIN_SAMPLE) return { ...out, state: 'no_history' };
     if (task.mode === 'chegar') {
@@ -311,13 +317,23 @@
       out.available = available;
       if (available <= 0) return { ...out, state: 'past' };
       if (available < route.min) return { ...out, state: 'before_min' };
-      out.limitP90 = addDays(date, -route.p90);
-      out.limitMedian = addDays(date, -Math.ceil(route.median));
-      out.coverToday = coverage(route.values, available);
+      // Com Entrega final, a chegada ao destino precisa acontecer antes da data
+      // pela perna nacional; entra o P90 dela (o lado conservador, a validar).
+      const legDays = out.basis === 'final' ? out.leg.p90 : 0;
+      out.portTarget = addDays(date, -legDays);
+      out.margin = available - legDays;
+      if (out.margin < route.min) return { ...out, state: 'before_min' };
+      out.limitP90 = addDays(out.portTarget, -route.p90);
+      out.limitMedian = addDays(out.portTarget, -Math.ceil(route.median));
+      out.coverToday = coverage(route.values, out.margin);
     } else {
       if (diffDays(today, date) < 0) return { ...out, state: 'past' };
       out.arrivalMedian = addDays(date, Math.ceil(route.median));
       out.arrivalP90 = addDays(date, route.p90);
+      if (out.basis === 'final') {
+        out.finalMedian = addDays(out.arrivalMedian, Math.ceil(out.leg.median));
+        out.finalP90 = addDays(out.arrivalP90, out.leg.p90);
+      }
     }
     return out;
   }

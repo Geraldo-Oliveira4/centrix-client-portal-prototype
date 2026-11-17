@@ -665,8 +665,23 @@ function simResultBand(r) {
   if (r.state === 'no_history') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Sem histórico suficiente para esta rota e modal.</p><p class="fact-conc">${r.route.n} ${r.route.n === 1 ? 'embarque' : 'embarques'} com saída e chegada registradas; são precisos ${IS.MIN_SAMPLE}. Nada é simulado sem base.</p></div>`;
   if (r.state === 'past') return `<div class="fact-band sim-result" role="status"><p class="fact-text">${t.mode === 'chegar' ? 'A data-alvo' : 'A data de embarque'} já passou: hoje, nesta demonstração, é ${fullDate(r.today)}.</p></div>`;
   if (r.state === 'before_min') return `<div class="fact-band sim-result" role="status"><p class="fact-text">A data-alvo é anterior ao menor trânsito do histórico.</p><p class="fact-conc">Embarcando hoje (${dm(r.today)}), o trânsito mais curto registrado (${r.route.min} dias, em ${r.route.n} embarques) chegaria em ${dm(IS.addDays(r.today, r.route.min))}.</p></div>`;
-  if (t.mode === 'chegar') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Para chegar até ${dm(t.target)}, embarcar até <b>${dm(r.limitP90)}</b> cobre 9 de 10 embarques parecidos (P90); até <b>${dm(r.limitMedian)}</b> cobre metade (mediana).</p><p class="fact-conc">Embarcando hoje (${dm(r.today)}), ${r.coverToday.good} de ${r.coverToday.base} embarques parecidos chegaram até a data-alvo.</p></div>`;
-  return `<div class="fact-band sim-result" role="status"><p class="fact-text">Embarcando em ${dm(t.departure)}, metade dos embarques parecidos chegou até <b>${dm(r.arrivalMedian)}</b> (mediana) e 9 de 10 até <b>${dm(r.arrivalP90)}</b> (P90).</p></div>`;
+  const final = r.basis === 'final';
+  const head = t.mode === 'chegar'
+    ? `<p class="fact-text">Para ${final ? 'a entrega final' : 'a chegada ao destino'} até ${dm(t.target)}, embarcar até <b>${dm(r.limitP90)}</b> cobre 9 de 10 embarques parecidos (P90); até <b>${dm(r.limitMedian)}</b> cobre metade (mediana).</p><p class="fact-conc">Embarcando hoje (${dm(r.today)}), ${r.coverToday.good} de ${r.coverToday.base} embarques parecidos chegaram a tempo.</p>`
+    : `<p class="fact-text">Embarcando em ${dm(t.departure)}, metade dos embarques parecidos chegou ao destino até <b>${dm(r.arrivalMedian)}</b> (mediana) e 9 de 10 até <b>${dm(r.arrivalP90)}</b> (P90)${final ? `; com a perna nacional, entrega final até ${dm(r.finalMedian)} (mediana) e ${dm(r.finalP90)} (P90)` : ''}.</p>`;
+  return `<div class="fact-band sim-result" role="status">${head}${simMeasures(r)}</div>`;
+}
+/* S2: o que está sendo calculado, sempre nomeado. Chegada ao destino sempre
+   que houver base; Entrega final só com base da perna nacional, e com o aviso
+   de integração do mapa de fontes. */
+function simMeasures(r) {
+  const days = v => String(v).replace('.', ',');
+  const port = `<li><b>${destTerm('Chegada ao destino')}</b> (porto ou aeroporto de descarga): trânsito mediano ${days(r.route.median)} dias, P90 ${r.route.p90} dias · ${r.route.n} embarques com saída e chegada</li>`;
+  const notice = window.IntelSources ? IntelSources.noticeOf('final') : null;
+  const final = r.basis === 'final'
+    ? `<li><b>Entrega final</b> = chegada ao destino + perna nacional (desembaraço e transporte até o cliente): mediana ${days(r.leg.median)} dias, P90 ${r.leg.p90} dias · ${r.leg.n} embarques com chegada e entrega${r.task.mode === 'chegar' ? `. A chegada ao destino precisa ser até ${dm(r.portTarget)}` : ''}.${notice ? `<span class="integrated-notice">${esc(notice)}</span>` : ''}</li>`
+    : `<li>${r.task.mode === 'chegar' ? 'Considera a chegada ao porto. A entrega final depende de dados de clientes integrados.' : 'A entrega final não entra: depende de dados de clientes integrados.'}${r.leg.n ? ` (${r.leg.n} ${r.leg.n === 1 ? 'embarque' : 'embarques'} com entrega registrada; são precisos ${IS.MIN_SAMPLE}.)` : ''}</li>`;
+  return `<ul class="sim-measures">${port}${final}</ul>`;
 }
 function simulatorTab(s) {
   const today = D.cutoff, ss = simScope(s), task = IS.readTask(D, params, today);
