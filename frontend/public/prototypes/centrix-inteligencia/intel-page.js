@@ -104,13 +104,15 @@ const ICON = {
 };
 const KPI_NAMES = { ready: 'Prontidão no prazo', port: 'Chegada ao destino no prazo', final: 'Entrega final no prazo', freight: 'Frete contratado', count: 'Embarques no recorte' };
 /** "Como é calculado": um "i" discreto que abre fonte, fórmula, período e filtros (intel-engine.js::kpiDefinition). */
-function kpiHowButton(key) {
-  const open = openKpiHow.has(key);
-  return `<button type="button" class="info-button" data-action="kpi-how" data-id="${key}" aria-expanded="${open}" aria-controls="kpi-how-${key}" aria-label="Como é calculado: ${KPI_NAMES[key]}" title="Como é calculado">${ICON.info}</button>`;
+/* `slot` separa duas cópias do mesmo indicador na mesma tela (a Entrega final
+   no número grande e na linha do funil), para os ids não colidirem. */
+function kpiHowButton(key, slot = '') {
+  const id = key + (slot ? '-' + slot : ''), open = openKpiHow.has(id);
+  return `<button type="button" class="info-button" data-action="kpi-how" data-id="${id}" aria-expanded="${open}" aria-controls="kpi-how-${id}" aria-label="Como é calculado: ${KPI_NAMES[key]}" title="Como é calculado">${ICON.info}</button>`;
 }
-function kpiHowBody(key, gf) {
-  const lines = IE.kpiDefinition(D, key, gf);
-  return `<div class="kpi-how-body" id="kpi-how-${key}" ${openKpiHow.has(key) ? '' : 'hidden'}><p class="kpi-how-title">Como é calculado · ${KPI_NAMES[key]} <span class="example-tag">Dado de exemplo</span></p><dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
+function kpiHowBody(key, gf, slot = '') {
+  const lines = IE.kpiDefinition(D, key, gf), id = key + (slot ? '-' + slot : '');
+  return `<div class="kpi-how-body" id="kpi-how-${id}" ${openKpiHow.has(id) ? '' : 'hidden'}><p class="kpi-how-title">Como é calculado · ${KPI_NAMES[key]} <span class="example-tag">Dado de exemplo</span></p><dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
 }
 /** Variação curta, em pontos, com seta E sinal ("↑ +34 pts", "↓ −25 pts"): a direção nunca depende de cor; o texto completo fica no title e para leitor de tela. */
 function variationPts(k) {
@@ -188,16 +190,16 @@ function resultCard(s, vis) {
   if (hero) {
     const k = IE.kpi(D, 'final', s.cur, s.prev), a = D.metric('final', s.cur), series = IE.subSeries(D, 'final', base, s.range);
     const body = k.value == null
-      ? '<p class="no-data">Ainda não há entrega final com comprovante neste recorte.</p>'
-      : `<b class="hero-number">${k.value}%</b><div class="hero-var">${k.small ? smallTag(k.n) : variationChip(k)}</div><p class="base-line">${a.good} de ${a.eligible.length} entregas com comprovante · ${s.cur.length - a.eligible.length} ainda em curso</p>${miniBars('final', series)}`;
-    left = `<div class="lvl1-hero" id="bloco-destaque"><h2 id="t-destaque">Entrega final no prazo</h2><p class="card-sub">Entregas no destino até o compromisso final original, entre as que têm comprovante.</p>${body}</div>`;
+      ? '<p class="no-data">Ainda não há entrega final realizada neste recorte.</p>'
+      : `<b class="hero-number">${k.value}%</b><div class="hero-var">${k.small ? smallTag(k.n) : variationChip(k)}</div><p class="base-line">${a.good} de ${a.eligible.length} entregas realizadas · ${s.cur.length - a.eligible.length} ainda em curso</p>${miniBars('final', series)}`;
+    left = `<div class="lvl1-hero" id="bloco-destaque"><div class="card-top"><h2 id="t-destaque">Entrega final no prazo</h2>${kpiHowButton('final', 'hero')}</div><p class="card-sub">Entregas recebidas pelo cliente (fábrica ou armazém final) até a data prevista de entrega, entre as realizadas que tinham data prevista.</p>${kpiHowBody('final', s.gf, 'hero')}${body}</div>`;
   }
   if (fun) {
     const f = IE.funnel(D, s.cur);
     const rows = f.steps.map(st => {
       const k = IE.kpi(D, st.key, s.cur, s.prev), series = IE.subSeries(D, st.key, base, s.range);
       const name = st.key === 'port' ? 'Chegada ao destino<small>porto ou aeroporto de descarga</small>' : st.label;
-      const baseTxt = st.base ? `${st.good ?? 0} de ${st.base}${st.key === 'final' ? ' com comprovante' : ' elegíveis'}` : 'sem registro neste recorte';
+      const baseTxt = st.base ? `${st.good ?? 0} de ${st.base}${st.key === 'final' ? ' realizadas' : ' elegíveis'}` : 'sem registro neste recorte';
       return `<li><div class="fn-name"><span>${name}</span><small>${baseTxt}</small></div><div class="funnel-track" aria-hidden="true"><span style="width:${st.rate || 0}%"></span></div><b class="fn-pct">${st.rate == null ? '<small>sem dado</small>' : st.rate + '%'}</b><span class="fn-var">${variationPts(k)}</span>${miniBars(st.key, series, { compact: true })}${kpiHowButton(st.key)}${kpiHowBody(st.key, s.gf)}</li>`;
     }).join('');
     right = `<div class="lvl1-funnel" id="bloco-funil"><h2 id="t-funil">Onde o prazo se perde</h2><p class="card-sub">A mesma carteira em três momentos: quanto chega no prazo a cada etapa.</p><ol class="funnel">${rows}</ol><p class="mb-legend funnel-legend">Minigráficos: ${esc(IE.subSeries(D, 'ready', base, s.range).legend)}, dentro do período. Passe o mouse numa barra para ver a base.</p><p class="insight-line accent">${f.drop ? `A maior queda é de <strong>${f.drop.from}</strong> para <strong>${f.drop.to}</strong>: −${f.drop.points} pontos.` : 'Nenhuma queda de prazo entre as etapas neste recorte.'}</p></div>`;

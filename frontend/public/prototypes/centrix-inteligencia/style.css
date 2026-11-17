@@ -293,6 +293,7 @@ table.compare td .sample-tag{margin-top:4px}
 .card-sub,.lead{font-size:14px;color:var(--ink-2);margin:4px 0 0;max-width:80ch;line-height:1.5}
 .lead{margin:2px 0 16px;font-size:15px}
 .card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.lvl1-hero .card-top{justify-content:flex-start}
 .base-line{font-size:14px;color:var(--ink-2);margin:0}
 .no-data{font-size:15px;color:var(--ink-2);margin:14px 0}
 .variation{font-size:13px;padding:3px 8px}
