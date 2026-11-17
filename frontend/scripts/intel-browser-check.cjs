@@ -181,6 +181,14 @@ async function roteiroSimulador(page, base) {
   check('F4 "Chegada ao destino" dito uma vez', (measures.match(/porto ou aeroporto de descarga/gi) || []).length === 1, measures.slice(0, 80));
   check('S4 tabela por agente de carga', (await page.locator('.sim-agents-table tbody tr').count()) >= 2);
   check('S3 sem veredito Cabe/Não cabe', !/Cabe na data|Não cabe|Apertado/.test(await raw('#aba-simulador')));
+  // L3: data-alvo apertada (hoje + 46): só a linha cujo embarque limite é ANTERIOR a hoje leva "já passou".
+  await go('#executivo?aba=simulador&chegada=2026-12-29');
+  const rowsPassed = await page.$$eval('.sim-agents-table tbody tr', (trs) => trs.map((tr) => [tr.querySelector('a.sheet-link').textContent, tr.querySelectorAll('.passed-tag').length]));
+  const tagOf = (name) => (rowsPassed.find(([n]) => n === name) || [])[1];
+  check('L3 "já passou" só na linha com embarque limite antes de hoje', tagOf('Gamma Freight') === 1 && tagOf('Alpha Logistics') === 0 && tagOf('Beta Cargo') === 0, JSON.stringify(rowsPassed));
+  check('L3 limite igual a hoje não leva "já passou" no cartão', /embarque até 13\/11\./.test(await text('.sim-answer')) && (await page.locator('.sim-figures .passed-tag').count()) === 0, await text('.sim-answer'));
+  await go('#executivo?aba=simulador&chegada=2026-12-03');
+  check('L3 hoje + 20: antes do menor trânsito, sem tabela', /anterior ao menor trânsito/.test(await text('.sim-result')) && (await page.locator('.sim-agents-table').count()) === 0);
   await go('#executivo?aba=simulador');
   const above = await page.evaluate(() => document.querySelector('.sim-answer').getBoundingClientRect().bottom <= innerHeight);
   check('S7 resultado acima da dobra', above);
