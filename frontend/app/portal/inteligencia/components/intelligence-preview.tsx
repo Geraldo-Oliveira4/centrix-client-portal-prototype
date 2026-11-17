@@ -39,7 +39,7 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
       const q = here.toString();
       window.history.replaceState(window.history.state, '', window.location.pathname + (q ? '?' + q : '') + window.location.hash);
     }
-    setSource('/prototypes/centrix-inteligencia/index.html?embed=1&v=20261116-subabas-1' + (entry.current ? '&' + entry.current : '') + (window.location.hash || '#' + initialSection));
+    setSource('/prototypes/centrix-inteligencia/index.html?embed=1&v=20261117-ajustes-1' + (entry.current ? '&' + entry.current : '') + (window.location.hash || '#' + initialSection));
   }, [initialSection]);
 
   // "Primeiros passos": abrir a Inteligência conclui "Ver sua Inteligência";
@@ -86,8 +86,36 @@ export function IntelligencePreview({ initialSection = 'executivo' }: { initialS
     return () => { iframe.removeEventListener('load', loaded); disconnect(); };
   }, [source, initialSection]);
 
+  // B6 (17/11/2026): a altura do iframe acompanha a janela, para nada ficar
+  // inalcançável com zoom alto ou janela baixa, e sem duas barras de rolagem
+  // brigando. Com espaço, o iframe ocupa o que sobra abaixo do cabeçalho do
+  // portal e a página não rola. Sem espaço (zoom de 125% a 200%), ele ocupa a
+  // janela inteira menos a faixa presa ao topo; a página rola uma vez para
+  // tirar o cabeçalho, e o iframe rola por dentro. Quando um painel abre lá
+  // dentro, o iframe se põe inteiro na tela (`revealFrame`, no protótipo).
+  useEffect(() => {
+    const iframe = frame.current;
+    if (!iframe) return;
+    const MIN_FIT = 480;
+    const fit = () => {
+      const banner = document.querySelector<HTMLElement>('main > .sticky');
+      const sticky = banner ? banner.getBoundingClientRect().height : 0;
+      const top = iframe.getBoundingClientRect().top + window.scrollY;
+      const below = Math.max(0, document.documentElement.scrollHeight - (top + iframe.offsetHeight));
+      const room = window.innerHeight - top - below;
+      const next = Math.round(room >= MIN_FIT ? room : Math.max(320, window.innerHeight - sticky - 8));
+      if (Math.abs(iframe.offsetHeight - next) > 1) iframe.style.height = next + 'px';
+      iframe.style.scrollMarginTop = sticky + 'px';
+    };
+    fit();
+    const ro = new ResizeObserver(() => fit());
+    ro.observe(document.body);
+    window.addEventListener('resize', fit);
+    return () => { ro.disconnect(); window.removeEventListener('resize', fit); };
+  }, [source]);
+
   return source ? <>
     <style>{`@media(max-width:767px){main:has(iframe[data-intelligence])>header{flex-wrap:wrap;gap:8px}}`}</style>
-    <iframe data-intelligence ref={frame} src={source} title="Inteligência Centrix" className="block w-full border-0" style={{ height: 'calc(100dvh - 150px)', minHeight: 580 }} />
+    <iframe data-intelligence ref={frame} src={source} title="Inteligência Centrix" className="block w-full border-0" style={{ height: 'calc(100dvh - 150px)', minHeight: 320 }} />
   </> : <p role="status">Carregando Inteligência…</p>;
 }

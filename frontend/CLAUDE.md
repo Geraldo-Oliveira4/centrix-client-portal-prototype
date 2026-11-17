@@ -1657,8 +1657,8 @@ telas React antigas.
 - **Introdução de primeira entrada** em três passos
   (`centrix:inteligencia:onboarding-visto`; `?onboarding=1` força; espera as
   boas-vindas do portal fecharem). O passo 2 grava a mesma personalização.
-- **"Ver detalhe"** de cada bloco sai de UM mapa
-  (`IntelPersonalize.DETAIL_LINKS`); os destinos ainda estão a validar.
+- **"Ver detalhe"**: UM por bloco, no canto inferior direito, de UM mapa por
+  bloco (`IntelPersonalize.BLOCKS` + `DETAIL_LINKS`); destinos a validar.
 - **Ficha lateral** (~410px, `&sel=`): três indicadores + só o que não está na
   linha da tabela; o resto fica em "Mais detalhes". Em Agentes, "Compromissos
   do serviço" fica recolhido abaixo da lista.
@@ -1696,6 +1696,30 @@ telas React antigas.
   Auditoria de partida em `docs/auditoria-visual-inteligencia.md`.
 - Totais por agente, rota e exportador estão travados em
   `intel-subabas.test.cjs` (reconciliação).
+
+**Ajustes gerais (17/11/2026), revisão com o Vitor e o Vinicius.** Simulador fora.
+
+- **Comparativo**: mês de calendário compara com o mês anterior INTEIRO (mês até
+  o corte, com o mesmo trecho do mês anterior); janela móvel, com a janela
+  anterior de mesma duração (`IntelEngine.previousRange`/`calendarMonth`).
+- **Minigráfico** sob os números é BARRA do próprio recorte
+  (`IntelEngine.subSeries`): por mês (> 45 dias), por semana (8 a 45), ou
+  anterior × atual. As bases das barras somam a base do período. Critério de
+  tipo de gráfico comentado em `intel-page.js` (ESCOLHA DO GRÁFICO).
+- **Dobras** (`intel-folds.js`, puro): uma chave por seção; Evolução e
+  Performance em acordeão na Visão geral.
+- **Card/tema desligado fica esmaecido**, clicável, com "Desativado"
+  (`IntelPersonalize.cardStates`/`activate`); nunca só opacidade.
+- **Fonte e fórmula num mapa só** (`intel-sources.js`): só a Entrega final tem
+  fonte afirmada (sistema de gestão) e o aviso de cliente integrado; o resto é
+  "Fonte a confirmar". Nada de nome de sistema, tabela ou coluna ali.
+- **Vocabulário**: "Agente(s) de carga"; `intel-vocab.test.cjs` falha se
+  "cargas" voltar (o Simulador fica fora da varredura).
+- **Acento como sinal gráfico** é `--accent-mark` (≥ 3:1 nos dois temas,
+  `intel-contrast.test.cjs`); `--accent` só como superfície com texto.
+- **Iframe**: a altura acompanha a janela (`IntelligencePreview`), e o iframe se
+  põe inteiro na tela quando abre painel, ficha ou introdução (`revealFrame`).
+- Roteiro de navegador nos três motores: `node scripts/intel-browser-check.cjs`.
 
 
 Quatro abas (`layout.tsx`): `performance/`, `agentes/`, `executivo/` e

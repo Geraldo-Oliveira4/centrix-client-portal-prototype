@@ -76,13 +76,44 @@ test('amostra pequena: menos de 3 embarques esconde a variação e marca o selo'
 
 test('uma base de comparação: o período anterior tem a mesma duração e termina na véspera', () => {
   assert.deepEqual(E.previousRange({ start: '2026-06-16', end: '2026-09-13' }), { start: '2026-03-18', end: '2026-06-15', days: 90 });
-  assert.deepEqual(E.previousRange({ start: '2026-09-01', end: '2026-09-30' }), { start: '2026-08-02', end: '2026-08-31', days: 30 });
   assert.match(E.comparisonCaption({ start: '2026-06-16', end: '2026-09-13' }), /18\/03\/2026 a 15\/06\/2026, 90 dias/);
   const range = { start: '2026-06-16', end: '2026-09-13' };
   const cur = E.inRange(D.operations, range), prev = E.inRange(D.operations, E.previousRange(range));
   const k = E.kpi(D, 'ready', cur, prev);
   assert.equal(k.variation.delta, D.metric('ready', cur).rate - D.metric('ready', prev).rate);
   assert.match(k.variation.text, /do período anterior$/);
+});
+
+// A1 (17/11/2026): "Mês passado" comparado com "mês anterior" é mês FECHADO.
+test('mês de calendário compara com o mês anterior inteiro (meses de 30 e 31 dias)', () => {
+  // setembro (30) contra agosto (31): o mês anterior inteiro, não os 30 dias antes
+  assert.deepEqual(E.previousRange({ start: '2026-09-01', end: '2026-09-30' }), { start: '2026-08-01', end: '2026-08-31', days: 31, calendar: 'month' });
+  // outubro (31) contra setembro (30)
+  assert.deepEqual(E.previousRange({ start: '2026-10-01', end: '2026-10-31' }), { start: '2026-09-01', end: '2026-09-30', days: 30, calendar: 'month' });
+  // março contra fevereiro (28) e janeiro contra dezembro do ano anterior
+  assert.deepEqual(E.previousRange({ start: '2026-03-01', end: '2026-03-31' }), { start: '2026-02-01', end: '2026-02-28', days: 28, calendar: 'month' });
+  assert.deepEqual(E.previousRange({ start: '2026-01-01', end: '2026-01-31' }), { start: '2025-12-01', end: '2025-12-31', days: 31, calendar: 'month' });
+  assert.match(E.comparisonCaption({ start: '2026-10-01', end: '2026-10-31' }), /mês anterior inteiro \(01\/09\/2026 a 30\/09\/2026, 30 dias\)/);
+  assert.match(E.periodStrip({ start: '2026-10-01', end: '2026-10-31' }, 'Mês passado', 5), /comparado com 01\/09\/2026 a 30\/09\/2026/);
+});
+test('mês até o corte compara com o mesmo trecho do mês anterior, limitado ao fim dele', () => {
+  assert.deepEqual(E.previousRange({ start: '2026-11-01', end: '2026-11-13' }), { start: '2026-10-01', end: '2026-10-13', days: 13, calendar: 'month-to-date' });
+  assert.deepEqual(E.previousRange({ start: '2026-03-01', end: '2026-03-30' }), { start: '2026-02-01', end: '2026-02-28', days: 28, calendar: 'month-to-date' });
+});
+test('janela móvel continua comparando com a janela anterior de mesmo tamanho', () => {
+  assert.deepEqual(E.previousRange({ start: '2026-08-16', end: '2026-11-13' }), { start: '2026-05-18', end: '2026-08-15', days: 90 });
+  assert.deepEqual(E.previousRange({ start: '2026-10-15', end: '2026-11-13' }), { start: '2026-09-15', end: '2026-10-14', days: 30 });
+  // atravessar a virada do mês não faz da janela um mês de calendário
+  assert.deepEqual(E.previousRange({ start: '2026-09-01', end: '2026-10-15' }), { start: '2026-07-18', end: '2026-08-31', days: 45 });
+  assert.equal(E.calendarMonth({ start: '2026-09-02', end: '2026-09-30' }), null);
+});
+test('mês fechado: a variação compara os dois meses inteiros, com os embarques de cada um', () => {
+  const cur = { start: '2026-09-01', end: '2026-09-30' }, prev = E.previousRange(cur);
+  const a = E.inRange(D.operations, cur), b = E.inRange(D.operations, prev);
+  assert.ok(b.every((o) => o.readyPlan.startsWith('2026-08')));
+  assert.equal(b.length, D.operations.filter((o) => o.readyPlan.startsWith('2026-08')).length, 'o mês anterior entra inteiro, do dia 1 ao 31');
+  const k = E.kpi(D, 'port', a, b);
+  if (k.variation) assert.equal(k.variation.delta, D.metric('port', a).rate - D.metric('port', b).rate);
 });
 
 test('série mensal: 6 meses terminando no mês do fim do período, calculada dos dados', () => {
@@ -263,4 +294,35 @@ test('Como é calculado: todo KPI tem as quatro linhas preenchidas', () => {
   assert.match(E.kpiDefinition(D, 'port', f(''))[1].text, /porto ou aeroporto de descarga/);
   const withExp = E.kpiDefinition(D, 'port', f('exp=nord'))[3].text;
   assert.match(withExp, /Exportador \(Nordwerk Industrial\)/);
+});
+
+// C1 (17/11/2026): minigráfico de barras por subperíodo do recorte.
+test('minigráfico: por mês acima de 45 dias, com as bases somando a do período', () => {
+  const r = { start: '2026-06-16', end: '2026-09-13' }, cur = E.inRange(D.operations, r);
+  const s = E.subSeries(D, 'port', D.operations, r);
+  assert.equal(s.grain, 'month'); assert.equal(s.legend, 'por mês');
+  assert.deepEqual(s.bars.map((b) => [b.start, b.end]), [['2026-06-16', '2026-06-30'], ['2026-07-01', '2026-07-31'], ['2026-08-01', '2026-08-31'], ['2026-09-01', '2026-09-13']]);
+  assert.equal(s.bars.reduce((n, b) => n + b.base, 0), D.metric('port', cur).eligible.length);
+  assert.equal(s.bars.reduce((n, b) => n + (b.good || 0), 0), D.metric('port', cur).good);
+  assert.match(E.barText('port', s.bars[1]), /^Jul 2026: \d+ de \d+ \(\d+%\)$/);
+  assert.match(E.barText('port', s.bars[0]), /^Jun 2026 \(16\/06 a 30\/06\)/);
+});
+test('minigráfico: por semana num mês (segunda a domingo), contagem e frete somam o período', () => {
+  const r = { start: '2026-08-01', end: '2026-08-31' }, cur = E.inRange(D.operations, r);
+  const s = E.subSeries(D, 'count', D.operations, r);
+  assert.equal(s.grain, 'week'); assert.equal(s.legend, 'por semana');
+  assert.equal(s.bars[0].start, '2026-08-01'); assert.equal(s.bars[1].start, '2026-08-03', 'a segunda semana começa numa segunda');
+  assert.equal(s.bars.at(-1).end, '2026-08-31');
+  assert.equal(s.bars.reduce((n, b) => n + b.value || n, 0), cur.length);
+  const f = E.subSeries(D, 'freight', D.operations, r);
+  assert.equal(f.bars.reduce((n, b) => n + (b.value || 0), 0), D.metric('freight', cur).total || 0);
+});
+test('minigráfico: período curto vira duas barras, anterior × atual, iguais quando os valores são iguais', () => {
+  const r = { start: '2026-09-08', end: '2026-09-13' };
+  const s = E.subSeries(D, 'count', D.operations, r);
+  assert.equal(s.grain, 'compare'); assert.equal(s.bars.length, 2);
+  assert.deepEqual([s.bars[0].start, s.bars[0].end], [E.previousRange(r).start, E.previousRange(r).end]);
+  const twin = D.operations.slice(0, 4).map((o, i) => ({ ...o, readyPlan: i < 2 ? '2026-09-03' : '2026-09-10' }));
+  const t = E.subSeries(D, 'count', twin, r);
+  assert.equal(t.bars[0].value, t.bars[1].value);
 });

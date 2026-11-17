@@ -123,7 +123,7 @@
   /** As colunas de cada aba, todas factuais (Passo 0d). A primeira é o nome. */
   const COLUMNS = {
     exp: [['name', 'Exportador'], ['country', 'País'], ['n', 'Embarques'], ['ready', 'Prontidão no prazo'], ['docs', 'Documentação sem correção'], ['port', 'Chegada ao destino no prazo'], ['freightAvg', 'Frete médio']],
-    ag: [['name', 'Agente de cargas'], ['n', 'Embarques'], ['routes', 'Rotas atendidas'], ['transitMedian', 'Trânsito mediano'], ['port', 'Chegada ao destino no prazo'], ['final', 'Entrega final no prazo'], ['audit', 'Cobrança sem diferença'], ['freightAvg', 'Frete médio']],
+    ag: [['name', 'Agente de carga'], ['n', 'Embarques'], ['routes', 'Rotas atendidas'], ['transitMedian', 'Trânsito mediano'], ['port', 'Chegada ao destino no prazo'], ['final', 'Entrega final no prazo'], ['audit', 'Cobrança sem diferença'], ['freightAvg', 'Frete médio']],
     rota: [['name', 'Rota'], ['n', 'Embarques'], ['agents', 'Agentes'], ['transitMedian', 'Trânsito mediano'], ['port', 'Chegada ao destino no prazo'], ['final', 'Entrega final no prazo'], ['freightAvg', 'Frete médio']],
   };
   /**
@@ -135,7 +135,7 @@
   const COLUMN_GROUPS = {
     exp: [
       { label: 'Depende do exportador', keys: ['ready', 'docs'] },
-      { label: 'Resultado da operação', keys: ['port', 'freightAvg'], tip: 'O resultado também depende do agente de cargas e da rota. Um desvio sozinho não atribui responsabilidade.' },
+      { label: 'Resultado da operação', keys: ['port', 'freightAvg'], tip: 'O resultado também depende do agente de carga e da rota. Um desvio sozinho não atribui responsabilidade.' },
     ],
   };
   /**
@@ -387,7 +387,21 @@
     return selection ? `Aba ${label} · ${nameOf(D, selection.dim, selection.id)}` : `Aba ${label}`;
   }
 
-  const api = { MIN_SAMPLE, RATE_KEYS, FACT_MIN_BASE, FACT_METRICS, FACT_EMPTY, rateRange, recortFact, concentrationLine, pairGroups, pairStats, agentRouteContext, routeAgents, exporterServers, COLUMN_GROUPS, LEAD_COLUMNS, TAB_OF_DIM, originParam, readOrigin, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
+  /**
+   * "Cobrança sem diferença" (A6, 17/11/2026): NENHUM indicador fica sem número.
+   * Sem conferência concluída a leitura é "0 de 0 conferências", com a frase
+   * explicativa em segundo plano, nunca só o texto. Formato a validar com o time.
+   */
+  function auditFigure(m) {
+    const base = (m && m.base) || 0, good = base ? (m.good ?? 0) : 0;
+    return {
+      main: `${good} de ${base}`,
+      unit: base === 1 ? 'conferência' : 'conferências',
+      note: base ? null : 'nenhuma conferência concluída neste recorte',
+      pct: base ? m.rate : null,
+    };
+  }
+  const api = { auditFigure, MIN_SAMPLE, RATE_KEYS, FACT_MIN_BASE, FACT_METRICS, FACT_EMPTY, rateRange, recortFact, concentrationLine, pairGroups, pairStats, agentRouteContext, routeAgents, exporterServers, COLUMN_GROUPS, LEAD_COLUMNS, TAB_OF_DIM, originParam, readOrigin, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelTabs = api;
 })(typeof window !== 'undefined' ? window : globalThis);

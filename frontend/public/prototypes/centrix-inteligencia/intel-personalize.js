@@ -34,17 +34,25 @@
   const CARD_IDS = CARDS.map((c) => c.id);
 
   /**
-   * Destino do "Ver detalhe" de cada bloco. UM MAPA SÓ, de propósito: os
-   * destinos ainda serão validados com o time (ver a PR), e trocar um deles tem
-   * de ser trocar uma linha. `portal` = rota do portal; `aba` = submódulo da
-   * própria Inteligência. Card fora do mapa não mostra o link.
+   * "Ver detalhe": UM POR BLOCO (A3, 17/11/2026), discreto no canto inferior
+   * direito. Um bloco pode juntar mais de um card (o nível 1 é Entrega final +
+   * funil num card só); por isso o mapa é por BLOCO, e `BLOCKS` diz quais cards
+   * moram em cada um. O link aparece quando qualquer card do bloco está ligado.
+   * `portal` = rota do portal; `aba` = submódulo da própria Inteligência. Bloco
+   * fora do mapa não mostra link (Evolução: o gráfico já é o detalhe).
    */
+  const BLOCKS = {
+    resultado: ['entrega_final', 'funil'],
+    frete: ['frete'],
+    embarques: ['embarques'],
+    evolucao: ['evolucao_prazo', 'evolucao_frete'],
+    trechos: ['trechos'],
+  };
   const DETAIL_LINKS = {
-    entrega_final: { kind: 'portal', href: '/portal/embarques', name: 'Meus Embarques' },
-    funil: { kind: 'portal', href: '/portal/embarques', name: 'Meus Embarques' },
+    resultado: { kind: 'portal', href: '/portal/embarques', name: 'Meus Embarques' },
     frete: { kind: 'aba', aba: 'rotas', name: 'Rotas' },
     embarques: { kind: 'portal', href: '/portal/embarques', name: 'Meus Embarques' },
-    trechos: { kind: 'aba', aba: 'agentes', name: 'Agentes de carga' },
+    trechos: { kind: 'aba', aba: 'rotas', name: 'Rotas' },
   };
 
   const defaults = () => ({ themes: [...THEME_IDS], enabled_cards: [...CARD_IDS] });
@@ -79,12 +87,51 @@
   function visibleCards(state) {
     return normalize(state).enabled_cards;
   }
-  /** Para o painel: os temas escolhidos, cada um com os seus cards. */
+  /**
+   * Para o painel e o passo 2 da introdução: TODOS os temas, cada um com os seus
+   * cards (B1, 17/11/2026). Tema desligado NÃO some: vem com `on: false`, e a
+   * tela o desenha esmaecido, com "Desativado" e o caminho para ativar.
+   */
   function cardsByTheme(state) {
     const s = normalize(state);
-    return THEMES.filter(([id]) => s.themes.includes(id)).map(([id, label]) => ({
-      id, label, cards: CARDS.filter((c) => c.theme === id).map((c) => ({ ...c, on: s.enabled_cards.includes(c.id) })),
+    return THEMES.map(([id, label]) => ({
+      id, label, on: s.themes.includes(id),
+      cards: CARDS.filter((c) => c.theme === id).map((c) => ({ ...c, on: s.enabled_cards.includes(c.id) })),
     }));
+  }
+  /**
+   * Cada card com o motivo de estar desligado, para a Visão geral desenhar o
+   * esmaecido no lugar dele: `off` = null (ligado), 'theme' (o tema está
+   * desligado) ou 'card' (o tema está ligado e o card não).
+   */
+  function cardStates(state) {
+    const s = normalize(state);
+    return CARDS.map((c) => ({ ...c, off: s.enabled_cards.includes(c.id) ? null : s.themes.includes(c.theme) ? 'card' : 'theme' }));
+  }
+  /**
+   * "Ativar este tema" / "Ativar este cartão": o clique no esmaecido. Tema
+   * desligado volta com os cards dele ligados (a mesma regra de toggleTheme);
+   * card desligado de tema ligado só liga a si mesmo.
+   */
+  function activate(state, id) {
+    const s = normalize(state), card = CARDS.find((c) => c.id === id);
+    if (!card) return s;
+    if (!s.themes.includes(card.theme)) return toggleTheme(s, card.theme);
+    return setCard(s, id, true);
+  }
+  /**
+   * Feedback de saída da introdução (B5, 17/11/2026): o que a pessoa decidiu no
+   * passo 2. "Você escolheu: Prazo e Volume (6 cartões)"; se pulou, "Você
+   * manteve a visão padrão" (ou "a sua visão atual", quando ela já era outra).
+   */
+  function choiceSummary(state, skipped) {
+    const s = normalize(state);
+    if (skipped) return isDefault(s) ? 'Você manteve a visão padrão' : 'Você manteve a sua visão atual';
+    if (!s.themes.length) return 'Você desligou todos os temas (0 cartões)';
+    const names = THEMES.filter(([id]) => s.themes.includes(id)).map(([, l]) => l);
+    const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`;
+    const n = s.enabled_cards.length;
+    return `Você escolheu: ${list} (${n} ${n === 1 ? 'cartão' : 'cartões'})`;
   }
   const isDefault = (state) => JSON.stringify(normalize(state)) === JSON.stringify(defaults());
 
@@ -109,7 +156,7 @@
     try { storage.setItem(ONBOARDING_KEY, '1'); return true; } catch { return false; }
   }
 
-  const api = { THEMES, CARDS, STORE_KEY, ONBOARDING_KEY, DETAIL_LINKS, defaults, normalize, toggleTheme, setCard, visibleCards, cardsByTheme, isDefault, load, save, clear, onboardingSeen, markOnboardingSeen };
+  const api = { THEMES, CARDS, STORE_KEY, ONBOARDING_KEY, BLOCKS, DETAIL_LINKS, defaults, normalize, toggleTheme, setCard, visibleCards, cardsByTheme, cardStates, activate, choiceSummary, isDefault, load, save, clear, onboardingSeen, markOnboardingSeen };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelPersonalize = api;
 })(typeof window !== 'undefined' ? window : globalThis);
