@@ -320,3 +320,16 @@ test('F3: a cobertura de hoje traz a de b com o percentual entre parênteses, se
   const r = plan([30, 31, 32, 33].map((t) => op('x', t)), { target: S.addDays(TODAY, 31) });
   assert.match(S.resultText(r).today, /\*\*2 de 4\*\* \(50%\) embarques parecidos/);
 });
+
+// ---------------------- L1: o acordeão mostra só o que o cartão não diz ---
+test('L1: resultText().extra traz a cobertura pelo P90 e pela mediana e a margem, sem a cobertura de hoje', () => {
+  const ops = [[30, 4], [31, 5], [32, 6], [33, 9]].map(([t, l]) => op('x', t, l));
+  const r = plan(ops, { target: S.addDays(TODAY, 50) });
+  const [cover, margin] = S.resultText(r).extra;
+  assert.match(plain(cover), new RegExp(`^Embarcar até \\d\\d/\\d\\d faz ${r.coverP90.good} de ${r.coverP90.base} embarques parecidos chegarem ao porto até \\d\\d/\\d\\d \\(P90 do trânsito\\); até \\d\\d/\\d\\d, ${r.coverMedian.good} de ${r.coverMedian.base} \\(mediana\\)\\.$`));
+  assert.equal(margin, `Margem até a chegada ao porto: ${r.margin} dias.`);
+  assert.doesNotMatch(cover + margin, /Embarcando hoje|Para a entrega final/);
+  const emb = plan(ops, { mode: 'embarcar', departure: S.addDays(TODAY, 1) });
+  assert.match(S.resultText(emb).extra[0], /^Somando a perna nacional \(P90 de \d+ dias\), a entrega final seria por volta de \d\d\/\d\d \(mediana\) e \d\d\/\d\d \(P90\)\.$/);
+  assert.deepEqual(S.resultText(plan([30, 31, 32].map((t) => op('x', t)), { mode: 'embarcar' })).extra, []);
+});

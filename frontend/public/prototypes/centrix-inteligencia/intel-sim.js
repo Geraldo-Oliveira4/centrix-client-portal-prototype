@@ -372,6 +372,11 @@
    * reserva de dias (o P90 dela) descontada da data-alvo, e nenhuma cobertura é
    * atribuída à entrega final. Datas em destaque vêm entre ** **; a tela troca
    * por negrito. Só para o estado ok.
+   *
+   * L1 (17/11/2026): `extra` é o que a frase longa diz e o cartão de resposta
+   * NÃO diz (o acordeão mostra só isso em "O resultado por extenso"): no modo
+   * chegar, a cobertura pelo P90 e pela mediana e a margem; no modo embarcar,
+   * a entrega final pela mediana. Só texto: os números são os mesmos do plano.
    */
   const ddmmOf = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
   const abOf = (c) => `${c.good} de ${c.base}`;
@@ -388,10 +393,12 @@
         : `Para a chegada ao ${place} até ${ddmmOf(t.target)}, ${cover}`;
       const today = `Embarcando hoje (${ddmmOf(r.today)}), **${abOf(r.coverToday)}** (${r.coverToday.pct}%) embarques parecidos chegaram ao ${place} até ${port}. ${final ? `Margem até a chegada ao ${place}` : 'Margem até a data-alvo'}: ${nd(r.margin)}.`;
       const note = final ? `A reserva de dias da etapa final é o P${HIGH_PERCENTILE} dela somado ao P${HIGH_PERCENTILE} do trânsito; por isso é conservadora. A cobertura contada vale só para a chegada ao ${place}.` : null;
-      return { head, today, note };
+      const margin = `${final ? `Margem até a chegada ao ${place}` : 'Margem até a data-alvo'}: ${nd(r.margin)}.`;
+      return { head, today, note, extra: [`E${cover.slice(1)}`, margin] };
     }
     const head = `Embarcando em ${ddmmOf(t.departure)}, ${abOf(r.coverArrivalMedian)} embarques parecidos chegaram ao ${place} até **${ddmmOf(r.arrivalMedian)}** (mediana) e ${abOf(r.coverArrivalP90)} até **${ddmmOf(r.arrivalP90)}** (P90)${final ? `; somando a perna nacional (P${HIGH_PERCENTILE} de ${nd(r.leg.p90)}), a entrega final seria por volta de ${ddmmOf(r.finalMedian)} (mediana) e ${ddmmOf(r.finalP90)} (P90)` : ''}.`;
-    return { head, today: null, note: null };
+    const extra = final ? [`Somando a perna nacional (P${HIGH_PERCENTILE} de ${nd(r.leg.p90)}), a entrega final seria por volta de ${ddmmOf(r.finalMedian)} (mediana) e ${ddmmOf(r.finalP90)} (P${HIGH_PERCENTILE}).`] : [];
+    return { head, today: null, note: null, extra };
   }
 
   const AGENT_SORT = {

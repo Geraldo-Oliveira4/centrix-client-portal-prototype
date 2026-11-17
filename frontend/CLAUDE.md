@@ -1761,6 +1761,12 @@ quando embarcar, em que rota e com qual agente de carga?".
   `intel-browser-check.cjs` confere ≤ 4 blocos de texto antes da tabela e que
   nenhuma frase da versão anterior (`SIM_BASELINE`) sumiu da página. Texto
   novo de explicação vai para o acordeão, não para o cartão.
+- **Acordeão sem repetição (L1)**: no máximo cinco seções, nesta ordem — De
+  onde vem o histórico · O que é medido · O resultado por extenso · Fórmula ·
+  Limites. Cada fato uma vez: registro, período e modal só em Limites; "O
+  resultado por extenso" só com `IntelSim.resultText().extra` (o que o cartão
+  não diz); o aviso de integração ali é frase, o bloco destacado é do cartão.
+  Repetição removida entra em `SIM_MOVED` com o fragmento que a substitui.
 
 
 Quatro abas (`layout.tsx`): `performance/`, `agentes/`, `executivo/` e

@@ -61,30 +61,40 @@ async function roteiro(page, base) {
 // único, tabela de 5/7 colunas, acordeão) e acessibilidade (rótulos, foco,
 // teclado, contraste AA no claro e no escuro).
 //
-// SIM_BASELINE: todo o texto explicativo que o Simulador mostrava na main antes
-// do E1 a E4 (mesma URL de data fixa, chegada=2026-12-27), sem as repetições do
-// selo. Depois do enxugamento ele precisa estar inteiro na página, à vista ou
-// dentro do acordeão "Como é calculado e limites": nada sumiu do produto.
+// SIM_BASELINE: o texto explicativo que o Simulador mostrava antes do
+// enxugamento (PR #32, mesma URL de data fixa, chegada=2026-12-27), quebrado em
+// fragmentos de informação. L1 (17/11/2026) tirou do acordeão o que aparecia
+// duas vezes; por isso a conferência tem duas partes:
+//   - SIM_BASELINE: fragmentos únicos, que precisam estar na página tal qual;
+//   - SIM_MOVED: cada repetição removida e os fragmentos que continuam dizendo
+//     a mesma coisa (no cartão, em Limites ou na Fórmula). Todos precisam estar.
+// Nenhuma informação única pode sumir: frase nova de explicação entra aqui.
 const SIM_BASELINE = [
-  "Referência agregada da Freitas · 52 de 59 embarques com chegada registrada",
-  "Disponível para clientes integrados ao sistema de gestão. Não faz parte da versão sem integração.",
-  "Chegada ao destino (porto ou aeroporto de descarga): trânsito mediano 34 dias, P90 37 dias · 52 embarques com saída e chegada",
-  "Entrega final = chegada ao destino + perna nacional (desembaraço e transporte até o cliente): mediana 6 dias, P90 9 dias · 36 embarques com chegada e entrega. Entra como reserva de dias (o P90), sem cobertura contada.",
-  "Para a entrega final até 27/12, a carga precisa chegar ao porto até 18/12 (reserva de 9 dias para desembaraço e transporte, o P90 dessa etapa). Embarcar até 11/11 (já passou) faz 48 de 52 embarques parecidos chegarem ao porto até 18/12 (P90 do trânsito); até 14/11, 30 de 52 (mediana).",
-  "Embarcando hoje (13/11), 36 de 52 (69%) embarques parecidos chegaram ao porto até 18/12. Margem até a chegada ao porto: 35 dias.",
-  "A reserva de dias da etapa final é o P90 dela somado ao P90 do trânsito; por isso é conservadora. A cobertura contada vale só para a chegada ao porto.",
-  "Referência agregada da Freitas: Fonte a confirmar. Perna nacional: Fonte a confirmar.",
-  "Trânsito = chegada ao destino − saída, em dias corridos. Mediana e P90 (o menor trânsito que cobre 90% dos casos, sempre um trânsito que aconteceu). Margem até a data-alvo = dias entre o embarque e a data-alvo. Cobertura = embarques do histórico cujo trânsito coube na margem ÷ embarques com saída e chegada; ela vale sempre para a chegada ao porto ou aeroporto. Variação do trânsito = P90 − mediana. Embarque limite = data da chegada ao porto − P90 do trânsito (ou − mediana). Com Entrega final, a chegada ao porto precisa acontecer até a data-alvo menos uma reserva de dias para desembaraço e transporte: o P90 da perna nacional (chegada → entrega ao cliente). Essa reserva somada ao P90 do trânsito é conservadora, e nenhuma cobertura é contada para a entrega final. Menos de 3 trânsitos: sem cálculo.",
-  "Últimos 12 meses, pela data de saída, de 13/11/2025 até hoje. O P90 existe para mostrar a cauda; épocas de pico podem variar. O período do painel não se aplica ao Simulador.",
-  "Só entram embarques com chegada registrada. Os que ainda estão em trânsito ou sem registro ficam fora, o que pode fazer o histórico parecer melhor do que é.",
-  "Marítimo e aéreo nunca se misturam. Modal sem base não simula.",
-  "A referência agregada é recortada só por rota, modal, tipo de carga e período; os filtros globais valem para \"Meus embarques\".",
-  "Histórico, não garantia. O resultado descreve o que aconteceu, não o que vai acontecer. A Freitas não se compromete com a data.",
-  "Só embarques com chegada registrada. Os que estão em trânsito ou sem registro ficam fora, o que pode fazer o histórico parecer melhor do que é. Nesta simulação: 52 de 59 embarques com chegada registrada.",
-  "Período: últimos 12 meses. O P90 mostra a cauda; épocas de pico podem variar.",
-  "Modal separado: marítimo e aéreo nunca se misturam; modal sem base não simula.",
-  "Dado, não veredito: as colunas são fatos do histórico, sem nota nem ranking. Com menos de 3 embarques, “Amostra pequena” e nenhuma cobertura calculada. O prometido é o que a proposta diz; o histórico mostra quantas vezes ele foi cumprido.",
-  "Sem nota, ranking nem recomendação. Custos ficam fora desta prévia."
+  'Referência agregada da Freitas: Fonte a confirmar. Perna nacional: Fonte a confirmar.',
+  'Disponível para clientes integrados ao sistema de gestão. Não faz parte da versão sem integração.',
+  'Chegada ao destino (porto ou aeroporto de descarga): trânsito mediano 34 dias, P90 37 dias · 52 embarques com saída e chegada',
+  'Entrega final = chegada ao destino + perna nacional (desembaraço e transporte até o cliente): mediana 6 dias, P90 9 dias · 36 embarques com chegada e entrega. Entra como reserva de dias (o P90), sem cobertura contada.',
+  'Embarcar até 11/11 (já passou) faz 48 de 52 embarques parecidos chegarem ao porto até 18/12 (P90 do trânsito); até 14/11, 30 de 52 (mediana).',
+  'Margem até a chegada ao porto: 35 dias.',
+  'Trânsito = chegada ao destino − saída, em dias corridos. Mediana e P90 (o menor trânsito que cobre 90% dos casos, sempre um trânsito que aconteceu). Margem até a data-alvo = dias entre o embarque e a data-alvo. Cobertura = embarques do histórico cujo trânsito coube na margem ÷ embarques com saída e chegada; ela vale sempre para a chegada ao porto ou aeroporto. Variação do trânsito = P90 − mediana. Embarque limite = data da chegada ao porto − P90 do trânsito (ou − mediana). Com Entrega final, a chegada ao porto precisa acontecer até a data-alvo menos uma reserva de dias para desembaraço e transporte: o P90 da perna nacional (chegada → entrega ao cliente). Essa reserva somada ao P90 do trânsito é conservadora, e nenhuma cobertura é contada para a entrega final. Menos de 3 trânsitos: sem cálculo.',
+  'pela data de saída, de 13/11/2025 até hoje',
+  'O período do painel não se aplica ao Simulador.',
+  'A referência agregada é recortada só por rota, modal, tipo de carga e período; os filtros globais valem para "Meus embarques".',
+  'Histórico, não garantia. O resultado descreve o que aconteceu, não o que vai acontecer. A Freitas não se compromete com a data.',
+  'Só embarques com chegada registrada. Os que estão em trânsito ou sem registro ficam fora, o que pode fazer o histórico parecer melhor do que é. Nesta simulação: 52 de 59 embarques com chegada registrada.',
+  'Período: últimos 12 meses. O P90 mostra a cauda; épocas de pico podem variar.',
+  'Modal separado: marítimo e aéreo nunca se misturam; modal sem base não simula.',
+  'Dado, não veredito: as colunas são fatos do histórico, sem nota nem ranking. Com menos de 3 embarques, “Amostra pequena” e nenhuma cobertura calculada. O prometido é o que a proposta diz; o histórico mostra quantas vezes ele foi cumprido.',
+  'Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.',
+];
+const SIM_MOVED = [
+  ['Referência agregada da Freitas · 52 de 59 embarques com chegada registrada', ['Referência agregada da Freitas', 'Nesta simulação: 52 de 59 embarques com chegada registrada.']],
+  ['Para a entrega final até 27/12, a carga precisa chegar ao porto até 18/12 (reserva de 9 dias para desembaraço e transporte, o P90 dessa etapa).', ['Entrega final até 27/12 = chegada ao porto até 18/12 + reserva de 9 dias (P90 da etapa final).', 'perna nacional (desembaraço e transporte até o cliente)']],
+  ['Embarcando hoje (13/11), 36 de 52 (69%) embarques parecidos chegaram ao porto até 18/12.', ['36 de 52 (69%)', 'embarcando hoje (13/11): chegaram ao porto até 18/12']],
+  ['A reserva de dias da etapa final é o P90 dela somado ao P90 do trânsito; por isso é conservadora. A cobertura contada vale só para a chegada ao porto.', ['Essa reserva somada ao P90 do trânsito é conservadora, e nenhuma cobertura é contada para a entrega final.', 'ela vale sempre para a chegada ao porto ou aeroporto']],
+  ['Últimos 12 meses, pela data de saída, de 13/11/2025 até hoje. O P90 existe para mostrar a cauda; épocas de pico podem variar. O período do painel não se aplica ao Simulador.', ['Período: últimos 12 meses. O P90 mostra a cauda; épocas de pico podem variar.', 'pela data de saída, de 13/11/2025 até hoje', 'O período do painel não se aplica ao Simulador.']],
+  ['Só entram embarques com chegada registrada. Os que ainda estão em trânsito ou sem registro ficam fora, o que pode fazer o histórico parecer melhor do que é.', ['Só embarques com chegada registrada. Os que estão em trânsito ou sem registro ficam fora, o que pode fazer o histórico parecer melhor do que é.']],
+  ['Marítimo e aéreo nunca se misturam. Modal sem base não simula.', ['Modal separado: marítimo e aéreo nunca se misturam; modal sem base não simula.']],
 ];
 
 async function roteiroSimulador(page, base) {
@@ -140,10 +150,20 @@ async function roteiroSimulador(page, base) {
   await go('#executivo?aba=simulador&chegada=2026-12-27&como=1');
   check('E3 deep link como=1 abre o acordeão', (await page.getAttribute('#sim-como-t', 'aria-expanded')) === 'true');
   const all = (await raw('#aba-simulador')).replace(/\s+/g, ' ');
-  const missing = SIM_BASELINE.filter((ph) => !all.includes(ph));
-  check(`E3 nenhum texto de antes se perdeu (${SIM_BASELINE.length} frases)`, missing.length === 0, missing.map((m) => m.slice(0, 50)).join(' | '));
+  const missing = [...SIM_BASELINE, ...SIM_MOVED.flatMap(([, now]) => now)].filter((ph) => !all.includes(ph));
+  check(`E3/L1 nenhuma informação de antes se perdeu (${SIM_BASELINE.length} frases únicas, ${SIM_MOVED.length} repetições removidas com o equivalente na página)`, missing.length === 0, missing.map((m) => m.slice(0, 50)).join(' | '));
+  // L1: cada frase uma vez no acordeão; no máximo cinco seções, na ordem; o resultado por extenso não repete o cartão.
+  const times = (txt, ph) => txt.split(ph).length - 1;
+  const accText = await raw('#sim-como-body');
+  const counts = ['Só embarques com chegada registrada', 'Período: últimos 12 meses', 'Modal separado'].map((ph) => times(accText, ph));
+  check('L1 "Só embarques com chegada registrada", "Período: últimos 12 meses" e "Modal separado" uma vez cada no acordeão', counts.every((n) => n === 1), counts.join('/'));
+  const secs = await page.$$eval('#sim-como-body .sim-como-sec h3', (els) => els.map((e) => e.textContent));
+  check('L1 até cinco seções, na ordem', secs.join('|') === 'De onde vem o histórico|O que é medido|O resultado por extenso|Fórmula|Limites', secs.join('|'));
+  const extenso = await page.evaluate(() => [...document.querySelectorAll('#sim-como-body .sim-como-sec')].find((x) => x.querySelector('h3').textContent === 'O resultado por extenso')?.textContent || '');
+  check('L1 "O resultado por extenso" não repete o cartão', /faz \d+ de \d+ embarques parecidos/.test(extenso) && /Margem até/.test(extenso) && !/Embarcando hoje|Para a entrega final|Para a chegada/.test(extenso), extenso.slice(0, 80));
+  check('L1 aviso de integração no acordeão é frase, não bloco destacado', (await page.locator('#sim-como-body .integrated-notice').count()) === 0 && /Disponível para clientes integrados/.test(await raw('#sim-como-body .sim-source')));
   const inAcc = await raw('#sim-como-body');
-  check('E3 o acordeão contém as notas, as definições, a reserva e "Dado, não veredito"', ['Histórico, não garantia.', 'Só embarques com chegada registrada.', 'Período: últimos 12 meses', 'Modal separado', 'Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.', 'Dado, não veredito', 'Chegada ao destino (porto ou aeroporto de descarga)', 'Entrega final = chegada ao destino', 'por isso é conservadora', 'vale só para a chegada ao porto', '52 de 59 embarques com chegada registrada', 'Disponível para clientes integrados'].every((x) => inAcc.includes(x)));
+  check('E3 o acordeão contém as notas, as definições, a reserva e "Dado, não veredito"', ['Histórico, não garantia.', 'Só embarques com chegada registrada.', 'Período: últimos 12 meses', 'Modal separado', 'Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.', 'Dado, não veredito', 'Chegada ao destino (porto ou aeroporto de descarga)', 'Entrega final = chegada ao destino', 'Essa reserva somada ao P90 do trânsito é conservadora', 'vale sempre para a chegada ao porto', '52 de 59 embarques com chegada registrada', 'Disponível para clientes integrados'].every((x) => inAcc.includes(x)));
   check('E5/E4 data passada: frase neutra e "já passou" na tabela', /o embarque limite para essa data já passou/.test(await text('.sim-answer')) && (await page.locator('.sim-agents-table .passed-tag').count()) >= 1, await text('.sim-answer'));
   check('F3 sem escala "de 10" no Simulador', !/\b\d+ de 10\b|Cobre/.test(await raw('#aba-simulador')));
   const measures = await raw('.sim-measures');

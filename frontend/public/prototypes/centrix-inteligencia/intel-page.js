@@ -597,29 +597,27 @@ function simNotes(r) {
   return `<ul class="sim-notes" aria-label="Sobre este resultado"><li><b>Histórico, não garantia.</b> O resultado descreve o que aconteceu, não o que vai acontecer. A Freitas não se compromete com a data.</li><li><b>Só embarques com chegada registrada.</b> Os que estão em trânsito ou sem registro ficam fora, o que pode fazer o histórico parecer melhor do que é.${reg}</li><li><b>Período:</b> ${esc(IS.windowLabel(r.task.window).toLowerCase())}. O P90 mostra a cauda; épocas de pico podem variar.</li><li><b>Modal separado:</b> marítimo e aéreo nunca se misturam; modal sem base não simula.</li></ul>`;
 }
 const boldMd = txt => esc(txt).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-/** A frase longa do motor (F2), por extenso: o cartão de resposta a resume. */
-function simFullText(r, withNote = true) {
-  if (!r || r.state !== 'ok') return '';
-  const rt = IS.resultText(r);
-  return `<p class="sim-full">${boldMd(rt.head)}</p>${rt.today ? `<p class="sim-cover">${boldMd(rt.today)}</p>` : ''}${withNote && rt.note ? `<p class="sim-reserve-note">${esc(rt.note)}</p>` : ''}`;
-}
-/* ACORDEÃO "Como é calculado e limites" (E3). Fechado por padrão, numa linha;
-   aberto, todo o texto explicativo de antes, reorganizado em seções curtas:
-   fonte e aviso de integração, definições, o resultado por extenso, a reserva
-   da entrega final, a fórmula e os limites. Nada saiu do produto, só da vista.
-   `como=1` abre (deep link); o botão mantém o parâmetro sem nova navegação. */
+/* ACORDEÃO "Como é calculado e limites" (E3; L1, 17/11/2026). Fechado por
+   padrão, numa linha; aberto, no máximo cinco seções, nesta ordem: De onde vem
+   o histórico · O que é medido · O resultado por extenso · Fórmula · Limites.
+   Cada informação aparece UMA vez (L1): "Só embarques com chegada registrada",
+   "Período" e "Modal separado" moram só em Limites; "Fórmula" guarda só a
+   janela exata e a nota do período do painel; "O resultado por extenso" só o
+   que o cartão de resposta não diz (IntelSim.resultText().extra); a reserva
+   conservadora já está na Fórmula. O aviso de integração, que o cartão destaca,
+   aqui é uma frase da fonte. `como=1` abre (deep link). */
 const simComoOpen = () => params.get('como') === '1';
 function simComo(s, task, r) {
   const open = simComoOpen(), ok = r.state === 'ok';
-  const lines = IS.howCalculated(D, s.gf, task, D.cutoff, window.IntelSources);
-  const notice = !ok && r.source === 'referencia' && window.IntelSources ? IntelSources.noticeOf('sim_reference') : null;
+  const line = label => (IS.howCalculated(D, s.gf, task, D.cutoff, window.IntelSources).find(l => l.label === label) || {}).text || '';
   const sec = (title, body) => (body ? `<section class="sim-como-sec"><h3>${title}</h3>${body}</section>` : '');
-  const note = ok && task.mode === 'chegar' ? IS.resultText(r).note : null;
-  const body = sec('De onde vem o histórico', (ok ? simSourceLine(r) : '') + (notice ? `<p class="integrated-notice">${esc(notice)}</p>` : ''))
+  const start = IS.windowStart(task.window, D.cutoff);
+  const janela = `<p><b>Janela do histórico:</b> ${start ? `pela data de saída, de ${start.split('-').reverse().join('/')} até hoje` : 'todos os embarques com saída até hoje'}. O período do painel não se aplica ao Simulador.</p>`;
+  const extra = ok ? IS.resultText(r).extra : [];
+  const body = sec('De onde vem o histórico', simSourceLine(r, line('Fonte')))
     + sec('O que é medido', ok ? simMeasures(r) : '')
-    + sec('O resultado por extenso', simFullText(r, false))
-    + sec('Reserva da entrega final', note ? `<p class="sim-reserve-note">${esc(note)}</p>` : '')
-    + sec('Fórmula e histórico', `<dl class="sim-how">${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl>`)
+    + sec('O resultado por extenso', extra.map(x => `<p class="sim-full">${boldMd(x)}</p>`).join(''))
+    + sec('Fórmula', `<p>${esc(line('Fórmula'))}</p>${janela}<p><b>Filtros que se aplicam:</b> ${esc(line('Filtros que se aplicam'))}</p>`)
     + sec('Limites', `${simNotes(r)}<p class="sim-limit">Dado, não veredito: as colunas são fatos do histórico, sem nota nem ranking. Com menos de ${IS.MIN_SAMPLE} embarques, “Amostra pequena” e nenhuma cobertura calculada. O prometido é o que a proposta diz; o histórico mostra quantas vezes ele foi cumprido.</p><p class="sim-limit">Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.</p>`);
   return `<section class="sim-como" id="sim-como" aria-labelledby="sim-como-t"><h2 class="sim-como-h"><button type="button" class="sim-como-toggle" id="sim-como-t" data-action="sim-como" aria-expanded="${open}" aria-controls="sim-como-body"><span class="sim-como-title">Como é calculado e limites</span><small>Fonte, definições, reserva e limites do histórico</small><span class="fold-toggle" aria-hidden="true"></span></button></h2><div class="sim-como-body" id="sim-como-body" ${open ? '' : 'hidden'}>${body}</div></section>`;
 }
@@ -745,14 +743,15 @@ function simAnswerCard(r) {
 /* S2: o que está sendo calculado, sempre nomeado. Chegada ao destino sempre
    que houver base; Entrega final só com base da perna nacional, e com o aviso
    de integração do mapa de fontes. */
-/* S5: de onde vem o histórico, sempre rotulado, com a cobertura de registro e,
-   para a referência agregada, o aviso de integração. O fallback agente → rota
-   aparece numa linha. */
+/* S5/L1: de onde vem o histórico (a fonte de IntelSim.howCalculated), o agente
+   em foco, o fallback agente → rota e, para a referência agregada, o aviso de
+   integração como frase (o bloco destacado fica só no cartão). A base "a de b
+   com chegada registrada" está em Limites, uma vez. */
 let simOtherHasBase = false;
-function simSourceLine(r) {
+function simSourceLine(r, fonte) {
   const notice = r.source === 'referencia' && window.IntelSources ? IntelSources.noticeOf('sim_reference') : null;
-  const who = r.level === 'agent' ? ` · ${esc(r.focusName)} nesta rota` : r.fallback ? '' : '';
-  return `<p class="sim-source"><b>${esc(IS.sourceLabel(r.source))}</b>${who} · ${r.registered.with} de ${r.registered.total} embarques com chegada registrada</p>${r.fallback ? `<p class="sim-fallback">${esc(r.fallback)}</p>` : ''}${notice ? `<p class="integrated-notice">${esc(notice)}</p>` : ''}`;
+  const who = r.level === 'agent' ? ` Números de ${esc(r.focusName)} nesta rota.` : '';
+  return `<p class="sim-source">${esc(fonte)}${who}${notice ? ` ${esc(notice)}` : ''}</p>${r.fallback ? `<p class="sim-fallback">${esc(r.fallback)}</p>` : ''}`;
 }
 function simMeasures(r) {
   const days = v => String(v).replace('.', ',');
