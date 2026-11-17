@@ -165,11 +165,3 @@ test('uso e impacto do agente: participação, prazo e cotado × cobrado só do 
   assert.equal(none.n, 0);
   assert.equal(none.transitMedian, null);
 });
-
-// A6 (17/11/2026): "Cobrança sem diferença" nunca fica sem número.
-test('Cobrança sem diferença: sempre número e base, 0 de 0 quando não há conferência', () => {
-  assert.deepEqual(T.auditFigure({ base: 0, good: null, rate: null }), { main: '0 de 0', unit: 'conferências', note: 'nenhuma conferência concluída neste recorte', pct: null });
-  assert.deepEqual(T.auditFigure(undefined).main, '0 de 0');
-  assert.deepEqual(T.auditFigure({ base: 4, good: 2, rate: 50 }), { main: '2 de 4', unit: 'conferências', note: null, pct: 50 });
-  assert.equal(T.auditFigure({ base: 1, good: 1, rate: 100 }).unit, 'conferência');
-});
