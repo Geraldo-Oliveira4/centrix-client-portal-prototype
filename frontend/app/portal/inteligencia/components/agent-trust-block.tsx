@@ -28,7 +28,7 @@ import { EvidenceBody, evidenceFootnote, useEvidence } from './evidence-block';
  * `justify-center` só age quando este card é o MAIS BAIXO do par (cliente sem
  * histórico de embarque, uma proposta só): aí o grid o estica na altura do
  * Mercado e sem isto o conteúdo ficaria grudado no topo. No caso comum, em que
- * este card é o mais alto, não sobra folga e o efeito é nulo.
+ * este card é o mais alto, não sobra espaço e o efeito é nulo.
  */
 export function AgentTrustBlock({
   quotation,

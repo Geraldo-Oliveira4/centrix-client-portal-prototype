@@ -11,7 +11,7 @@
 //     Sazonalidade, eventos e capacidade não entram.
 //   - Resultado em SEMANAS, nunca em dia: errar a semana muda a vida do cliente,
 //     prometer o dia seria precisão que o histórico não tem.
-//   - Sem veredito (S3, 17/11/2026): "Cabe / Apertado / Não cabe" saíram. O
+//   - Sem veredito (S3, 17/11/2026): o selo antigo de três estados saiu. O
 //     resultado é cobertura empírica, a de b, em faixas neutras ("Cobre 9 de
 //     10"). Ordem padrão por volume, como nas abas.
 //   - Sem custo, saving ou economia: a metodologia de saving está em avaliação.
@@ -113,7 +113,7 @@
     const start = windowStart(task.window, today);
     return [
       { label: 'Fonte', text: `${sourceLabel(task.source)}: ${src(task.source === 'referencia' ? 'sim_reference' : 'sim_transit')}. Perna nacional: ${src('sim_leg')}.` },
-      { label: 'Fórmula', text: `Trânsito = chegada ao destino − saída, em dias corridos. Mediana e P${HIGH_PERCENTILE} (o menor trânsito que cobre ${HIGH_PERCENTILE}% dos casos, sempre um trânsito que aconteceu). Cobertura = embarques do histórico cujo trânsito coube na margem até a data-alvo ÷ embarques com saída e chegada. Embarque limite = data-alvo − P${HIGH_PERCENTILE} (ou − mediana). Com Entrega final, a data-alvo desconta antes a perna nacional (chegada → entrega ao cliente) pelo P${HIGH_PERCENTILE} dela. Menos de ${MIN_SAMPLE} trânsitos: sem cálculo.` },
+      { label: 'Fórmula', text: `Trânsito = chegada ao destino − saída, em dias corridos. Mediana e P${HIGH_PERCENTILE} (o menor trânsito que cobre ${HIGH_PERCENTILE}% dos casos, sempre um trânsito que aconteceu). Margem até a data-alvo = dias entre o embarque e a data-alvo. Cobertura = embarques do histórico cujo trânsito coube na margem até a data-alvo ÷ embarques com saída e chegada. Variação do trânsito = P90 − mediana. Embarque limite = data-alvo − P${HIGH_PERCENTILE} (ou − mediana). Com Entrega final, a data-alvo desconta antes a perna nacional (chegada → entrega ao cliente) pelo P${HIGH_PERCENTILE} dela. Menos de ${MIN_SAMPLE} trânsitos: sem cálculo.` },
       { label: 'Histórico', text: `${windowLabel(task.window)}${start ? `, pela data de saída, de ${start.split('-').reverse().join('/')} até hoje` : ', todos os embarques com saída até hoje'}. O P${HIGH_PERCENTILE} existe para mostrar a cauda; épocas de pico podem variar. O período do painel não se aplica ao Simulador.` },
       { label: 'Registro', text: 'Só entram embarques com chegada registrada. Os que ainda estão em trânsito ou sem registro ficam fora, o que pode fazer o histórico parecer melhor do que é.' },
       { label: 'Modal', text: 'Marítimo e aéreo nunca se misturam. Modal sem base não simula.' },
