@@ -586,9 +586,15 @@ function extraTabContent(tab, s) { return tab === 'simulador' ? simulatorTab(s) 
    recomendação. Hoje = o corte da demonstração (D.cutoff, relativo à data atual ou ?hoje=), o mesmo relógio de
    toda a página. */
 const daysTxt = v => String(v).replace('.', ',');
-function simHow(s) {
+/* HONESTIDADE DO DADO (S6): texto, não alarme. "Como é calculado" no mesmo
+   padrão das outras subabas, e quatro notas curtas sempre à vista. */
+function simNotes(r) {
+  const reg = r.registered && r.registered.total ? ` Nesta simulação: ${r.registered.with} de ${r.registered.total} embarques com chegada registrada.` : '';
+  return `<ul class="sim-notes" aria-label="Sobre este resultado"><li><b>Histórico, não garantia.</b> O resultado descreve o que aconteceu, não o que vai acontecer. A Freitas não se compromete com a data.</li><li><b>Só embarques com chegada registrada.</b> Os que estão em trânsito ou sem registro ficam fora, o que pode fazer o histórico parecer melhor do que é.${reg}</li><li><b>Período:</b> ${esc(IS.windowLabel(r.task.window).toLowerCase())}. O P90 mostra a cauda; épocas de pico podem variar.</li><li><b>Modal separado:</b> marítimo e aéreo nunca se misturam; modal sem base não simula.</li></ul>`;
+}
+function simHow(s, task) {
   const open = openKpiHow.has('sim');
-  const lines = IS.howCalculated(D, s.gf, IS.readWindow(params), D.cutoff);
+  const lines = IS.howCalculated(D, s.gf, task, D.cutoff, window.IntelSources);
   return `<button type="button" class="kpi-how" data-action="kpi-how" data-id="sim" aria-expanded="${open}" aria-controls="kpi-how-sim">${ICON.info} Como é calculado</button><div class="kpi-how-body sim-how" id="kpi-how-sim" ${open ? '' : 'hidden'}><span class="example-tag">Dado de exemplo</span><dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
 }
 /* Recorte do Simulador: a JANELA de histórico dele (não o período do painel) +
@@ -718,7 +724,7 @@ function simulatorTab(s) {
   const ref = window.IntelSimReference;
   const r = IS.plan(D, ops, task, today, { ref, focus });
   simOtherHasBase = r.state === 'no_history' && IS.hasBase(D, ops, ref, task, r.source === 'meus' ? 'referencia' : 'meus', today);
-  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${r.state === 'ok' && r.agents.length ? simAgentTable(r) : ''}${simHow(s)}<p class="chart-caption">Histórico, não garantia. Sem nota nem recomendação. Custos ficam fora desta prévia.</p></section>`;
+  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${r.state === 'ok' && r.agents.length ? simAgentTable(r) : ''}${simHow(s, task)}${simNotes(r)}<p class="chart-caption">Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.</p></section>`;
 }
 function setSimParam(changes) { location.hash = url('executivo', changes); }
 function intelOverview() {

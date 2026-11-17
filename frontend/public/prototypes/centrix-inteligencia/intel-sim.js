@@ -101,16 +101,26 @@
   }
   function windowLabel(key) { return (WINDOWS.find(([id]) => id === key) || WINDOWS[1])[1]; }
 
-  /** As quatro linhas do "Como é calculado" do simulador. */
-  function howCalculated(D, filters, windowKey = DEFAULT_WINDOW, today = D.cutoff) {
+  /**
+   * "Como é calculado" do Simulador (S6): fonte, fórmula, histórico, registro,
+   * modal e filtros, em linguagem de negócio. A FONTE sai do mapa único
+   * (intel-sources.js), que diz "Fonte a confirmar" enquanto não houver
+   * validação.
+   */
+  function howCalculated(D, filters, task, today = D.cutoff, Sources = null) {
     const active = Engine.FILTERS.filter((f) => (filters[f.key] || []).length);
+    const src = (k) => (Sources ? Sources.sourceOf(k) : 'Fonte a confirmar');
+    const start = windowStart(task.window, today);
     return [
-      { label: 'Fonte', text: 'Data de saída e data de chegada ao destino registradas em cada embarque do histórico.' },
-      { label: 'Fórmula', text: `Trânsito = chegada − saída, em dias. Por rota e agente: mediana e P${HIGH_PERCENTILE} (o menor trânsito que cobre ${HIGH_PERCENTILE}% dos casos). Embarque limite = data-alvo − P${HIGH_PERCENTILE} (cobre 9 de 10) ou − mediana (cobre metade). Cobertura = embarques do histórico cujo trânsito coube na margem ÷ embarques com saída e chegada. Menos de ${MIN_SAMPLE} trânsitos: sem estimativa.` },
-      { label: 'Histórico', text: `${windowLabel(windowKey)}${windowStart(windowKey, today) ? `, pela data de saída, de ${windowStart(windowKey, today).split('-').reverse().join('/')} até hoje` : ', todos os embarques com saída até hoje'}. O período do painel não se aplica ao Simulador. Hoje, nesta demonstração, é ${today.split('-').reverse().join('/')}.` },
-      { label: 'Filtros que se aplicam', text: active.length ? `Ativos: ${active.map((f) => `${f.label} (${filters[f.key].map((v) => f.name(D, v)).join(', ')})`).join('; ')}.` : 'Todos os filtros globais (exportador, agente, rota, incoterm, país, SKU).' },
+      { label: 'Fonte', text: `${sourceLabel(task.source)}: ${src(task.source === 'referencia' ? 'sim_reference' : 'sim_transit')}. Perna nacional: ${src('sim_leg')}.` },
+      { label: 'Fórmula', text: `Trânsito = chegada ao destino − saída, em dias corridos. Mediana e P${HIGH_PERCENTILE} (o menor trânsito que cobre ${HIGH_PERCENTILE}% dos casos, sempre um trânsito que aconteceu). Cobertura = embarques do histórico cujo trânsito coube na margem até a data-alvo ÷ embarques com saída e chegada. Embarque limite = data-alvo − P${HIGH_PERCENTILE} (ou − mediana). Com Entrega final, a data-alvo desconta antes a perna nacional (chegada → entrega ao cliente) pelo P${HIGH_PERCENTILE} dela. Menos de ${MIN_SAMPLE} trânsitos: sem cálculo.` },
+      { label: 'Histórico', text: `${windowLabel(task.window)}${start ? `, pela data de saída, de ${start.split('-').reverse().join('/')} até hoje` : ', todos os embarques com saída até hoje'}. O P${HIGH_PERCENTILE} existe para mostrar a cauda; épocas de pico podem variar. O período do painel não se aplica ao Simulador.` },
+      { label: 'Registro', text: 'Só entram embarques com chegada registrada. Os que ainda estão em trânsito ou sem registro ficam fora, o que pode fazer o histórico parecer melhor do que é.' },
+      { label: 'Modal', text: 'Marítimo e aéreo nunca se misturam. Modal sem base não simula.' },
+      { label: 'Filtros que se aplicam', text: task.source === 'referencia' ? 'A referência agregada é recortada só por rota, modal, tipo de carga e período; os filtros globais valem para "Meus embarques".' : active.length ? `Ativos: ${active.map((f) => `${f.label} (${filters[f.key].map((v) => f.name(D, v)).join(', ')})`).join('; ')}.` : 'Todos os filtros globais (exportador, agente, rota, incoterm, país, SKU).' },
     ];
   }
+
 
   // ====================================================== SIMULADOR V2 ===
   // (17/11/2026, revisão com o Vitor e o Vinicius.) A pergunta do analista de

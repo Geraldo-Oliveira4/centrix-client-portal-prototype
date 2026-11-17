@@ -37,12 +37,14 @@
     freight: TO_CONFIRM,
     cargo: TO_CONFIRM,
     count: TO_CONFIRM,
-    sim_reference: TO_CONFIRM,
+    sim_reference: TO_CONFIRM,  // Simulador: referência agregada (S5/S6)
+    sim_transit: TO_CONFIRM,    // Simulador: trânsito dos embarques do cliente
+    sim_leg: TO_CONFIRM,        // Simulador: perna nacional (chegada → entrega)
   };
 
   /** Métricas que só existem para cliente integrado ao sistema de gestão. */
   // A referência agregada do Simulador (S5) só existe para cliente integrado.
-  const INTEGRATED_ONLY = new Set(['final', 'sim_reference']);
+  const INTEGRATED_ONLY = new Set(['final', 'sim_reference', 'sim_leg']);
   const INTEGRATED_NOTICE = 'Disponível para clientes integrados ao sistema de gestão. Não faz parte da versão sem integração.';
 
   const sourceOf = (key) => SOURCES[key] || TO_CONFIRM;
