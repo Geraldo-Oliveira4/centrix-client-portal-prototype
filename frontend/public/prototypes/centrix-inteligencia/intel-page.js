@@ -879,9 +879,20 @@ document.addEventListener('click', e => {
 });
 // Dobras ("Evolução", "Performance", "Compromissos do serviço"): cada uma guarda
 // o PRÓPRIO estado pela chave `data-fold`, que sobrevive ao redesenho.
+// B3: expandir uma seção do acordeão da Visão geral recolhe as outras. O título
+// da seção aberta fica onde o olho está (a de cima pode ter encolhido), sem
+// animação quando a pessoa pede movimento reduzido.
+const reducedMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
 document.addEventListener('toggle', e => {
   const d = e.target; if (!d.dataset || !d.dataset.fold) return;
   folds = IF.setOpen(folds, d.dataset.fold, d.open);
+  if (!d.open) return;
+  let shifted = false;
+  for (const id of IF.closedBy(d.dataset.fold)) {
+    const other = document.querySelector(`details[data-fold="${id}"]`);
+    if (other && other.open) { shifted = shifted || !!(other.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING); other.open = false; }
+  }
+  if (shifted) d.querySelector('summary')?.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
 }, true);
 document.addEventListener('toggle', e => {
   const d = e.target; if (!d.matches || !d.matches('details.fsel')) return;

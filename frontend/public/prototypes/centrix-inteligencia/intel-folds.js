@@ -3,15 +3,19 @@
 // do serviço"). PURO: o estado entra e sai; quem lê o DOM é intel-page.js. Roda
 // no navegador (window.IntelFolds) e sob node --test (intel-folds.test.cjs).
 //
-// Regras (A2, revisão de 17/11/2026):
+// Regras (A2 e B3, revisão de 17/11/2026):
 //   1. UMA CHAVE POR SEÇÃO. Cada dobra tem o próprio estado, guardado pelo id
-//      dela; recolher uma nunca mexe em outra.
-//   2. Seção que não é dobra ("sempre visível") não entra aqui.
+//      dela; RECOLHER uma nunca mexe em outra (A2).
+//   2. ACORDEÃO NA VISÃO GERAL (B3). EXPANDIR uma seção do grupo `geral` recolhe
+//      as outras do mesmo grupo, para a página não ficar sempre longa. Recolher
+//      não abre ninguém. Seções fora de grupo (Compromissos, em Agentes de
+//      carga) são independentes.
+//   3. Seção que não é dobra ("sempre visível") não entra aqui.
 (function (root) {
-  /** Padrão: Evolução e Performance abertas (como sempre foram); Compromissos recolhido. */
-  const DEFAULTS = { evo: true, perf: true, commitments: false };
-  /** Grupos de acordeão (nenhum por enquanto). */
-  const ACCORDION = {};
+  /** Padrão: Evolução aberta (como sempre foi); Performance e Compromissos recolhidos. */
+  const DEFAULTS = { evo: true, perf: false, commitments: false };
+  /** Grupos de acordeão: na mesma página, só uma aberta por vez. */
+  const ACCORDION = { geral: ['evo', 'perf'] };
   const IDS = Object.keys(DEFAULTS);
 
   const defaults = () => ({ ...DEFAULTS });
