@@ -844,3 +844,7 @@ table.compare .sort-button{line-height:1.3;min-width:84px}
 .sim-compare-box{display:inline-grid;place-items:center;width:16px;height:16px;border:1.5px solid currentColor;border-radius:3px;font-size:12px;line-height:1}
 .sim-como-toggle small{font-family:Source,'Segoe UI',sans-serif;letter-spacing:0}
 .sim-como-sec p b{color:var(--ink);font-weight:600}
+/* L2: na tabela do Simulador o selo "Amostra pequena" fica em linha própria,
+   abaixo do número de embarques (não cola no "1"). Só esta tabela; as outras
+   subabas não mudam. */
+.sim-agents-table td .sample-tag{display:block;width:max-content;max-width:100%;margin:4px 0 0;white-space:nowrap}

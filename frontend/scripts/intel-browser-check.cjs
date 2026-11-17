@@ -138,6 +138,17 @@ async function roteiroSimulador(page, base) {
   check('E4 "Comparar com a proposta" liga 7 colunas e grava comparar=1', (await cols()) === 7 && (await page.evaluate(() => location.hash)).includes('comparar=1') && (await page.getAttribute('[data-action="sim-compare"]', 'aria-pressed')) === 'true', await cols());
   await page.click('[data-action="sim-compare"]'); await page.waitForTimeout(250);
   check('E4 desligar volta a 5', (await cols()) === 5);
+  // L2: o selo "Amostra pequena" fica em linha própria, abaixo do número de embarques.
+  const tagGap = async () => page.evaluate(() => {
+    const tag = document.querySelector('.sim-agents-table td .sample-tag'); if (!tag) return null;
+    const range = document.createRange(); range.selectNodeContents(tag.parentElement.firstChild);
+    const num = range.getBoundingClientRect(), t = tag.getBoundingClientRect();
+    return Math.round(t.top - num.bottom);
+  });
+  check('L2 "Amostra pequena" abaixo do número, sem colar', (await tagGap()) >= 2, await tagGap());
+  await page.click('[data-action="sim-compare"]'); await page.waitForTimeout(250);
+  check('L2 idem com "Comparar com a proposta" ligado', (await tagGap()) >= 2, await tagGap());
+  await page.click('[data-action="sim-compare"]'); await page.waitForTimeout(250);
   // E3: acordeão fechado por padrão; o gatilho do cartão abre e rola até ele.
   check('E3 acordeão fechado por padrão', (await page.getAttribute('#sim-como-t', 'aria-expanded')) === 'false' && (await page.evaluate(() => document.querySelector('#sim-como-body').hidden)));
   await page.click('.sim-honesty [data-action="sim-como-open"]'); await page.waitForTimeout(600);
