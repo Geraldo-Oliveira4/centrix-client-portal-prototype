@@ -132,8 +132,14 @@
   const MODES = [['chegar', 'Quero chegar até'], ['embarcar', 'Vou embarcar em']];
   const MODALS = [['maritimo', 'Marítimo'], ['aereo', 'Aéreo'], ['rodoviario', 'Rodoviário']];
   const MODAL_OF = { 'Marítimo': 'maritimo', 'Aéreo': 'aereo', 'Rodoviário': 'rodoviario' };
-  /** O exemplo fictício com que o Simulador abre (S1): rota, modal e data à vista, nunca escondidos. */
-  const EXAMPLE = { route: 'ningbo', modal: 'maritimo', targetDays: 60, departureDays: 14 };
+  /**
+   * O exemplo fictício com que o Simulador abre (S1): rota, modal e data à vista,
+   * nunca escondidos. A data-alvo NÃO é fixa (F1, 17/11/2026): é "hoje + N dias",
+   * com N escolhido pelo próprio motor (exampleTargetDays) para que embarcar hoje
+   * cubra parte do histórico, entre coverMin e coverMax %. `targetDays` é só a
+   * reserva quando não há base para escolher.
+   */
+  const EXAMPLE = { route: 'ningbo', modal: 'maritimo', targetDays: 60, departureDays: 14, coverMin: 40, coverMax: 80 };
   const modalOfRoute = (D, id) => { const r = D.routes.find((x) => x.id === id); return r ? MODAL_OF[r.mode] || '' : ''; };
   const modalLabel = (id) => (MODALS.find(([m]) => m === id) || [null, ''])[1];
 
@@ -151,7 +157,32 @@
     const departure = validIso(get('sembarque')) ? get('sembarque') : blank ? '' : addDays(today, EXAMPLE.departureDays);
     const source = SOURCES.some(([id]) => id === get('sfonte')) ? get('sfonte') : DEFAULT_SOURCE;
     const cargo = ['FCL', 'LCL', 'Carga geral'].includes(get('scarga')) ? get('scarga') : '';
-    return { mode: get('smodo') === 'embarcar' ? 'embarcar' : 'chegar', route, modal, target, departure, window: readWindow(params), blank, promised: readPromised(get('sprom')), source, cargo };
+    // exampleTarget: a data-alvo veio do exemplo, não da URL; withExampleTarget a recalcula.
+    return { mode: get('smodo') === 'embarcar' ? 'embarcar' : 'chegar', route, modal, target, departure, window: readWindow(params), blank, promised: readPromised(get('sprom')), source, cargo, exampleTarget: !blank && !validIso(get('chegada')) };
+  }
+
+  /**
+   * F1: o N do exemplo. O maior N em que embarcar hoje cobre entre coverMin e
+   * coverMax % dos embarques parecidos (a cobertura cresce com N, então a busca
+   * para no primeiro N acima do teto). O MAIOR N deixa o embarque limite pelo
+   * P90 o mais perto possível de hoje. Ele não fica DEPOIS de hoje, e não pode:
+   * limite P90 depois de hoje ⇔ margem ≥ P90 ⇔ cobertura de hoje ≥ 90%. Quem
+   * fica no futuro é o limite pela mediana. Sem base, a reserva EXAMPLE.targetDays.
+   */
+  function exampleTargetDays(D, ops, task, today, opts = {}) {
+    let best = null;
+    for (let n = 1; n <= 365; n++) {
+      const r = plan(D, ops, { ...task, mode: 'chegar', target: addDays(today, n) }, today, opts);
+      if (r.state !== 'ok') continue;
+      if (r.coverToday.pct > EXAMPLE.coverMax) break;
+      if (r.coverToday.pct >= EXAMPLE.coverMin) best = n;
+    }
+    return best == null ? EXAMPLE.targetDays : best;
+  }
+  /** A tarefa com a data-alvo do exemplo calculada sobre o histórico (só quando ela veio do exemplo). */
+  function withExampleTarget(D, ops, task, today, opts = {}) {
+    if (!task.exampleTarget || !task.route || !task.modal) return task;
+    return { ...task, target: addDays(today, exampleTargetDays(D, ops, task, today, opts)) };
   }
 
   /**
@@ -376,7 +407,7 @@
     return '/portal/nova-cotacao?' + q.toString();
   }
 
-  const api = { quotationLink, SOURCES, DEFAULT_SOURCE, sourceLabel, cargoOfRoute, historyMine, historyReference, hasBase, readPromised, writePromised, agentRows, sortAgents, nextAgentSort, DEFAULT_AGENT_SORT, MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, coverageBand, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, simulate, howCalculated, addDays, diffDays, validIso };
+  const api = { exampleTargetDays, withExampleTarget, quotationLink, SOURCES, DEFAULT_SOURCE, sourceLabel, cargoOfRoute, historyMine, historyReference, hasBase, readPromised, writePromised, agentRows, sortAgents, nextAgentSort, DEFAULT_AGENT_SORT, MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, coverageBand, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, simulate, howCalculated, addDays, diffDays, validIso };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelSim = api;
 })(typeof window !== 'undefined' ? window : globalThis);

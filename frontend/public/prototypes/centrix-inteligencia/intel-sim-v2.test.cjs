@@ -220,3 +220,42 @@ test('entrada: exemplo preenchido sem parâmetro; "Limpar" esvazia tudo, inclusi
   assert.deepEqual([old.route, old.target, old.window, old.mode], ['genova', '2026-12-20', '6m', 'chegar']);
   assert.equal(S.readTask(D, new URLSearchParams('smodo=embarcar&sembarque=2026-11-20'), TODAY).departure, '2026-11-20');
 });
+
+// ------------------------------------------------ F1: exemplo com nuance ---
+// A data-alvo do exemplo é "hoje + N", com N escolhido pelo motor, e acompanha
+// ?hoje=. Testado no "hoje" da demonstração das capturas e na data base.
+for (const today of ['2026-11-13', D.cutoff, '2027-03-02']) {
+  test(`F1: exemplo de abertura com cobertura parcial embarcando hoje (hoje = ${today})`, () => {
+    const DD = D.shift(today);
+    const ops = S.inWindow(DD.operations, '12m', today);
+    const raw = S.readTask(DD, new URLSearchParams(''), today);
+    assert.equal(raw.exampleTarget, true);
+    const t = S.withExampleTarget(DD, ops, raw, today, { ref: R });
+    assert.ok(t.target > today, 'data-alvo no futuro');
+    assert.equal(t.target, S.addDays(today, S.exampleTargetDays(DD, ops, raw, today, { ref: R })), 'relativa ao hoje');
+    const r = S.plan(DD, ops, t, today, { ref: R });
+    assert.equal(r.state, 'ok');
+    assert.ok(r.coverToday.pct >= 40 && r.coverToday.pct <= 80, `cobertura de hoje ${r.coverToday.good} de ${r.coverToday.base}`);
+    assert.ok(r.limitMedian > today, 'o embarque limite pela mediana é posterior a hoje');
+    // O limite P90 fica o mais perto possível de hoje: um dia a mais de data-alvo já passa do teto.
+    const next = S.plan(DD, ops, { ...t, target: S.addDays(t.target, 1) }, today, { ref: R });
+    assert.ok(next.coverToday.pct > S.EXAMPLE.coverMax);
+  });
+}
+test('F1: limite P90 depois de hoje implica cobertura de hoje de 90% ou mais (por isso o exemplo não pede os dois)', () => {
+  const ops = S.inWindow(D.operations, '12m', D.cutoff);
+  const t = S.readTask(D, new URLSearchParams(''), D.cutoff);
+  for (let n = 30; n <= 90; n++) {
+    const r = S.plan(D, ops, { ...t, target: S.addDays(D.cutoff, n) }, D.cutoff, { ref: R });
+    if (r.state === 'ok' && r.limitP90 > D.cutoff) assert.ok(r.coverToday.pct >= 90, `n=${n}`);
+  }
+});
+test('F1: data-alvo na URL vale como está; "Limpar" continua esvaziando tudo', () => {
+  const ops = S.inWindow(D.operations, '12m', TODAY);
+  const fixed = S.readTask(D, new URLSearchParams('chegada=2027-01-12'), TODAY);
+  assert.equal(fixed.exampleTarget, false);
+  assert.equal(S.withExampleTarget(D, ops, fixed, TODAY, { ref: R }).target, '2027-01-12');
+  const blank = S.readTask(D, new URLSearchParams('sinicio=vazio'), TODAY);
+  const b = S.withExampleTarget(D, ops, blank, TODAY, { ref: R });
+  assert.deepEqual([b.route, b.modal, b.target, b.departure], ['', '', '', '']);
+});

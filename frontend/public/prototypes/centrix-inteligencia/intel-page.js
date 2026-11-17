@@ -729,12 +729,15 @@ function simQuoteAction(task, r) {
   return `<p class="sim-action"><a class="button" href="${esc(href)}" target="_top">Solicitar cotação com esta rota e data</a><small>${task.mode === 'chegar' ? 'Leva origem, destino, modal e a data-alvo para a Nova Cotação.' : 'Leva origem, destino e modal para a Nova Cotação.'} Nenhum agente é pré-selecionado.</small></p>`;
 }
 function simulatorTab(s) {
-  const today = D.cutoff, task = IS.readTask(D, params, today);
+  const today = D.cutoff;
+  let task = IS.readTask(D, params, today);
   // Um agente de carga filtrado vira o FOCO do resultado (com fallback para a
   // rota); a tabela continua mostrando todos os agentes da rota.
   const ag = s.gf.ag || [], focus = ag.length === 1 ? ag[0] : null;
   const all = IS.inWindow(D.operations, task.window, today), ops = IE.applyFilters(all, focus ? { ...s.gf, ag: [] } : s.gf);
   const ref = window.IntelSimReference;
+  // F1: sem data-alvo na URL, a do exemplo é "hoje + N", com N escolhido pelo motor.
+  task = IS.withExampleTarget(D, ops, task, today, { ref, focus });
   const r = IS.plan(D, ops, task, today, { ref, focus });
   simOtherHasBase = r.state === 'no_history' && IS.hasBase(D, ops, ref, task, r.source === 'meus' ? 'referencia' : 'meus', today);
   return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${r.state === 'ok' && r.agents.length ? simAgentTable(r) : ''}${simQuoteAction(task, r)}${simHow(s, task)}${simNotes(r)}<p class="chart-caption">Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.</p></section>`;
