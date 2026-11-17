@@ -592,10 +592,17 @@ function simNotes(r) {
   const reg = r.registered && r.registered.total ? ` Nesta simulação: ${r.registered.with} de ${r.registered.total} embarques com chegada registrada.` : '';
   return `<ul class="sim-notes" aria-label="Sobre este resultado"><li><b>Histórico, não garantia.</b> O resultado descreve o que aconteceu, não o que vai acontecer. A Freitas não se compromete com a data.</li><li><b>Só embarques com chegada registrada.</b> Os que estão em trânsito ou sem registro ficam fora, o que pode fazer o histórico parecer melhor do que é.${reg}</li><li><b>Período:</b> ${esc(IS.windowLabel(r.task.window).toLowerCase())}. O P90 mostra a cauda; épocas de pico podem variar.</li><li><b>Modal separado:</b> marítimo e aéreo nunca se misturam; modal sem base não simula.</li></ul>`;
 }
-function simHow(s, task) {
+const boldMd = txt => esc(txt).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+/** A frase longa do motor (F2), por extenso: o cartão de resposta a resume. */
+function simFullText(r) {
+  if (!r || r.state !== 'ok') return '';
+  const rt = IS.resultText(r);
+  return `<p class="fact-text">${boldMd(rt.head)}</p>${rt.today ? `<p class="sim-cover">${boldMd(rt.today)}</p>` : ''}${rt.note ? `<p class="sim-reserve-note">${esc(rt.note)}</p>` : ''}`;
+}
+function simHow(s, task, r) {
   const open = openKpiHow.has('sim');
   const lines = IS.howCalculated(D, s.gf, task, D.cutoff, window.IntelSources);
-  return `<button type="button" class="kpi-how" data-action="kpi-how" data-id="sim" aria-expanded="${open}" aria-controls="kpi-how-sim">${ICON.info} Como é calculado</button><div class="kpi-how-body sim-how" id="kpi-how-sim" ${open ? '' : 'hidden'}><span class="example-tag">Dado de exemplo</span><dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
+  return `<button type="button" class="kpi-how" data-action="kpi-how" data-id="sim" aria-expanded="${open}" aria-controls="kpi-how-sim">${ICON.info} Como é calculado</button><div class="kpi-how-body sim-how" id="kpi-how-sim" ${open ? '' : 'hidden'}><span class="example-tag">Dado de exemplo</span>${simFullText(r)}<dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
 }
 /* Recorte do Simulador: a JANELA de histórico dele (não o período do painel) +
    os filtros globais. Também alimenta a barra de filtros quando a aba está aberta. */
@@ -643,20 +650,64 @@ function simResultBand(r) {
   const t = r.task, ask = t.mode === 'chegar' ? 'a data-alvo' : 'a data de embarque';
   if (r.state === 'no_route') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Escolha a origem → destino para simular.</p></div>`;
   if (r.state === 'no_modal') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Escolha o modal. Marítimo e aéreo nunca se misturam no histórico.</p></div>`;
-  if (r.state === 'no_date') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Escolha ${ask}.</p></div>`;
+  if (r.state === 'no_date') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Escolha ${ask}.</p>${simQuoteAction(t, r)}</div>`;
   if (r.state === 'no_history') {
     const other = r.source === 'meus' ? 'referencia' : 'meus';
     const alt = simOtherHasBase ? `<button type="button" class="button secondary" data-action="sim-source" data-id="${other}">Usar ${esc(IS.sourceLabel(other).replace('Referência', 'a referência').replace('Meus', 'meus'))}</button>` : '';
-    return `<div class="fact-band sim-result" role="status"><p class="fact-text">Sem histórico suficiente para esta rota e modal.</p><p class="fact-conc">${esc(IS.sourceLabel(r.source))}: ${r.route.n} ${r.route.n === 1 ? 'embarque' : 'embarques'} com saída e chegada registradas; são precisos ${IS.MIN_SAMPLE}. Nada é simulado sem base.</p>${alt}</div>`;
+    return `<div class="fact-band sim-result" role="status"><p class="fact-text">Sem histórico suficiente para esta rota e modal.</p><p class="fact-conc">${esc(IS.sourceLabel(r.source))}: ${r.route.n} ${r.route.n === 1 ? 'embarque' : 'embarques'} com saída e chegada registradas; são precisos ${IS.MIN_SAMPLE}. Nada é simulado sem base.</p>${alt}${simQuoteAction(t, r)}</div>`;
   }
-  if (r.state === 'past') return `<div class="fact-band sim-result" role="status"><p class="fact-text">${t.mode === 'chegar' ? 'A data-alvo' : 'A data de embarque'} já passou: hoje, nesta demonstração, é ${fullDate(r.today)}.</p></div>`;
-  if (r.state === 'before_min') return `<div class="fact-band sim-result" role="status"><p class="fact-text">A data-alvo é anterior ao menor trânsito do histórico.</p><p class="fact-conc">Embarcando hoje (${dm(r.today)}), o trânsito mais curto registrado (${r.route.min} dias, em ${r.route.n} embarques) chegaria ao destino em ${dm(IS.addDays(r.today, r.route.min))}${r.basis === 'final' ? `, e a perna nacional até o cliente levou até ${r.leg.p90} dias (P90)` : ''}.</p></div>`;
-  // F2: a frase sai do motor (IntelSim.resultText): cobertura da chegada ao
-  // porto, perna nacional como reserva de dias, nenhuma cobertura da entrega final.
-  const rt = IS.resultText(r), bold = txt => esc(txt).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-  const head = `<p class="fact-text">${bold(rt.head)}</p>${rt.today ? `<p class="sim-cover">${bold(rt.today)}</p>` : ''}${rt.note ? `<p class="sim-reserve-note">${esc(rt.note)}</p>` : ''}`;
-  // S7: o resultado PRIMEIRO; a fonte e as medidas vêm logo abaixo.
-  return `<div class="fact-band sim-result" role="status">${head}${simSourceLine(r)}${simMeasures(r)}</div>`;
+  if (r.state === 'past') return `<div class="fact-band sim-result" role="status"><p class="fact-text">${t.mode === 'chegar' ? 'A data-alvo' : 'A data de embarque'} já passou: hoje, nesta demonstração, é ${fullDate(r.today)}.</p>${simQuoteAction(t, r)}</div>`;
+  if (r.state === 'before_min') return `<div class="fact-band sim-result" role="status"><p class="fact-text">A data-alvo é anterior ao menor trânsito do histórico.</p><p class="fact-conc">Embarcando hoje (${dm(r.today)}), o trânsito mais curto registrado (${r.route.min} dias, em ${r.route.n} embarques) chegaria ao destino em ${dm(IS.addDays(r.today, r.route.min))}${r.basis === 'final' ? `, e a perna nacional até o cliente levou até ${r.leg.p90} dias (P90)` : ''}.</p>${simQuoteAction(t, r)}</div>`;
+  // E1 (enxuto): o resultado é um CARTÃO DE RESPOSTA, uma frase e três
+  // números. A frase longa do motor (IntelSim.resultText) não some: vai por
+  // extenso para "Como é calculado e limites".
+  return simAnswerCard(r);
+}
+/* CARTÃO DE RESPOSTA (E1). Uma frase curta, uma linha de ancoragem só quando
+   há perna nacional (ou agente em foco), três números lado a lado, a linha
+   "Histórico, não garantia · Como é calculado", o aviso de integração uma vez
+   e o botão de cotação. Datas passadas levam "já passou", sem cor. */
+const passedTag = (iso, today) => (iso < today ? ' <span class="passed-tag">já passou</span>' : '');
+const ndays = n => `${n} ${n === 1 ? 'dia' : 'dias'}`;
+function simFigure(label, value, sub) {
+  return `<div class="sim-fig"><dt>${label}</dt><dd><span class="sim-fig-v">${value}</span>${sub ? `<small>${sub}</small>` : ''}</dd></div>`;
+}
+const simCover = c => `<span class="frac">${c.good} de ${c.base}</span> <small class="pct">(${c.pct}%)</small>`;
+function simAnswerCard(r) {
+  const t = r.task, place = t.modal === 'aereo' ? 'aeroporto' : 'porto', final = r.basis === 'final', today = r.today;
+  const anchors = [];
+  let answer, figs;
+  if (t.mode === 'chegar') {
+    const port = dm(r.portTarget);
+    answer = r.limitP90 < today
+      ? `Para chegar ao ${place} até ${port}: o embarque limite para essa data já passou.`
+      : `Para chegar ao ${place} até ${port}, embarque até <b>${dm(r.limitP90)}</b>.`;
+    if (final) anchors.push(`Entrega final até ${dm(t.target)} = chegada ao ${place} até ${port} + reserva de ${ndays(r.leg.p90)} (P${IS.HIGH_PERCENTILE} da etapa final).`);
+    figs = [
+      simFigure('Embarcar até', dm(r.limitP90) + passedTag(r.limitP90, today), `P${IS.HIGH_PERCENTILE} do trânsito · ${dm(r.limitMedian)} pela mediana${r.limitMedian < today ? ' (já passou)' : ''}`),
+      simFigure(`Chegar ao ${place} até`, port, final ? `data-alvo ${dm(t.target)} − reserva de ${ndays(r.leg.p90)}` : 'a própria data-alvo'),
+      simFigure('Cobertura', simCover(r.coverToday), `embarcando hoje (${dm(today)}): chegaram ao ${place} até ${port}`),
+    ];
+  } else {
+    answer = `Embarcando em ${dm(t.departure)}, chegada ao ${place} até <b>${dm(r.arrivalP90)}</b>.`;
+    if (final) anchors.push(`Entrega final por volta de ${dm(r.finalP90)} = chegada ao ${place} até ${dm(r.arrivalP90)} + reserva de ${ndays(r.leg.p90)} (P${IS.HIGH_PERCENTILE} da etapa final).`);
+    figs = [
+      simFigure('Embarcar em', dm(t.departure), ''),
+      simFigure(`Chegar ao ${place} até`, dm(r.arrivalP90), `P${IS.HIGH_PERCENTILE} do trânsito · ${dm(r.arrivalMedian)} pela mediana`),
+      simFigure('Cobertura', simCover(r.coverArrivalP90), `chegaram até ${dm(r.arrivalP90)} · ${r.coverArrivalMedian.good} de ${r.coverArrivalMedian.base} até ${dm(r.arrivalMedian)} (mediana)`),
+    ];
+  }
+  if (r.level === 'agent') anchors.push(`Números de ${esc(r.focusName)} nesta rota.`);
+  if (r.fallback) anchors.push(esc(r.fallback));
+  const notice = r.source === 'referencia' && window.IntelSources ? IntelSources.noticeOf('sim_reference') : null;
+  return `<div class="fact-band sim-result sim-answer-card" role="status">
+    <p class="sim-answer">${answer}</p>
+    ${anchors.length ? `<p class="sim-anchor">${anchors.join(' ')}</p>` : ''}
+    <dl class="sim-figures">${figs.join('')}</dl>
+    <p class="sim-honesty"><b>Histórico, não garantia</b> <span aria-hidden="true">·</span> <button type="button" class="text-button" data-action="sim-como-open" aria-controls="kpi-how-sim">Como é calculado</button></p>
+    ${notice ? `<p class="integrated-notice">${esc(notice)}</p>` : ''}
+    ${simQuoteAction(t, r)}
+  </div>${simSourceLine(r)}${simMeasures(r)}`;
 }
 /* S2: o que está sendo calculado, sempre nomeado. Chegada ao destino sempre
    que houver base; Entrega final só com base da perna nacional, e com o aviso
@@ -722,7 +773,7 @@ function simQuoteAction(task, r) {
   if (!task.route || !task.modal) return '';
   const hoje = new URLSearchParams(location.search).get('hoje');
   const href = IS.quotationLink(D, task) + (hoje ? '&hoje=' + encodeURIComponent(hoje) : '');
-  return `<p class="sim-action"><a class="button" href="${esc(href)}" target="_top">Solicitar cotação com esta rota e data</a><small>${task.mode === 'chegar' ? 'Leva origem, destino, modal e a data-alvo para a Nova Cotação.' : 'Leva origem, destino e modal para a Nova Cotação.'} Nenhum agente é pré-selecionado.</small></p>`;
+  return `<p class="sim-action"><a class="button" href="${esc(href)}" target="_top">Solicitar cotação com esta rota e data</a><small>${task.mode === 'chegar' ? 'Leva origem, destino, modal e data-alvo.' : 'Leva origem, destino e modal.'} Nenhum agente é pré-selecionado.</small></p>`;
 }
 function simulatorTab(s) {
   const today = D.cutoff;
@@ -736,7 +787,7 @@ function simulatorTab(s) {
   task = IS.withExampleTarget(D, ops, task, today, { ref, focus });
   const r = IS.plan(D, ops, task, today, { ref, focus });
   simOtherHasBase = r.state === 'no_history' && IS.hasBase(D, ops, ref, task, r.source === 'meus' ? 'referencia' : 'meus', today);
-  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${r.state === 'ok' && r.agents.length ? simAgentTable(r) : ''}${simQuoteAction(task, r)}${simHow(s, task)}${simNotes(r)}<p class="chart-caption">Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.</p></section>`;
+  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${r.state === 'ok' && r.agents.length ? simAgentTable(r) : ''}${simHow(s, task, r)}${simNotes(r)}<p class="chart-caption">Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.</p></section>`;
 }
 function setSimParam(changes) { location.hash = url('executivo', changes); }
 function intelOverview() {
@@ -959,6 +1010,7 @@ document.addEventListener('click', e => {
   else if (a === 'onb-open') openOnboarding();
   else if (a === 'gfilter-remove') { const gf = IE.readFilters(params); gf[b.dataset.key] = gf[b.dataset.key].filter(v => v !== b.dataset.value); setGlobalFilters(gf); }
   else if (a === 'gfilter-clear') { openFilterKey = null; setGlobalFilters({}); }
+  else if (a === 'sim-como-open') { openKpiHow.add('sim'); render(); const t = document.querySelector('[data-action="kpi-how"][data-id="sim"]'); if (t) { t.focus({ preventScroll: true }); t.scrollIntoView({ block: 'start', behavior: 'smooth' }); } }
   else if (a === 'kpi-how') {
     const open = b.getAttribute('aria-expanded') !== 'true';
     if (open) openKpiHow.add(id); else openKpiHow.delete(id);
