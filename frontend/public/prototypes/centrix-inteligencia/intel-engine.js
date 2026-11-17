@@ -18,6 +18,7 @@
 //      Com zero, a tela mostra o vazio com "Limpar filtros".
 (function (root) {
   const Insights = typeof module !== 'undefined' && module.exports ? require('./insights.js') : root.Insights;
+  const Sources = typeof module !== 'undefined' && module.exports ? require('./intel-sources.js') : root.IntelSources;
   const MIN_SAMPLE = 3;
   const DAY = 86400000;
   const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -194,7 +195,7 @@
   function kpiDefinition(D, key, filters) {
     const m = (D.metrics || {})[key];
     const source = key === 'count' ? 'Embarques da base filtrados pelo período (compromisso de prontidão).' : (m && m.source) || 'A definir com dados';
-    const formula = KPI_FORMULA[key] || (m && m.definition) || 'A definir com dados';
+    const formula = Sources.formulaOf(key) || KPI_FORMULA[key] || (m && m.definition) || 'A definir com dados';
     const active = FILTERS.filter((f) => (filters[f.key] || []).length);
     const filterLine = (active.length
       ? `Ativos: ${active.map((f) => `${f.label} (${filters[f.key].map((v) => f.name(D, v)).join(', ')})`).join('; ')}.`
