@@ -72,12 +72,24 @@ function variationChip(k) {
 }
 const smallTag = (n, title = 'Com menos de 3 embarques a variação não é mostrada') => `<span class="sample-tag" title="${title}">Amostra pequena (n=${n})</span>`;
 const transitSmallTag = n => smallTag(n, 'Menos de 3 trânsitos com saída e chegada neste par de rota e agente');
-function spark(series) {
-  const pts = series.map((m, i) => ({ i, v: m.value })).filter(p => p.v != null);
-  if (pts.length < 2) return '<svg class="spark" viewBox="0 0 100 28" aria-hidden="true"></svg>';
-  const max = Math.max(...pts.map(p => p.v)), min = Math.min(...pts.map(p => p.v)), span = max - min || 1;
-  const xy = pts.map(p => `${(p.i / (series.length - 1)) * 96 + 2},${24 - ((p.v - min) / span) * 20}`).join(' ');
-  return `<svg class="spark" viewBox="0 0 100 28" aria-hidden="true"><polyline points="${xy}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+/* MINIGRÁFICO DE BARRAS (C1, 17/11/2026), no lugar do traço fino. Uma barra
+   por subperíodo do recorte (IntelEngine.subSeries): por mês, por semana, ou
+   anterior × atual. Cor neutra de um só matiz, eixo começando em zero (taxa de
+   0 a 100%), barra sem registro vira um tique na linha de base. Cada barra diz
+   o que é ("Jul 2026: 12 de 18") no title; a figura inteira, no aria-label. O
+   rótulo e a legenda são HTML a 14px, não texto do SVG que encolhe. */
+const GRAIN_TEXT = { month: 'Por mês', week: 'Por semana', compare: 'Período anterior × período atual' };
+function miniBars(key, series, { compact = false, name = KPI_NAMES[key] } = {}) {
+  const bars = series.bars, max = key === 'count' || key === 'freight' ? Math.max(1, ...bars.map(b => b.value || 0)) : 100;
+  const desc = bars.map(b => IE.barText(key, b)).join('; ');
+  const cols = bars.map(b => {
+    const h = b.value == null ? 0 : Math.max(2, (b.value / max) * 100);
+    return `<span class="mb-col" title="${esc(IE.barText(key, b))}"><span class="mb-bar${b.value == null ? ' none' : ''}" style="height:${h}%"></span></span>`;
+  }).join('');
+  const many = bars.length > 7;
+  const labels = compact ? '' : `<div class="mb-labels" aria-hidden="true">${bars.map((b, i) => `<span>${!many || i === 0 || i === bars.length - 1 ? esc(b.label) : ''}</span>`).join('')}</div>`;
+  const legend = compact ? '' : `<figcaption class="mb-legend">${GRAIN_TEXT[series.grain]}, dentro do período. Passe o mouse numa barra para ver a base.</figcaption>`;
+  return `<figure class="mini-bars${compact ? ' compact' : ''}" style="--n:${bars.length}" role="img" aria-label="${esc(name)}, ${esc(series.legend)}: ${esc(desc)}"><div class="mb-plot">${cols}</div>${labels}${legend}</figure>`;
 }
 function kpiValue(key, k) { return k.value == null ? '—' : key === 'freight' ? money(k.value) : key === 'count' ? String(k.value) : k.value + '%'; }
 /* "Chegada ao destino" = porto ou aeroporto de descarga: o escopo do Centrix vai
@@ -162,32 +174,32 @@ function resultCard(s, vis) {
   const base = IE.applyFilters(D.operations, s.gf);
   let left = '', right = '';
   if (hero) {
-    const k = IE.kpi(D, 'final', s.cur, s.prev), a = D.metric('final', s.cur), series = IE.monthly(D, 'final', base, s.range.end);
+    const k = IE.kpi(D, 'final', s.cur, s.prev), a = D.metric('final', s.cur), series = IE.subSeries(D, 'final', base, s.range);
     const body = k.value == null
       ? '<p class="no-data">Ainda não há entrega final com comprovante neste recorte.</p>'
-      : `<b class="hero-number">${k.value}%</b><div class="hero-var">${k.small ? smallTag(k.n) : variationChip(k)}</div><p class="base-line">${a.good} de ${a.eligible.length} entregas com comprovante · ${s.cur.length - a.eligible.length} ainda em curso</p>${spark(series)}<p class="spark-caption">Taxa mês a mês nos últimos 6 meses, pelo mês do compromisso de prontidão.</p>`;
+      : `<b class="hero-number">${k.value}%</b><div class="hero-var">${k.small ? smallTag(k.n) : variationChip(k)}</div><p class="base-line">${a.good} de ${a.eligible.length} entregas com comprovante · ${s.cur.length - a.eligible.length} ainda em curso</p>${miniBars('final', series)}`;
     left = `<div class="lvl1-hero" id="bloco-destaque"><h2 id="t-destaque">Entrega final no prazo</h2><p class="card-sub">Entregas no destino até o compromisso final original, entre as que têm comprovante.</p>${body}</div>`;
   }
   if (fun) {
     const f = IE.funnel(D, s.cur);
     const rows = f.steps.map(st => {
-      const k = IE.kpi(D, st.key, s.cur, s.prev), series = IE.monthly(D, st.key, base, s.range.end);
+      const k = IE.kpi(D, st.key, s.cur, s.prev), series = IE.subSeries(D, st.key, base, s.range);
       const name = st.key === 'port' ? 'Chegada ao destino<small>porto ou aeroporto de descarga</small>' : st.label;
       const baseTxt = st.base ? `${st.good ?? 0} de ${st.base}${st.key === 'final' ? ' com comprovante' : ' elegíveis'}` : 'sem registro neste recorte';
-      return `<li><div class="fn-name"><span>${name}</span><small>${baseTxt}</small></div><div class="funnel-track" aria-hidden="true"><span style="width:${st.rate || 0}%"></span></div><b class="fn-pct">${st.rate == null ? '<small>sem dado</small>' : st.rate + '%'}</b><span class="fn-var">${variationPts(k)}</span>${spark(series)}${kpiHowButton(st.key)}${kpiHowBody(st.key, s.gf)}</li>`;
+      return `<li><div class="fn-name"><span>${name}</span><small>${baseTxt}</small></div><div class="funnel-track" aria-hidden="true"><span style="width:${st.rate || 0}%"></span></div><b class="fn-pct">${st.rate == null ? '<small>sem dado</small>' : st.rate + '%'}</b><span class="fn-var">${variationPts(k)}</span>${miniBars(st.key, series, { compact: true })}${kpiHowButton(st.key)}${kpiHowBody(st.key, s.gf)}</li>`;
     }).join('');
-    right = `<div class="lvl1-funnel" id="bloco-funil"><h2 id="t-funil">Onde o prazo se perde</h2><p class="card-sub">A mesma carteira em três momentos: quanto chega no prazo a cada etapa.</p><ol class="funnel">${rows}</ol><p class="insight-line accent">${f.drop ? `A maior queda é de <strong>${f.drop.from}</strong> para <strong>${f.drop.to}</strong>: −${f.drop.points} pontos.` : 'Nenhuma queda de prazo entre as etapas neste recorte.'}</p></div>`;
+    right = `<div class="lvl1-funnel" id="bloco-funil"><h2 id="t-funil">Onde o prazo se perde</h2><p class="card-sub">A mesma carteira em três momentos: quanto chega no prazo a cada etapa.</p><ol class="funnel">${rows}</ol><p class="mb-legend funnel-legend">Minigráficos: ${esc(IE.subSeries(D, 'ready', base, s.range).legend)}, dentro do período. Passe o mouse numa barra para ver a base.</p><p class="insight-line accent">${f.drop ? `A maior queda é de <strong>${f.drop.from}</strong> para <strong>${f.drop.to}</strong>: −${f.drop.points} pontos.` : 'Nenhuma queda de prazo entre as etapas neste recorte.'}</p></div>`;
   }
   // A3: o nível 1 é UM bloco, com UM "Ver detalhe" no canto inferior direito.
   return `<section class="card lvl1${hero && fun ? '' : ' single'}" aria-label="O resultado e onde ele se perde">${left}${right}${detailLink('resultado')}</section>`;
 }
 /* NÍVEL 2: apoio. Frete contratado e Embarques no recorte, lado a lado. */
 function supportCard(key, s, cardId) {
-  const k = IE.kpi(D, key, s.cur, s.prev), series = IE.monthly(D, key, s.cur.length ? IE.applyFilters(D.operations, s.gf) : [], s.range.end);
+  const k = IE.kpi(D, key, s.cur, s.prev), series = IE.subSeries(D, key, IE.applyFilters(D.operations, s.gf), s.range);
   const a = key === 'count' ? null : D.metric(key, s.cur);
   const baseTxt = key === 'count' ? `${s.cur.length} de ${s.all.length} no período` : `${a.eligible.length} de ${s.cur.length} com valor`;
   const value = k.value == null ? '<p class="no-data">Sem frete contratado neste recorte.</p>' : `<b class="support-number">${kpiValue(key, k)}</b><div>${k.small ? smallTag(k.n) : variationChip(k)}</div>`;
-  return `<article class="card support" id="bloco-${cardId}" aria-labelledby="t-${cardId}"><div class="support-main"><div class="card-top"><h2 id="t-${cardId}">${KPI_NAMES[key]}</h2>${kpiHowButton(key)}</div>${value}<p class="base-line">${baseTxt}</p></div>${k.value == null ? '' : spark(series)}${kpiHowBody(key, s.gf)}${detailLink(cardId)}</article>`;
+  return `<article class="card support" id="bloco-${cardId}" aria-labelledby="t-${cardId}"><div class="support-main"><div class="card-top"><h2 id="t-${cardId}">${KPI_NAMES[key]}</h2>${kpiHowButton(key)}</div>${value}<p class="base-line">${baseTxt}</p></div>${k.value == null ? '' : miniBars(key, series)}${kpiHowBody(key, s.gf)}${detailLink(cardId)}</article>`;
 }
 /* NÍVEL 3: evolução, recolhível e aberta por padrão. */
 function evolutionBlock(s, vis) {

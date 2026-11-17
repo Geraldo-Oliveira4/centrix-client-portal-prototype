@@ -295,3 +295,34 @@ test('Como é calculado: todo KPI tem as quatro linhas preenchidas', () => {
   const withExp = E.kpiDefinition(D, 'port', f('exp=nord'))[3].text;
   assert.match(withExp, /Exportador \(Nordwerk Industrial\)/);
 });
+
+// C1 (17/11/2026): minigráfico de barras por subperíodo do recorte.
+test('minigráfico: por mês acima de 45 dias, com as bases somando a do período', () => {
+  const r = { start: '2026-06-16', end: '2026-09-13' }, cur = E.inRange(D.operations, r);
+  const s = E.subSeries(D, 'port', D.operations, r);
+  assert.equal(s.grain, 'month'); assert.equal(s.legend, 'por mês');
+  assert.deepEqual(s.bars.map((b) => [b.start, b.end]), [['2026-06-16', '2026-06-30'], ['2026-07-01', '2026-07-31'], ['2026-08-01', '2026-08-31'], ['2026-09-01', '2026-09-13']]);
+  assert.equal(s.bars.reduce((n, b) => n + b.base, 0), D.metric('port', cur).eligible.length);
+  assert.equal(s.bars.reduce((n, b) => n + (b.good || 0), 0), D.metric('port', cur).good);
+  assert.match(E.barText('port', s.bars[1]), /^Jul 2026: \d+ de \d+ \(\d+%\)$/);
+  assert.match(E.barText('port', s.bars[0]), /^Jun 2026 \(16\/06 a 30\/06\)/);
+});
+test('minigráfico: por semana num mês (segunda a domingo), contagem e frete somam o período', () => {
+  const r = { start: '2026-08-01', end: '2026-08-31' }, cur = E.inRange(D.operations, r);
+  const s = E.subSeries(D, 'count', D.operations, r);
+  assert.equal(s.grain, 'week'); assert.equal(s.legend, 'por semana');
+  assert.equal(s.bars[0].start, '2026-08-01'); assert.equal(s.bars[1].start, '2026-08-03', 'a segunda semana começa numa segunda');
+  assert.equal(s.bars.at(-1).end, '2026-08-31');
+  assert.equal(s.bars.reduce((n, b) => n + b.value || n, 0), cur.length);
+  const f = E.subSeries(D, 'freight', D.operations, r);
+  assert.equal(f.bars.reduce((n, b) => n + (b.value || 0), 0), D.metric('freight', cur).total || 0);
+});
+test('minigráfico: período curto vira duas barras, anterior × atual, iguais quando os valores são iguais', () => {
+  const r = { start: '2026-09-08', end: '2026-09-13' };
+  const s = E.subSeries(D, 'count', D.operations, r);
+  assert.equal(s.grain, 'compare'); assert.equal(s.bars.length, 2);
+  assert.deepEqual([s.bars[0].start, s.bars[0].end], [E.previousRange(r).start, E.previousRange(r).end]);
+  const twin = D.operations.slice(0, 4).map((o, i) => ({ ...o, readyPlan: i < 2 ? '2026-09-03' : '2026-09-10' }));
+  const t = E.subSeries(D, 'count', twin, r);
+  assert.equal(t.bars[0].value, t.bars[1].value);
+});

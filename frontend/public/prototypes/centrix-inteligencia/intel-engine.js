@@ -249,6 +249,63 @@
     return out;
   }
 
+  /**
+   * MINIGRÁFICO DO RECORTE (C1, 17/11/2026): uma barra por subperíodo DENTRO do
+   * período escolhido, calculada pela MESMA métrica do número grande (as bases
+   * das barras somam a base do período). Granularidade pelo tamanho do período:
+   * mais de 45 dias, por mês (o primeiro e o último mês podem ser parciais); de
+   * 8 a 45 dias, por semana (segunda a domingo); menos que isso, duas barras,
+   * período anterior × período atual (A1: valores iguais, barras iguais).
+   */
+  const MONTHS_FULL = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const ddmm = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
+  function bucketValue(D, key, group) {
+    const base = baseOf(D, key, group);
+    const a = key === 'count' ? null : D.metric(key, group);
+    return { n: group.length, base, good: a && a.m.ok ? a.good : null, value: base ? valueOf(D, key, group) : null };
+  }
+  function subSeries(D, key, ops, range) {
+    const len = toDay(range.end) - toDay(range.start) + 1;
+    const buckets = [];
+    if (len > 45) {
+      let cur = range.start.slice(0, 7) + '-01';
+      while (cur <= range.end) {
+        const [y, m] = cur.split('-').map(Number);
+        const last = `${cur.slice(0, 7)}-${String(lastDayOf(y, m - 1)).padStart(2, '0')}`;
+        const start = cur < range.start ? range.start : cur, end = last > range.end ? range.end : last;
+        const partial = start !== cur || end !== last;
+        buckets.push({ start, end, label: MONTHS[m - 1], name: `${MONTHS_FULL[m - 1]} ${y}${partial ? ` (${ddmm(start)} a ${ddmm(end)})` : ''}`, partial });
+        cur = fromDay(toDay(last) + 1);
+      }
+    } else if (len >= 8) {
+      let start = range.start;
+      while (start <= range.end) {
+        const dow = (new Date(start + 'T12:00:00Z').getUTCDay() + 6) % 7; // 0 = segunda
+        const sunday = fromDay(toDay(start) + 6 - dow), end = sunday > range.end ? range.end : sunday;
+        buckets.push({ start, end, label: ddmm(start), name: start === end ? `Dia ${ddmm(start)}` : `Semana de ${ddmm(start)} a ${ddmm(end)}`, partial: dow !== 0 || end !== sunday });
+        start = fromDay(toDay(end) + 1);
+      }
+    }
+    if (buckets.length >= 2) {
+      return { grain: len > 45 ? 'month' : 'week', legend: len > 45 ? 'por mês' : 'por semana', bars: buckets.map((b) => ({ ...b, ...bucketValue(D, key, inRange(ops, b)) })) };
+    }
+    const prev = previousRange(range);
+    return {
+      grain: 'compare', legend: 'período anterior × período atual',
+      bars: [
+        { ...prev, label: 'anterior', name: `Período anterior (${ddmm(prev.start)} a ${ddmm(prev.end)})`, ...bucketValue(D, key, inRange(ops, prev)) },
+        { start: range.start, end: range.end, label: 'atual', name: `Período atual (${ddmm(range.start)} a ${ddmm(range.end)})`, ...bucketValue(D, key, inRange(ops, range)) },
+      ],
+    };
+  }
+  /** "Jul 2026: 12 de 18" (taxa), "Jul 2026: 9 embarques", "Jul 2026: US$ 12.400". */
+  function barText(key, bar) {
+    if (!bar.base) return `${bar.name}: sem registro`;
+    if (key === 'count') return `${bar.name}: ${bar.value} ${bar.value === 1 ? 'embarque' : 'embarques'}`;
+    if (key === 'freight') return `${bar.name}: ${usd(bar.value)} (${bar.base} com valor)`;
+    return `${bar.name}: ${bar.good} de ${bar.base} (${bar.value}%)`;
+  }
+
   // ------------------------------------------------------- leituras prontas ---
   const STAGE_KEYS = [['ready', 'Prontidão'], ['port', 'Chegada ao destino'], ['final', 'Entrega final']];
   /** "Onde o prazo se perde": as três taxas em sequência e a maior queda entre elas. */
@@ -316,7 +373,7 @@
     });
   }
 
-  const api = { FILTERS, MIN_SAMPLE, calendarMonth, DESTINATION_HINT, readFilters, writeFilters, activeCount, matches, applyFilters, options, filterOptions, selectAllValues, clearFilter, periodStrip, kpiDefinition, viewSummary, reportContext, previousRange, inRange, comparisonCaption, kpi, monthly, funnel, stageDelays, ranking, questions, commitments, valueOf };
+  const api = { FILTERS, MIN_SAMPLE, calendarMonth, subSeries, barText, DESTINATION_HINT, readFilters, writeFilters, activeCount, matches, applyFilters, options, filterOptions, selectAllValues, clearFilter, periodStrip, kpiDefinition, viewSummary, reportContext, previousRange, inRange, comparisonCaption, kpi, monthly, funnel, stageDelays, ranking, questions, commitments, valueOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelEngine = api;
 })(typeof window !== 'undefined' ? window : globalThis);
