@@ -598,15 +598,40 @@ function simNotes(r) {
 }
 const boldMd = txt => esc(txt).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 /** A frase longa do motor (F2), por extenso: o cartão de resposta a resume. */
-function simFullText(r) {
+function simFullText(r, withNote = true) {
   if (!r || r.state !== 'ok') return '';
   const rt = IS.resultText(r);
-  return `<p class="fact-text">${boldMd(rt.head)}</p>${rt.today ? `<p class="sim-cover">${boldMd(rt.today)}</p>` : ''}${rt.note ? `<p class="sim-reserve-note">${esc(rt.note)}</p>` : ''}`;
+  return `<p class="sim-full">${boldMd(rt.head)}</p>${rt.today ? `<p class="sim-cover">${boldMd(rt.today)}</p>` : ''}${withNote && rt.note ? `<p class="sim-reserve-note">${esc(rt.note)}</p>` : ''}`;
 }
-function simHow(s, task, r) {
-  const open = openKpiHow.has('sim');
+/* ACORDEÃO "Como é calculado e limites" (E3). Fechado por padrão, numa linha;
+   aberto, todo o texto explicativo de antes, reorganizado em seções curtas:
+   fonte e aviso de integração, definições, o resultado por extenso, a reserva
+   da entrega final, a fórmula e os limites. Nada saiu do produto, só da vista.
+   `como=1` abre (deep link); o botão mantém o parâmetro sem nova navegação. */
+const simComoOpen = () => params.get('como') === '1';
+function simComo(s, task, r) {
+  const open = simComoOpen(), ok = r.state === 'ok';
   const lines = IS.howCalculated(D, s.gf, task, D.cutoff, window.IntelSources);
-  return `<button type="button" class="kpi-how" data-action="kpi-how" data-id="sim" aria-expanded="${open}" aria-controls="kpi-how-sim">${ICON.info} Como é calculado</button><div class="kpi-how-body sim-how" id="kpi-how-sim" ${open ? '' : 'hidden'}>${simFullText(r)}<dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
+  const notice = !ok && r.source === 'referencia' && window.IntelSources ? IntelSources.noticeOf('sim_reference') : null;
+  const sec = (title, body) => (body ? `<section class="sim-como-sec"><h3>${title}</h3>${body}</section>` : '');
+  const note = ok && task.mode === 'chegar' ? IS.resultText(r).note : null;
+  const body = sec('De onde vem o histórico', (ok ? simSourceLine(r) : '') + (notice ? `<p class="integrated-notice">${esc(notice)}</p>` : ''))
+    + sec('O que é medido', ok ? simMeasures(r) : '')
+    + sec('O resultado por extenso', simFullText(r, false))
+    + sec('Reserva da entrega final', note ? `<p class="sim-reserve-note">${esc(note)}</p>` : '')
+    + sec('Fórmula e histórico', `<dl class="sim-how">${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl>`)
+    + sec('Limites', `${simNotes(r)}<p class="sim-limit">Dado, não veredito: as colunas da tabela são fatos do histórico, sem nota nem ranking. Com menos de ${IS.MIN_SAMPLE} embarques, “Amostra pequena” e nenhuma cobertura calculada. O prometido é o que a proposta diz; o histórico mostra quantas vezes ele foi cumprido.</p><p class="sim-limit">Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.</p>`);
+  return `<section class="sim-como" id="sim-como" aria-labelledby="sim-como-t"><h2 class="sim-como-h"><button type="button" class="sim-como-toggle" id="sim-como-t" data-action="sim-como" aria-expanded="${open}" aria-controls="sim-como-body"><span class="sim-como-title">Como é calculado e limites</span><small>Fonte, definições, reserva e limites do histórico</small><span class="fold-toggle" aria-hidden="true"></span></button></h2><div class="sim-como-body" id="sim-como-body" ${open ? '' : 'hidden'}>${body}</div></section>`;
+}
+/** Abre ou fecha o acordeão e guarda `como` na URL sem nova navegação. */
+function setSimComo(open) {
+  if (open) params.set('como', '1'); else params.delete('como');
+  const next = '#' + pagePath + (params.toString() ? '?' + params : '');
+  history.replaceState(history.state, '', location.pathname + location.search + next);
+  try { if (window.parent !== window) window.parent.history.replaceState(window.parent.history.state, '', window.parent.location.pathname + window.parent.location.search + next); } catch {}
+  const t = document.getElementById('sim-como-t'), body = document.getElementById('sim-como-body');
+  if (t) t.setAttribute('aria-expanded', String(open));
+  if (body) body.hidden = !open;
 }
 /* Recorte do Simulador: a JANELA de histórico dele (não o período do painel) +
    os filtros globais. Também alimenta a barra de filtros quando a aba está aberta. */
@@ -708,10 +733,10 @@ function simAnswerCard(r) {
     <p class="sim-answer">${answer}</p>
     ${anchors.length ? `<p class="sim-anchor">${anchors.join(' ')}</p>` : ''}
     <dl class="sim-figures">${figs.join('')}</dl>
-    <p class="sim-honesty"><b>Histórico, não garantia</b> <span aria-hidden="true">·</span> <button type="button" class="text-button" data-action="sim-como-open" aria-controls="kpi-how-sim">Como é calculado</button></p>
+    <p class="sim-honesty"><b>Histórico, não garantia</b> <span aria-hidden="true">·</span> <button type="button" class="text-button" data-action="sim-como-open" aria-controls="sim-como-body">Como é calculado</button></p>
     ${notice ? `<p class="integrated-notice">${esc(notice)}</p>` : ''}
     ${simQuoteAction(t, r)}
-  </div>${simSourceLine(r)}${simMeasures(r)}`;
+  </div>`;
 }
 /* S2: o que está sendo calculado, sempre nomeado. Chegada ao destino sempre
    que houver base; Entrega final só com base da perna nacional, e com o aviso
@@ -768,7 +793,7 @@ function simAgentTable(r) {
     tds.push(`<td class="quiet-col">${!a.promised ? '<small>Digite o prazo da proposta</small>' : a.small ? `prometeu ${a.promised.days} dias<small>histórico pequeno para comparar</small>` : `prometeu ${a.promised.days}; mediana ${days(a.median)}, P90 ${a.p90}<small>o histórico cumpriu ${a.promised.days} dias em ${a.promised.good} de ${a.promised.base}</small>`}</td>`);
     return `<tr>${tds.join('')}</tr>`;
   }).join('');
-  return `<section class="sim-agents" aria-labelledby="sim-agents-t"><h2 id="sim-agents-t" class="sim-h2">Por agente de carga</h2><div class="table-wrap"><table class="compare sim-agents-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div><p class="chart-caption">Dado, não veredito: as colunas são fatos do histórico, sem nota nem ranking. Com menos de ${IS.MIN_SAMPLE} embarques, “Amostra pequena” e nenhuma cobertura calculada. O prometido é o que a proposta diz; o histórico mostra quantas vezes ele foi cumprido.</p></section>`;
+  return `<section class="sim-agents" aria-labelledby="sim-agents-t"><h2 id="sim-agents-t" class="sim-h2">Por agente de carga</h2><div class="table-wrap"><table class="compare sim-agents-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div></section>`;
 }
 /* AÇÃO (S8): o Simulador "vende" levando à Nova Cotação que já existe, com
    rota, modal e data-alvo pré-preenchidos. Rótulo de ação, sem recomendar
@@ -791,7 +816,7 @@ function simulatorTab(s) {
   task = IS.withExampleTarget(D, ops, task, today, { ref, focus });
   const r = IS.plan(D, ops, task, today, { ref, focus });
   simOtherHasBase = r.state === 'no_history' && IS.hasBase(D, ops, ref, task, r.source === 'meus' ? 'referencia' : 'meus', today);
-  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${r.state === 'ok' && r.agents.length ? simAgentTable(r) : ''}${simHow(s, task, r)}${simNotes(r)}<p class="chart-caption">Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.</p></section>`;
+  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${r.state === 'ok' && r.agents.length ? simAgentTable(r) : ''}${simComo(s, task, r)}</section>`;
 }
 function setSimParam(changes) { location.hash = url('executivo', changes); }
 function intelOverview() {
@@ -1014,7 +1039,8 @@ document.addEventListener('click', e => {
   else if (a === 'onb-open') openOnboarding();
   else if (a === 'gfilter-remove') { const gf = IE.readFilters(params); gf[b.dataset.key] = gf[b.dataset.key].filter(v => v !== b.dataset.value); setGlobalFilters(gf); }
   else if (a === 'gfilter-clear') { openFilterKey = null; setGlobalFilters({}); }
-  else if (a === 'sim-como-open') { openKpiHow.add('sim'); render(); const t = document.querySelector('[data-action="kpi-how"][data-id="sim"]'); if (t) { t.focus({ preventScroll: true }); t.scrollIntoView({ block: 'start', behavior: 'smooth' }); } }
+  else if (a === 'sim-como') setSimComo(b.getAttribute('aria-expanded') !== 'true');
+  else if (a === 'sim-como-open') { setSimComo(true); const t = document.getElementById('sim-como-t'); if (t) { t.focus({ preventScroll: true }); t.scrollIntoView({ block: 'start', behavior: 'smooth' }); } }
   else if (a === 'kpi-how') {
     const open = b.getAttribute('aria-expanded') !== 'true';
     if (open) openKpiHow.add(id); else openKpiHow.delete(id);
