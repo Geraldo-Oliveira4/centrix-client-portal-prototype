@@ -624,11 +624,15 @@ function simComo(s, task, r) {
   return `<section class="sim-como" id="sim-como" aria-labelledby="sim-como-t"><h2 class="sim-como-h"><button type="button" class="sim-como-toggle" id="sim-como-t" data-action="sim-como" aria-expanded="${open}" aria-controls="sim-como-body"><span class="sim-como-title">Como é calculado e limites</span><small>Fonte, definições, reserva e limites do histórico</small><span class="fold-toggle" aria-hidden="true"></span></button></h2><div class="sim-como-body" id="sim-como-body" ${open ? '' : 'hidden'}>${body}</div></section>`;
 }
 /** Abre ou fecha o acordeão e guarda `como` na URL sem nova navegação. */
-function setSimComo(open) {
-  if (open) params.set('como', '1'); else params.delete('como');
+/** Muda parâmetros do Simulador sem nova navegação (sem rolar a página): o estado fica na URL para o link. */
+function setSimQuiet(changes) {
+  for (const [k, v] of Object.entries(changes)) { if (v == null) params.delete(k); else params.set(k, v); }
   const next = '#' + pagePath + (params.toString() ? '?' + params : '');
   history.replaceState(history.state, '', location.pathname + location.search + next);
   try { if (window.parent !== window) window.parent.history.replaceState(window.parent.history.state, '', window.parent.location.pathname + window.parent.location.search + next); } catch {}
+}
+function setSimComo(open) {
+  setSimQuiet({ como: open ? '1' : null });
   const t = document.getElementById('sim-como-t'), body = document.getElementById('sim-como-body');
   if (t) t.setAttribute('aria-expanded', String(open));
   if (body) body.hidden = !open;
@@ -761,14 +765,23 @@ function simMeasures(r) {
     : `<li>${r.task.mode === 'chegar' ? 'Considera a chegada ao porto. A entrega final depende de dados de clientes integrados.' : 'A entrega final não entra: depende de dados de clientes integrados.'}${r.leg.n ? ` (${r.leg.n} ${r.leg.n === 1 ? 'embarque' : 'embarques'} com entrega registrada; são precisos ${IS.MIN_SAMPLE}.)` : ''}</li>`;
   return `<ul class="sim-measures">${port}${final}</ul>`;
 }
-/* COMPARAÇÃO POR AGENTE (S4): tabela no padrão das outras subabas (cabeçalho,
-   coluna líder com peso, divisórias finas, ordem por volume, ordenação por
-   coluna). Cobertura é a coluna líder. Nenhuma linha destacada como melhor. */
+/* COMPARAÇÃO POR AGENTE (S4; E4, 17/11/2026). Cinco colunas na vista padrão:
+   Agente de carga, Embarques, Trânsito (mediana em destaque, P90 secundário),
+   Cobertura (coluna líder) e Embarque limite (P90, com a data pela mediana
+   secundária; "já passou" neutro). A comparação com a proposta é opcional:
+   "Comparar com a proposta" (`comparar=1`) traz de volta "Trânsito prometido
+   (dias)" e "Prometido × histórico". Um `sprom` sem `comparar` (links antigos)
+   abre ligado; `comparar=0` desliga. Nenhuma linha destacada como melhor. */
 let simAgentSort = null;
+function simCompareOn(task) {
+  const c = params.get('comparar');
+  return c === '1' || (c !== '0' && Object.keys(task.promised || {}).length > 0);
+}
 function simAgentTable(r) {
-  const chegar = r.task.mode === 'chegar', sort = simAgentSort || IS.DEFAULT_AGENT_SORT;
-  const cols = [['name', 'Agente de carga'], ['shipments', 'Embarques'], ['median', 'Trânsito mediano'], ['p90', 'P90'], ['spread', 'Variação do trânsito'],
-    chegar ? ['cover', 'Cobertura'] : ['limit', 'Chegada ao destino'], ...(chegar ? [['limit', 'Embarque limite']] : []), [null, 'Trânsito prometido (dias)'], [null, 'Prometido × histórico']];
+  const chegar = r.task.mode === 'chegar', sort = simAgentSort || IS.DEFAULT_AGENT_SORT, cmp = simCompareOn(r.task), today = r.today;
+  const cols = [['name', 'Agente de carga'], ['shipments', 'Embarques'], ['median', 'Trânsito'],
+    ...(chegar ? [['cover', 'Cobertura'], ['limit', 'Embarque limite']] : [['limit', 'Chegada ao destino']]),
+    ...(cmp ? [[null, 'Trânsito prometido (dias)'], [null, 'Prometido × histórico']] : [])];
   const lead = chegar ? 'cover' : 'limit';
   const head = cols.map(([key, label]) => {
     const cls = key === lead ? 'lead-col' : key === 'name' ? '' : 'quiet-col';
@@ -779,21 +792,26 @@ function simAgentTable(r) {
   const days = v => String(v).replace('.', ',');
   const body = IS.sortAgents(r.agents, sort).map(a => {
     const link = `<a class="sheet-link" href="${esc(url('executivo', { aba: 'agentes', sel: a.agent, de: 'sim' }))}"><b>${esc(a.name)}</b></a>`;
-    const tds = [`<td>${link}</td>`, `<td class="quiet-col">${a.shipments}${a.small ? smallTag(a.n) : ''}</td>`];
+    const tds = [`<td>${link}</td>`, `<td class="quiet-col">${a.shipments}${a.small ? smallTag(a.n) : ''}<small>${a.n} com saída e chegada</small></td>`];
     if (a.small) {
-      tds.push(`<td class="quiet-col">—<small>${a.n} com saída e chegada</small></td>`, '<td class="quiet-col">—</td>', '<td class="quiet-col">—</td>', `<td class="lead-col">—<small>sem cobertura calculada</small></td>`);
-      if (chegar) tds.push('<td class="quiet-col">—</td>');
+      tds.push('<td class="quiet-col">—</td>');
+      if (chegar) tds.push(`<td class="lead-col">—<small>sem cobertura calculada</small></td>`, '<td class="quiet-col">—</td>');
+      else tds.push('<td class="lead-col">—</td>');
     } else {
-      tds.push(`<td class="quiet-col">${days(a.median)} dias<small>${a.n} com saída e chegada</small></td>`, `<td class="quiet-col">${a.p90} dias</td>`, `<td class="quiet-col">${days(a.spread)} ${a.spread === 1 ? 'dia' : 'dias'}<small>P90 − mediana</small></td>`);
-      if (chegar) tds.push(`<td class="lead-col"><span class="frac">${a.cover.good} de ${a.cover.base}</span> <small class="pct">(${a.cover.pct}%)</small></td>`, `<td class="quiet-col">${dm(a.limitP90)} <small>P90 · ${dm(a.limitMedian)} pela mediana</small></td>`);
+      // A variação do trânsito (P90 − mediana) não é mais coluna: fica na dica da célula e em "Como é calculado".
+      tds.push(`<td class="quiet-col" title="Variação do trânsito (P90 − mediana): ${days(a.spread)} ${a.spread === 1 ? 'dia' : 'dias'}"><span class="sim-transit"><b>${days(a.median)} dias</b> <small>· P90 ${a.p90}</small></span></td>`);
+      if (chegar) tds.push(`<td class="lead-col"><span class="frac">${a.cover.good} de ${a.cover.base}</span> <small class="pct">(${a.cover.pct}%)</small></td>`, `<td class="quiet-col">${dm(a.limitP90)}${passedTag(a.limitP90, today)}<small>P90 · ${dm(a.limitMedian)} pela mediana${a.limitMedian < today ? ' (já passou)' : ''}</small></td>`);
       else tds.push(`<td class="lead-col"><span class="frac">até ${dm(a.arrivalP90)}</span><small>P90 · ${dm(a.arrivalMedian)} pela mediana</small></td>`);
     }
-    const prom = a.promised ? a.promised.days : '';
-    tds.push(`<td class="quiet-col"><label class="sr-only" for="prom-${a.agent}">Trânsito prometido por ${esc(a.name)}, em dias</label><input class="prom-input" id="prom-${a.agent}" type="number" inputmode="numeric" min="1" max="365" placeholder="—" value="${prom}" data-sim-prom="${a.agent}"></td>`);
-    tds.push(`<td class="quiet-col">${!a.promised ? '<small>Digite o prazo da proposta</small>' : a.small ? `prometeu ${a.promised.days} dias<small>histórico pequeno para comparar</small>` : `prometeu ${a.promised.days}; mediana ${days(a.median)}, P90 ${a.p90}<small>o histórico cumpriu ${a.promised.days} dias em ${a.promised.good} de ${a.promised.base}</small>`}</td>`);
+    if (cmp) {
+      const prom = a.promised ? a.promised.days : '';
+      tds.push(`<td class="quiet-col"><label class="sr-only" for="prom-${a.agent}">Trânsito prometido por ${esc(a.name)}, em dias</label><input class="prom-input" id="prom-${a.agent}" type="number" inputmode="numeric" min="1" max="365" placeholder="—" value="${prom}" data-sim-prom="${a.agent}"></td>`);
+      tds.push(`<td class="quiet-col">${!a.promised ? '<small>Digite o prazo da proposta</small>' : a.small ? `prometeu ${a.promised.days} dias<small>histórico pequeno para comparar</small>` : `prometeu ${a.promised.days}; mediana ${days(a.median)}, P90 ${a.p90}<small>o histórico cumpriu ${a.promised.days} dias em ${a.promised.good} de ${a.promised.base}</small>`}</td>`);
+    }
     return `<tr>${tds.join('')}</tr>`;
   }).join('');
-  return `<section class="sim-agents" aria-labelledby="sim-agents-t"><h2 id="sim-agents-t" class="sim-h2">Por agente de carga</h2><div class="table-wrap"><table class="compare sim-agents-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div></section>`;
+  const toggle = `<button type="button" class="button quiet sim-compare" data-action="sim-compare" aria-pressed="${cmp}"><span class="sim-compare-box" aria-hidden="true">${cmp ? '✓' : ''}</span>Comparar com a proposta</button>`;
+  return `<section class="sim-agents" aria-labelledby="sim-agents-t"><div class="sim-agents-head"><h2 id="sim-agents-t" class="sim-h2">Por agente de carga</h2>${toggle}</div><div class="table-wrap"><table class="compare sim-agents-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div></section>`;
 }
 /* AÇÃO (S8): o Simulador "vende" levando à Nova Cotação que já existe, com
    rota, modal e data-alvo pré-preenchidos. Rótulo de ação, sem recomendar
@@ -1039,6 +1057,11 @@ document.addEventListener('click', e => {
   else if (a === 'onb-open') openOnboarding();
   else if (a === 'gfilter-remove') { const gf = IE.readFilters(params); gf[b.dataset.key] = gf[b.dataset.key].filter(v => v !== b.dataset.value); setGlobalFilters(gf); }
   else if (a === 'gfilter-clear') { openFilterKey = null; setGlobalFilters({}); }
+  else if (a === 'sim-compare') {
+    const on = b.getAttribute('aria-pressed') !== 'true', task = IS.readTask(D, params);
+    setSimQuiet({ comparar: on ? '1' : Object.keys(task.promised).length ? '0' : null }); render();
+    document.querySelector('[data-action="sim-compare"]')?.focus();
+  }
   else if (a === 'sim-como') setSimComo(b.getAttribute('aria-expanded') !== 'true');
   else if (a === 'sim-como-open') { setSimComo(true); const t = document.getElementById('sim-como-t'); if (t) { t.focus({ preventScroll: true }); t.scrollIntoView({ block: 'start', behavior: 'smooth' }); } }
   else if (a === 'kpi-how') {
