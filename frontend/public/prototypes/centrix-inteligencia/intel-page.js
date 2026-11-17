@@ -719,6 +719,15 @@ function simAgentTable(r) {
   }).join('');
   return `<section class="sim-agents" aria-labelledby="sim-agents-t"><h2 id="sim-agents-t" class="sim-h2">Por agente de carga</h2><div class="table-wrap"><table class="compare sim-agents-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div><p class="chart-caption">Dado, não veredito: as colunas são fatos do histórico, sem nota nem ranking. Com menos de ${IS.MIN_SAMPLE} embarques, “Amostra pequena” e nenhuma cobertura calculada. O prometido é o que a proposta diz; o histórico mostra quantas vezes ele foi cumprido.</p></section>`;
 }
+/* AÇÃO (S8): o Simulador "vende" levando à Nova Cotação que já existe, com
+   rota, modal e data-alvo pré-preenchidos. Rótulo de ação, sem recomendar
+   agente; nenhum agente vai junto. O relógio da demonstração acompanha. */
+function simQuoteAction(task, r) {
+  if (!task.route || !task.modal) return '';
+  const hoje = new URLSearchParams(location.search).get('hoje');
+  const href = IS.quotationLink(D, task) + (hoje ? '&hoje=' + encodeURIComponent(hoje) : '');
+  return `<p class="sim-action"><a class="button" href="${esc(href)}" target="_top">Solicitar cotação com esta rota e data</a><small>${task.mode === 'chegar' ? 'Leva origem, destino, modal e a data-alvo para a Nova Cotação.' : 'Leva origem, destino e modal para a Nova Cotação.'} Nenhum agente é pré-selecionado.</small></p>`;
+}
 function simulatorTab(s) {
   const today = D.cutoff, task = IS.readTask(D, params, today);
   // Um agente de carga filtrado vira o FOCO do resultado (com fallback para a
@@ -728,7 +737,7 @@ function simulatorTab(s) {
   const ref = window.IntelSimReference;
   const r = IS.plan(D, ops, task, today, { ref, focus });
   simOtherHasBase = r.state === 'no_history' && IS.hasBase(D, ops, ref, task, r.source === 'meus' ? 'referencia' : 'meus', today);
-  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${r.state === 'ok' && r.agents.length ? simAgentTable(r) : ''}${simHow(s, task)}${simNotes(r)}<p class="chart-caption">Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.</p></section>`;
+  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${r.state === 'ok' && r.agents.length ? simAgentTable(r) : ''}${simQuoteAction(task, r)}${simHow(s, task)}${simNotes(r)}<p class="chart-caption">Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.</p></section>`;
 }
 function setSimParam(changes) { location.hash = url('executivo', changes); }
 function intelOverview() {

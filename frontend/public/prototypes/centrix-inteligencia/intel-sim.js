@@ -356,7 +356,27 @@
     return { key, dir: key === 'name' || key === 'limit' ? 'asc' : 'desc' };
   }
 
-  const api = { SOURCES, DEFAULT_SOURCE, sourceLabel, cargoOfRoute, historyMine, historyReference, hasBase, readPromised, writePromised, agentRows, sortAgents, nextAgentSort, DEFAULT_AGENT_SORT, MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, coverageBand, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, simulate, howCalculated, addDays, diffDays, validIso };
+  /**
+   * S8: o link de "Solicitar cotação com esta rota e data" para a Nova Cotação
+   * do portal. Leva modal, origem, destino (pelo nome do porto) e, no modo
+   * "Quero chegar até", a data-alvo. Nenhum agente de carga. A outra ponta é
+   * app/portal/inteligencia/lib/simulator-quotation.ts (testada contra esta).
+   */
+  const QUOTE_MODAL = { maritimo: 'MARITIMO', aereo: 'AEREO', rodoviario: 'RODOVIARIO' };
+  function quotationLink(D, task) {
+    const q = new URLSearchParams({ fonte: 'simulador' });
+    const r = D.routes.find((x) => x.id === task.route);
+    if (task.modal) q.set('modal', QUOTE_MODAL[task.modal]);
+    if (r) {
+      q.set('origem_rota', D.locations[r.from].name);
+      q.set('destino_rota', D.locations[r.to].name);
+      q.set('rota', `${D.locations[r.from].name} → ${D.locations[r.to].name}`);
+    }
+    if (task.mode === 'chegar' && validIso(task.target)) q.set('data_necessidade', task.target);
+    return '/portal/nova-cotacao?' + q.toString();
+  }
+
+  const api = { quotationLink, SOURCES, DEFAULT_SOURCE, sourceLabel, cargoOfRoute, historyMine, historyReference, hasBase, readPromised, writePromised, agentRows, sortAgents, nextAgentSort, DEFAULT_AGENT_SORT, MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, coverageBand, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, simulate, howCalculated, addDays, diffDays, validIso };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelSim = api;
 })(typeof window !== 'undefined' ? window : globalThis);
