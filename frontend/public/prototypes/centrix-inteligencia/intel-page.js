@@ -40,6 +40,16 @@ function notifyViewSaved() { try { if (window.parent !== window) window.parent.p
 function saveIntelLayout(next) { intelLayout = IL.setMode(IL.normalize(next), 'completa'); try { IL.save(localStorage, intelLayout); } catch {} }
 function saveIntelPers(next) { intelPers = IP.normalize(next); IP.save(STORE, intelPers); }
 
+/* B6: embutida, a Inteligência pode não caber inteira na janela (zoom alto,
+   janela baixa). Ao abrir um painel, uma ficha ou a introdução, o iframe se põe
+   inteiro na tela, para o "Fechar" e o "Aplicar" nunca ficarem fora dela. */
+function revealFrame() {
+  try {
+    const f = window.frameElement; if (!f) return;
+    const r = f.getBoundingClientRect(), vh = window.parent.innerHeight;
+    if (r.top < 0 || r.bottom > vh + 1) f.scrollIntoView({ block: 'start', behavior: 'auto' });
+  } catch {}
+}
 /* ---------------------------------------------------------------- dados --- */
 function intelScope() {
   const range = periodRange(), gf = IE.readFilters(params);
@@ -782,6 +792,7 @@ function openOnboarding() {
   }
   persDraft = IP.normalize(intelPers); onbStep = 0; onbSkipped = false;
   if (!d.open) d.showModal();
+  revealFrame();
   renderOnb();
 }
 /* Embutida, a introdução espera o portal ficar livre: no primeiro acesso o
