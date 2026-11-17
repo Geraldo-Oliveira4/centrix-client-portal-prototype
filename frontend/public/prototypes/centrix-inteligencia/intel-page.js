@@ -417,7 +417,7 @@ function exporterServersSection(ops, id) {
     title: `${sheetLink('ag', r.agent, esc(r.agentName), { dim: 'exp', id })} <span class="cross-sub">· ${esc(r.routeName)}</span>`, meta: shipCount(r.n) + (r.small ? ' ' + transitSmallTag(r.transitN) : ''),
     lines: [['Chegada ao destino no prazo', rateCell(r.port)], ['Trânsito mediano', transitBase(r.transitMedian, r.transitN)]],
   }));
-  return `<section class="detail-section" aria-labelledby="dt-atende"><h3 id="dt-atende">Quem atende este exportador</h3>${crossList(items)}<p class="chart-caption">Agente de cargas e rota de cada embarque deste exportador no recorte. O resultado também depende deles: um desvio sozinho não atribui responsabilidade.</p></section>`;
+  return `<section class="detail-section" aria-labelledby="dt-atende"><h3 id="dt-atende">Quem atende este exportador</h3>${crossList(items)}<p class="chart-caption">Agente de carga e rota de cada embarque deste exportador no recorte. O resultado também depende deles: um desvio sozinho não atribui responsabilidade.</p></section>`;
 }
 function entityDetailHtml(dim, id, s) {
   const ops = IT.entityOps(s.cur, dim, id), row = IT.entityRows(D, s.cur, dim).find(r => r.id === id);

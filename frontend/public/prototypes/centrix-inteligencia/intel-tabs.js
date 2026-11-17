@@ -123,7 +123,7 @@
   /** As colunas de cada aba, todas factuais (Passo 0d). A primeira é o nome. */
   const COLUMNS = {
     exp: [['name', 'Exportador'], ['country', 'País'], ['n', 'Embarques'], ['ready', 'Prontidão no prazo'], ['docs', 'Documentação sem correção'], ['port', 'Chegada ao destino no prazo'], ['freightAvg', 'Frete médio']],
-    ag: [['name', 'Agente de cargas'], ['n', 'Embarques'], ['routes', 'Rotas atendidas'], ['transitMedian', 'Trânsito mediano'], ['port', 'Chegada ao destino no prazo'], ['final', 'Entrega final no prazo'], ['audit', 'Cobrança sem diferença'], ['freightAvg', 'Frete médio']],
+    ag: [['name', 'Agente de carga'], ['n', 'Embarques'], ['routes', 'Rotas atendidas'], ['transitMedian', 'Trânsito mediano'], ['port', 'Chegada ao destino no prazo'], ['final', 'Entrega final no prazo'], ['audit', 'Cobrança sem diferença'], ['freightAvg', 'Frete médio']],
     rota: [['name', 'Rota'], ['n', 'Embarques'], ['agents', 'Agentes'], ['transitMedian', 'Trânsito mediano'], ['port', 'Chegada ao destino no prazo'], ['final', 'Entrega final no prazo'], ['freightAvg', 'Frete médio']],
   };
   /**
@@ -135,7 +135,7 @@
   const COLUMN_GROUPS = {
     exp: [
       { label: 'Depende do exportador', keys: ['ready', 'docs'] },
-      { label: 'Resultado da operação', keys: ['port', 'freightAvg'], tip: 'O resultado também depende do agente de cargas e da rota. Um desvio sozinho não atribui responsabilidade.' },
+      { label: 'Resultado da operação', keys: ['port', 'freightAvg'], tip: 'O resultado também depende do agente de carga e da rota. Um desvio sozinho não atribui responsabilidade.' },
     ],
   };
   /**
