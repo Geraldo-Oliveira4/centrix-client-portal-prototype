@@ -138,6 +138,18 @@ function lineChart(series, keys, narrow = chartNarrow()) {
   const legend = keys.map(([, label, cls]) => `<span><svg class="legend-line" viewBox="0 0 34 10" width="34" height="10" aria-hidden="true"><line class="series ${cls}" x1="1" x2="33" y1="5" y2="5"/>${chartMark(cls, 17, 5, '')}</svg>${label}</span>`).join('');
   return `<svg class="chart${narrow ? ' narrow' : ''}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Prazo por etapa nos últimos 6 meses">${grid}${lines}${labels}</svg><div class="chart-legend">${legend}</div>`;
 }
+/* ESCOLHA DO GRÁFICO (C2, 17/11/2026), pelo dado e não "barra em tudo":
+   barras para comparar poucos períodos discretos ou um TOTAL por período; linha
+   para séries de 6 ou mais pontos que são TAXA e se leem como tendência; nunca
+   decoração. Por gráfico:
+   - Prazo por etapa (6 meses, 3 taxas): linha. Tendência de taxa, três séries
+     sobrepostas que a barra agrupada embaralharia.
+   - Frete por mês (6 meses, soma em USD): barra, testada contra linha. É total
+     por mês; na linha o mês em curso, incompleto, vira uma queda que não existe,
+     e a barra clara diz "ainda incompleto" sem precisar de nota.
+   - Minigráficos sob os números (C1): barra. Poucos subperíodos discretos do
+     próprio recorte, cada um com a sua base.
+   - Funil "Onde o prazo se perde": barra horizontal. Três etapas, uma taxa cada. */
 const kLabel = v => (v >= 1000 ? Math.round(v / 1000) + 'k' : String(Math.round(v)));
 /** Barras com o valor NO TOPO; o mês em curso (`currentYm`) sai mais claro e rotulado como incompleto. */
 function barChart(series, currentYm, narrow = chartNarrow()) {
