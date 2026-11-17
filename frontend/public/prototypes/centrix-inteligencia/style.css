@@ -9,6 +9,11 @@
   --line:#e2e4ed;--line-strong:#7f839b;
   --indigo:#2c2e65;--indigo-fill:#2c2e65;--on-fill:#ffffff;
   --accent:#f59c27;--on-accent:#1a1c31;--accent-ink:#8a3d08;
+  /* E1 (17/11/2026): o acento como SINAL GRÁFICO (fio da coluna líder, aba
+     ativa, trecho com desvio, faixa de insight). O laranja da marca dá 2,17:1
+     sobre branco; este tom mais escuro dá 4,08:1 no branco e 3,48:1 no
+     cabeçalho da tabela. Superfície com texto (botão CTA) segue no --accent. */
+  --accent-mark:#b86b0c;
   --warn-ink:#875810;--warn-bg:#fff4dd;
   --series-1:#2c2e65;--series-2:#5c60a6;--series-3:#878bc9;--series-partial:#c5c8e4;
   --focus:#8b80b9;--shadow:#1a1c3126;--backdrop:#15182b66;--tip-bg:#1a1c31;
@@ -184,7 +189,7 @@ h3.sub{font-size:16px;margin:22px 0 10px}
 .guide h2{margin:0 0 6px;font-size:17px;color:var(--indigo)}
 .guide p{margin:0 0 12px;font-size:14px;line-height:1.5}
 .guide-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
-.guide-target{outline:3px solid var(--accent);outline-offset:4px;border-radius:8px;position:relative;z-index:1}
+.guide-target{outline:3px solid var(--accent-mark);outline-offset:4px;border-radius:8px;position:relative;z-index:1}
 /* Ajustes Vitor (20/10/2026): Selecionar todos/Limpar por filtro, faixa do período, "Como é calculado", atalho do Raio X. */
 .fsel-actions{display:flex;justify-content:space-between;gap:8px;padding:4px 8px 6px;border-bottom:1px solid var(--line);margin-bottom:4px}
 .fsel-actions .text-button{background:none;border:0;padding:6px 2px;min-height:32px}
@@ -208,7 +213,7 @@ h3.sub{font-size:16px;margin:22px 0 10px}
 .intel-tabs-past{display:flex;gap:4px;flex:0 0 auto}
 .intel-tab{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;white-space:nowrap;color:var(--ink-2);text-decoration:none;font-weight:600;font-size:14px;border-bottom:3px solid transparent;margin-bottom:-1px}
 .intel-tab:hover{color:var(--indigo)}
-.intel-tab.active{color:var(--indigo);border-bottom-color:var(--accent)}
+.intel-tab.active{color:var(--indigo);border-bottom-color:var(--accent-mark)}
 .intel-tab:focus-visible{outline:3px solid var(--focus);outline-offset:-3px;border-radius:6px 6px 0 0}
 .tab-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 16px}
 .tab-stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:2px}
@@ -245,7 +250,7 @@ table.compare td .sample-tag{margin-top:4px}
 .intel-tabs-future{display:flex;align-items:flex-end;gap:12px;flex:0 0 auto}
 .tabs-divider{align-self:center;width:1px;height:24px;background:var(--line)}
 .intel-tab.future{background:var(--warn-bg);border-radius:8px 8px 0 0;color:var(--accent-ink)}
-.intel-tab.future.active{color:var(--accent-ink);border-bottom-color:var(--accent)}
+.intel-tab.future.active{color:var(--accent-ink);border-bottom-color:var(--accent-mark)}
 .intel-tab .preview-tag{margin-left:8px}
 .block.sim{border-bottom:0}
 .block.sim h2 .preview-tag{vertical-align:middle;font-family:Source,'Segoe UI',sans-serif}
@@ -324,7 +329,7 @@ table.compare td .sample-tag{margin-top:4px}
 .chip-edit{cursor:pointer;text-decoration:underline dotted var(--line-strong);text-underline-offset:4px}
 .chip-edit:hover{background:var(--tint);border-color:var(--line-strong)}
 .chip-edit:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
-.chip.warn{border-color:var(--accent);background:var(--surface-2);color:var(--accent-ink)}
+.chip.warn{border-color:var(--accent-mark);background:var(--surface-2);color:var(--accent-ink)}
 .chip-note{font-size:14px;color:var(--ink-2);padding:0 4px}
 .chip-filters{display:flex;flex-wrap:wrap;align-items:center;gap:6px;width:100%}
 .head-chips .filter-chip{font-size:13px;min-height:32px;padding:5px 10px;border-radius:999px;background:var(--tint)}
@@ -356,7 +361,7 @@ table.compare td .sample-tag{margin-top:4px}
 .lvl1 .funnel-track{height:14px;border-radius:7px;background:var(--track)}
 .lvl1 .funnel-track span{border-radius:7px}
 .lvl1 .funnel .kpi-how-body{grid-column:1/-1}
-.insight-line.accent{margin:18px 0 0;padding:12px 16px;border-left:4px solid var(--accent);border-radius:0 8px 8px 0;background:var(--surface-2);font-size:16px;font-weight:600;color:var(--ink)}
+.insight-line.accent{margin:18px 0 0;padding:12px 16px;border-left:4px solid var(--accent-mark);border-radius:0 8px 8px 0;background:var(--surface-2);font-size:16px;font-weight:600;color:var(--ink)}
 .insight-line.accent strong{font-weight:700}
 .detail-row{margin:auto 0 0;padding-top:12px;text-align:right}
 .detail-link{display:inline-flex;align-items:center;gap:4px;min-height:32px;font-size:14px;font-weight:600;color:var(--indigo);text-decoration:underline;text-underline-offset:3px}
@@ -431,7 +436,7 @@ table.compare td .sample-tag{margin-top:4px}
 .stage-cell b{font:600 30px/1.2 NewBlack,Source,sans-serif;color:var(--ink-2)}
 .stage-what{font-size:14px;color:var(--ink)}
 .stage-cell small{font-size:13px;color:var(--ink-2)}
-.stage-cell.has-dev{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--accent)}
+.stage-cell.has-dev{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--accent-mark)}
 .stage-cell.has-dev:hover{background:var(--tint)}
 .stage-cell.has-dev b{color:var(--accent-ink)}
 .empty.card{padding:40px 24px}
@@ -548,7 +553,7 @@ dialog.onb::backdrop{background:var(--backdrop)}
 .onb-body{padding:28px 28px 24px}
 .onb-dots{list-style:none;display:flex;gap:6px;margin:0 0 20px;padding:0}
 .onb-dots li{width:10px;height:6px;border-radius:3px;background:var(--line-strong)}
-.onb-dots li.on{width:32px;background:var(--accent)}
+.onb-dots li.on{width:32px;background:var(--accent-mark)}
 .onb h2{font-size:26px;color:var(--ink);outline:0}
 .onb-choice{margin:10px 0 0;padding:12px 14px;border-radius:10px;background:var(--tint);font-size:15px;line-height:1.5;color:var(--ink)}
 .onb-choice b{font-weight:600}
@@ -657,7 +662,7 @@ table.compare tr.col-groups th+th{box-shadow:inset 0 -2px 0 var(--line),inset 12
 .sheet-trail a:hover{color:var(--indigo)}
 /* Item 6: peso visual. Coluna líder com sublinhado de acento e valores em
    semibold; as demais em tinta secundária (AA). Peso, nunca cor de bom ou ruim. */
-table.compare th.lead-col .sort-button{font-weight:700;color:var(--ink);box-shadow:inset 0 -3px 0 var(--accent)}
+table.compare th.lead-col .sort-button{font-weight:700;color:var(--ink);box-shadow:inset 0 -3px 0 var(--accent-mark)}
 table.compare td.lead-col,table.compare td.lead-col .frac{font-weight:600;color:var(--ink)}
 table.compare td.lead-col small{font-weight:400}
 table.compare th.quiet-col .sort-button{font-weight:500;color:var(--ink-2)}
@@ -688,11 +693,11 @@ table.compare td.quiet-col,table.compare td.quiet-col .frac{color:var(--ink-2);f
 /* O acento da marca fica para o que é insight: a frase da maior queda e o
    trecho com desvio. Superfície calma, sem bloco de fundo colorido: o acento é
    um fio, e o peso do número faz o resto. */
-.insight-line.accent{background:var(--surface-2);border-left-color:var(--accent)}
+.insight-line.accent{background:var(--surface-2);border-left-color:var(--accent-mark)}
 .stage-cell,.stage-cell:hover{background:var(--surface)}
 .stage-cell:hover{background:var(--surface-2)}
 .stage-cell b{color:var(--ink-2);font-weight:500}
-.stage-cell.has-dev{background:var(--surface);box-shadow:inset 0 3px 0 var(--accent)}
+.stage-cell.has-dev{background:var(--surface);box-shadow:inset 0 3px 0 var(--accent-mark)}
 .stage-cell.has-dev:hover{background:var(--surface-2)}
 .stage-cell.has-dev b{color:var(--ink);font-weight:700}
 .stage-cell.has-dev .stage-what{font-weight:600}
@@ -702,7 +707,7 @@ table.compare td.quiet-col,table.compare td.quiet-col .frac{color:var(--ink-2);f
 .tip,#toast{background:var(--tip-bg);color:var(--on-fill)}
 .button.cta{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .onb-dots li{background:var(--line-strong)}
-.onb-dots li.on{background:var(--accent)}
+.onb-dots li.on{background:var(--accent-mark)}
 /* Elementos a 3:1: contorno de campo, switch desligado e trilho do funil. */
 .fa-field select,.fa-field input[type=date],.fa .fsel>summary,.sim-form select,.sim-form input,.report-form input,.report-form select,.link-field,.theme-chip,.button.quiet,.button.secondary,.close.close-text{border-color:var(--line-strong)}
 .pers-card input,.cust-row input{background:var(--line-strong)}
@@ -721,7 +726,7 @@ table.compare td.quiet-col,table.compare td.quiet-col .frac{color:var(--ink-2);f
 table.compare tr.is-open td{background:var(--surface-2)}
 table.compare tr.is-open td:first-child{box-shadow:inset 3px 0 0 var(--indigo)}
 table.compare tr.is-open .row-open{font-weight:700}
-table.compare th.lead-col .sort-button{box-shadow:inset 0 -3px 0 var(--accent)}
+table.compare th.lead-col .sort-button{box-shadow:inset 0 -3px 0 var(--accent-mark)}
 .fsel-menu label.is-disabled,.fsel-menu label.is-disabled small{color:var(--ink-3)}
 /* Superfícies calmas: borda fina no lugar de sombra pesada. */
 .card,.fact-band,.chart-card,.fa-section,.fold.commitments{box-shadow:none}
@@ -738,6 +743,7 @@ html.theme-dark:root{
   --line:#3d3f56;--line-strong:#7c7fa8;
   --indigo:#c1c3f3;--indigo-fill:#696db3;--on-fill:#ffffff;
   --accent:#f59c27;--on-accent:#1a1c31;--accent-ink:#f5b565;
+  --accent-mark:#f59c27;
   --warn-ink:#e3a93a;--warn-bg:#3a3223;
   --series-1:#c1c3f3;--series-2:#9a9de0;--series-3:#7e81c2;--series-partial:#4a4d7a;
   --focus:#b3aaf0;--shadow:#00000059;--backdrop:#0b0c1acc;--tip-bg:#0f1022
