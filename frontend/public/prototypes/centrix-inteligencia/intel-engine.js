@@ -183,7 +183,6 @@
   const DESTINATION_HINT = 'Porto ou aeroporto de descarga';
   const KPI_FORMULA = {
     ready: 'Mercadoria pronta para embarque na origem dentro do prazo combinado: embarques com prontidão realizada até o compromisso original ÷ embarques com prontidão confirmada.',
-    port: 'Chegada ao destino (porto ou aeroporto de descarga) realizada até o primeiro ETA contratado ÷ embarques com chegada registrada. Resultado da cadeia, sem atribuição automática ao exportador ou agente.',
     freight: null,
     count: 'Contagem dos embarques no recorte (período + filtros).',
   };
