@@ -114,15 +114,12 @@
    */
   function simulate(D, ops, { route = '', arriveBy = '', today = D.cutoff } = {}) {
     const scoped = route ? ops.filter((o) => o.route === route) : ops;
-    const groups = new Map();
-    for (const o of scoped) {
-      const key = o.route + '|' + o.agent;
-      const g = groups.get(key) || { route: o.route, agent: o.agent, ops: [] };
-      g.ops.push(o); groups.set(key, g);
-    }
+    // O par rota × agente é agrupado por IntelTabs.pairGroups, a mesma função que
+    // alimenta "Trânsito por rota" e "Agentes da rota" nas fichas.
+    const groups = Tabs.pairGroups(scoped);
     const dateOk = validIso(arriveBy);
     const available = dateOk ? diffDays(today, arriveBy) : null;
-    const rows = [...groups.values()].map((g) => {
+    const rows = groups.map((g) => {
       const transits = Tabs.transitDays(D, g.ops);
       const n = transits.length;
       const base = { route: g.route, agent: g.agent, routeName: Tabs.nameOf(D, 'rota', g.route), agentName: Tabs.nameOf(D, 'ag', g.agent), shipments: g.ops.length, n, transits: [...transits].sort((a, b) => a - b) };

@@ -50,7 +50,27 @@ test('tudo desligado é um estado válido (a tela mostra o vazio)', () => {
   let s = P.defaults();
   for (const [t] of P.THEMES) s = P.toggleTheme(s, t);
   assert.deepEqual(P.visibleCards(s), []);
-  assert.deepEqual(P.cardsByTheme(s), []);
+  assert.deepEqual(P.cardsByTheme(s).map((g) => g.on), [false, false, false], 'os temas continuam na lista, desligados');
+});
+
+// B1 (17/11/2026): tema ou card desligado fica esmaecido e clicável, não some.
+test('tema desligado continua listado, com os cards, marcado como desligado', () => {
+  const g = P.cardsByTheme(P.toggleTheme(P.defaults(), 'custo'));
+  assert.deepEqual(g.map((x) => [x.id, x.on]), [['prazo', true], ['custo', false], ['volume', true]]);
+  assert.deepEqual(g[1].cards.map((c) => c.id), ['frete', 'evolucao_frete']);
+});
+test('cardStates diz por que cada card está desligado', () => {
+  let s = P.toggleTheme(P.defaults(), 'custo');
+  s = P.setCard(s, 'funil', false);
+  const by = Object.fromEntries(P.cardStates(s).map((c) => [c.id, c.off]));
+  assert.deepEqual(by, { entrega_final: null, funil: 'card', frete: 'theme', embarques: null, evolucao_prazo: null, evolucao_frete: 'theme', trechos: null });
+});
+test('ativar pelo esmaecido: tema volta inteiro; card volta sozinho', () => {
+  const off = P.toggleTheme(P.defaults(), 'custo');
+  assert.deepEqual(P.activate(off, 'frete'), P.defaults());
+  const oneOff = P.setCard(P.defaults(), 'funil', false);
+  assert.deepEqual(P.activate(oneOff, 'funil'), P.defaults());
+  assert.deepEqual(P.activate(oneOff, 'desconhecido'), oneOff);
 });
 
 test('ids desconhecidos são descartados; lixo volta ao padrão', () => {
@@ -90,10 +110,30 @@ test('introdução: vista só depois de marcada; sem storage conta como vista', 
   assert.equal(P.markOnboardingSeen(broken), false);
 });
 
-test('todo destino de "Ver detalhe" aponta para um card que existe', () => {
+test('"Ver detalhe": um por bloco, e todo bloco aponta para cards que existem (A3)', () => {
   const ids = P.CARDS.map((c) => c.id);
-  for (const [id, d] of Object.entries(P.DETAIL_LINKS)) {
-    assert.ok(ids.includes(id), id);
+  const owners = new Map();
+  for (const [block, cards] of Object.entries(P.BLOCKS)) for (const c of cards) { assert.ok(ids.includes(c), c); assert.ok(!owners.has(c), `${c} em dois blocos`); owners.set(c, block); }
+  assert.deepEqual([...owners.keys()].sort(), [...ids].sort(), 'todo card mora em exatamente um bloco');
+  for (const [block, d] of Object.entries(P.DETAIL_LINKS)) {
+    assert.ok(P.BLOCKS[block], block);
     assert.ok(d.kind === 'portal' ? d.href.startsWith('/portal/') : ['exportadores', 'agentes', 'rotas', 'simulador'].includes(d.aba));
   }
+});
+test('"Ver detalhe": cada destino faz sentido pelo nome do bloco', () => {
+  assert.equal(P.DETAIL_LINKS.embarques.href, '/portal/embarques');
+  assert.equal(P.DETAIL_LINKS.frete.aba, 'rotas');
+  assert.equal(P.DETAIL_LINKS.trechos.aba, 'rotas');
+  assert.equal(P.DETAIL_LINKS.resultado.href, '/portal/embarques');
+  assert.equal(P.DETAIL_LINKS.evolucao, undefined);
+});
+
+// B5 (17/11/2026): o último passo da introdução diz o que foi escolhido.
+test('resumo da escolha na introdução', () => {
+  const pv = P.toggleTheme(P.defaults(), 'custo');
+  assert.equal(P.choiceSummary(pv, false), 'Você escolheu: Prazo e Volume (5 cartões)');
+  assert.equal(P.choiceSummary(P.defaults(), false), 'Você escolheu: Prazo, Custo e Volume (7 cartões)');
+  assert.equal(P.choiceSummary(P.setCard(P.toggleTheme(P.toggleTheme(P.defaults(), 'prazo'), 'custo'), 'embarques', true), false), 'Você escolheu: Volume (1 cartão)');
+  assert.equal(P.choiceSummary(P.defaults(), true), 'Você manteve a visão padrão');
+  assert.equal(P.choiceSummary(pv, true), 'Você manteve a sua visão atual');
 });

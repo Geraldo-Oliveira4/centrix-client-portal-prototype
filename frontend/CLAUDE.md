@@ -1657,14 +1657,70 @@ telas React antigas.
 - **Introdução de primeira entrada** em três passos
   (`centrix:inteligencia:onboarding-visto`; `?onboarding=1` força; espera as
   boas-vindas do portal fecharem). O passo 2 grava a mesma personalização.
-- **"Ver detalhe"** de cada bloco sai de UM mapa
-  (`IntelPersonalize.DETAIL_LINKS`); os destinos ainda estão a validar.
+- **"Ver detalhe"**: UM por bloco, no canto inferior direito, de UM mapa por
+  bloco (`IntelPersonalize.BLOCKS` + `DETAIL_LINKS`); destinos a validar.
 - **Ficha lateral** (~410px, `&sel=`): três indicadores + só o que não está na
   linha da tabela; o resto fica em "Mais detalhes". Em Agentes, "Compromissos
   do serviço" fica recolhido abaixo da lista.
 - **Simulador**: a coluna Resultado traz o selo e UMA frase (`IntelSim.reason`,
   dos mesmos números de `classify`, testada contra o selo); o par antigo "Com
   folga / No limite" fica em "ver cálculo".
+
+**Subabas v2 (16/11/2026): Agentes de carga, Exportadores e Rotas.**
+
+- **Base primeiro, percentual depois.** Em toda taxa, "a de b" é o texto
+  principal e o percentual vem menor. A ordenação é pelo percentual e desempata
+  pela base maior (`IntelTabs.RATE_KEYS`).
+- **Fato do recorte** no lugar dos três cartões de resumo
+  (`IntelTabs.recortFact`): o intervalo de uma taxa, com a base de cada ponta,
+  só entre quem tem BASE DA MÉTRICA de 3 ou mais. Descreve, nunca julga. A
+  concentração continua numa linha discreta (`concentrationLine`).
+- **Rota × agente tem uma conta só**: `IntelTabs.pairGroups` agrupa para as
+  fichas ("Trânsito por rota", "Agentes da rota", "Quem atende este exportador")
+  E para o Simulador. As fichas seguem o período e os filtros da tela; o
+  Simulador usa o histórico próprio, então os números só coincidem no mesmo
+  recorte. Os cruzamentos saem dos embarques da fixture; nenhum dado foi criado.
+- **Exportadores** separa "Depende do exportador" de "Resultado da operação"
+  (`IntelTabs.COLUMN_GROUPS`).
+- **Fichas que se conversam**: link de ficha é hash comum (`aba`, `sel` e `de`,
+  a origem). O Voltar do navegador volta para a ficha anterior; `de` some ao
+  fechar e ao trocar de submódulo.
+- **Coluna líder** (`IntelTabs.LEAD_COLUMNS`) ganha peso, nunca cor de bom ou
+  ruim.
+- **Cores só por token.** `style.css` não tem hexadecimal fora dos dois blocos
+  de token (claro em `:root`, escuro em `html.theme-dark:root`). Não há verde
+  nem vermelho como juízo; variação é tinta neutra com seta e sinal; o acento
+  fica para insight. No escuro esta tela NÃO usa a inversão de
+  `_shared/theme-sync.css` (as outras quatro continuam usando): troca os valores
+  dos tokens pelos do portal. Cor nova entra como token, nos dois blocos.
+  Auditoria de partida em `docs/auditoria-visual-inteligencia.md`.
+- Totais por agente, rota e exportador estão travados em
+  `intel-subabas.test.cjs` (reconciliação).
+
+**Ajustes gerais (17/11/2026), revisão com o Vitor e o Vinicius.** Simulador fora.
+
+- **Comparativo**: mês de calendário compara com o mês anterior INTEIRO (mês até
+  o corte, com o mesmo trecho do mês anterior); janela móvel, com a janela
+  anterior de mesma duração (`IntelEngine.previousRange`/`calendarMonth`).
+- **Minigráfico** sob os números é BARRA do próprio recorte
+  (`IntelEngine.subSeries`): por mês (> 45 dias), por semana (8 a 45), ou
+  anterior × atual. As bases das barras somam a base do período. Critério de
+  tipo de gráfico comentado em `intel-page.js` (ESCOLHA DO GRÁFICO).
+- **Dobras** (`intel-folds.js`, puro): uma chave por seção; Evolução e
+  Performance em acordeão na Visão geral.
+- **Card/tema desligado fica esmaecido**, clicável, com "Desativado"
+  (`IntelPersonalize.cardStates`/`activate`); nunca só opacidade.
+- **Fonte e fórmula num mapa só** (`intel-sources.js`): só a Entrega final tem
+  fonte afirmada (sistema de gestão) e o aviso de cliente integrado; o resto é
+  "Fonte a confirmar". Nada de nome de sistema, tabela ou coluna ali.
+- **Vocabulário**: "Agente(s) de carga"; `intel-vocab.test.cjs` falha se
+  "cargas" voltar (o Simulador fica fora da varredura).
+- **Acento como sinal gráfico** é `--accent-mark` (≥ 3:1 nos dois temas,
+  `intel-contrast.test.cjs`); `--accent` só como superfície com texto.
+- **Iframe**: a altura acompanha a janela (`IntelligencePreview`), e o iframe se
+  põe inteiro na tela quando abre painel, ficha ou introdução (`revealFrame`).
+- Roteiro de navegador nos três motores: `node scripts/intel-browser-check.cjs`.
+
 
 Quatro abas (`layout.tsx`): `performance/`, `agentes/`, `executivo/` e
 `radar/`. A raiz `/portal/inteligencia` é só um `redirect()` para `performance`

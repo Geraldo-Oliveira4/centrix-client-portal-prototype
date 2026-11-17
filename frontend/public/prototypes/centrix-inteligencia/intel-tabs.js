@@ -123,16 +123,39 @@
   /** As colunas de cada aba, todas factuais (Passo 0d). A primeira é o nome. */
   const COLUMNS = {
     exp: [['name', 'Exportador'], ['country', 'País'], ['n', 'Embarques'], ['ready', 'Prontidão no prazo'], ['docs', 'Documentação sem correção'], ['port', 'Chegada ao destino no prazo'], ['freightAvg', 'Frete médio']],
-    ag: [['name', 'Agente de cargas'], ['n', 'Embarques'], ['routes', 'Rotas atendidas'], ['transitMedian', 'Trânsito mediano'], ['port', 'Chegada ao destino no prazo'], ['final', 'Entrega final no prazo'], ['audit', 'Cobrança sem diferença'], ['freightAvg', 'Frete médio']],
+    ag: [['name', 'Agente de carga'], ['n', 'Embarques'], ['routes', 'Rotas atendidas'], ['transitMedian', 'Trânsito mediano'], ['port', 'Chegada ao destino no prazo'], ['final', 'Entrega final no prazo'], ['audit', 'Cobrança sem diferença'], ['freightAvg', 'Frete médio']],
     rota: [['name', 'Rota'], ['n', 'Embarques'], ['agents', 'Agentes'], ['transitMedian', 'Trânsito mediano'], ['port', 'Chegada ao destino no prazo'], ['final', 'Entrega final no prazo'], ['freightAvg', 'Frete médio']],
   };
+  /**
+   * GRUPOS DE COLUNAS (subabas v2). Em Exportadores, o que depende do exportador
+   * fica separado do resultado da operação, que também depende do agente e da
+   * rota. Identidade e volume (Exportador, País, Embarques) ficam fora dos
+   * grupos. As chaves de um grupo são colunas vizinhas de COLUMNS (há teste).
+   */
+  const COLUMN_GROUPS = {
+    exp: [
+      { label: 'Depende do exportador', keys: ['ready', 'docs'] },
+      { label: 'Resultado da operação', keys: ['port', 'freightAvg'], tip: 'O resultado também depende do agente de carga e da rota. Um desvio sozinho não atribui responsabilidade.' },
+    ],
+  };
+  /**
+   * COLUNA LÍDER (subabas v2): a coluna que a tabela existe para mostrar ganha
+   * peso (sublinhado de acento no cabeçalho, valores em semibold); as demais
+   * ficam em tinta secundária. É peso, não juízo: nenhuma cor de bom ou ruim,
+   * e a ordem padrão continua sendo o volume.
+   */
+  const LEAD_COLUMNS = { ag: ['port'], exp: ['ready', 'docs'], rota: ['port'] };
   /** Ordem padrão: volume, do maior para o menor. */
   const DEFAULT_SORT = { key: 'n', dir: 'desc' };
 
+  /** Colunas de taxa: ordenam pelo percentual e desempatam pela BASE maior. */
+  const RATE_KEYS = ['ready', 'docs', 'port', 'final', 'audit'];
   /**
    * Ordena as linhas. Ausente (null) vai SEMPRE para o fim, nos dois sentidos:
-   * "—" no topo de uma coluna leria como o primeiro colocado. Empate desempata
-   * pelo volume e depois pelo nome, para a ordem ser estável entre renders.
+   * "—" no topo de uma coluna leria como o primeiro colocado. Numa coluna de
+   * taxa, percentual igual desempata pela base maior (4 de 4 antes de 1 de 1,
+   * nos dois sentidos: é a leitura com mais lastro). Depois, volume e nome,
+   * para a ordem ser estável entre renders.
    */
   function sortRows(rows, sort = DEFAULT_SORT) {
     const get = SORT_VALUE[sort.key] || SORT_VALUE.n;
@@ -142,6 +165,7 @@
       const na = va == null, nb = vb == null;
       if (na !== nb) return na ? 1 : -1;
       if (!na && va !== vb) return (typeof va === 'string' ? va.localeCompare(vb, 'pt-BR') : va - vb) * sign;
+      if (!na && RATE_KEYS.includes(sort.key) && a[sort.key].base !== b[sort.key].base) return b[sort.key].base - a[sort.key].base;
       return b.n - a.n || a.name.localeCompare(b.name, 'pt-BR');
     });
   }
@@ -168,6 +192,111 @@
       top2Share: total && rows.length > 1 ? Math.round((top2 / total) * 100) : null,
       smallCount: rows.filter((r) => r.small).length,
     };
+  }
+
+  // ------------------------------------------------------- fato do recorte ---
+  /**
+   * FATO DO RECORTE (subabas v2). No lugar dos três cartões de concentração, uma
+   * frase calculada que descreve o INTERVALO de uma taxa entre os itens da
+   * subaba: mínimo e máximo, cada ponta com a própria base. Só descreve; nunca
+   * julga (sem "melhor", "pior", "lidera"). Entra na conta só quem tem BASE DA
+   * MÉTRICA de 3 ou mais (o "de 7" da chegada, não o total de embarques).
+   */
+  const FACT_MIN_BASE = 3;
+  const FACT_METRICS = {
+    ag: [['port', 'Chegada ao destino no prazo']],
+    exp: [['ready', 'Prontidão no prazo'], ['docs', 'Documentação sem correção']],
+    rota: [['port', 'Chegada ao destino no prazo']],
+  };
+  const FACT_NOUN = { ag: ['agente', 'agentes', 'os'], exp: ['exportador', 'exportadores', 'os'], rota: ['rota', 'rotas', 'as'] };
+  const FACT_EMPTY = `Poucos itens com base de ${FACT_MIN_BASE} ou mais neste recorte.`;
+  /**
+   * Mínimo e máximo de uma taxa entre as linhas com base suficiente. `null` com
+   * menos de dois itens (um item só não é intervalo). Empate na ponta fica com
+   * a base maior e, depois, com o nome: a frase é a mesma entre renders.
+   */
+  function rateRange(rows, key, minBase = FACT_MIN_BASE) {
+    const ok = rows.filter((r) => r[key] && r[key].rate != null && r[key].base >= minBase);
+    if (ok.length < 2) return null;
+    const pick = (sign) => [...ok].sort((a, b) => (a[key].rate - b[key].rate) * sign || b[key].base - a[key].base || a.name.localeCompare(b.name, 'pt-BR'))[0];
+    const end = (r) => ({ id: r.id, name: r.name, rate: r[key].rate, good: r[key].good, base: r[key].base });
+    const min = end(pick(1)), max = end(pick(-1));
+    return { key, count: ok.length, min, max, flat: min.rate === max.rate };
+  }
+  const endText = (e) => `${e.rate}% (${e.name}, ${e.good} de ${e.base})`;
+  /** A frase da faixa. Sem intervalo em nenhuma métrica, a frase neutra. */
+  function recortFact(dim, rows) {
+    const [, plural, art] = FACT_NOUN[dim];
+    const ranges = FACT_METRICS[dim].map(([key, label]) => ({ label, range: rateRange(rows, key) })).filter((x) => x.range);
+    if (!ranges.length) return { text: FACT_EMPTY, ranges: [] };
+    const scope = `entre ${art} ${plural} com base de ${FACT_MIN_BASE} ou mais`;
+    const part = ({ label, range }, first) => (range.flat
+      ? `${label}${first ? ' é de' : ', de'} ${range.min.rate}% em ${range.count === 2 ? (art === 'as' ? 'ambas' : 'ambos') : (art === 'as' ? 'todas' : 'todos')}`
+      : `${label}${first ? ' vai de' : ', de'} ${endText(range.min)} a ${endText(range.max)}`);
+    const body = ranges.length === 1 ? `${part(ranges[0], true)} ${scope}` : `${part(ranges[0], true)} e ${part(ranges[1], false)}, ${scope}`;
+    return { text: body + '.', ranges: ranges.map((x) => x.range) };
+  }
+  /** A linha discreta de concentração: tudo o que os três cartões diziam. */
+  function concentrationLine(dim, rows, total) {
+    const t = tabSummary(rows, total), [one, many] = FACT_NOUN[dim];
+    const parts = [`${t.count} ${t.count === 1 ? one : many}`, `${total} ${total === 1 ? 'embarque' : 'embarques'}`];
+    if (t.top) parts.push(`maior participação ${t.top.share}% (${t.top.name}, ${t.top.n} de ${total})`);
+    if (t.top2Share != null) parts.push(`os 2 maiores somam ${t.top2Share}%`);
+    if (t.smallCount) parts.push(`${t.smallCount} com amostra pequena (menos de ${MIN_SAMPLE} embarques)`);
+    return parts.join(' · ');
+  }
+
+  // ------------------------------------------------------ rota × agente ---
+  /**
+   * Embarques agrupados por par rota × agente, na ordem em que aparecem. É o
+   * agrupamento do Simulador (intel-sim.js::simulate chama esta função): as
+   * fichas e o Simulador partem do mesmo par e da mesma conta de trânsito.
+   */
+  function pairGroups(ops) {
+    const groups = new Map();
+    for (const o of ops) {
+      const key = o.route + '|' + o.agent;
+      const g = groups.get(key) || { route: o.route, agent: o.agent, ops: [] };
+      g.ops.push(o); groups.set(key, g);
+    }
+    return [...groups.values()];
+  }
+  /**
+   * Um par rota × agente em números: embarques, trânsito mediano (com o N de
+   * saída e chegada) e Chegada ao destino no prazo (a de b). Trânsito e mediana
+   * são os do Simulador; aqui não há P90 nem classificação, só o fato.
+   */
+  function pairStats(D, ops) {
+    return pairGroups(ops).map((g) => {
+      const transit = transitDays(D, g.ops);
+      return { route: g.route, agent: g.agent, routeName: nameOf(D, 'rota', g.route), agentName: nameOf(D, 'ag', g.agent), n: g.ops.length, transitMedian: median(transit), transitN: transit.length, small: transit.length < MIN_SAMPLE, port: rateOf(D.metric('port', g.ops)) };
+    });
+  }
+  const byVolume = (a, b) => b.n - a.n || a.routeName.localeCompare(b.routeName, 'pt-BR') || a.agentName.localeCompare(b.agentName, 'pt-BR');
+  /**
+   * CONTEXTO DE ROTA DO AGENTE: o trânsito de um agente depende das rotas que
+   * ele opera. Por rota atendida, o trânsito mediano do agente ao lado da
+   * mediana da rota (todos os agentes do recorte naquela rota, ele incluído) e
+   * a diferença em dias. A diferença é um número, não um juízo. "Amostra
+   * pequena" quando o agente tem menos de 3 trânsitos naquela rota.
+   */
+  function agentRouteContext(D, ops, agentId) {
+    return pairStats(D, ops).filter((p) => p.agent === agentId).sort(byVolume).map((p) => {
+      const all = transitDays(D, ops.filter((o) => o.route === p.route));
+      const routeMedian = median(all);
+      return { ...p, routeMedian, routeN: all.length, diff: p.transitMedian == null || routeMedian == null ? null : Math.round((p.transitMedian - routeMedian) * 10) / 10 };
+    });
+  }
+  /**
+   * "Quem atende este exportador": os pares agente × rota usados por ele, dos
+   * embarques que já existem (cada embarque tem exportador, agente e rota).
+   */
+  function exporterServers(D, ops, exporterId) {
+    return pairStats(D, entityOps(ops, 'exp', exporterId)).sort(byVolume);
+  }
+  /** Os agentes de UMA rota, para comparar dentro da mesma rota. Ordem por volume. */
+  function routeAgents(D, ops, routeId) {
+    return pairStats(D, ops).filter((p) => p.route === routeId).sort(byVolume);
   }
 
   // ------------------------------------------------------------- detalhe ---
@@ -231,8 +360,25 @@
     const dim = DIM_OF_TAB[tab];
     const id = get('sel');
     if (!dim || !id) return null;
-    const known = dim === 'exp' ? D.companies.some((c) => c.id === id) : dim === 'ag' ? D.agents.some((a) => a.id === id) : D.routes.some((r) => r.id === id);
-    return known ? { dim, id } : null;
+    return knownEntity(D, dim, id) ? { dim, id } : null;
+  }
+  /** Subaba de cada dimensão (o inverso de DIM_OF_TAB), para os links entre fichas. */
+  const TAB_OF_DIM = { exp: 'exportadores', ag: 'agentes', rota: 'rotas' };
+  const knownEntity = (D, dim, id) => (dim === 'exp' ? D.companies.some((c) => c.id === id) : dim === 'ag' ? D.agents.some((a) => a.id === id) : dim === 'rota' ? D.routes.some((r) => r.id === id) : false);
+  /** Valor de `de` para um link entre fichas: "rota:shanghai". */
+  function originParam(dim, id) { return `${dim}:${id}`; }
+  /**
+   * FICHAS QUE SE CONVERSAM: a ficha aberta por link guarda de onde veio em
+   * `de=<dim>:<id>`, para mostrar o rastro "← Rotas · Shanghai → Santos". Origem
+   * desconhecida, ou igual à própria ficha, é ignorada.
+   */
+  function readOrigin(D, params, selection) {
+    const get = (k) => (typeof params.get === 'function' ? params.get(k) : params[k]);
+    const [dim, ...rest] = String(get('de') || '').split(':'), id = rest.join(':');
+    if (!selection || !TAB_OF_DIM[dim] || !knownEntity(D, dim, id)) return null;
+    if (dim === selection.dim && id === selection.id) return null;
+    const tab = TAB_OF_DIM[dim];
+    return { dim, id, tab, tabLabel: TABS.find(([t]) => t === tab)[1], name: nameOf(D, dim, id) };
   }
   /** O relatório menciona aba e entidade: "Aba Exportadores · Eastbridge Components". */
   function tabMention(D, tab, selection) {
@@ -241,7 +387,21 @@
     return selection ? `Aba ${label} · ${nameOf(D, selection.dim, selection.id)}` : `Aba ${label}`;
   }
 
-  const api = { MIN_SAMPLE, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
+  /**
+   * "Cobrança sem diferença" (A6, 17/11/2026): NENHUM indicador fica sem número.
+   * Sem conferência concluída a leitura é "0 de 0 conferências", com a frase
+   * explicativa em segundo plano, nunca só o texto. Formato a validar com o time.
+   */
+  function auditFigure(m) {
+    const base = (m && m.base) || 0, good = base ? (m.good ?? 0) : 0;
+    return {
+      main: `${good} de ${base}`,
+      unit: base === 1 ? 'conferência' : 'conferências',
+      note: base ? null : 'nenhuma conferência concluída neste recorte',
+      pct: base ? m.rate : null,
+    };
+  }
+  const api = { auditFigure, MIN_SAMPLE, RATE_KEYS, FACT_MIN_BASE, FACT_METRICS, FACT_EMPTY, rateRange, recortFact, concentrationLine, pairGroups, pairStats, agentRouteContext, routeAgents, exporterServers, COLUMN_GROUPS, LEAD_COLUMNS, TAB_OF_DIM, originParam, readOrigin, TABS, TAB_IDS, DIM_OF_TAB, FIELD_OF_DIM, ENTITY_LABEL, LEGACY_SECTION_TAB, COLUMNS, DEFAULT_SORT, readTab, writeTab, median, transitDays, entityRows, nameOf, sortRows, nextSort, tabSummary, entityOps, skuRows, agentImpact, filterByEntity, readSelection, tabMention };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelTabs = api;
 })(typeof window !== 'undefined' ? window : globalThis);

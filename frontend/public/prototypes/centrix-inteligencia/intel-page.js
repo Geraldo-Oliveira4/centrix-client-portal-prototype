@@ -11,7 +11,7 @@
    periodRange, params...) em tempo de chamada, por isso é carregado ANTES de
    app.js e não executa nada sozinho. */
 
-const IE = window.IntelEngine, IL = window.IntelLayout, IT = window.IntelTabs, IS = window.IntelSim, IP = window.IntelPersonalize;
+const IE = window.IntelEngine, IL = window.IntelLayout, IT = window.IntelTabs, IS = window.IntelSim, IP = window.IntelPersonalize, IF = window.IntelFolds;
 /* v4 (13/11/2026): não há mais modos de leitura nem ordem de blocos. A Visão
    geral tem UMA hierarquia fixa e o cliente liga e desliga cards por tema
    (intel-personalize.js). `intelLayout` continua existindo só porque as visões
@@ -26,8 +26,10 @@ let openFilterKey = null;          // dropdown de filtro aberto, preservado entr
 const openKpiHow = new Set();      // "Como é calculado" abertos, preservados entre renders
 let persDraft = null;                // rascunho do "Personalizar a Inteligência" (painel ou introdução)
 let adjustDraft = null;              // rascunho de período e filtros do painel "Filtros e ajustes"
-let evoOpen = true;                  // seção "Evolução" aberta por padrão, preservada entre renders
-let commitmentsOpen = false;         // "Compromissos do serviço" recolhido por padrão
+/* Dobras recolhíveis: UMA chave por seção (intel-folds.js, puro e testado),
+   preservadas entre renders. Recolher uma não mexe em outra (A2). */
+let folds = IF.defaults();
+const foldAttrs = id => `data-fold="${id}" ${IF.isOpen(folds, id) ? 'open' : ''}`;
 let intelViews = (() => { try { return IL.loadViews(localStorage); } catch { return []; } })();
 const FILTER_KEYS = IE.FILTERS.map(f => f.key);
 function saveViews(next) { intelViews = next; try { IL.saveViews(localStorage, intelViews); } catch {} }
@@ -38,6 +40,16 @@ function notifyViewSaved() { try { if (window.parent !== window) window.parent.p
 function saveIntelLayout(next) { intelLayout = IL.setMode(IL.normalize(next), 'completa'); try { IL.save(localStorage, intelLayout); } catch {} }
 function saveIntelPers(next) { intelPers = IP.normalize(next); IP.save(STORE, intelPers); }
 
+/* B6: embutida, a Inteligência pode não caber inteira na janela (zoom alto,
+   janela baixa). Ao abrir um painel, uma ficha ou a introdução, o iframe se põe
+   inteiro na tela, para o "Fechar" e o "Aplicar" nunca ficarem fora dela. */
+function revealFrame() {
+  try {
+    const f = window.frameElement; if (!f) return;
+    const r = f.getBoundingClientRect(), vh = window.parent.innerHeight;
+    if (r.top < 0 || r.bottom > vh + 1) f.scrollIntoView({ block: 'start', behavior: 'auto' });
+  } catch {}
+}
 /* ---------------------------------------------------------------- dados --- */
 function intelScope() {
   const range = periodRange(), gf = IE.readFilters(params);
@@ -58,13 +70,26 @@ function variationChip(k) {
   const tone = v.tone === 'good' ? 'good' : v.tone === 'bad' ? 'warn' : 'neutral';
   return `<span class="variation ${tone}"><span aria-hidden="true">${arrow}</span> ${esc(v.text)}</span>`;
 }
-const smallTag = n => `<span class="sample-tag" title="Com menos de 3 embarques a variação não é mostrada">Amostra pequena (n=${n})</span>`;
-function spark(series) {
-  const pts = series.map((m, i) => ({ i, v: m.value })).filter(p => p.v != null);
-  if (pts.length < 2) return '<svg class="spark" viewBox="0 0 100 28" aria-hidden="true"></svg>';
-  const max = Math.max(...pts.map(p => p.v)), min = Math.min(...pts.map(p => p.v)), span = max - min || 1;
-  const xy = pts.map(p => `${(p.i / (series.length - 1)) * 96 + 2},${24 - ((p.v - min) / span) * 20}`).join(' ');
-  return `<svg class="spark" viewBox="0 0 100 28" aria-hidden="true"><polyline points="${xy}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+const smallTag = (n, title = 'Com menos de 3 embarques a variação não é mostrada') => `<span class="sample-tag" title="${title}">Amostra pequena (n=${n})</span>`;
+const transitSmallTag = n => smallTag(n, 'Menos de 3 trânsitos com saída e chegada neste par de rota e agente');
+/* MINIGRÁFICO DE BARRAS (C1, 17/11/2026), no lugar do traço fino. Uma barra
+   por subperíodo do recorte (IntelEngine.subSeries): por mês, por semana, ou
+   anterior × atual. Cor neutra de um só matiz, eixo começando em zero (taxa de
+   0 a 100%), barra sem registro vira um tique na linha de base. Cada barra diz
+   o que é ("Jul 2026: 12 de 18") no title; a figura inteira, no aria-label. O
+   rótulo e a legenda são HTML a 14px, não texto do SVG que encolhe. */
+const GRAIN_TEXT = { month: 'Por mês', week: 'Por semana', compare: 'Período anterior × período atual' };
+function miniBars(key, series, { compact = false, name = KPI_NAMES[key] } = {}) {
+  const bars = series.bars, max = key === 'count' || key === 'freight' ? Math.max(1, ...bars.map(b => b.value || 0)) : 100;
+  const desc = bars.map(b => IE.barText(key, b)).join('; ');
+  const cols = bars.map(b => {
+    const h = b.value == null ? 0 : Math.max(2, (b.value / max) * 100);
+    return `<span class="mb-col" title="${esc(IE.barText(key, b))}"><span class="mb-bar${b.value == null ? ' none' : ''}" style="height:${h}%"></span></span>`;
+  }).join('');
+  const many = bars.length > 7;
+  const labels = compact ? '' : `<div class="mb-labels" aria-hidden="true">${bars.map((b, i) => `<span>${!many || i === 0 || i === bars.length - 1 ? esc(b.label) : ''}</span>`).join('')}</div>`;
+  const legend = compact ? '' : `<figcaption class="mb-legend">${GRAIN_TEXT[series.grain]}, dentro do período. Passe o mouse numa barra para ver a base.</figcaption>`;
+  return `<figure class="mini-bars${compact ? ' compact' : ''}" style="--n:${bars.length}" role="img" aria-label="${esc(name)}, ${esc(series.legend)}: ${esc(desc)}"><div class="mb-plot">${cols}</div>${labels}${legend}</figure>`;
 }
 function kpiValue(key, k) { return k.value == null ? '—' : key === 'freight' ? money(k.value) : key === 'count' ? String(k.value) : k.value + '%'; }
 /* "Chegada ao destino" = porto ou aeroporto de descarga: o escopo do Centrix vai
@@ -79,20 +104,22 @@ const ICON = {
 };
 const KPI_NAMES = { ready: 'Prontidão no prazo', port: 'Chegada ao destino no prazo', final: 'Entrega final no prazo', freight: 'Frete contratado', count: 'Embarques no recorte' };
 /** "Como é calculado": um "i" discreto que abre fonte, fórmula, período e filtros (intel-engine.js::kpiDefinition). */
-function kpiHowButton(key) {
-  const open = openKpiHow.has(key);
-  return `<button type="button" class="info-button" data-action="kpi-how" data-id="${key}" aria-expanded="${open}" aria-controls="kpi-how-${key}" aria-label="Como é calculado: ${KPI_NAMES[key]}" title="Como é calculado">${ICON.info}</button>`;
+/* `slot` separa duas cópias do mesmo indicador na mesma tela (a Entrega final
+   no número grande e na linha do funil), para os ids não colidirem. */
+function kpiHowButton(key, slot = '') {
+  const id = key + (slot ? '-' + slot : ''), open = openKpiHow.has(id);
+  return `<button type="button" class="info-button" data-action="kpi-how" data-id="${id}" aria-expanded="${open}" aria-controls="kpi-how-${id}" aria-label="Como é calculado: ${KPI_NAMES[key]}" title="Como é calculado">${ICON.info}</button>`;
 }
-function kpiHowBody(key, gf) {
-  const lines = IE.kpiDefinition(D, key, gf);
-  return `<div class="kpi-how-body" id="kpi-how-${key}" ${openKpiHow.has(key) ? '' : 'hidden'}><p class="kpi-how-title">Como é calculado · ${KPI_NAMES[key]} <span class="example-tag">Dado de exemplo</span></p><dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
+function kpiHowBody(key, gf, slot = '') {
+  const lines = IE.kpiDefinition(D, key, gf), id = key + (slot ? '-' + slot : '');
+  return `<div class="kpi-how-body" id="kpi-how-${id}" ${openKpiHow.has(id) ? '' : 'hidden'}><p class="kpi-how-title">Como é calculado · ${KPI_NAMES[key]} <span class="example-tag">Dado de exemplo</span></p><dl>${lines.filter(l => !l.notice).map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl>${lines.filter(l => l.notice).map(l => `<p class="integrated-notice">${esc(l.text)}</p>`).join('')}</div>`;
 }
-/** Variação curta, em pontos ("↑ 34 pts"); o texto completo fica no title e para leitor de tela. */
+/** Variação curta, em pontos, com seta E sinal ("↑ +34 pts", "↓ −25 pts"): a direção nunca depende de cor; o texto completo fica no title e para leitor de tela. */
 function variationPts(k) {
   if (!k || k.small || !k.variation) return '';
   const v = k.variation, arrow = v.direction === 'up' ? '↑' : v.direction === 'down' ? '↓' : '→';
   const tone = v.tone === 'good' ? 'good' : v.tone === 'bad' ? 'warn' : 'neutral', n = Math.abs(v.delta);
-  return `<span class="variation ${tone}" title="${esc(v.text)}"><span aria-hidden="true">${arrow} ${v.direction === 'flat' ? 'igual' : `${n} ${n === 1 ? 'pt' : 'pts'}`}</span><span class="sr-only">${esc(v.text)}</span></span>`;
+  return `<span class="variation ${tone}" title="${esc(v.text)}"><span aria-hidden="true">${arrow} ${v.direction === 'flat' ? 'igual' : `${v.direction === 'up' ? '+' : '−'}${n} ${n === 1 ? 'pt' : 'pts'}`}</span><span class="sr-only">${esc(v.text)}</span></span>`;
 }
 /* Gráficos em tela estreita (ou dentro da ficha lateral) usam um viewBox menor:
    o SVG escala inteiro, e com o viewBox largo o texto dos eixos ficaria ilegível. */
@@ -113,6 +140,18 @@ function lineChart(series, keys, narrow = chartNarrow()) {
   const legend = keys.map(([, label, cls]) => `<span><svg class="legend-line" viewBox="0 0 34 10" width="34" height="10" aria-hidden="true"><line class="series ${cls}" x1="1" x2="33" y1="5" y2="5"/>${chartMark(cls, 17, 5, '')}</svg>${label}</span>`).join('');
   return `<svg class="chart${narrow ? ' narrow' : ''}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Prazo por etapa nos últimos 6 meses">${grid}${lines}${labels}</svg><div class="chart-legend">${legend}</div>`;
 }
+/* ESCOLHA DO GRÁFICO (C2, 17/11/2026), pelo dado e não "barra em tudo":
+   barras para comparar poucos períodos discretos ou um TOTAL por período; linha
+   para séries de 6 ou mais pontos que são TAXA e se leem como tendência; nunca
+   decoração. Por gráfico:
+   - Prazo por etapa (6 meses, 3 taxas): linha. Tendência de taxa, três séries
+     sobrepostas que a barra agrupada embaralharia.
+   - Frete por mês (6 meses, soma em USD): barra, testada contra linha. É total
+     por mês; na linha o mês em curso, incompleto, vira uma queda que não existe,
+     e a barra clara diz "ainda incompleto" sem precisar de nota.
+   - Minigráficos sob os números (C1): barra. Poucos subperíodos discretos do
+     próprio recorte, cada um com a sua base.
+   - Funil "Onde o prazo se perde": barra horizontal. Três etapas, uma taxa cada. */
 const kLabel = v => (v >= 1000 ? Math.round(v / 1000) + 'k' : String(Math.round(v)));
 /** Barras com o valor NO TOPO; o mês em curso (`currentYm`) sai mais claro e rotulado como incompleto. */
 function barChart(series, currentYm, narrow = chartNarrow()) {
@@ -130,9 +169,9 @@ function barChart(series, currentYm, narrow = chartNarrow()) {
 
 /* --------------------------------------------------------------- blocos --- */
 function blockHead(id, title, sub) { return `<div class="block-head"><div><h2 id="t-${id}">${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div></div>`; }
-/** "Ver detalhe": link discreto no canto do bloco. Destinos num mapa só (IntelPersonalize.DETAIL_LINKS). */
-function detailLink(cardId) {
-  const d = IP.DETAIL_LINKS[cardId];
+/** "Ver detalhe": UM link discreto no canto inferior direito de cada bloco. Destinos num mapa só, por bloco (IntelPersonalize.DETAIL_LINKS). */
+function detailLink(blockId) {
+  const d = IP.DETAIL_LINKS[blockId];
   if (!d) return '';
   // Para o portal, o relógio da demonstração (?hoje=) acompanha o link.
   const hoje = new URLSearchParams(location.search).get('hoje');
@@ -149,31 +188,32 @@ function resultCard(s, vis) {
   const base = IE.applyFilters(D.operations, s.gf);
   let left = '', right = '';
   if (hero) {
-    const k = IE.kpi(D, 'final', s.cur, s.prev), a = D.metric('final', s.cur), series = IE.monthly(D, 'final', base, s.range.end);
+    const k = IE.kpi(D, 'final', s.cur, s.prev), a = D.metric('final', s.cur), series = IE.subSeries(D, 'final', base, s.range);
     const body = k.value == null
-      ? '<p class="no-data">Ainda não há entrega final com comprovante neste recorte.</p>'
-      : `<b class="hero-number">${k.value}%</b><div class="hero-var">${k.small ? smallTag(k.n) : variationChip(k)}</div><p class="base-line">${a.good} de ${a.eligible.length} entregas com comprovante · ${s.cur.length - a.eligible.length} ainda em curso</p>${spark(series)}<p class="spark-caption">Taxa mês a mês nos últimos 6 meses, pelo mês do compromisso de prontidão.</p>`;
-    left = `<div class="lvl1-hero" id="bloco-destaque"><h2 id="t-destaque">Entrega final no prazo</h2><p class="card-sub">Entregas no destino até o compromisso final original, entre as que têm comprovante.</p>${body}${detailLink('entrega_final')}</div>`;
+      ? '<p class="no-data">Ainda não há entrega final realizada neste recorte.</p>'
+      : `<b class="hero-number">${k.value}%</b><div class="hero-var">${k.small ? smallTag(k.n) : variationChip(k)}</div><p class="base-line">${a.good} de ${a.eligible.length} entregas realizadas · ${s.cur.length - a.eligible.length} ainda em curso</p>${miniBars('final', series)}`;
+    left = `<div class="lvl1-hero" id="bloco-destaque"><div class="card-top"><h2 id="t-destaque">Entrega final no prazo</h2>${kpiHowButton('final', 'hero')}</div><p class="card-sub">Entregas recebidas pelo cliente (fábrica ou armazém final) até a data prevista de entrega, entre as realizadas que tinham data prevista.</p>${body}${kpiHowBody('final', s.gf, 'hero')}</div>`;
   }
   if (fun) {
     const f = IE.funnel(D, s.cur);
     const rows = f.steps.map(st => {
-      const k = IE.kpi(D, st.key, s.cur, s.prev), series = IE.monthly(D, st.key, base, s.range.end);
+      const k = IE.kpi(D, st.key, s.cur, s.prev), series = IE.subSeries(D, st.key, base, s.range);
       const name = st.key === 'port' ? 'Chegada ao destino<small>porto ou aeroporto de descarga</small>' : st.label;
-      const baseTxt = st.base ? `${st.good ?? 0} de ${st.base}${st.key === 'final' ? ' com comprovante' : ' elegíveis'}` : 'sem registro neste recorte';
-      return `<li><div class="fn-name"><span>${name}</span><small>${baseTxt}</small></div><div class="funnel-track" aria-hidden="true"><span style="width:${st.rate || 0}%"></span></div><b class="fn-pct">${st.rate == null ? '<small>sem dado</small>' : st.rate + '%'}</b><span class="fn-var">${variationPts(k)}</span>${spark(series)}${kpiHowButton(st.key)}${kpiHowBody(st.key, s.gf)}</li>`;
+      const baseTxt = st.base ? `${st.good ?? 0} de ${st.base}${st.key === 'final' ? ' realizadas' : ' elegíveis'}` : 'sem registro neste recorte';
+      return `<li><div class="fn-name"><span>${name}</span><small>${baseTxt}</small></div><div class="funnel-track" aria-hidden="true"><span style="width:${st.rate || 0}%"></span></div><b class="fn-pct">${st.rate == null ? '<small>sem dado</small>' : st.rate + '%'}</b><span class="fn-var">${variationPts(k)}</span>${miniBars(st.key, series, { compact: true })}${kpiHowButton(st.key)}${kpiHowBody(st.key, s.gf)}</li>`;
     }).join('');
-    right = `<div class="lvl1-funnel" id="bloco-funil"><h2 id="t-funil">Onde o prazo se perde</h2><p class="card-sub">A mesma carteira em três momentos: quanto chega no prazo a cada etapa.</p><ol class="funnel">${rows}</ol><p class="insight-line accent">${f.drop ? `A maior queda é de <strong>${f.drop.from}</strong> para <strong>${f.drop.to}</strong>: −${f.drop.points} pontos.` : 'Nenhuma queda de prazo entre as etapas neste recorte.'}</p>${detailLink('funil')}</div>`;
+    right = `<div class="lvl1-funnel" id="bloco-funil"><h2 id="t-funil">Onde o prazo se perde</h2><p class="card-sub">A mesma carteira em três momentos: quanto chega no prazo a cada etapa.</p><ol class="funnel">${rows}</ol><p class="mb-legend funnel-legend">Minigráficos: ${esc(IE.subSeries(D, 'ready', base, s.range).legend)}, dentro do período. Passe o mouse numa barra para ver a base.</p><p class="insight-line accent">${f.drop ? `A maior queda é de <strong>${f.drop.from}</strong> para <strong>${f.drop.to}</strong>: −${f.drop.points} pontos.` : 'Nenhuma queda de prazo entre as etapas neste recorte.'}</p></div>`;
   }
-  return `<section class="card lvl1${hero && fun ? '' : ' single'}" aria-label="O resultado e onde ele se perde">${left}${right}</section>`;
+  // A3: o nível 1 é UM bloco, com UM "Ver detalhe" no canto inferior direito.
+  return `<section class="card lvl1${hero && fun ? '' : ' single'}" aria-label="O resultado e onde ele se perde">${left}${right}${detailLink('resultado')}</section>`;
 }
 /* NÍVEL 2: apoio. Frete contratado e Embarques no recorte, lado a lado. */
 function supportCard(key, s, cardId) {
-  const k = IE.kpi(D, key, s.cur, s.prev), series = IE.monthly(D, key, s.cur.length ? IE.applyFilters(D.operations, s.gf) : [], s.range.end);
+  const k = IE.kpi(D, key, s.cur, s.prev), series = IE.subSeries(D, key, IE.applyFilters(D.operations, s.gf), s.range);
   const a = key === 'count' ? null : D.metric(key, s.cur);
   const baseTxt = key === 'count' ? `${s.cur.length} de ${s.all.length} no período` : `${a.eligible.length} de ${s.cur.length} com valor`;
   const value = k.value == null ? '<p class="no-data">Sem frete contratado neste recorte.</p>' : `<b class="support-number">${kpiValue(key, k)}</b><div>${k.small ? smallTag(k.n) : variationChip(k)}</div>`;
-  return `<article class="card support" id="bloco-${cardId}" aria-labelledby="t-${cardId}"><div class="support-main"><div class="card-top"><h2 id="t-${cardId}">${KPI_NAMES[key]}</h2>${kpiHowButton(key)}</div>${value}<p class="base-line">${baseTxt}</p></div>${k.value == null ? '' : spark(series)}${kpiHowBody(key, s.gf)}${detailLink(cardId)}</article>`;
+  return `<article class="card support" id="bloco-${cardId}" aria-labelledby="t-${cardId}"><div class="support-main"><div class="card-top"><h2 id="t-${cardId}">${KPI_NAMES[key]}</h2>${kpiHowButton(key)}</div>${value}<p class="base-line">${baseTxt}</p></div>${k.value == null ? '' : miniBars(key, series)}${kpiHowBody(key, s.gf)}${detailLink(cardId)}</article>`;
 }
 /* NÍVEL 3: evolução, recolhível e aberta por padrão. */
 function evolutionBlock(s, vis) {
@@ -183,7 +223,7 @@ function evolutionBlock(s, vis) {
   const keys = [['ready', 'Prontidão', 's1'], ['port', 'Chegada ao destino', 's2'], ['final', 'Entrega final', 's3']];
   const c1 = prazo ? `<div class="chart-card"><h3>Prazo por etapa · últimos 6 meses</h3>${lineChart(keys.map(([k]) => IE.monthly(D, k, base, s.range.end)), keys)}<p class="chart-caption">Percentual no prazo em cada etapa, por mês do compromisso de prontidão. Meses recentes ainda têm cargas em curso.</p></div>` : '';
   const c2 = frete ? `<div class="chart-card"><h3>Frete por mês</h3>${barChart(IE.monthly(D, 'freight', base, s.range.end), D.cutoff.slice(0, 7))}<p class="chart-caption">Frete internacional contratado (USD) por mês do compromisso de prontidão. Exclui taxas e trecho terrestre.</p></div>` : '';
-  return `<details class="fold evo" id="bloco-graficos" data-fold="evo" ${evoOpen ? 'open' : ''}><summary><h2 id="t-graficos">Evolução</h2><span class="fold-toggle" aria-hidden="true"></span></summary><div class="charts${prazo && frete ? '' : ' single'}">${c1}${c2}</div></details>`;
+  return `<details class="fold evo" id="bloco-graficos" ${foldAttrs('evo')}><summary><h2 id="t-graficos">Evolução</h2><span class="fold-toggle" aria-hidden="true"></span></summary><div class="charts${prazo && frete ? '' : ' single'}">${c1}${c2}</div></details>`;
 }
 /* NÍVEL 4: detalhe por trecho. Cinco trechos em sequência; sem desvio em cinza,
    com desvio em destaque. Cada trecho continua abrindo a base (stageDrawer). */
@@ -192,7 +232,10 @@ function trechosBlock(s) {
     const e = s.cur.filter(o => o[st.from] && o[st.to]), bad = e.filter(o => D.days(o[st.from], o[st.to]) > st.plan(o));
     return `<li><button type="button" class="stage-cell${bad.length ? ' has-dev' : ''}" data-action="stage" data-id="${st.id}"><span class="stage-name">${esc(st.label)}</span><b>${bad.length}/${e.length}</b><span class="stage-what">acima do previsto</span><small>${e.length} de ${s.cur.length} com marcos</small></button></li>`;
   }).join('');
-  return `<section class="card trechos" id="bloco-performance" aria-labelledby="t-performance"><h2 id="t-performance">Performance · Onde os tempos excedem o previsto</h2><p class="card-sub">Dias corridos por trecho concluído; cada trecho abre a base. Por parceiro e por rota, veja os submódulos.</p><ol class="stages">${cells}</ol><p class="chart-caption">Trechos sem desvio ficam em cinza; os que têm desvio ganham destaque. O desvio localiza o trecho, não a causa nem o responsável.</p>${detailLink('trechos')}</section>`;
+  const dev = D.stages.filter(st => s.cur.some(o => o[st.from] && o[st.to] && D.days(o[st.from], o[st.to]) > st.plan(o))).length;
+  // A2: a seção é recolhível, com estado próprio. O resumo na linha do título
+  // ("· 2 de 5 trechos com desvio") deixa o essencial à vista quando recolhida.
+  return `<details class="fold perf card trechos" id="bloco-performance" ${foldAttrs('perf')}><summary><h2 id="t-performance">Performance · Onde os tempos excedem o previsto <span class="fold-count">· ${dev} de ${D.stages.length} trechos com desvio</span></h2><span class="fold-toggle" aria-hidden="true"></span></summary><p class="card-sub">Dias corridos por trecho concluído; cada trecho abre a base. Por parceiro e por rota, veja os submódulos.</p><ol class="stages">${cells}</ol><p class="chart-caption">Trechos sem desvio ficam em cinza; os que têm desvio ganham destaque. O desvio localiza o trecho, não a causa nem o responsável.</p>${detailLink('trechos')}</details>`;
 }
 function commitmentsBlock(s) {
   // Mora no submódulo Agentes de carga desde 23/10/2026: é o combinado com o AGENTE.
@@ -202,7 +245,7 @@ function commitmentsBlock(s) {
   const rows = IE.commitments(D, s.cur).sort((a, b) => (a.status === 'deviation' ? 0 : 1) - (b.status === 'deviation' ? 0 : 1)), LABEL = { deviation: 'Desvio identificado', clean: 'Sem desvio', missing: 'Falta informação' };
   const dev = rows.filter(r => r.status === 'deviation').length;
   const ctl = c => `${esc(c.name)}: ${c.actual} ${c.unit} <small>combinado ${c.agreed} ${c.unit}</small>`;
-  const open = commitmentsOpen || pagePath === 'compromissos';
+  const open = IF.isOpen(folds, 'commitments') || pagePath === 'compromissos';
   return `<details class="fold commitments" id="bloco-compromissos" data-fold="commitments" ${open ? 'open' : ''}><summary><h2 id="t-compromissos">Compromissos do serviço <span class="fold-count">· ${dev} de ${rows.length} com desvio</span></h2><span class="fold-toggle" aria-hidden="true"></span></summary><p class="card-sub">Prazos e condições combinados com o agente × o realizado. Relatório de leitura: um desvio sozinho não atribui responsabilidade. Os desvios de cada agente também aparecem na ficha dele.</p>${rows.length ? table(['Exportador / PO', 'Agente / rota', 'Desvios', 'Situação'], rows.map(({ o, deviations, status }) => `<tr><td>${esc(company(o.supplier).name)}<small>${esc(o.po)} · ${esc(o.id)}</small></td><td>${esc(agent(o.agent).name)}<small>${esc(routeName(route(o.route)))}</small></td><td>${deviations.length ? deviations.map(ctl).join('<br>') : '—'}</td><td><span class="pill ${status === 'clean' ? 'good' : ''}">${LABEL[status]}</span></td></tr>`).join('')) : '<p class="muted">Nenhum embarque neste recorte.</p>'}</details>`;
 }
 
@@ -229,8 +272,10 @@ function headChips(s, tab, ss) {
   else if (!s.range.valid) chips.push('<span class="chip warn">Período inválido: revise as datas em Filtros e ajustes</span>');
   else {
     const label = periodNames[params.get('period') || 'days90'] || 'Personalizado', p = IE.previousRange(s.range);
-    chips.push(`<span class="chip">${esc(label)} · <b>${shortRange(s.range.start, s.range.end)}</b></span>`);
-    chips.push(`<span class="chip" title="${esc(IE.comparisonCaption(s.range))}">comparado com ${shortRange(p.start, p.end)}</span>`);
+    // B2: os chips de período e de comparação abrem "Filtros e ajustes" já no
+    // campo Período (a comparação sai do período; não há campo próprio).
+    chips.push(`<button type="button" class="chip chip-edit" data-action="intel-adjust" data-field="period" aria-label="${esc(label)}, ${shortRange(s.range.start, s.range.end)}. Alterar o período em Filtros e ajustes">${esc(label)} · <b>${shortRange(s.range.start, s.range.end)}</b></button>`);
+    chips.push(`<button type="button" class="chip chip-edit" data-action="intel-adjust" data-field="period" title="${esc(IE.comparisonCaption(s.range))}" aria-label="Comparado com ${shortRange(p.start, p.end)}. ${esc(IE.comparisonCaption(s.range))} Alterar o período em Filtros e ajustes">comparado com ${shortRange(p.start, p.end)}</button>`);
   }
   chips.push(`<span class="chip"><b>${ss.cur.length}</b> de ${ss.all.length} embarques</span>`);
   const filters = IE.FILTERS.flatMap(f => (s.gf[f.key] || []).map(v => `<button class="filter-chip" data-action="gfilter-remove" data-key="${f.key}" data-value="${esc(v)}" aria-label="Remover filtro ${esc(f.label)}: ${esc(f.name(D, v))}">${esc(f.label)}: ${esc(f.name(D, v))} <span aria-hidden="true">×</span></button>`));
@@ -263,21 +308,31 @@ function currentTab() { return IT.readTab(params, extraTabs()); }
 /** Abas fora da família do retrovisor: o Simulador (o caminho do futuro). */
 function extraTabs() { return ['simulador']; }
 function tabNav(tab) {
-  const item = ([id, label], cls = '') => `<a href="${esc(url('executivo', { aba: id === 'geral' ? null : id, sel: null }))}" class="intel-tab${cls}${tab === id ? ' active' : ''}" data-tab="${id}" ${tab === id ? 'aria-current="page"' : ''}>${label}</a>`;
+  const item = ([id, label], cls = '') => `<a href="${esc(url('executivo', { aba: id === 'geral' ? null : id, sel: null, de: null }))}" class="intel-tab${cls}${tab === id ? ' active' : ''}" data-tab="${id}" ${tab === id ? 'aria-current="page"' : ''}>${label}</a>`;
   // O passado (o que aconteceu) e o futuro (o que decidir agora) ficam em dois
   // grupos, separados por um divisor; o futuro leva o selo "Prévia".
   return `<nav class="intel-tabs" aria-label="Abas da Inteligência"><div class="intel-tabs-past" role="group" aria-label="O que aconteceu">${IT.TABS.map(t => item(t)).join('')}</div><div class="intel-tabs-future" role="group" aria-label="O que decidir agora"><span class="tabs-divider" aria-hidden="true"></span>${item(['simulador', 'Simulador <span class="preview-tag">Prévia</span>'], ' future')}</div></nav>`;
 }
 /* Cabeçalho ordenável: botão por coluna, `aria-sort` no th. */
+/** Peso da coluna: líder, discreta, ou neutra (o nome, que é a identidade da linha). */
+const colWeight = (dim, key) => (key === 'name' ? '' : IT.LEAD_COLUMNS[dim].includes(key) ? 'lead-col' : 'quiet-col');
 function sortableHead(dim, sort) {
   return IT.COLUMNS[dim].map(([key, label]) => {
     const on = sort.key === key, dir = on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
     const arrow = on ? (sort.dir === 'asc' ? '↑' : '↓') : '↕';
     const head = /^Chegada ao destino/.test(label) ? destTerm('Chegada ao destino') + label.slice('Chegada ao destino'.length) : label;
-    return `<th scope="col" aria-sort="${dir}"><button type="button" class="sort-button${on ? ' active' : ''}" data-action="tab-sort" data-dim="${dim}" data-key="${key}">${head} <span aria-hidden="true">${arrow}</span></button></th>`;
+    return `<th scope="col" class="${colWeight(dim, key)}" aria-sort="${dir}"><button type="button" class="sort-button${on ? ' active' : ''}" data-action="tab-sort" data-dim="${dim}" data-key="${key}"><span class="sort-label">${head}</span> <span aria-hidden="true">${arrow}</span></button></th>`;
   }).join('');
 }
-const rateCell = m => (m.base ? `${pctTxt(m.rate)}<small>${m.good ?? 0} de ${m.base}</small>` : '—<small>sem registro</small>');
+/* BASE PRIMEIRO, PERCENTUAL DEPOIS (subabas v2). Em toda taxa, "a de b" é o texto
+   principal e o percentual vem menor, ao lado da leitura: 4 de 5 diz mais que
+   80%, e um percentual sobre base pequena não ganha destaque que não merece. */
+const rateCell = m => (m.base ? `<span class="frac">${m.good ?? 0} de ${m.base}</span><small class="pct">${pctTxt(m.rate)}</small>` : '—<small>sem registro</small>');
+/** A6: "Cobrança sem diferença" sempre com número e base ("0 de 0 conferências" + a frase, quando não há conferência). */
+function auditCell(m) {
+  const a = IT.auditFigure(m);
+  return a.note ? `<span class="frac">${a.main}</span><small>${a.unit} · ${a.note}</small>` : `<span class="frac">${a.main}</span><small class="pct">${pctTxt(a.pct)}</small>`;
+}
 const transitCell = r => (r.transitMedian == null ? '—<small>sem saída e chegada</small>' : `${String(r.transitMedian).replace('.', ',')} dias<small>${r.transitN} com saída e chegada</small>`);
 function cellOf(dim, key, r) {
   if (key === 'name') {
@@ -289,28 +344,46 @@ function cellOf(dim, key, r) {
   if (key === 'transitMedian') return transitCell(r);
   if (key === 'freightAvg') return r.freightAvg == null ? '—' : money(r.freightAvg);
   if (key === 'agents' || key === 'routes') return String(r[key]);
+  if (key === 'audit') return auditCell(r.audit);
   return rateCell(r[key]);
+}
+/** Linha de grupos acima do cabeçalho (só onde IntelTabs.COLUMN_GROUPS define; hoje, Exportadores). */
+function groupHead(dim) {
+  const groups = IT.COLUMN_GROUPS[dim];
+  if (!groups) return '';
+  const keys = IT.COLUMNS[dim].map(([k]) => k);
+  let cells = '', at = 0;
+  for (const g of groups) {
+    const start = keys.indexOf(g.keys[0]);
+    if (start > at) cells += `<td colspan="${start - at}"></td>`;
+    const tip = g.tip ? ` <span class="group-tip has-tip" tabindex="0" aria-describedby="tip-${dim}-${g.keys[0]}">${ICON.info}<span class="sr-only">Sobre este grupo</span><span class="tip" role="tooltip" id="tip-${dim}-${g.keys[0]}">${esc(g.tip)}</span></span>` : '';
+    cells += `<th scope="colgroup" colspan="${g.keys.length}"><span class="group-label">${esc(g.label)}</span>${tip}</th>`;
+    at = start + g.keys.length;
+  }
+  if (at < keys.length) cells += `<td colspan="${keys.length - at}"></td>`;
+  return `<tr class="col-groups">${cells}</tr>`;
 }
 function comparisonTable(dim, rows) {
   const sort = tableSort.get(dim) || IT.DEFAULT_SORT, sorted = IT.sortRows(rows, sort);
   if (!sorted.length) return '<p class="muted">Nenhum registro neste recorte.</p>';
-  return `<div class="table-wrap"><table class="compare"><thead><tr>${sortableHead(dim, sort)}</tr></thead><tbody>${sorted.map(r => `<tr class="clickable" data-row-dim="${dim}" data-row-id="${esc(r.id)}">${IT.COLUMNS[dim].map(([key]) => `<td>${cellOf(dim, key, r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="compare"><thead>${groupHead(dim)}<tr>${sortableHead(dim, sort)}</tr></thead><tbody>${sorted.map(r => `<tr class="clickable${params.get('sel') === r.id ? ' is-open' : ''}" data-row-dim="${dim}" data-row-id="${esc(r.id)}">${IT.COLUMNS[dim].map(([key]) => `<td class="${colWeight(dim, key)}">${cellOf(dim, key, r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 const TAB_COPY = {
   exp: { plural: 'Exportadores', noun: 'exportadores', sub: 'Quem vende e embarca a mercadoria. Ordenado por volume; clique numa linha para abrir a ficha (o antigo Raio X).' },
   ag: { plural: 'Agentes de carga', noun: 'agentes', sub: 'Quem contrata e acompanha o transporte. Ordenado por volume; clique numa linha para abrir a ficha, com os desvios e a cobrança do agente.' },
   rota: { plural: 'Rotas', noun: 'rotas', sub: 'Origem → destino internacional. Ordenado por volume; clique numa linha para abrir a ficha, com agentes e SKUs da rota.' },
 };
-function tabSummaryRow(dim, rows, total) {
-  const t = IT.tabSummary(rows, total), c = TAB_COPY[dim];
-  const card = (label, value, small) => `<div class="tab-stat"><span>${label}</span><b>${value}</b>${small ? `<small>${small}</small>` : ''}</div>`;
-  return `<div class="tab-stats">${card(`${c.plural} no recorte`, t.count, `${total} embarques`)}${t.top ? card('Maior participação', `${t.top.share}%`, `${esc(t.top.name)} · ${t.top.n} de ${total}`) : ''}${t.top2Share != null ? card('Os 2 maiores somam', `${t.top2Share}%`, 'dos embarques do recorte') : ''}${t.smallCount ? card('Com amostra pequena', t.smallCount, 'menos de 3 embarques') : ''}</div>`;
+/* FATO DO RECORTE (subabas v2): uma frase calculada (IntelTabs.recortFact) no
+   lugar dos três cartões de concentração; a concentração continua, numa linha
+   discreta logo abaixo. Respeita período e filtros como o resto da tela. */
+function factBand(dim, rows, total) {
+  return `<div class="fact-band" role="note" aria-label="Fato do recorte"><p class="fact-text">${esc(IT.recortFact(dim, rows).text)}</p><p class="fact-conc">${esc(IT.concentrationLine(dim, rows, total))}</p></div>`;
 }
 function entityTab(dim, s) {
   const rows = IT.entityRows(D, s.cur, dim), c = TAB_COPY[dim];
   // O título do submódulo está no cabeçalho da página; aqui fica só a frase de apoio.
-  let html = `<section class="block entity-tab" id="aba-${dim}" aria-label="${c.plural}"><p class="lead">${c.sub}</p>${tabSummaryRow(dim, rows, s.cur.length)}${comparisonTable(dim, rows)}<p class="chart-caption">Dado, não veredito: as colunas são fatos do recorte, sem nota nem ranking. Com menos de 3 embarques a linha leva “Amostra pequena”.</p></section>`;
-  if (dim === 'ag') html += commitmentsBlock(s);
+  let html = `<section class="block entity-tab" id="aba-${dim}" aria-label="${c.plural}"><p class="lead">${c.sub}</p>${factBand(dim, rows, s.cur.length)}${comparisonTable(dim, rows)}<p class="chart-caption">Dado, não veredito: as colunas são fatos do recorte, sem nota nem ranking. Com menos de 3 embarques a linha leva “Amostra pequena”.</p></section>`;
+  if (dim === 'ag') html = html.replace('</section>', '<p class="chart-caption">O trânsito depende da rota. Para comparar agentes de forma justa, veja a ficha do agente ou a ficha da rota.</p></section>') + commitmentsBlock(s);
   if (dim === 'rota') html += `<p class="chart-caption">O preço de mercado de cada rota fica no Radar. <a class="link" href="/portal/radar" target="_top">Abrir o Radar ↗</a> · <a class="link" href="#locais">Ver locais</a></p>`;
   return html;
 }
@@ -330,13 +403,80 @@ function skuTable(rows, withExporter) {
    tabela. O que a ficha antiga mostrava a mais (evolução, uso e impacto, fatos
    fora da tabela) continua, recolhido em "Mais detalhes": nada se perde. */
 const daysTxt1 = v => (v == null ? '—' : String(v).replace('.', ',') + ' dias');
-const rateFact = (label, m) => [label, pctTxt(m.rate), m.base ? `${m.good ?? 0} de ${m.base}` : 'sem registro'];
+const rateFact = (label, m) => [label, m.base ? `${m.good ?? 0} de ${m.base}` : '—', m.base ? pctTxt(m.rate) : 'sem registro'];
 function sheetStrip(items) { return `<dl class="sheet-strip">${items.map(([k, v, small]) => `<div><dt>${k}</dt><dd>${v}</dd>${small ? `<small>${small}</small>` : ''}</div>`).join('')}</dl>`; }
 /** Os desvios de UM agente, do mesmo dado do bloco "Compromissos do serviço" (IE.commitments). */
 function agentDeviations(ops) {
   const rows = IE.commitments(D, ops), dev = rows.filter(r => r.status === 'deviation');
   const item = ({ o, deviations }) => `<li><div class="dev-who"><b>${esc(company(o.supplier).name)}</b><small>${esc(o.po)} · ${esc(routeName(route(o.route)))}</small></div><ul class="dev-list">${deviations.map(c => `<li>${esc(c.name)}: <b>${c.actual} ${c.unit}</b><small>combinado ${c.agreed} ${c.unit}</small></li>`).join('')}</ul></li>`;
   return `<section class="detail-section" aria-labelledby="dt-dev"><h3 id="dt-dev">Compromissos do serviço · desvios</h3><p class="base-line">${dev.length} de ${rows.length} ${rows.length === 1 ? 'embarque' : 'embarques'} deste agente com desvio contra o combinado.</p>${dev.length ? `<ul class="dev-items">${dev.map(item).join('')}</ul>` : '<p class="muted">Nenhum desvio contra o combinado neste recorte.</p>'}<p class="chart-caption">Um desvio sozinho não atribui responsabilidade.</p></section>`;
+}
+/* CRUZAMENTOS NAS FICHAS (subabas v2). Lista empilhada em vez de tabela: a ficha
+   tem ~410px, e três números por linha não cabem numa tabela sem rolar. Cada
+   item traz o título, a contagem de embarques e pares rótulo: valor. */
+const transitBase = (median, n) => (median == null ? '—<small>sem saída e chegada</small>' : `${daysTxt1(median)}<small>${n} com saída e chegada</small>`);
+const shipCount = n => `${n} ${n === 1 ? 'embarque' : 'embarques'}`;
+/** Diferença NEUTRA em dias: sinal e número, sem cor ("+1,5 dia", "−2 dias", "igual"). */
+function diffTxt(d) {
+  if (d == null) return '—';
+  if (d === 0) return 'igual à mediana da rota';
+  const abs = Math.abs(d);
+  return `${d > 0 ? '+' : '−'}${String(abs).replace('.', ',')} ${abs < 2 ? 'dia' : 'dias'}`;
+}
+function crossList(items) {
+  return `<ul class="cross-list">${items.map(it => `<li><div class="cross-head"><b>${it.title}</b><span>${it.meta}</span></div><dl>${it.lines.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl></li>`).join('')}</ul>`;
+}
+/* FICHAS QUE SE CONVERSAM (subabas v2). Um link de ficha é um hash comum
+   (`aba`, `sel` e `de`, a origem): o Voltar do navegador volta para a ficha
+   anterior, e a ficha aberta por link mostra o rastro de onde veio. */
+const sheetLink = (dim, id, label, from) => `<a class="sheet-link" href="${esc(url('executivo', { aba: IT.TAB_OF_DIM[dim], sel: id, de: IT.originParam(from.dim, from.id) }))}">${label}</a>`;
+/* B4 (17/11/2026): a ficha aberta por link de outra ficha ganha um "← Voltar"
+   visível no topo, que leva à ficha de origem. Quando a pessoa chegou por um
+   clique nesta sessão, o Voltar é o do navegador (não empilha histórico); num
+   link compartilhado com `de=`, ele navega para a origem. */
+let sheetNav = [];   // hashes de onde saiu um link entre fichas, nesta sessão
+function sheetTrail(origin) {
+  if (!origin) return '';
+  return `<p class="sheet-trail"><a class="sheet-back" data-sheet-back href="${esc(url('executivo', { aba: origin.tab, sel: origin.id, de: null }))}"><span aria-hidden="true">←</span> Voltar</a><span class="sheet-from">para ${esc(origin.tabLabel)} · ${esc(origin.name)}</span></p>`;
+}
+document.addEventListener('click', e => {
+  const link = e.target.closest('a.sheet-link');
+  if (link) { sheetNav.push(location.hash); return; }
+  const back = e.target.closest('[data-sheet-back]');
+  if (!back) return;
+  const target = back.getAttribute('href');
+  const key = h => { const q = new URLSearchParams(String(h).split('?')[1] || ''); return (q.get('aba') || '') + '|' + (q.get('sel') || ''); };
+  if (sheetNav.length && key(sheetNav[sheetNav.length - 1]) === key(target)) { e.preventDefault(); sheetNav.pop(); history.back(); }
+  else sheetNav = [];
+});
+/** Ficha do agente: "Trânsito por rota" (IntelTabs.agentRouteContext). */
+function agentRoutesSection(ops, id) {
+  const rows = IT.agentRouteContext(D, ops, id);
+  if (!rows.length) return '';
+  const items = rows.map(r => ({
+    title: sheetLink('rota', r.route, esc(r.routeName), { dim: 'ag', id }), meta: shipCount(r.n) + (r.small ? ' ' + transitSmallTag(r.transitN) : ''),
+    lines: [['Trânsito mediano do agente', transitBase(r.transitMedian, r.transitN)], ['Mediana da rota', transitBase(r.routeMedian, r.routeN)], ['Diferença', diffTxt(r.diff)]],
+  }));
+  return `<section class="detail-section" aria-labelledby="dt-rotas"><h3 id="dt-rotas">Trânsito por rota</h3>${crossList(items)}<p class="chart-caption">O trânsito depende da rota: a diferença compara o agente com a mediana de todos os agentes do recorte na mesma rota. Mesma conta do Simulador (saída → chegada), sobre o período e os filtros desta tela; o Simulador usa o histórico próprio.</p></section>`;
+}
+/** Ficha da rota: "Agentes da rota", a comparação dentro da mesma rota num lugar só. */
+function routeAgentsSection(ops, id) {
+  const rows = IT.routeAgents(D, ops, id);
+  const items = rows.map(r => ({
+    title: sheetLink('ag', r.agent, esc(r.agentName), { dim: 'rota', id }), meta: shipCount(r.n) + (r.small ? ' ' + transitSmallTag(r.transitN) : ''),
+    lines: [['Trânsito mediano', transitBase(r.transitMedian, r.transitN)], ['Chegada ao destino no prazo', rateCell(r.port)]],
+  }));
+  return `<section class="detail-section" aria-labelledby="dt-ag"><h3 id="dt-ag">Agentes da rota</h3>${rows.length ? crossList(items) : '<p class="muted">Nenhum agente nesta rota no recorte.</p>'}<p class="chart-caption">Mesma rota, mesmos períodos e filtros: é onde a comparação entre agentes é justa. Com menos de 3 trânsitos, “Amostra pequena”.</p></section>`;
+}
+/** Ficha do exportador: "Quem atende este exportador", um item por agente × rota. */
+function exporterServersSection(ops, id) {
+  const rows = IT.exporterServers(D, ops, id);
+  if (!rows.length) return '';
+  const items = rows.map(r => ({
+    title: `${sheetLink('ag', r.agent, esc(r.agentName), { dim: 'exp', id })} <span class="cross-sub">· ${esc(r.routeName)}</span>`, meta: shipCount(r.n) + (r.small ? ' ' + transitSmallTag(r.transitN) : ''),
+    lines: [['Chegada ao destino no prazo', rateCell(r.port)], ['Trânsito mediano', transitBase(r.transitMedian, r.transitN)]],
+  }));
+  return `<section class="detail-section" aria-labelledby="dt-atende"><h3 id="dt-atende">Quem atende este exportador</h3>${crossList(items)}<p class="chart-caption">Agente de carga e rota de cada embarque deste exportador no recorte. O resultado também depende deles: um desvio sozinho não atribui responsabilidade.</p></section>`;
 }
 function entityDetailHtml(dim, id, s) {
   const ops = IT.entityOps(s.cur, dim, id), row = IT.entityRows(D, s.cur, dim).find(r => r.id === id);
@@ -352,21 +492,20 @@ function entityDetailHtml(dim, id, s) {
   const evolution = `<section class="detail-section" aria-labelledby="dt-evo"><h3 id="dt-evo">Evolução · últimos 6 meses</h3>${lineChart(keys.map(([k]) => IE.monthly(D, k, base, s.range.end)), keys, true)}<p class="chart-caption">Percentual no prazo por mês do compromisso de prontidão, com os filtros atuais.</p></section>`;
   let fresh = '', more = '';
   if (dim === 'exp') {
-    fresh = `<section class="detail-section" aria-labelledby="dt-sku"><h3 id="dt-sku">SKUs deste exportador</h3>${skuTable(IT.skuRows(D, ops), false)}<p class="chart-caption">SKU é do item: um embarque com dois SKUs conta nos dois.</p></section>`;
+    fresh = exporterServersSection(s.cur, id) + `<section class="detail-section" aria-labelledby="dt-sku"><h3 id="dt-sku">SKUs deste exportador</h3>${skuTable(IT.skuRows(D, ops), false)}<p class="chart-caption">SKU é do item: um embarque com dois SKUs conta nos dois.</p></section>`;
     more = factList([rateFact('Entrega final no prazo', row.final), transit]);
   }
   if (dim === 'rota') {
-    const agents = IT.sortRows(IT.entityRows(D, ops, 'ag'));
-    fresh = `<section class="detail-section" aria-labelledby="dt-ag"><h3 id="dt-ag">Agentes nesta rota</h3>${table(['Agente', 'Embarques', 'Trânsito mediano', 'Chegada ao destino no prazo'], agents.map(r => `<tr><td><b>${esc(r.name)}</b></td><td>${r.n}${r.small ? smallTag(r.n) : ''}</td><td>${transitCell(r)}</td><td>${rateCell(r.port)}</td></tr>`).join(''))}</section><section class="detail-section" aria-labelledby="dt-sku"><h3 id="dt-sku">SKUs nesta rota</h3>${skuTable(IT.skuRows(D, ops), true)}<p class="chart-caption">SKU é do item: um embarque com dois SKUs conta nos dois.</p></section>`;
+    fresh = routeAgentsSection(ops, id) + `<section class="detail-section" aria-labelledby="dt-sku"><h3 id="dt-sku">SKUs nesta rota</h3>${skuTable(IT.skuRows(D, ops), true)}<p class="chart-caption">SKU é do item: um embarque com dois SKUs conta nos dois.</p></section>`;
     more = factList([rateFact('Prontidão no prazo', row.ready)]);
   }
   if (dim === 'ag') {
     const imp = IT.agentImpact(D, s.cur, id);
-    fresh = agentDeviations(ops) + `<section class="detail-section" aria-labelledby="dt-cob"><h3 id="dt-cob">Cobrança</h3><p class="sheet-line"><span>Conferências sem diferença</span><b>${row.audit.base ? `${row.audit.good ?? 0} de ${row.audit.base}` : 'nenhuma conferência concluída'}</b></p></section>`;
+    fresh = agentRoutesSection(s.cur, id) + agentDeviations(ops) + `<section class="detail-section" aria-labelledby="dt-cob"><h3 id="dt-cob">Cobrança</h3>${(a => `<p class="sheet-line"><span>Conferências sem diferença</span><b>${a.main} ${a.unit}</b></p>${a.note ? `<p class="chart-caption">${a.note[0].toUpperCase() + a.note.slice(1)}.</p>` : ''}`)(IT.auditFigure(row.audit))}</section>`;
     more = `<section class="detail-section" aria-labelledby="dt-imp"><h3 id="dt-imp">Uso e impacto</h3>${factList([
       ['Participação nos embarques', `${imp.share}%`, `${imp.n} de ${imp.total} no recorte · ${imp.routes.length} ${imp.routes.length === 1 ? 'rota' : 'rotas'}: ${esc(imp.routes.map(r => routeName(route(r))).join(', '))}`],
       ['Prazo do trânsito', imp.transitMedian == null ? '—' : String(imp.transitMedian).replace('.', ',') + ' dias (mediana)', `${imp.transitOverPlan} de ${imp.transitBase} acima do trânsito previsto na proposta`],
-      ['Cotado × cobrado', imp.auditBase ? `${imp.auditDiffCount} de ${imp.auditBase}` : '—', imp.auditBase ? `conferências concluídas com diferença${imp.auditDiffUsd ? ` · ${money(imp.auditDiffUsd)} fundamentados, não recuperados` : ''}${imp.auditPending ? ` · ${imp.auditPending} em esclarecimento ou não auditados` : ''}` : 'nenhuma conferência concluída'],
+      ['Cotado × cobrado', imp.auditBase ? `${imp.auditDiffCount} de ${imp.auditBase}` : '0 de 0', imp.auditBase ? `conferências concluídas com diferença${imp.auditDiffUsd ? ` · ${money(imp.auditDiffUsd)} fundamentados, não recuperados` : ''}${imp.auditPending ? ` · ${imp.auditPending} em esclarecimento ou não auditados` : ''}` : 'nenhuma conferência concluída'],
       rateFact('Prontidão no prazo', row.ready),
     ])}<p class="chart-caption">Desvio observado não atribui responsabilidade ao agente.</p></section>`;
   }
@@ -390,31 +529,54 @@ function sheetMode(cls) {
 }
 function openEntity(dim, id) {
   const s = intelScope();
-  openDrawer(esc(IT.nameOf(D, dim, id)), entitySubtitle(dim, id, s), entityDetailHtml(dim, id, s));
+  openDrawer(esc(IT.nameOf(D, dim, id)), entitySubtitle(dim, id, s), sheetTrail(IT.readOrigin(D, params, { dim, id })) + entityDetailHtml(dim, id, s));
   sheetMode('entity-sheet');
 }
 /** Depois de desenhar a Visão geral/abas: abre o detalhe pedido pela URL. */
 function afterOverviewRender() {
   const sel = IT.readSelection(D, params, currentTab());
+  sheetHash = location.hash;
   if (sel) openEntity(sel.dim, sel.id);
 }
 /** Fechar o painel tira `sel` da URL sem nova navegação (e sem reabrir). */
+let sheetHash = '';   // o hash que desenhou a ficha aberta
 function stripSelection() {
   if (!params.has('sel')) return;
-  params.delete('sel');
+  // Fechou porque um link de DENTRO da ficha já levou para outro lugar (outra
+  // ficha, a ficha completa): a URL nova manda, não há o que limpar.
+  if (location.hash !== sheetHash) return;
+  params.delete('sel'); params.delete('de');
   const next = '#' + pagePath + (params.toString() ? '?' + params : '');
   history.replaceState(history.state, '', location.pathname + location.search + next);
   try { if (window.parent !== window) window.parent.history.replaceState(window.parent.history.state, '', window.parent.location.pathname + window.parent.location.search + next); } catch {}
 }
 
 /* --------------------------------------------------------------- página --- */
+/* CARD DESLIGADO NÃO SOME (B1, 17/11/2026). No lugar dele, na mesma posição da
+   hierarquia, fica um esmaecido compacto: nome, o rótulo "Desativado" por
+   extenso (nunca só opacidade; texto em contraste AA) e o caminho de volta. O
+   clique ativa o tema inteiro (tema desligado) ou só o card (tema ligado). */
+const BLOCK_ANCHOR = { entrega_final: 'bloco-destaque', funil: 'bloco-funil', frete: 'bloco-frete', embarques: 'bloco-embarques', evolucao_prazo: 'bloco-graficos', evolucao_frete: 'bloco-graficos', trechos: 'bloco-performance' };
+const THEME_NAME = Object.fromEntries(IP.THEMES);
+function offStubs(ids, states) {
+  const off = states.filter(c => c.off && ids.includes(c.id));
+  if (!off.length) return '';
+  return `<div class="off-row">${off.map(c => {
+    const cta = c.off === 'theme' ? `Ativar este tema (${THEME_NAME[c.theme]})` : 'Ativar este cartão';
+    return `<button type="button" class="card-off" data-action="pers-activate" data-id="${c.id}" title="${esc(cta)}"><span class="off-head"><span class="off-name">${esc(c.label)}</span><span class="off-tag">Desativado</span></span><span class="off-cta">${esc(cta)} <span aria-hidden="true">→</span></span></button>`;
+  }).join('')}</div>`;
+}
 function geralTab(s) {
   // A ORDEM É FIXA (a hierarquia): resultado, apoio, evolução, detalhe por trecho.
-  // Personalizar só liga e desliga cards (intel-personalize.js).
-  const vis = new Set(IP.visibleCards(intelPers));
-  if (!vis.size) return '<div class="card empty"><h2>Todos os cards estão desligados</h2><p>A Visão geral mostra só os cards ligados dos temas escolhidos. Volte ao padrão ou escolha os cards em “Filtros e ajustes”.</p><div class="empty-actions"><button class="button" data-action="pers-reset-now">Refazer personalização do zero</button><button class="button secondary" data-action="intel-adjust">Filtros e ajustes</button></div></div>';
+  // Personalizar só liga e desliga cards (intel-personalize.js); o desligado
+  // fica esmaecido no lugar dele (offStubs).
+  const vis = new Set(IP.visibleCards(intelPers)), states = IP.cardStates(intelPers), B = IP.BLOCKS;
+  const empty = vis.size ? '' : '<div class="card empty"><h2>Todos os cards estão desligados</h2><p>Os cards desligados continuam abaixo, esmaecidos: clique num deles para ativar o tema. Ou volte ao padrão.</p><div class="empty-actions"><button class="button" data-action="pers-reset-now">Refazer personalização do zero</button><button class="button secondary" data-action="intel-adjust">Filtros e ajustes</button></div></div>';
   const support = [vis.has('frete') && supportCard('freight', s, 'frete'), vis.has('embarques') && supportCard('count', s, 'embarques')].filter(Boolean);
-  return resultCard(s, vis) + (support.length ? `<div class="support-row${support.length === 1 ? ' single' : ''}">${support.join('')}</div>` : '') + evolutionBlock(s, vis) + (vis.has('trechos') ? trechosBlock(s) : '');
+  return empty + resultCard(s, vis) + offStubs(B.resultado, states)
+    + (support.length ? `<div class="support-row${support.length === 1 ? ' single' : ''}">${support.join('')}</div>` : '') + offStubs([...B.frete, ...B.embarques], states)
+    + evolutionBlock(s, vis) + offStubs(B.evolucao, states)
+    + (vis.has('trechos') ? trechosBlock(s) : '') + offStubs(B.trechos, states);
 }
 /** Conteúdo das abas que não são do retrovisor (o Simulador). */
 function extraTabContent(tab, s) { return tab === 'simulador' ? simulatorTab(s) : ''; }
@@ -558,9 +720,9 @@ function openReportPanel(emailDone) {
 function persFieldsHtml() {
   const st = persDraft, groups = IP.cardsByTheme(st);
   const chips = IP.THEMES.map(([id, label]) => `<button type="button" class="theme-chip" data-pers-theme="${id}" aria-pressed="${st.themes.includes(id)}">${label}</button>`).join('');
-  const cards = groups.length
-    ? groups.map(g => `<div class="pers-group" role="group" aria-label="${g.label}"><p class="pers-group-title">${g.label}</p>${g.cards.map(c => `<label class="pers-card"><input type="checkbox" role="switch" data-pers-card="${c.id}" ${c.on ? 'checked' : ''}><span><b>${c.label}</b><small>${c.desc}</small></span></label>`).join('')}</div>`).join('')
-    : '<p class="muted">Escolha ao menos um tema acima para ver os cards disponíveis.</p>';
+  // B1: tema desligado continua na lista, esmaecido e clicável ("Desativado" +
+  // "Ativar este tema"); ligar um card dele ativa o tema.
+  const cards = groups.map(g => `<div class="pers-group${g.on ? '' : ' is-off'}" role="group" aria-label="${g.label}${g.on ? '' : ' (desativado)'}"><p class="pers-group-title">${g.label}${g.on ? '' : ` <span class="off-tag">Desativado</span> <button type="button" class="text-button off-activate" data-pers-theme="${g.id}">Ativar este tema</button>`}</p>${g.cards.map(c => `<label class="pers-card${g.on ? '' : ' is-off'}"${g.on ? '' : ' title="Ativar este tema"'}><input type="checkbox" role="switch" data-pers-card="${c.id}" ${c.on ? 'checked' : ''}><span><b>${c.label}</b><small>${g.on ? c.desc : `Desativado · ligar ativa o tema ${g.label}`}</small></span></label>`).join('')}</div>`).join('');
   return `<p class="pers-eyebrow">Temas (${st.themes.length} de ${IP.THEMES.length})</p><div class="theme-chips">${chips}</div><p class="pers-eyebrow">Cards</p>${cards}`;
 }
 /** Redesenha só os controles de personalização do diálogo aberto e devolve o foco ao controle usado. */
@@ -593,11 +755,16 @@ function refreshAdjust(focusSelector) {
   root.innerHTML = adjustFiltersHtml();
   if (focusSelector) root.querySelector(focusSelector)?.focus();
 }
-function openAdjust() {
+/** Abre o painel. Com `field` (B2), o foco vai direto ao campo; seletor nativo abre a lista quando o navegador deixa. */
+function openAdjust(field) {
   adjustDraft = { period: params.get('period') || 'days90', start: params.get('start') || '', end: params.get('end') || '', gf: IE.readFilters(params) };
   persDraft = IP.normalize(intelPers); openFilterKey = null;
   openDrawer('Filtros e ajustes', 'O recorte e os cards da Inteligência, num lugar só.', `<div class="fa"><section class="fa-section" aria-labelledby="fa-t1"><h3 id="fa-t1">Filtros</h3><div id="fa-filters">${adjustFiltersHtml()}</div></section><section class="fa-section" aria-labelledby="fa-t2"><h3 id="fa-t2">Personalizar a Inteligência</h3><p class="fa-help">Escolha os temas e ligue ou desligue cada card. A Visão geral mostra só os cards ligados dos temas escolhidos.</p><div data-pers-root>${persFieldsHtml()}</div><p class="pers-foot"><button type="button" class="text-button" data-action="pers-reset">Refazer personalização do zero</button> <span id="pers-reset-note" role="status"></span></p></section></div><div class="fa-actions" data-bottom-action-bar><button type="button" class="text-button" data-action="onb-open">Ver introdução</button><span><button type="button" class="button secondary" data-action="fa-clear">Limpar filtros</button><button type="button" class="button" data-action="fa-apply">Aplicar</button></span></div>`);
   sheetMode('adjust-sheet');
+  if (field === 'period') {
+    const el = document.getElementById('fa-period');
+    if (el) { el.focus(); el.scrollIntoView({ block: 'nearest' }); try { el.showPicker?.(); } catch {} }
+  }
 }
 function applyAdjust() {
   const d = adjustDraft;
@@ -619,7 +786,7 @@ function applyAdjust() {
    localStorage; sem storage não abre sozinho); `?onboarding=1` força, para as
    demos; "Ver introdução", no painel de ajustes, reabre. O passo 2 grava a
    MESMA personalização do painel. Fechar por qualquer caminho marca como visto. */
-let onbStep = 0;
+let onbStep = 0, onbSkipped = false;   // B5: pulou a personalização no passo 2?
 function onbHtml() {
   const dots = `<ol class="onb-dots" aria-label="Passo ${onbStep + 1} de 3">${[0, 1, 2].map(i => `<li${i === onbStep ? ' class="on" aria-current="step"' : ''}></li>`).join('')}</ol>`;
   if (onbStep === 0) {
@@ -630,7 +797,9 @@ function onbHtml() {
   }
   if (onbStep === 1) return `${dots}<h2 id="onb-title" tabindex="-1">Personalizar a Inteligência</h2><p class="onb-lead">Escolha os temas e ligue ou desligue cada card. A Visão geral mostra só os cards ligados dos temas escolhidos.</p><div data-pers-root>${persFieldsHtml()}</div><p class="onb-note">Dá para refazer depois em Filtros e ajustes.</p><div class="onb-actions"><span><button type="button" class="button secondary" data-onb="back">Voltar</button><button type="button" class="button secondary" data-onb="skip-step">Pular por agora</button></span><button type="button" class="button cta" data-onb="save">Salvar e continuar</button></div>`;
   const where = document.documentElement.classList.contains('embedded') ? 'nos submódulos do menu lateral' : 'nas abas no topo da página';
-  return `${dots}<h2 id="onb-title" tabindex="-1">Onde ir para ver mais</h2><p class="onb-lead">Os detalhes ficam ${where}. Cada bloco tem um “Ver detalhe” discreto no canto.</p><ul class="onb-list"><li><b>Exportadores · Agentes de carga · Rotas</b></li><li><b>Simulador</b> <span class="preview-tag">Prévia</span>: teste uma data de chegada.</li><li><b>Preparar relatório</b>: leve o recorte para a reunião.</li></ul><div class="onb-actions"><button type="button" class="button secondary" data-onb="back">Voltar</button><button type="button" class="button cta" data-onb="done">Começar</button></div>`;
+  // B5: feedback de saída — o que a pessoa decidiu no passo 2.
+  const choice = `<p class="onb-choice" role="status"><b>${esc(IP.choiceSummary(intelPers, onbSkipped))}.</b> Dá para mudar depois em “Filtros e ajustes”.</p>`;
+  return `${dots}<h2 id="onb-title" tabindex="-1">Onde ir para ver mais</h2>${choice}<p class="onb-lead">Os detalhes ficam ${where}. Cada bloco tem um “Ver detalhe” discreto no canto.</p><ul class="onb-list"><li><b>Exportadores · Agentes de carga · Rotas</b></li><li><b>Simulador</b> <span class="preview-tag">Prévia</span>: teste uma data de chegada.</li><li><b>Preparar relatório</b>: leve o recorte para a reunião.</li></ul><p class="onb-note"><button type="button" class="text-button" data-onb="restart">Refazer introdução</button></p><div class="onb-actions"><button type="button" class="button secondary" data-onb="back">Voltar</button><button type="button" class="button cta" data-onb="done">Começar</button></div>`;
 }
 function renderOnb() {
   const d = document.getElementById('intel-onb');
@@ -647,8 +816,9 @@ function openOnboarding() {
     document.body.appendChild(d);
     d.addEventListener('close', () => { IP.markOnboardingSeen(STORE); persDraft = null; });
   }
-  persDraft = IP.normalize(intelPers); onbStep = 0;
+  persDraft = IP.normalize(intelPers); onbStep = 0; onbSkipped = false;
   if (!d.open) d.showModal();
+  revealFrame();
   renderOnb();
 }
 /* Embutida, a introdução espera o portal ficar livre: no primeiro acesso o
@@ -663,8 +833,9 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-onb]'); if (!b) return;
   const a = b.dataset.onb, d = document.getElementById('intel-onb');
   if (a === 'skip' || a === 'done') { d.close(); return; }
-  if (a === 'save') { saveIntelPers(persDraft); render(); toast('Personalização salva.'); }
-  onbStep = a === 'back' ? onbStep - 1 : a === 'next' ? onbStep + 1 : 2;
+  if (a === 'save') { saveIntelPers(persDraft); onbSkipped = false; render(); toast('Personalização salva.'); }
+  if (a === 'skip-step') onbSkipped = true;
+  onbStep = a === 'restart' ? 0 : a === 'back' ? onbStep - 1 : a === 'next' ? onbStep + 1 : 2;
   persDraft = IP.normalize(intelPers);
   renderOnb();
 });
@@ -678,7 +849,7 @@ function jumpTo(id) { const el = document.getElementById('bloco-' + id); if (el)
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-action]'); if (!b) return;
   const a = b.dataset.action, id = b.dataset.id;
-  if (a === 'intel-adjust') openAdjust();
+  if (a === 'intel-adjust') openAdjust(b.dataset.field);
   else if (a === 'fa-apply') applyAdjust();
   else if (a === 'fa-clear') { adjustDraft.gf = {}; openFilterKey = null; refreshAdjust('#fa-period'); }
   else if (a === 'dfilter-all' || a === 'dfilter-clear-one') {
@@ -687,6 +858,13 @@ document.addEventListener('click', e => {
     openFilterKey = key; refreshAdjust(`details[data-fkey="${key}"] summary`);
   }
   else if (a === 'pers-reset') { persDraft = IP.defaults(); refreshPers('[data-action="pers-reset"]'); const n = document.getElementById('pers-reset-note'); if (n) n.textContent = 'Padrão restaurado: todos os cards ligados. Aplique para salvar.'; }
+  else if (a === 'pers-activate') {
+    const card = IP.CARDS.find(c => c.id === id), wasTheme = !intelPers.themes.includes(card.theme);
+    saveIntelPers(IP.activate(intelPers, id)); render();
+    const el = document.getElementById(BLOCK_ANCHOR[id]);
+    if (el) { el.setAttribute('tabindex', '-1'); el.focus({ preventScroll: true }); el.scrollIntoView({ block: 'nearest' }); }
+    toast(wasTheme ? `Tema ${THEME_NAME[card.theme]} ativado.` : 'Cartão ativado.');
+  }
   else if (a === 'pers-reset-now') { IP.clear(STORE); intelPers = IP.defaults(); render(); toast('Personalização refeita: todos os cards ligados.'); }
   else if (a === 'onb-open') openOnboarding();
   else if (a === 'gfilter-remove') { const gf = IE.readFilters(params); gf[b.dataset.key] = gf[b.dataset.key].filter(v => v !== b.dataset.value); setGlobalFilters(gf); }
@@ -700,10 +878,10 @@ document.addEventListener('click', e => {
   else if (a === 'intel-jump') { e.preventDefault(); jumpTo(id); }
   else if (a === 'intel-report') { reportEntity = null; openReportPanel(); }
   else if (a === 'tab-sort') { const dim = b.dataset.dim; tableSort.set(dim, IT.nextSort(tableSort.get(dim) || IT.DEFAULT_SORT, b.dataset.key)); render(); document.querySelector(`[data-action="tab-sort"][data-dim="${dim}"][data-key="${b.dataset.key}"]`)?.focus(); }
-  else if (a === 'entity-open') location.hash = url('executivo', { sel: b.dataset.id });
+  else if (a === 'entity-open') location.hash = url('executivo', { sel: b.dataset.id, de: null });
   else if (a === 'sim-sort') { simSort = IS.nextSort(simSort || IS.DEFAULT_SORT, b.dataset.key); render(); document.querySelector(`[data-action="sim-sort"][data-key="${b.dataset.key}"]`)?.focus(); }
   else if (a === 'sim-all-routes') setSimParam({ srota: null });
-  else if (a === 'entity-filter') { const gf = IT.filterByEntity(IE.readFilters(params), b.dataset.dim, b.dataset.id); params.delete('sel'); setGlobalFilters(gf); toast('Filtro aplicado a todas as abas.'); }
+  else if (a === 'entity-filter') { const gf = IT.filterByEntity(IE.readFilters(params), b.dataset.dim, b.dataset.id); params.delete('sel'); params.delete('de'); setGlobalFilters(gf); toast('Filtro aplicado a todas as abas.'); }
   else if (a === 'entity-report') { reportEntity = { dim: b.dataset.dim, id: b.dataset.id }; openReportPanel(); }
   else if (a === 'view-open') openView(id);
   else if (a === 'view-rename') { const input = document.querySelector(`[data-view-name="${CSS.escape(id)}"]`); saveViews(IL.renameView(intelViews, id, input && input.value)); notifyViewSaved(); render(); toast('Visão renomeada.'); }
@@ -720,7 +898,7 @@ document.addEventListener('click', e => {
 document.addEventListener('click', e => {
   const tr = e.target.closest('tr[data-row-dim]');
   if (!tr || e.target.closest('button, a, input, select, summary')) return;
-  location.hash = url('executivo', { sel: tr.dataset.rowId });
+  location.hash = url('executivo', { sel: tr.dataset.rowId, de: null });
 });
 // Setas trocam de aba quando o foco está na faixa (Home/End vão às pontas).
 document.addEventListener('keydown', e => {
@@ -745,7 +923,7 @@ document.addEventListener('change', e => {
     adjustDraft.gf = { ...adjustDraft.gf, [key]: [...set] }; openFilterKey = key;
     refreshAdjust(`input[data-dfilter="${key}"][value="${CSS.escape(t.value)}"]`);
   } else if (t.dataset && t.dataset.persCard && persDraft) {
-    persDraft = IP.setCard(persDraft, t.dataset.persCard, t.checked);
+    persDraft = t.checked ? IP.activate(persDraft, t.dataset.persCard) : IP.setCard(persDraft, t.dataset.persCard, false);
     refreshPers(`[data-pers-card="${t.dataset.persCard}"]`);
   }
 });
@@ -754,10 +932,22 @@ document.addEventListener('click', e => {
   persDraft = IP.toggleTheme(persDraft, b.dataset.persTheme);
   refreshPers(`[data-pers-theme="${b.dataset.persTheme}"]`);
 });
-// Dobras ("Evolução", "Compromissos do serviço"): o estado sobrevive ao redesenho.
+// Dobras ("Evolução", "Performance", "Compromissos do serviço"): cada uma guarda
+// o PRÓPRIO estado pela chave `data-fold`, que sobrevive ao redesenho.
+// B3: expandir uma seção do acordeão da Visão geral recolhe as outras. O título
+// da seção aberta fica onde o olho está (a de cima pode ter encolhido), sem
+// animação quando a pessoa pede movimento reduzido.
+const reducedMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
 document.addEventListener('toggle', e => {
   const d = e.target; if (!d.dataset || !d.dataset.fold) return;
-  if (d.dataset.fold === 'evo') evoOpen = d.open; else if (d.dataset.fold === 'commitments') commitmentsOpen = d.open;
+  folds = IF.setOpen(folds, d.dataset.fold, d.open);
+  if (!d.open) return;
+  let shifted = false;
+  for (const id of IF.closedBy(d.dataset.fold)) {
+    const other = document.querySelector(`details[data-fold="${id}"]`);
+    if (other && other.open) { shifted = shifted || !!(other.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING); other.open = false; }
+  }
+  if (shifted) d.querySelector('summary')?.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
 }, true);
 document.addEventListener('toggle', e => {
   const d = e.target; if (!d.matches || !d.matches('details.fsel')) return;
@@ -793,7 +983,7 @@ document.addEventListener('submit', e => {
    (foco preso, Esc fecha); no celular vira folha de baixo, marcada como barra
    de rodapé para o botão Ajuda do portal subir acima dela. */
 const GUIDE_STEPS = [
-  { target: '.lvl1', fallback: '.intel-head', title: 'Como ler um indicador', body: 'Cada indicador traz três coisas: o número do recorte, a variação contra o período anterior de mesma duração e uma conclusão em uma frase. Com menos de 3 embarques aparece “Amostra pequena” e a variação some.' },
+  { target: '.lvl1', fallback: '.intel-head', title: 'Como ler um indicador', body: 'Cada indicador traz três coisas: o número do recorte, a variação contra o período anterior (o mês anterior inteiro, quando o período é um mês; a janela anterior de mesma duração, nos outros casos) e uma conclusão em uma frase. Com menos de 3 embarques aparece “Amostra pequena” e a variação some.' },
   { target: '[data-action="intel-adjust"]', title: 'Filtros e ajustes', body: 'Os filtros recortam todos os blocos: dentro de um filtro vale qualquer opção marcada; entre filtros, todos juntos. No mesmo painel você escolhe os temas e liga ou desliga cada card da Visão geral.' },
   { target: '.views-row', fallback: '[data-action="intel-report"]', title: 'Minhas visões e relatório', body: '“Minha operação” já está em Minhas visões, com as rotas que você escolheu. Salve outros recortes como visão e use “Preparar relatório” para resumir e compartilhar o que está na tela.' },
 ];
