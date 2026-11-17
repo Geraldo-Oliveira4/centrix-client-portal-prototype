@@ -50,7 +50,27 @@ test('tudo desligado é um estado válido (a tela mostra o vazio)', () => {
   let s = P.defaults();
   for (const [t] of P.THEMES) s = P.toggleTheme(s, t);
   assert.deepEqual(P.visibleCards(s), []);
-  assert.deepEqual(P.cardsByTheme(s), []);
+  assert.deepEqual(P.cardsByTheme(s).map((g) => g.on), [false, false, false], 'os temas continuam na lista, desligados');
+});
+
+// B1 (17/11/2026): tema ou card desligado fica esmaecido e clicável, não some.
+test('tema desligado continua listado, com os cards, marcado como desligado', () => {
+  const g = P.cardsByTheme(P.toggleTheme(P.defaults(), 'custo'));
+  assert.deepEqual(g.map((x) => [x.id, x.on]), [['prazo', true], ['custo', false], ['volume', true]]);
+  assert.deepEqual(g[1].cards.map((c) => c.id), ['frete', 'evolucao_frete']);
+});
+test('cardStates diz por que cada card está desligado', () => {
+  let s = P.toggleTheme(P.defaults(), 'custo');
+  s = P.setCard(s, 'funil', false);
+  const by = Object.fromEntries(P.cardStates(s).map((c) => [c.id, c.off]));
+  assert.deepEqual(by, { entrega_final: null, funil: 'card', frete: 'theme', embarques: null, evolucao_prazo: null, evolucao_frete: 'theme', trechos: null });
+});
+test('ativar pelo esmaecido: tema volta inteiro; card volta sozinho', () => {
+  const off = P.toggleTheme(P.defaults(), 'custo');
+  assert.deepEqual(P.activate(off, 'frete'), P.defaults());
+  const oneOff = P.setCard(P.defaults(), 'funil', false);
+  assert.deepEqual(P.activate(oneOff, 'funil'), P.defaults());
+  assert.deepEqual(P.activate(oneOff, 'desconhecido'), oneOff);
 });
 
 test('ids desconhecidos são descartados; lixo volta ao padrão', () => {

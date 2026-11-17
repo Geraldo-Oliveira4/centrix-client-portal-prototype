@@ -499,13 +499,31 @@ function stripSelection() {
 }
 
 /* --------------------------------------------------------------- página --- */
+/* CARD DESLIGADO NÃO SOME (B1, 17/11/2026). No lugar dele, na mesma posição da
+   hierarquia, fica um esmaecido compacto: nome, o rótulo "Desativado" por
+   extenso (nunca só opacidade; texto em contraste AA) e o caminho de volta. O
+   clique ativa o tema inteiro (tema desligado) ou só o card (tema ligado). */
+const BLOCK_ANCHOR = { entrega_final: 'bloco-destaque', funil: 'bloco-funil', frete: 'bloco-frete', embarques: 'bloco-embarques', evolucao_prazo: 'bloco-graficos', evolucao_frete: 'bloco-graficos', trechos: 'bloco-performance' };
+const THEME_NAME = Object.fromEntries(IP.THEMES);
+function offStubs(ids, states) {
+  const off = states.filter(c => c.off && ids.includes(c.id));
+  if (!off.length) return '';
+  return `<div class="off-row">${off.map(c => {
+    const cta = c.off === 'theme' ? `Ativar este tema (${THEME_NAME[c.theme]})` : 'Ativar este cartão';
+    return `<button type="button" class="card-off" data-action="pers-activate" data-id="${c.id}" title="${esc(cta)}"><span class="off-head"><span class="off-name">${esc(c.label)}</span><span class="off-tag">Desativado</span></span><span class="off-cta">${esc(cta)} <span aria-hidden="true">→</span></span></button>`;
+  }).join('')}</div>`;
+}
 function geralTab(s) {
   // A ORDEM É FIXA (a hierarquia): resultado, apoio, evolução, detalhe por trecho.
-  // Personalizar só liga e desliga cards (intel-personalize.js).
-  const vis = new Set(IP.visibleCards(intelPers));
-  if (!vis.size) return '<div class="card empty"><h2>Todos os cards estão desligados</h2><p>A Visão geral mostra só os cards ligados dos temas escolhidos. Volte ao padrão ou escolha os cards em “Filtros e ajustes”.</p><div class="empty-actions"><button class="button" data-action="pers-reset-now">Refazer personalização do zero</button><button class="button secondary" data-action="intel-adjust">Filtros e ajustes</button></div></div>';
+  // Personalizar só liga e desliga cards (intel-personalize.js); o desligado
+  // fica esmaecido no lugar dele (offStubs).
+  const vis = new Set(IP.visibleCards(intelPers)), states = IP.cardStates(intelPers), B = IP.BLOCKS;
+  const empty = vis.size ? '' : '<div class="card empty"><h2>Todos os cards estão desligados</h2><p>Os cards desligados continuam abaixo, esmaecidos: clique num deles para ativar o tema. Ou volte ao padrão.</p><div class="empty-actions"><button class="button" data-action="pers-reset-now">Refazer personalização do zero</button><button class="button secondary" data-action="intel-adjust">Filtros e ajustes</button></div></div>';
   const support = [vis.has('frete') && supportCard('freight', s, 'frete'), vis.has('embarques') && supportCard('count', s, 'embarques')].filter(Boolean);
-  return resultCard(s, vis) + (support.length ? `<div class="support-row${support.length === 1 ? ' single' : ''}">${support.join('')}</div>` : '') + evolutionBlock(s, vis) + (vis.has('trechos') ? trechosBlock(s) : '');
+  return empty + resultCard(s, vis) + offStubs(B.resultado, states)
+    + (support.length ? `<div class="support-row${support.length === 1 ? ' single' : ''}">${support.join('')}</div>` : '') + offStubs([...B.frete, ...B.embarques], states)
+    + evolutionBlock(s, vis) + offStubs(B.evolucao, states)
+    + (vis.has('trechos') ? trechosBlock(s) : '') + offStubs(B.trechos, states);
 }
 /** Conteúdo das abas que não são do retrovisor (o Simulador). */
 function extraTabContent(tab, s) { return tab === 'simulador' ? simulatorTab(s) : ''; }
@@ -649,9 +667,9 @@ function openReportPanel(emailDone) {
 function persFieldsHtml() {
   const st = persDraft, groups = IP.cardsByTheme(st);
   const chips = IP.THEMES.map(([id, label]) => `<button type="button" class="theme-chip" data-pers-theme="${id}" aria-pressed="${st.themes.includes(id)}">${label}</button>`).join('');
-  const cards = groups.length
-    ? groups.map(g => `<div class="pers-group" role="group" aria-label="${g.label}"><p class="pers-group-title">${g.label}</p>${g.cards.map(c => `<label class="pers-card"><input type="checkbox" role="switch" data-pers-card="${c.id}" ${c.on ? 'checked' : ''}><span><b>${c.label}</b><small>${c.desc}</small></span></label>`).join('')}</div>`).join('')
-    : '<p class="muted">Escolha ao menos um tema acima para ver os cards disponíveis.</p>';
+  // B1: tema desligado continua na lista, esmaecido e clicável ("Desativado" +
+  // "Ativar este tema"); ligar um card dele ativa o tema.
+  const cards = groups.map(g => `<div class="pers-group${g.on ? '' : ' is-off'}" role="group" aria-label="${g.label}${g.on ? '' : ' (desativado)'}"><p class="pers-group-title">${g.label}${g.on ? '' : ` <span class="off-tag">Desativado</span> <button type="button" class="text-button off-activate" data-pers-theme="${g.id}">Ativar este tema</button>`}</p>${g.cards.map(c => `<label class="pers-card${g.on ? '' : ' is-off'}"${g.on ? '' : ' title="Ativar este tema"'}><input type="checkbox" role="switch" data-pers-card="${c.id}" ${c.on ? 'checked' : ''}><span><b>${c.label}</b><small>${g.on ? c.desc : `Desativado · ligar ativa o tema ${g.label}`}</small></span></label>`).join('')}</div>`).join('');
   return `<p class="pers-eyebrow">Temas (${st.themes.length} de ${IP.THEMES.length})</p><div class="theme-chips">${chips}</div><p class="pers-eyebrow">Cards</p>${cards}`;
 }
 /** Redesenha só os controles de personalização do diálogo aberto e devolve o foco ao controle usado. */
@@ -778,6 +796,13 @@ document.addEventListener('click', e => {
     openFilterKey = key; refreshAdjust(`details[data-fkey="${key}"] summary`);
   }
   else if (a === 'pers-reset') { persDraft = IP.defaults(); refreshPers('[data-action="pers-reset"]'); const n = document.getElementById('pers-reset-note'); if (n) n.textContent = 'Padrão restaurado: todos os cards ligados. Aplique para salvar.'; }
+  else if (a === 'pers-activate') {
+    const card = IP.CARDS.find(c => c.id === id), wasTheme = !intelPers.themes.includes(card.theme);
+    saveIntelPers(IP.activate(intelPers, id)); render();
+    const el = document.getElementById(BLOCK_ANCHOR[id]);
+    if (el) { el.setAttribute('tabindex', '-1'); el.focus({ preventScroll: true }); el.scrollIntoView({ block: 'nearest' }); }
+    toast(wasTheme ? `Tema ${THEME_NAME[card.theme]} ativado.` : 'Cartão ativado.');
+  }
   else if (a === 'pers-reset-now') { IP.clear(STORE); intelPers = IP.defaults(); render(); toast('Personalização refeita: todos os cards ligados.'); }
   else if (a === 'onb-open') openOnboarding();
   else if (a === 'gfilter-remove') { const gf = IE.readFilters(params); gf[b.dataset.key] = gf[b.dataset.key].filter(v => v !== b.dataset.value); setGlobalFilters(gf); }
@@ -836,7 +861,7 @@ document.addEventListener('change', e => {
     adjustDraft.gf = { ...adjustDraft.gf, [key]: [...set] }; openFilterKey = key;
     refreshAdjust(`input[data-dfilter="${key}"][value="${CSS.escape(t.value)}"]`);
   } else if (t.dataset && t.dataset.persCard && persDraft) {
-    persDraft = IP.setCard(persDraft, t.dataset.persCard, t.checked);
+    persDraft = t.checked ? IP.activate(persDraft, t.dataset.persCard) : IP.setCard(persDraft, t.dataset.persCard, false);
     refreshPers(`[data-pers-card="${t.dataset.persCard}"]`);
   }
 });

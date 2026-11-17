@@ -515,6 +515,21 @@ table.compare td small,.drawer-body td small{font-size:13px;color:var(--ink-2)}
 .pers-card input:checked{background:var(--indigo-fill)}
 .pers-card input:checked::after{left:21px}
 .pers-card input:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.pers-group.is-off .pers-group-title{color:var(--ink-2)!important}
+.pers-card.is-off{background:var(--surface-2);border-style:dashed;border-color:var(--line-strong)}
+.pers-card.is-off b{color:var(--ink-2)}
+.off-tag{display:inline-block;margin-left:6px;padding:1px 8px;border:1px solid var(--line-strong);border-radius:999px;font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink-2);background:var(--surface);vertical-align:middle}
+.off-activate{font-size:14px!important;font-weight:600;color:var(--indigo);text-decoration:underline;text-underline-offset:3px;background:none;border:0;padding:4px 2px;margin-left:4px;min-height:32px}
+/* B1: card desligado na Visão geral, esmaecido no lugar dele. Esmaecido por
+   superfície e borda tracejada, texto em --ink-2 (AA), nunca por opacidade. */
+.off-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:0 0 16px}
+.card-off{display:grid;gap:6px;text-align:left;padding:14px 18px;border:1px dashed var(--line-strong);border-radius:12px;background:var(--surface-2);color:var(--ink-2);min-height:44px}
+.card-off:hover{background:var(--tint)}
+.card-off:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.off-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.off-name{font-size:15px;font-weight:600;color:var(--ink-2)}
+.off-head .off-tag{margin-left:0}
+.off-cta{font-size:14px;font-weight:600;color:var(--indigo);text-decoration:underline;text-underline-offset:3px}
 .pers-foot{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:14px;margin:4px 0 0!important}
 .pers-foot .text-button{font-size:14px;background:none;border:0;padding:6px 0;min-height:36px}
 .fa-actions{position:sticky;bottom:0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:16px -24px -24px;padding:14px 24px;background:var(--surface);border-top:1px solid var(--line)}

@@ -87,12 +87,37 @@
   function visibleCards(state) {
     return normalize(state).enabled_cards;
   }
-  /** Para o painel: os temas escolhidos, cada um com os seus cards. */
+  /**
+   * Para o painel e o passo 2 da introdução: TODOS os temas, cada um com os seus
+   * cards (B1, 17/11/2026). Tema desligado NÃO some: vem com `on: false`, e a
+   * tela o desenha esmaecido, com "Desativado" e o caminho para ativar.
+   */
   function cardsByTheme(state) {
     const s = normalize(state);
-    return THEMES.filter(([id]) => s.themes.includes(id)).map(([id, label]) => ({
-      id, label, cards: CARDS.filter((c) => c.theme === id).map((c) => ({ ...c, on: s.enabled_cards.includes(c.id) })),
+    return THEMES.map(([id, label]) => ({
+      id, label, on: s.themes.includes(id),
+      cards: CARDS.filter((c) => c.theme === id).map((c) => ({ ...c, on: s.enabled_cards.includes(c.id) })),
     }));
+  }
+  /**
+   * Cada card com o motivo de estar desligado, para a Visão geral desenhar o
+   * esmaecido no lugar dele: `off` = null (ligado), 'theme' (o tema está
+   * desligado) ou 'card' (o tema está ligado e o card não).
+   */
+  function cardStates(state) {
+    const s = normalize(state);
+    return CARDS.map((c) => ({ ...c, off: s.enabled_cards.includes(c.id) ? null : s.themes.includes(c.theme) ? 'card' : 'theme' }));
+  }
+  /**
+   * "Ativar este tema" / "Ativar este cartão": o clique no esmaecido. Tema
+   * desligado volta com os cards dele ligados (a mesma regra de toggleTheme);
+   * card desligado de tema ligado só liga a si mesmo.
+   */
+  function activate(state, id) {
+    const s = normalize(state), card = CARDS.find((c) => c.id === id);
+    if (!card) return s;
+    if (!s.themes.includes(card.theme)) return toggleTheme(s, card.theme);
+    return setCard(s, id, true);
   }
   const isDefault = (state) => JSON.stringify(normalize(state)) === JSON.stringify(defaults());
 
@@ -117,7 +142,7 @@
     try { storage.setItem(ONBOARDING_KEY, '1'); return true; } catch { return false; }
   }
 
-  const api = { THEMES, CARDS, STORE_KEY, ONBOARDING_KEY, BLOCKS, DETAIL_LINKS, defaults, normalize, toggleTheme, setCard, visibleCards, cardsByTheme, isDefault, load, save, clear, onboardingSeen, markOnboardingSeen };
+  const api = { THEMES, CARDS, STORE_KEY, ONBOARDING_KEY, BLOCKS, DETAIL_LINKS, defaults, normalize, toggleTheme, setCard, visibleCards, cardsByTheme, cardStates, activate, isDefault, load, save, clear, onboardingSeen, markOnboardingSeen };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelPersonalize = api;
 })(typeof window !== 'undefined' ? window : globalThis);
