@@ -9,8 +9,10 @@
 //      dos dados, nunca de lista fixa. SKU é do ITEM: o embarque entra se tiver o
 //      SKU, mas frete e prazos continuam sendo do embarque inteiro.
 //   2. UMA BASE DE COMPARAÇÃO: toda variação compara o período escolhido com o
-//      período imediatamente anterior, de MESMA duração. Nada de "julho contra
-//      junho" num card e "agosto contra julho" no outro.
+//      período imediatamente anterior (`previousRange`): mês de calendário contra
+//      o mês de calendário anterior; janela móvel contra a janela anterior de
+//      MESMA duração. Nada de "julho contra junho" num card e "agosto contra
+//      julho" no outro.
 //   3. AMOSTRA PEQUENA: com menos de 3 embarques no recorte (ou na base de
 //      comparação) a variação some e o valor ganha o selo "Amostra pequena".
 //      Com zero, a tela mostra o vazio com "Limpar filtros".
@@ -123,8 +125,32 @@
   // ------------------------------------------------------------ período ---
   const toDay = (iso) => Math.floor(Date.parse(iso + 'T12:00:00Z') / DAY);
   const fromDay = (n) => new Date(n * DAY + 12 * 3600000).toISOString().slice(0, 10);
-  /** O período imediatamente anterior, com o MESMO número de dias. */
+  const lastDayOf = (y, m) => new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  /**
+   * O período é um mês de calendário? (A1, 17/11/2026.) Começa no dia 1 e termina
+   * no mesmo mês: `whole` quando vai até o último dia ("Mês passado"), parcial
+   * quando para antes ("Este mês", até o corte). Fora disso, `null`.
+   */
+  function calendarMonth(range) {
+    if (!range || !range.start || !range.end || range.start.slice(8, 10) !== '01' || range.start.slice(0, 7) !== range.end.slice(0, 7)) return null;
+    const [y, m] = range.start.split('-').map(Number);
+    return { y, m: m - 1, whole: Number(range.end.slice(8, 10)) === lastDayOf(y, m - 1) };
+  }
+  /**
+   * O período de comparação. Mês de calendário compara com o MÊS ANTERIOR DE
+   * CALENDÁRIO (A1): o mês inteiro, do dia 1 ao último dia, quando o período é um
+   * mês fechado; do dia 1 ao mesmo dia, quando é o mês até o corte. Janela móvel
+   * (últimos 30/90 dias, personalizado) compara com a janela imediatamente
+   * anterior, de MESMO número de dias.
+   */
   function previousRange(range) {
+    const cal = calendarMonth(range);
+    if (cal) {
+      const py = cal.m === 0 ? cal.y - 1 : cal.y, pm = cal.m === 0 ? 11 : cal.m - 1, last = lastDayOf(py, pm);
+      const endDay = cal.whole ? last : Math.min(Number(range.end.slice(8, 10)), last);
+      const ym = `${py}-${String(pm + 1).padStart(2, '0')}`;
+      return { start: `${ym}-01`, end: `${ym}-${String(endDay).padStart(2, '0')}`, days: endDay, calendar: cal.whole ? 'month' : 'month-to-date' };
+    }
     const len = toDay(range.end) - toDay(range.start) + 1;
     const end = toDay(range.start) - 1;
     return { start: fromDay(end - len + 1), end: fromDay(end), days: len };
@@ -136,6 +162,8 @@
   /** A legenda única de toda variação da tela. */
   function comparisonCaption(range) {
     const p = previousRange(range);
+    if (p.calendar === 'month') return `Variações comparam com o mês anterior inteiro (${fullDate(p.start)} a ${fullDate(p.end)}, ${p.days} dias).`;
+    if (p.calendar === 'month-to-date') return `Variações comparam com o mesmo trecho do mês anterior (${fullDate(p.start)} a ${fullDate(p.end)}, ${p.days} dias).`;
     return `Variações comparam com o período anterior de mesma duração (${fullDate(p.start)} a ${fullDate(p.end)}, ${p.days} dias).`;
   }
 
@@ -175,7 +203,7 @@
     return [
       { label: 'Fonte', text: source },
       { label: 'Fórmula', text: formula },
-      { label: 'Período', text: 'Compromisso de prontidão dentro do período selecionado; variação contra o período anterior de mesma duração.' },
+      { label: 'Período', text: 'Compromisso de prontidão dentro do período selecionado; variação contra o período anterior: mês de calendário contra o mês anterior inteiro; janela móvel contra a janela anterior de mesma duração.' },
       { label: 'Filtros que se aplicam', text: filterLine },
     ];
   }
@@ -288,7 +316,7 @@
     });
   }
 
-  const api = { FILTERS, MIN_SAMPLE, DESTINATION_HINT, readFilters, writeFilters, activeCount, matches, applyFilters, options, filterOptions, selectAllValues, clearFilter, periodStrip, kpiDefinition, viewSummary, reportContext, previousRange, inRange, comparisonCaption, kpi, monthly, funnel, stageDelays, ranking, questions, commitments, valueOf };
+  const api = { FILTERS, MIN_SAMPLE, calendarMonth, DESTINATION_HINT, readFilters, writeFilters, activeCount, matches, applyFilters, options, filterOptions, selectAllValues, clearFilter, periodStrip, kpiDefinition, viewSummary, reportContext, previousRange, inRange, comparisonCaption, kpi, monthly, funnel, stageDelays, ranking, questions, commitments, valueOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelEngine = api;
 })(typeof window !== 'undefined' ? window : globalThis);

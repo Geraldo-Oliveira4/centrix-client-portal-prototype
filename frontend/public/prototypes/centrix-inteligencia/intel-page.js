@@ -872,7 +872,7 @@ document.addEventListener('submit', e => {
    (foco preso, Esc fecha); no celular vira folha de baixo, marcada como barra
    de rodapé para o botão Ajuda do portal subir acima dela. */
 const GUIDE_STEPS = [
-  { target: '.lvl1', fallback: '.intel-head', title: 'Como ler um indicador', body: 'Cada indicador traz três coisas: o número do recorte, a variação contra o período anterior de mesma duração e uma conclusão em uma frase. Com menos de 3 embarques aparece “Amostra pequena” e a variação some.' },
+  { target: '.lvl1', fallback: '.intel-head', title: 'Como ler um indicador', body: 'Cada indicador traz três coisas: o número do recorte, a variação contra o período anterior (o mês anterior inteiro, quando o período é um mês; a janela anterior de mesma duração, nos outros casos) e uma conclusão em uma frase. Com menos de 3 embarques aparece “Amostra pequena” e a variação some.' },
   { target: '[data-action="intel-adjust"]', title: 'Filtros e ajustes', body: 'Os filtros recortam todos os blocos: dentro de um filtro vale qualquer opção marcada; entre filtros, todos juntos. No mesmo painel você escolhe os temas e liga ou desliga cada card da Visão geral.' },
   { target: '.views-row', fallback: '[data-action="intel-report"]', title: 'Minhas visões e relatório', body: '“Minha operação” já está em Minhas visões, com as rotas que você escolheu. Salve outros recortes como visão e use “Preparar relatório” para resumir e compartilhar o que está na tela.' },
 ];
