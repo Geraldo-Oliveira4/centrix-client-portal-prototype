@@ -624,7 +624,9 @@ function simTaskBar(task) {
   const routes = D.routes.map(r => `<option value="${r.id}" ${task.route === r.id ? 'selected' : ''}>${esc(routeName(r))}</option>`).join('');
   const modals = simModalOptions(task).map(([id, label]) => `<option value="${id}" ${task.modal === id ? 'selected' : ''}>${label}</option>`).join('');
   const date = chegar ? task.target : task.departure;
-  const adjust = `<details class="fold sim-adjust" ${simAdjustOpen ? 'open' : ''} data-sim-adjust><summary><span class="sim-adjust-title">Ajustes</span><span class="fold-toggle" aria-hidden="true"></span></summary><div class="sim-adjust-body"><label class="st-field">Fonte do histórico<select id="sim-source">${IS.SOURCES.map(([id, label]) => `<option value="${id}" ${task.source === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="st-field">Tipo de carga<select id="sim-cargo"><option value="">Todos os tipos</option>${['FCL', 'LCL', 'Carga geral'].map(c => `<option value="${c}" ${task.cargo === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label><label class="st-field">Período do histórico<select id="sim-window">${IS.WINDOWS.map(([id, label]) => `<option value="${id}" ${task.window === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div></details>`;
+  // S7: "Ajustes" mora DENTRO da faixa da tarefa e, recolhido, mostra o que está valendo.
+  const current = [IS.sourceLabel(task.source), IS.windowLabel(task.window).toLowerCase(), task.cargo || 'todos os tipos de carga'].join(' · ');
+  const adjust = `<details class="fold sim-adjust" ${simAdjustOpen ? 'open' : ''} data-sim-adjust><summary><span class="sim-adjust-title">Ajustes <small>${esc(current)}</small></span><span class="fold-toggle" aria-hidden="true"></span></summary><div class="sim-adjust-body"><label class="st-field">Fonte do histórico<select id="sim-source">${IS.SOURCES.map(([id, label]) => `<option value="${id}" ${task.source === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="st-field">Tipo de carga<select id="sim-cargo"><option value="">Todos os tipos</option>${['FCL', 'LCL', 'Carga geral'].map(c => `<option value="${c}" ${task.cargo === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label><label class="st-field">Período do histórico<select id="sim-window">${IS.WINDOWS.map(([id, label]) => `<option value="${id}" ${task.window === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div></details>`;
   return `<form class="sim-task" id="sim-task" onsubmit="return false" aria-label="O que você quer simular">
     <div class="segmented sim-mode" role="radiogroup" aria-label="O que você quer saber">${seg}</div>
     <div class="sim-task-fields">
@@ -632,8 +634,9 @@ function simTaskBar(task) {
       <label class="st-field">Modal<select id="sim-modal" required aria-required="true"><option value="">Escolha o modal</option>${modals}</select></label>
       <label class="st-field">${chegar ? 'Data-alvo' : 'Data de embarque'}<input id="sim-date" type="date" value="${esc(date || '')}" min="${chegar ? IS.addDays(today, 1) : today}" aria-describedby="sim-today"></label>
     </div>
+    ${adjust}
     <p class="sim-task-foot"><span id="sim-today">${task.blank ? '' : 'Exemplo fictício preenchido · '}Hoje na demonstração: ${fullDate(today)}</span><button type="button" class="text-button" data-action="sim-clear">Limpar e começar do zero</button></p>
-  </form>${adjust}`;
+  </form>`;
 }
 const dm = iso => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '';
 function simResultBand(r) {
@@ -655,9 +658,10 @@ function simResultBand(r) {
   const band = c => `<span class="cover-band">${esc(IS.coverageBand(c))}</span>`;
   const passed = d => (d < r.today ? ' (já passou)' : '');
   const head = t.mode === 'chegar'
-    ? `<p class="fact-text">Para ${final ? 'a entrega final' : 'a chegada ao destino'} até ${dm(t.target)}, embarcar até <b>${dm(r.limitP90)}</b>${passed(r.limitP90)} cobre ${ab(r.coverP90)} embarques parecidos (P90); até <b>${dm(r.limitMedian)}</b>${passed(r.limitMedian)} cobre ${ab(r.coverMedian)} (mediana).</p><p class="sim-cover">${band(r.coverToday)} <span>Embarcando hoje (${dm(r.today)}), <b>${ab(r.coverToday)}</b> embarques parecidos chegaram até a data-alvo ${pc(r.coverToday)}</span></p>`
+    ? `<p class="fact-text">Para ${final ? 'a entrega final' : 'a chegada ao destino'} até ${dm(t.target)}, embarcar até <b>${dm(r.limitP90)}</b>${passed(r.limitP90)} cobre ${ab(r.coverP90)} embarques parecidos (P90); até <b>${dm(r.limitMedian)}</b>${passed(r.limitMedian)} cobre ${ab(r.coverMedian)} (mediana).</p><p class="sim-cover">${band(r.coverToday)} <span>Embarcando hoje (${dm(r.today)}), <b>${ab(r.coverToday)}</b> embarques parecidos chegaram até a data-alvo${pc(r.coverToday)}.</span></p>`
     : `<p class="fact-text">Embarcando em ${dm(t.departure)}, metade dos embarques parecidos chegou ao destino até <b>${dm(r.arrivalMedian)}</b> (mediana) e 9 de 10 até <b>${dm(r.arrivalP90)}</b> (P90)${final ? `; com a perna nacional, entrega final até ${dm(r.finalMedian)} (mediana) e ${dm(r.finalP90)} (P90)` : ''}.</p>`;
-  return `<div class="fact-band sim-result" role="status">${simSourceLine(r)}${head}${simMeasures(r)}</div>`;
+  // S7: o resultado PRIMEIRO; a fonte e as medidas vêm logo abaixo.
+  return `<div class="fact-band sim-result" role="status">${head}${simSourceLine(r)}${simMeasures(r)}</div>`;
 }
 /* S2: o que está sendo calculado, sempre nomeado. Chegada ao destino sempre
    que houver base; Entrega final só com base da perna nacional, e com o aviso
