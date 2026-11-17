@@ -609,7 +609,8 @@ function simHistoryLine(inputs, ss) {
 let simAdjustOpen = false;
 function simModalOptions(task) {
   // Rodoviário só aparece se houver base para ele.
-  return IS.MODALS.filter(([id]) => id !== 'rodoviario' || D.routes.some(r => IS.modalOfRoute(D, r.id) === id) || task.modal === id);
+  const ref = window.IntelSimReference;
+  return IS.MODALS.filter(([id]) => id !== 'rodoviario' || D.routes.some(r => IS.modalOfRoute(D, r.id) === id) || (ref && ref.samples.some(x => x.modal === id)) || task.modal === id);
 }
 function simTaskBar(task) {
   const today = D.cutoff, chegar = task.mode === 'chegar';
@@ -617,7 +618,7 @@ function simTaskBar(task) {
   const routes = D.routes.map(r => `<option value="${r.id}" ${task.route === r.id ? 'selected' : ''}>${esc(routeName(r))}</option>`).join('');
   const modals = simModalOptions(task).map(([id, label]) => `<option value="${id}" ${task.modal === id ? 'selected' : ''}>${label}</option>`).join('');
   const date = chegar ? task.target : task.departure;
-  const adjust = `<details class="fold sim-adjust" ${simAdjustOpen ? 'open' : ''} data-sim-adjust><summary><span class="sim-adjust-title">Ajustes</span><span class="fold-toggle" aria-hidden="true"></span></summary><div class="sim-adjust-body"><label class="st-field">Período do histórico<select id="sim-window">${IS.WINDOWS.map(([id, label]) => `<option value="${id}" ${task.window === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div></details>`;
+  const adjust = `<details class="fold sim-adjust" ${simAdjustOpen ? 'open' : ''} data-sim-adjust><summary><span class="sim-adjust-title">Ajustes</span><span class="fold-toggle" aria-hidden="true"></span></summary><div class="sim-adjust-body"><label class="st-field">Fonte do histórico<select id="sim-source">${IS.SOURCES.map(([id, label]) => `<option value="${id}" ${task.source === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="st-field">Tipo de carga<select id="sim-cargo"><option value="">Todos os tipos</option>${['FCL', 'LCL', 'Carga geral'].map(c => `<option value="${c}" ${task.cargo === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label><label class="st-field">Período do histórico<select id="sim-window">${IS.WINDOWS.map(([id, label]) => `<option value="${id}" ${task.window === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div></details>`;
   return `<form class="sim-task" id="sim-task" onsubmit="return false" aria-label="O que você quer simular">
     <div class="segmented sim-mode" role="radiogroup" aria-label="O que você quer saber">${seg}</div>
     <div class="sim-task-fields">
@@ -634,7 +635,11 @@ function simResultBand(r) {
   if (r.state === 'no_route') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Escolha a origem → destino para simular.</p></div>`;
   if (r.state === 'no_modal') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Escolha o modal. Marítimo e aéreo nunca se misturam no histórico.</p></div>`;
   if (r.state === 'no_date') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Escolha ${ask}.</p></div>`;
-  if (r.state === 'no_history') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Sem histórico suficiente para esta rota e modal.</p><p class="fact-conc">${r.route.n} ${r.route.n === 1 ? 'embarque' : 'embarques'} com saída e chegada registradas; são precisos ${IS.MIN_SAMPLE}. Nada é simulado sem base.</p></div>`;
+  if (r.state === 'no_history') {
+    const other = r.source === 'meus' ? 'referencia' : 'meus';
+    const alt = simOtherHasBase ? `<button type="button" class="button secondary" data-action="sim-source" data-id="${other}">Usar ${esc(IS.sourceLabel(other).replace('Referência', 'a referência').replace('Meus', 'meus'))}</button>` : '';
+    return `<div class="fact-band sim-result" role="status"><p class="fact-text">Sem histórico suficiente para esta rota e modal.</p><p class="fact-conc">${esc(IS.sourceLabel(r.source))}: ${r.route.n} ${r.route.n === 1 ? 'embarque' : 'embarques'} com saída e chegada registradas; são precisos ${IS.MIN_SAMPLE}. Nada é simulado sem base.</p>${alt}</div>`;
+  }
   if (r.state === 'past') return `<div class="fact-band sim-result" role="status"><p class="fact-text">${t.mode === 'chegar' ? 'A data-alvo' : 'A data de embarque'} já passou: hoje, nesta demonstração, é ${fullDate(r.today)}.</p></div>`;
   if (r.state === 'before_min') return `<div class="fact-band sim-result" role="status"><p class="fact-text">A data-alvo é anterior ao menor trânsito do histórico.</p><p class="fact-conc">Embarcando hoje (${dm(r.today)}), o trânsito mais curto registrado (${r.route.min} dias, em ${r.route.n} embarques) chegaria ao destino em ${dm(IS.addDays(r.today, r.route.min))}${r.basis === 'final' ? `, e a perna nacional até o cliente levou até ${r.leg.p90} dias (P90)` : ''}.</p></div>`;
   const final = r.basis === 'final';
@@ -642,18 +647,29 @@ function simResultBand(r) {
   // faixa descritiva neutra. Sem "cabe", sem cor, sem recomendação.
   const ab = c => `${c.good} de ${c.base}`, pc = c => `<small class="pct">${c.pct}%</small>`;
   const band = c => `<span class="cover-band">${esc(IS.coverageBand(c))}</span>`;
+  const passed = d => (d < r.today ? ' (já passou)' : '');
   const head = t.mode === 'chegar'
-    ? `<p class="fact-text">Para ${final ? 'a entrega final' : 'a chegada ao destino'} até ${dm(t.target)}, embarcar até <b>${dm(r.limitP90)}</b> cobre ${ab(r.coverP90)} embarques parecidos (P90); até <b>${dm(r.limitMedian)}</b> cobre ${ab(r.coverMedian)} (mediana).</p><p class="sim-cover">${band(r.coverToday)} <span>Embarcando hoje (${dm(r.today)}), <b>${ab(r.coverToday)}</b> embarques parecidos chegaram até a data-alvo ${pc(r.coverToday)}</span></p>`
+    ? `<p class="fact-text">Para ${final ? 'a entrega final' : 'a chegada ao destino'} até ${dm(t.target)}, embarcar até <b>${dm(r.limitP90)}</b>${passed(r.limitP90)} cobre ${ab(r.coverP90)} embarques parecidos (P90); até <b>${dm(r.limitMedian)}</b>${passed(r.limitMedian)} cobre ${ab(r.coverMedian)} (mediana).</p><p class="sim-cover">${band(r.coverToday)} <span>Embarcando hoje (${dm(r.today)}), <b>${ab(r.coverToday)}</b> embarques parecidos chegaram até a data-alvo ${pc(r.coverToday)}</span></p>`
     : `<p class="fact-text">Embarcando em ${dm(t.departure)}, metade dos embarques parecidos chegou ao destino até <b>${dm(r.arrivalMedian)}</b> (mediana) e 9 de 10 até <b>${dm(r.arrivalP90)}</b> (P90)${final ? `; com a perna nacional, entrega final até ${dm(r.finalMedian)} (mediana) e ${dm(r.finalP90)} (P90)` : ''}.</p>`;
-  return `<div class="fact-band sim-result" role="status">${head}${simMeasures(r)}</div>`;
+  return `<div class="fact-band sim-result" role="status">${simSourceLine(r)}${head}${simMeasures(r)}</div>`;
 }
 /* S2: o que está sendo calculado, sempre nomeado. Chegada ao destino sempre
    que houver base; Entrega final só com base da perna nacional, e com o aviso
    de integração do mapa de fontes. */
+/* S5: de onde vem o histórico, sempre rotulado, com a cobertura de registro e,
+   para a referência agregada, o aviso de integração. O fallback agente → rota
+   aparece numa linha. */
+let simOtherHasBase = false;
+function simSourceLine(r) {
+  const notice = r.source === 'referencia' && window.IntelSources ? IntelSources.noticeOf('sim_reference') : null;
+  const who = r.level === 'agent' ? ` · ${esc(r.focusName)} nesta rota` : r.fallback ? '' : '';
+  return `<p class="sim-source"><b>${esc(IS.sourceLabel(r.source))}</b>${r.source === 'referencia' ? ' <span class="example-tag">Exemplo fictício</span>' : ''}${who} · ${r.registered.with} de ${r.registered.total} embarques com chegada registrada</p>${r.fallback ? `<p class="sim-fallback">${esc(r.fallback)}</p>` : ''}${notice ? `<p class="integrated-notice">${esc(notice)}</p>` : ''}`;
+}
 function simMeasures(r) {
   const days = v => String(v).replace('.', ',');
   const port = `<li><b>${destTerm('Chegada ao destino')}</b> (porto ou aeroporto de descarga): trânsito mediano ${days(r.route.median)} dias, P90 ${r.route.p90} dias · ${r.route.n} embarques com saída e chegada</li>`;
-  const notice = window.IntelSources ? IntelSources.noticeOf('final') : null;
+  // A referência agregada já leva o aviso de integração no topo; ele não se repete.
+  const notice = r.source !== 'referencia' && window.IntelSources ? IntelSources.noticeOf('final') : null;
   const final = r.basis === 'final'
     ? `<li><b>Entrega final</b> = chegada ao destino + perna nacional (desembaraço e transporte até o cliente): mediana ${days(r.leg.median)} dias, P90 ${r.leg.p90} dias · ${r.leg.n} embarques com chegada e entrega${r.task.mode === 'chegar' ? `. A chegada ao destino precisa ser até ${dm(r.portTarget)}` : ''}.${notice ? `<span class="integrated-notice">${esc(notice)}</span>` : ''}</li>`
     : `<li>${r.task.mode === 'chegar' ? 'Considera a chegada ao porto. A entrega final depende de dados de clientes integrados.' : 'A entrega final não entra: depende de dados de clientes integrados.'}${r.leg.n ? ` (${r.leg.n} ${r.leg.n === 1 ? 'embarque' : 'embarques'} com entrega registrada; são precisos ${IS.MIN_SAMPLE}.)` : ''}</li>`;
@@ -694,8 +710,14 @@ function simAgentTable(r) {
   return `<section class="sim-agents" aria-labelledby="sim-agents-t"><h2 id="sim-agents-t" class="sim-h2">Por agente de carga</h2><div class="table-wrap"><table class="compare sim-agents-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div><p class="chart-caption">Dado, não veredito: as colunas são fatos do histórico, sem nota nem ranking. Com menos de ${IS.MIN_SAMPLE} embarques, “Amostra pequena” e nenhuma cobertura calculada. O prometido é o que a proposta diz; o histórico mostra quantas vezes ele foi cumprido.</p></section>`;
 }
 function simulatorTab(s) {
-  const today = D.cutoff, ss = simScope(s), task = IS.readTask(D, params, today);
-  const r = IS.plan(D, ss.cur, task, today);
+  const today = D.cutoff, task = IS.readTask(D, params, today);
+  // Um agente de carga filtrado vira o FOCO do resultado (com fallback para a
+  // rota); a tabela continua mostrando todos os agentes da rota.
+  const ag = s.gf.ag || [], focus = ag.length === 1 ? ag[0] : null;
+  const all = IS.inWindow(D.operations, task.window, today), ops = IE.applyFilters(all, focus ? { ...s.gf, ag: [] } : s.gf);
+  const ref = window.IntelSimReference;
+  const r = IS.plan(D, ops, task, today, { ref, focus });
+  simOtherHasBase = r.state === 'no_history' && IS.hasBase(D, ops, ref, task, r.source === 'meus' ? 'referencia' : 'meus', today);
   return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${r.state === 'ok' && r.agents.length ? simAgentTable(r) : ''}${simHow(s)}<p class="chart-caption">Histórico, não garantia. Sem nota nem recomendação. Custos ficam fora desta prévia.</p></section>`;
 }
 function setSimParam(changes) { location.hash = url('executivo', changes); }
@@ -931,6 +953,7 @@ document.addEventListener('click', e => {
   else if (a === 'entity-open') location.hash = url('executivo', { sel: b.dataset.id, de: null });
   else if (a === 'sim-all-routes') setSimParam({ srota: null });
   else if (a === 'sim-agent-sort') { simAgentSort = IS.nextAgentSort(simAgentSort || IS.DEFAULT_AGENT_SORT, b.dataset.key); render(); document.querySelector(`[data-action="sim-agent-sort"][data-key="${b.dataset.key}"]`)?.focus(); }
+  else if (a === 'sim-source') { setSimParam({ sfonte: id === IS.DEFAULT_SOURCE ? null : id }); toast(`Fonte do histórico: ${IS.sourceLabel(id)}.`); }
   else if (a === 'sim-mode') setSimParam({ smodo: b.dataset.mode === 'embarcar' ? 'embarcar' : null });
   else if (a === 'sim-clear') { setSimParam({ sinicio: 'vazio', srota: null, smodal: null, chegada: null, sembarque: null, smodo: null }); toast('Simulador limpo: escolha rota, modal e data.'); }
   else if (a === 'entity-filter') { const gf = IT.filterByEntity(IE.readFilters(params), b.dataset.dim, b.dataset.id); params.delete('sel'); params.delete('de'); setGlobalFilters(gf); toast('Filtro aplicado a todas as abas.'); }
@@ -966,6 +989,8 @@ document.addEventListener('change', e => {
   const t = e.target;
   if (t.id === 'sim-route') { setSimParam({ srota: t.value || null }); return; }
   if (t.dataset && t.dataset.simProm) { const m = IS.readTask(D, params).promised, n = Number(t.value); if (Number.isInteger(n) && n >= 1 && n <= 365) m[t.dataset.simProm] = n; else delete m[t.dataset.simProm]; setSimParam({ sprom: IS.writePromised(m) }); return; }
+  if (t.id === 'sim-source') { setSimParam({ sfonte: t.value === IS.DEFAULT_SOURCE ? null : t.value }); return; }
+  if (t.id === 'sim-cargo') { setSimParam({ scarga: t.value || null }); return; }
   if (t.id === 'sim-modal') { setSimParam({ smodal: t.value || null }); return; }
   if (t.id === 'sim-window') { setSimParam({ janela: t.value === IS.DEFAULT_WINDOW ? null : t.value }); return; }
   if (t.id === 'sim-date') { if (IS.validIso(t.value) || !t.value) setSimParam(IS.readTask(D, params).mode === 'embarcar' ? { sembarque: t.value || null } : { chegada: t.value || null }); return; }

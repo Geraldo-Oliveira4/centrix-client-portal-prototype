@@ -123,7 +123,7 @@
   const MODALS = [['maritimo', 'Marítimo'], ['aereo', 'Aéreo'], ['rodoviario', 'Rodoviário']];
   const MODAL_OF = { 'Marítimo': 'maritimo', 'Aéreo': 'aereo', 'Rodoviário': 'rodoviario' };
   /** O exemplo fictício com que o Simulador abre (S1): rota, modal e data à vista, nunca escondidos. */
-  const EXAMPLE = { route: 'ningbo', modal: 'maritimo', targetDays: 45, departureDays: 14 };
+  const EXAMPLE = { route: 'ningbo', modal: 'maritimo', targetDays: 60, departureDays: 14 };
   const modalOfRoute = (D, id) => { const r = D.routes.find((x) => x.id === id); return r ? MODAL_OF[r.mode] || '' : ''; };
   const modalLabel = (id) => (MODALS.find(([m]) => m === id) || [null, ''])[1];
 
@@ -139,7 +139,9 @@
     const modal = MODALS.some(([m]) => m === get('smodal')) ? get('smodal') : blank ? '' : EXAMPLE.modal;
     const target = validIso(get('chegada')) ? get('chegada') : blank ? '' : addDays(today, EXAMPLE.targetDays);
     const departure = validIso(get('sembarque')) ? get('sembarque') : blank ? '' : addDays(today, EXAMPLE.departureDays);
-    return { mode: get('smodo') === 'embarcar' ? 'embarcar' : 'chegar', route, modal, target, departure, window: readWindow(params), blank, promised: readPromised(get('sprom')) };
+    const source = SOURCES.some(([id]) => id === get('sfonte')) ? get('sfonte') : DEFAULT_SOURCE;
+    const cargo = ['FCL', 'LCL', 'Carga geral'].includes(get('scarga')) ? get('scarga') : '';
+    return { mode: get('smodo') === 'embarcar' ? 'embarcar' : 'chegar', route, modal, target, departure, window: readWindow(params), blank, promised: readPromised(get('sprom')), source, cargo };
   }
 
   /**
@@ -191,47 +193,106 @@
    * (menos de MIN_SAMPLE trânsitos na rota e modal), data-alvo antes do menor
    * trânsito, ok.
    */
-  function plan(D, ops, task, today = D.cutoff) {
-    const out = { task, today, state: 'ok' };
+  // ---------------------------------------------- fonte do histórico (S5) ---
+  /**
+   * Duas fontes, sempre rotuladas no resultado. "Meus embarques" é o histórico
+   * do próprio cliente (pode cair em Amostra pequena). "Referência agregada da
+   * Freitas" é histórico agregado e anônimo por rota e modal, só para cliente
+   * integrado; é o PADRÃO quando existe. Aqui ela é fictícia (sim-reference.js).
+   */
+  const SOURCES = [['referencia', 'Referência agregada da Freitas'], ['meus', 'Meus embarques']];
+  const DEFAULT_SOURCE = 'referencia';
+  const sourceLabel = (id) => (SOURCES.find(([s]) => s === id) || SOURCES[0])[1];
+  /** Tipo de carga dos embarques do cliente, pelo equipamento da rota. */
+  const cargoOfRoute = (D, id) => { const r = D.routes.find((x) => x.id === id); return !r ? '' : /LCL/.test(r.equipment) ? 'LCL' : /FCL/.test(r.equipment) ? 'FCL' : 'Carga geral'; };
+
+  /** O histórico do cliente na forma comum: agentes com trânsitos, perna nacional, registro. */
+  function historyMine(D, ops, task) {
+    const mine = taskOps(D, ops, task).filter((o) => !task.cargo || cargoOfRoute(D, o.route) === task.cargo);
+    return {
+      source: 'meus',
+      agents: Tabs.pairGroups(mine).map((g) => ({ agent: g.agent, shipments: g.ops.length, values: Tabs.transitDays(D, g.ops) })),
+      legs: mine.filter((o) => o.arrive && o.final).map((o) => D.days(o.arrive, o.final)),
+      registered: { with: mine.filter((o) => o.depart && o.arrive).length, total: mine.length },
+    };
+  }
+  /** A referência agregada na mesma forma, recortada por rota, modal, janela e tipo de carga. */
+  function historyReference(Ref, task, today) {
+    const start = windowStart(task.window, today);
+    const inWin = (x) => !start || addDays(today, -x.daysAgo) >= start;
+    const rows = Ref.samples.filter((x) => x.route === task.route && x.modal === task.modal && inWin(x) && (!task.cargo || x.cargo === task.cargo));
+    const byAgent = new Map();
+    for (const x of rows) { const a = byAgent.get(x.agent) || { agent: x.agent, shipments: 0, values: [] }; a.shipments++; a.values.push(x.transit); byAgent.set(x.agent, a); }
+    const unreg = Ref.unregistered[`${task.route}|${task.modal}`] || 0;
+    return {
+      source: 'referencia',
+      agents: [...byAgent.values()],
+      legs: Ref.legs.filter((x) => x.route === task.route && x.modal === task.modal && inWin(x)).map((x) => x.days),
+      registered: { with: rows.length, total: rows.length + (rows.length ? unreg : 0) },
+    };
+  }
+  /** Há base (MIN_SAMPLE trânsitos) para esta rota e modal nesta fonte? */
+  function hasBase(D, ops, Ref, task, source, today) {
+    const h = source === 'referencia' && Ref ? historyReference(Ref, task, today) : historyMine(D, ops, task);
+    return h.agents.reduce((n, a) => n + a.values.length, 0) >= MIN_SAMPLE;
+  }
+
+  /**
+   * O resultado da tarefa. `ops` são os embarques do cliente na janela e com os
+   * filtros globais; `opts.ref` é a referência agregada; `opts.focus` é o agente
+   * de carga filtrado (um só). Estados: sem rota, sem modal, sem data, data
+   * passada, sem histórico, data-alvo antes do menor trânsito, ok.
+   *
+   * FALLBACK (S5): com um agente em foco e menos de MIN_SAMPLE trânsitos dele, o
+   * resultado cai para o nível da rota e diz isso numa linha. Sem MIN_SAMPLE nem
+   * na rota: "Sem histórico suficiente". Nunca se simula sem base.
+   */
+  function plan(D, ops, task, today = D.cutoff, opts = {}) {
+    const out = { task, today, state: 'ok', source: task.source === 'meus' || !opts.ref ? 'meus' : 'referencia' };
     if (!task.route) return { ...out, state: 'no_route' };
     if (!task.modal) return { ...out, state: 'no_modal' };
     const date = task.mode === 'chegar' ? task.target : task.departure;
     if (!validIso(date)) return { ...out, state: 'no_date' };
-    const mine = taskOps(D, ops, task);
-    const route = stats(Tabs.transitDays(D, mine));
+    const h = out.source === 'referencia' ? historyReference(opts.ref, task, today) : historyMine(D, ops, task);
+    const route = stats(h.agents.flatMap((a) => a.values));
     out.route = route;
-    out.registered = { with: mine.filter((o) => o.depart && o.arrive).length, total: mine.length };
+    out.registered = h.registered;
     // S2: a PERNA NACIONAL (chegada ao destino → entrega ao cliente: desembaraço
-    // e transporte), do histórico da mesma fonte. Só entra com base de
+    // e transporte), do histórico da MESMA fonte. Só entra com base de
     // MIN_SAMPLE ou mais; sem ela, o resultado é sobre a chegada ao destino e diz
     // isso. Nunca se trata chegada ao porto como chegada à fábrica.
-    out.leg = stats(mine.filter((o) => o.arrive && o.final).map((o) => D.days(o.arrive, o.final)));
+    out.leg = stats(h.legs);
     out.basis = out.leg.n >= MIN_SAMPLE ? 'final' : 'port';
-    out.agents = Tabs.pairGroups(mine).map((g) => ({ agent: g.agent, name: Tabs.nameOf(D, 'ag', g.agent), shipments: g.ops.length, ...stats(Tabs.transitDays(D, g.ops)) }))
-      .map((a) => ({ ...a, small: a.n < MIN_SAMPLE }));
+    out.agents = h.agents.map((a) => ({ agent: a.agent, name: Tabs.nameOf(D, 'ag', a.agent), shipments: a.shipments, ...stats(a.values) })).map((a) => ({ ...a, small: a.n < MIN_SAMPLE }));
     if (route.n < MIN_SAMPLE) return { ...out, state: 'no_history' };
+    // O número da frase: o agente em foco, se ele tiver base; senão, a rota.
+    const focus = opts.focus ? out.agents.find((a) => a.agent === opts.focus) : null;
+    out.level = focus && !focus.small ? 'agent' : 'route';
+    if (opts.focus && out.level === 'route') out.fallback = 'Poucos embarques deste agente; mostrando a rota.';
+    out.focusName = focus ? focus.name : opts.focus ? Tabs.nameOf(D, 'ag', opts.focus) : null;
+    const head = out.level === 'agent' ? focus : route;
+    out.head = head;
     if (task.mode === 'chegar') {
       const available = diffDays(today, date);
       out.available = available;
       if (available <= 0) return { ...out, state: 'past' };
-      if (available < route.min) return { ...out, state: 'before_min' };
       // Com Entrega final, a chegada ao destino precisa acontecer antes da data
       // pela perna nacional; entra o P90 dela (o lado conservador, a validar).
       const legDays = out.basis === 'final' ? out.leg.p90 : 0;
       out.portTarget = addDays(date, -legDays);
       out.margin = available - legDays;
-      if (out.margin < route.min) return { ...out, state: 'before_min' };
-      out.limitP90 = addDays(out.portTarget, -route.p90);
-      out.limitMedian = addDays(out.portTarget, -Math.ceil(route.median));
-      out.coverToday = coverage(route.values, out.margin);
+      if (out.margin < head.min) return { ...out, state: 'before_min' };
+      out.limitP90 = addDays(out.portTarget, -head.p90);
+      out.limitMedian = addDays(out.portTarget, -Math.ceil(head.median));
+      out.coverToday = coverage(head.values, out.margin);
       // A cobertura de cada data limite é contada, não suposta: "9 de 10" e
       // "metade" são o que o histórico de fato mostra naquela margem.
-      out.coverP90 = coverage(route.values, route.p90);
-      out.coverMedian = coverage(route.values, Math.ceil(route.median));
+      out.coverP90 = coverage(head.values, head.p90);
+      out.coverMedian = coverage(head.values, Math.ceil(head.median));
     } else {
       if (diffDays(today, date) < 0) return { ...out, state: 'past' };
-      out.arrivalMedian = addDays(date, Math.ceil(route.median));
-      out.arrivalP90 = addDays(date, route.p90);
+      out.arrivalMedian = addDays(date, Math.ceil(head.median));
+      out.arrivalP90 = addDays(date, head.p90);
       if (out.basis === 'final') {
         out.finalMedian = addDays(out.arrivalMedian, Math.ceil(out.leg.median));
         out.finalP90 = addDays(out.arrivalP90, out.leg.p90);
@@ -285,7 +346,7 @@
     return { key, dir: key === 'name' || key === 'limit' ? 'asc' : 'desc' };
   }
 
-  const api = { readPromised, writePromised, agentRows, sortAgents, nextAgentSort, DEFAULT_AGENT_SORT, MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, coverageBand, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, simulate, howCalculated, addDays, diffDays, validIso };
+  const api = { SOURCES, DEFAULT_SOURCE, sourceLabel, cargoOfRoute, historyMine, historyReference, hasBase, readPromised, writePromised, agentRows, sortAgents, nextAgentSort, DEFAULT_AGENT_SORT, MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, coverageBand, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, simulate, howCalculated, addDays, diffDays, validIso };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelSim = api;
 })(typeof window !== 'undefined' ? window : globalThis);

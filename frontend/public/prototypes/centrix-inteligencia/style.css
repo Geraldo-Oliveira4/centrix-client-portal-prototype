@@ -805,3 +805,8 @@ table.compare .sort-button{line-height:1.3;min-width:84px}
 .sim-agents-table td .sample-tag{margin-top:4px}
 .prom-input{width:72px;min-height:36px;border:1px solid var(--line-strong);border-radius:6px;padding:4px 8px;background:var(--surface);color:var(--ink)}
 .prom-input:focus-visible{outline:3px solid var(--focus);outline-offset:1px}
+.sim-source{margin:0 0 10px;font-size:14px;color:var(--ink-2)}
+.sim-source b{color:var(--ink);font-weight:600}
+.sim-fallback{margin:0 0 10px;font-size:14px;color:var(--ink)}
+.sim-result>.integrated-notice{margin:0 0 12px}
+.sim-result .button{margin-top:10px}
