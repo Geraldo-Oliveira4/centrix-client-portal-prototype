@@ -135,15 +135,13 @@ test('deslocado, o período padrão de 90 dias continua com os mesmos embarques 
 
 // v4 (13/11/2026): a coluna Resultado traz UMA frase com o porquê de cada linha.
 
-// S3 (17/11/2026): cobertura empírica, a de b, em faixas neutras.
+// S3 (17/11/2026): cobertura empírica, a de b (F3: sem faixa "de 10").
 test('cobertura: fração dos trânsitos que couberam na margem, inclusiva', () => {
   assert.deepEqual(S.coverage([30, 31, 32, 40], 32), { good: 3, base: 4, pct: 75 });
   assert.deepEqual(S.coverage([30, 31, 32, 40], 29), { good: 0, base: 4, pct: 0 });
   assert.deepEqual(S.coverage([], 10), { good: null, base: 0, pct: null });
-  assert.equal(S.coverageBand({ good: 13, base: 14 }), 'Cobre 9 de 10');
-  assert.equal(S.coverageBand({ good: 4, base: 10 }), 'Cobre 4 de 10');
-  assert.equal(S.coverageBand({ good: 10, base: 10 }), 'Cobre 10 de 10');
-  assert.equal(S.coverageBand({ good: null, base: 2 }), null);
+  // F3: a escala "de 10" saiu; cobertura é sempre a contagem real a de b.
+  assert.equal(S.coverageBand, undefined);
 });
 test('resultado padrão: exemplo preenchido, com limites P90/mediana e cobertura contada', () => {
   const t = S.readTask(D, new URLSearchParams(''), TODAY);

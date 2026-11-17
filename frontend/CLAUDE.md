@@ -1728,8 +1728,9 @@ quando embarcar, em que rota e com qual agente de carga?".
   "Ajustes" com `sfonte`, `scarga`, `janela`. Sem parâmetro, um exemplo
   fictício; `sinicio=vazio` é o "Limpar". Tudo aditivo: links antigos valem.
 - **Resultado empírico** (`IntelSim.plan`): cobertura = trânsitos que couberam
-  na margem ÷ base (inclusiva), a de b; faixa neutra "Cobre N de 10". Sem
-  "cabe", sem cor, sem recomendação. Data passada ou antes do menor trânsito:
+  na margem ÷ base (inclusiva), sempre contagem real a de b com o percentual
+  secundário; a escala "de 10" e o selo de faixa saíram (F3, travado em
+  `intel-vocab.test.cjs`). Sem "cabe", sem cor, sem recomendação. Data passada ou antes do menor trânsito:
   o fato, e para.
 - **Chegada ao destino × Entrega final**: a perna nacional (chegada → entrega)
   só entra com base ≥ 3 da MESMA fonte; aí a data-alvo desconta o P90 dela.

@@ -47,8 +47,32 @@ test('o submódulo e a coluna usam o nome padronizado', () => {
 
 test('Simulador: "Margem até a data-alvo" e "Variação do trânsito" no lugar de "folga"; sem veredito Cabe/Não cabe', () => {
   const page = fs.readFileSync(path.join(HERE, 'intel-page.js'), 'utf8'), sim = fs.readFileSync(path.join(HERE, 'intel-sim.js'), 'utf8');
-  assert.match(page, /Margem até a data-alvo/);
+  // F2: a frase do resultado mora no motor (IntelSim.resultText).
+  assert.match(page + sim, /Margem até a data-alvo/);
   assert.match(page, /Variação do trânsito/);
   for (const src of [page, sim]) assert.doesNotMatch(src, /Cabe na data|N[ãa]o cabe|Apertado/);
   assert.equal(require('./intel-sim.js').STATUS, undefined, 'o selo antigo saiu do motor');
+});
+
+// F3 (17/11/2026): a cobertura do Simulador é contagem real a de b; a escala
+// "x de 10" (faixa "Cobre 9 de 10", "9 de 10 até") não volta, nem a classe dela.
+test('Simulador: sem escala "de 10" e sem selo de faixa', () => {
+  const src = ['intel-sim.js', 'intel-page.js', 'style.css'].map((f) => fs.readFileSync(path.join(HERE, f), 'utf8')).join('\n');
+  assert.doesNotMatch(src, /\b(\d+|N|x) de 10\b/);
+  assert.doesNotMatch(src, /coverageBand|cover-band/);
+});
+
+// F4 (17/11/2026): "Chegada ao destino (porto ou aeroporto de descarga)
+// (porto ou aeroporto de descarga)". destTerm já leva a dica por extenso para o
+// leitor de tela; repetir a dica em texto logo depois a dizia duas vezes.
+test('Simulador: rótulo não se repete dentro da própria frase, e percentual não cola no texto', () => {
+  const page = fs.readFileSync(path.join(HERE, 'intel-page.js'), 'utf8');
+  assert.doesNotMatch(page, /destTerm\([^)]*\)[^`]{0,12}\(porto ou aeroporto de descarga\)/i);
+  assert.match(page, /<b>Chegada ao destino<\/b> \(porto ou aeroporto de descarga\): trânsito mediano/);
+  // Percentual sempre separado do texto anterior (nada de "data-alvo100%" nem
+  // "de 5269%"). Só o trecho do Simulador: as outras subabas ficam fora desta PR.
+  const sim = page.slice(page.indexOf('function simResultBand'), page.indexOf('function simQuoteAction'));
+  assert.ok(sim.length > 1000);
+  assert.doesNotMatch(sim, /<\/span><small class="pct">/);
+  assert.doesNotMatch(sim, /data-alvo\$\{pc\(/);
 });

@@ -71,7 +71,12 @@ async function roteiroSimulador(page, base) {
   const text = (sel) => page.evaluate((s) => document.querySelector(s)?.innerText || '', sel);
   await go('#executivo?aba=simulador');
   const phrase = await text('.sim-result .fact-text');
-  check('S1/S3 exemplo preenchido com resultado à vista', /cobre \d+ de \d+/.test(phrase), phrase.slice(0, 90));
+  check('S1/F2 exemplo preenchido: cobertura da chegada ao porto, entrega final sem cobertura', /faz \d+ de \d+ embarques parecidos chegarem ao porto/.test(phrase) && !/cobre/i.test(phrase), phrase.slice(0, 90));
+  const cover = await text('.sim-cover'), pct = Number((cover.match(/\((\d+)%\)/) || [])[1]);
+  check('F1 exemplo com cobertura parcial embarcando hoje', pct >= 40 && pct <= 80, cover.slice(0, 70));
+  check('F3 sem escala "de 10" no Simulador', !/\b\d+ de 10\b|Cobre/.test(await text('#aba-simulador')));
+  const measures = await page.evaluate(() => document.querySelector('.sim-measures').textContent);
+  check('F4 "Chegada ao destino" dito uma vez', (measures.match(/porto ou aeroporto de descarga/gi) || []).length === 1, measures.slice(0, 80));
   check('S4 tabela por agente de carga', (await page.locator('.sim-agents-table tbody tr').count()) >= 2);
   check('S3 sem veredito Cabe/Não cabe', !/Cabe na data|Não cabe|Apertado/.test(await text('#aba-simulador')));
   const above = await page.evaluate(() => document.querySelector('.sim-result .fact-text').getBoundingClientRect().bottom <= innerHeight);
@@ -105,7 +110,7 @@ async function roteiroSimulador(page, base) {
     const worst = await page.evaluate(() => {
       const lum = (c) => { const v = c.match(/[\d.]+/g).slice(0, 3).map((x) => +x / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4)); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
       const bg = (el) => { for (let e = el; e; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; if (!/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c; } return 'rgb(255,255,255)'; };
-      const sels = ['.sim-result .fact-text', '.sim-cover', '.cover-band', '.sim-source', '.sim-measures li', '.sim-agents-table th .sort-label', '.sim-agents-table td small', '.sim-notes li', '.sim-task-foot', '.st-field', '.integrated-notice'];
+      const sels = ['.sim-result .fact-text', '.sim-cover', '.sim-reserve-note', '.sim-source', '.sim-measures li', '.sim-agents-table th .sort-label', '.sim-agents-table td small', '.sim-notes li', '.sim-task-foot', '.st-field', '.integrated-notice'];
       return sels.map((s) => { const el = document.querySelector(s); if (!el) return [s, null]; const a = lum(getComputedStyle(el).color), b = lum(bg(el)); return [s, Math.round(((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)) * 100) / 100]; }).filter(([, r]) => r != null).sort((x, y) => x[1] - y[1])[0];
     });
     const dark = await page.evaluate(() => document.documentElement.classList.contains('theme-dark'));

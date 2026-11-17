@@ -651,15 +651,10 @@ function simResultBand(r) {
   }
   if (r.state === 'past') return `<div class="fact-band sim-result" role="status"><p class="fact-text">${t.mode === 'chegar' ? 'A data-alvo' : 'A data de embarque'} já passou: hoje, nesta demonstração, é ${fullDate(r.today)}.</p></div>`;
   if (r.state === 'before_min') return `<div class="fact-band sim-result" role="status"><p class="fact-text">A data-alvo é anterior ao menor trânsito do histórico.</p><p class="fact-conc">Embarcando hoje (${dm(r.today)}), o trânsito mais curto registrado (${r.route.min} dias, em ${r.route.n} embarques) chegaria ao destino em ${dm(IS.addDays(r.today, r.route.min))}${r.basis === 'final' ? `, e a perna nacional até o cliente levou até ${r.leg.p90} dias (P90)` : ''}.</p></div>`;
-  const final = r.basis === 'final';
-  // S3: frase calculada, a de b contado no histórico, percentual secundário,
-  // faixa descritiva neutra. Sem "cabe", sem cor, sem recomendação.
-  const ab = c => `${c.good} de ${c.base}`, pc = c => `<small class="pct">${c.pct}%</small>`;
-  const band = c => `<span class="cover-band">${esc(IS.coverageBand(c))}</span>`;
-  const passed = d => (d < r.today ? ' (já passou)' : '');
-  const head = t.mode === 'chegar'
-    ? `<p class="fact-text">Para ${final ? 'a entrega final' : 'a chegada ao destino'} até ${dm(t.target)}, embarcar até <b>${dm(r.limitP90)}</b>${passed(r.limitP90)} cobre ${ab(r.coverP90)} embarques parecidos (P90); até <b>${dm(r.limitMedian)}</b>${passed(r.limitMedian)} cobre ${ab(r.coverMedian)} (mediana).</p><p class="sim-cover">${band(r.coverToday)} <span>Embarcando hoje (${dm(r.today)}), <b>${ab(r.coverToday)}</b> embarques parecidos chegaram até a data-alvo${pc(r.coverToday)}. Margem até a data-alvo: ${r.margin} ${r.margin === 1 ? 'dia' : 'dias'}${r.basis === 'final' ? ' de trânsito, já descontada a perna nacional' : ''}.</span></p>`
-    : `<p class="fact-text">Embarcando em ${dm(t.departure)}, metade dos embarques parecidos chegou ao destino até <b>${dm(r.arrivalMedian)}</b> (mediana) e 9 de 10 até <b>${dm(r.arrivalP90)}</b> (P90)${final ? `; com a perna nacional, entrega final até ${dm(r.finalMedian)} (mediana) e ${dm(r.finalP90)} (P90)` : ''}.</p>`;
+  // F2: a frase sai do motor (IntelSim.resultText): cobertura da chegada ao
+  // porto, perna nacional como reserva de dias, nenhuma cobertura da entrega final.
+  const rt = IS.resultText(r), bold = txt => esc(txt).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  const head = `<p class="fact-text">${bold(rt.head)}</p>${rt.today ? `<p class="sim-cover">${bold(rt.today)}</p>` : ''}${rt.note ? `<p class="sim-reserve-note">${esc(rt.note)}</p>` : ''}`;
   // S7: o resultado PRIMEIRO; a fonte e as medidas vêm logo abaixo.
   return `<div class="fact-band sim-result" role="status">${head}${simSourceLine(r)}${simMeasures(r)}</div>`;
 }
@@ -677,11 +672,12 @@ function simSourceLine(r) {
 }
 function simMeasures(r) {
   const days = v => String(v).replace('.', ',');
-  const port = `<li><b>${destTerm('Chegada ao destino')}</b> (porto ou aeroporto de descarga): trânsito mediano ${days(r.route.median)} dias, P90 ${r.route.p90} dias · ${r.route.n} embarques com saída e chegada</li>`;
+  // F4: o termo é dito uma vez, por extenso (destTerm repetiria a dica para o leitor de tela).
+  const port = `<li><b>Chegada ao destino</b> (porto ou aeroporto de descarga): trânsito mediano ${days(r.route.median)} dias, P90 ${r.route.p90} dias · ${r.route.n} embarques com saída e chegada</li>`;
   // A referência agregada já leva o aviso de integração no topo; ele não se repete.
   const notice = r.source !== 'referencia' && window.IntelSources ? IntelSources.noticeOf('final') : null;
   const final = r.basis === 'final'
-    ? `<li><b>Entrega final</b> = chegada ao destino + perna nacional (desembaraço e transporte até o cliente): mediana ${days(r.leg.median)} dias, P90 ${r.leg.p90} dias · ${r.leg.n} embarques com chegada e entrega${r.task.mode === 'chegar' ? `. A chegada ao destino precisa ser até ${dm(r.portTarget)}` : ''}.${notice ? `<span class="integrated-notice">${esc(notice)}</span>` : ''}</li>`
+    ? `<li><b>Entrega final</b> = chegada ao destino + perna nacional (desembaraço e transporte até o cliente): mediana ${days(r.leg.median)} dias, P90 ${r.leg.p90} dias · ${r.leg.n} embarques com chegada e entrega. Entra como reserva de dias (o P90), sem cobertura contada.${notice ? `<span class="integrated-notice">${esc(notice)}</span>` : ''}</li>`
     : `<li>${r.task.mode === 'chegar' ? 'Considera a chegada ao porto. A entrega final depende de dados de clientes integrados.' : 'A entrega final não entra: depende de dados de clientes integrados.'}${r.leg.n ? ` (${r.leg.n} ${r.leg.n === 1 ? 'embarque' : 'embarques'} com entrega registrada; são precisos ${IS.MIN_SAMPLE}.)` : ''}</li>`;
   return `<ul class="sim-measures">${port}${final}</ul>`;
 }
@@ -709,7 +705,7 @@ function simAgentTable(r) {
       if (chegar) tds.push('<td class="quiet-col">—</td>');
     } else {
       tds.push(`<td class="quiet-col">${days(a.median)} dias<small>${a.n} com saída e chegada</small></td>`, `<td class="quiet-col">${a.p90} dias</td>`, `<td class="quiet-col">${days(a.spread)} ${a.spread === 1 ? 'dia' : 'dias'}<small>P90 − mediana</small></td>`);
-      if (chegar) tds.push(`<td class="lead-col"><span class="frac">${a.cover.good} de ${a.cover.base}</span><small class="pct">${a.cover.pct}% · ${esc(IS.coverageBand(a.cover))}</small></td>`, `<td class="quiet-col">${dm(a.limitP90)} <small>P90 · ${dm(a.limitMedian)} pela mediana</small></td>`);
+      if (chegar) tds.push(`<td class="lead-col"><span class="frac">${a.cover.good} de ${a.cover.base}</span> <small class="pct">(${a.cover.pct}%)</small></td>`, `<td class="quiet-col">${dm(a.limitP90)} <small>P90 · ${dm(a.limitMedian)} pela mediana</small></td>`);
       else tds.push(`<td class="lead-col"><span class="frac">até ${dm(a.arrivalP90)}</span><small>P90 · ${dm(a.arrivalMedian)} pela mediana</small></td>`);
     }
     const prom = a.promised ? a.promised.days : '';
@@ -729,12 +725,15 @@ function simQuoteAction(task, r) {
   return `<p class="sim-action"><a class="button" href="${esc(href)}" target="_top">Solicitar cotação com esta rota e data</a><small>${task.mode === 'chegar' ? 'Leva origem, destino, modal e a data-alvo para a Nova Cotação.' : 'Leva origem, destino e modal para a Nova Cotação.'} Nenhum agente é pré-selecionado.</small></p>`;
 }
 function simulatorTab(s) {
-  const today = D.cutoff, task = IS.readTask(D, params, today);
+  const today = D.cutoff;
+  let task = IS.readTask(D, params, today);
   // Um agente de carga filtrado vira o FOCO do resultado (com fallback para a
   // rota); a tabela continua mostrando todos os agentes da rota.
   const ag = s.gf.ag || [], focus = ag.length === 1 ? ag[0] : null;
   const all = IS.inWindow(D.operations, task.window, today), ops = IE.applyFilters(all, focus ? { ...s.gf, ag: [] } : s.gf);
   const ref = window.IntelSimReference;
+  // F1: sem data-alvo na URL, a do exemplo é "hoje + N", com N escolhido pelo motor.
+  task = IS.withExampleTarget(D, ops, task, today, { ref, focus });
   const r = IS.plan(D, ops, task, today, { ref, focus });
   simOtherHasBase = r.state === 'no_history' && IS.hasBase(D, ops, ref, task, r.source === 'meus' ? 'referencia' : 'meus', today);
   return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${r.state === 'ok' && r.agents.length ? simAgentTable(r) : ''}${simQuoteAction(task, r)}${simHow(s, task)}${simNotes(r)}<p class="chart-caption">Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.</p></section>`;

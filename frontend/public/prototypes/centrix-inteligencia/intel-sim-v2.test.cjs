@@ -31,7 +31,6 @@ test('cobertura com base de 3, 10 e 50 embarques: a de b contado, percentual sec
   assert.deepEqual(S.coverage(ten, 38), { good: 9, base: 10, pct: 90 });
   const fifty = Array.from({ length: 50 }, (_, i) => 20 + (i % 25));
   assert.deepEqual(S.coverage(fifty, 32), { good: 26, base: 50, pct: 52 });
-  assert.equal(S.coverageBand(S.coverage(ten, 38)), 'Cobre 9 de 10');
 });
 test('empates e trânsito igual à margem: a margem é inclusiva', () => {
   assert.deepEqual(S.coverage([32, 32, 32, 33], 32), { good: 3, base: 4, pct: 75 });
@@ -219,4 +218,92 @@ test('entrada: exemplo preenchido sem parâmetro; "Limpar" esvazia tudo, inclusi
   const old = S.readTask(D, new URLSearchParams('aba=simulador&srota=genova&chegada=2026-12-20&janela=6m'), TODAY);
   assert.deepEqual([old.route, old.target, old.window, old.mode], ['genova', '2026-12-20', '6m', 'chegar']);
   assert.equal(S.readTask(D, new URLSearchParams('smodo=embarcar&sembarque=2026-11-20'), TODAY).departure, '2026-11-20');
+});
+
+// ------------------------------------------------ F1: exemplo com nuance ---
+// A data-alvo do exemplo é "hoje + N", com N escolhido pelo motor, e acompanha
+// ?hoje=. Testado no "hoje" da demonstração das capturas e na data base.
+for (const today of ['2026-11-13', D.cutoff, '2027-03-02']) {
+  test(`F1: exemplo de abertura com cobertura parcial embarcando hoje (hoje = ${today})`, () => {
+    const DD = D.shift(today);
+    const ops = S.inWindow(DD.operations, '12m', today);
+    const raw = S.readTask(DD, new URLSearchParams(''), today);
+    assert.equal(raw.exampleTarget, true);
+    const t = S.withExampleTarget(DD, ops, raw, today, { ref: R });
+    assert.ok(t.target > today, 'data-alvo no futuro');
+    assert.equal(t.target, S.addDays(today, S.exampleTargetDays(DD, ops, raw, today, { ref: R })), 'relativa ao hoje');
+    const r = S.plan(DD, ops, t, today, { ref: R });
+    assert.equal(r.state, 'ok');
+    assert.ok(r.coverToday.pct >= 40 && r.coverToday.pct <= 80, `cobertura de hoje ${r.coverToday.good} de ${r.coverToday.base}`);
+    assert.ok(r.limitMedian > today, 'o embarque limite pela mediana é posterior a hoje');
+    // O limite P90 fica o mais perto possível de hoje: um dia a mais de data-alvo já passa do teto.
+    const next = S.plan(DD, ops, { ...t, target: S.addDays(t.target, 1) }, today, { ref: R });
+    assert.ok(next.coverToday.pct > S.EXAMPLE.coverMax);
+  });
+}
+test('F1: limite P90 depois de hoje implica cobertura de hoje de 90% ou mais (por isso o exemplo não pede os dois)', () => {
+  const ops = S.inWindow(D.operations, '12m', D.cutoff);
+  const t = S.readTask(D, new URLSearchParams(''), D.cutoff);
+  for (let n = 30; n <= 90; n++) {
+    const r = S.plan(D, ops, { ...t, target: S.addDays(D.cutoff, n) }, D.cutoff, { ref: R });
+    if (r.state === 'ok' && r.limitP90 > D.cutoff) assert.ok(r.coverToday.pct >= 90, `n=${n}`);
+  }
+});
+test('F1: data-alvo na URL vale como está; "Limpar" continua esvaziando tudo', () => {
+  const ops = S.inWindow(D.operations, '12m', TODAY);
+  const fixed = S.readTask(D, new URLSearchParams('chegada=2027-01-12'), TODAY);
+  assert.equal(fixed.exampleTarget, false);
+  assert.equal(S.withExampleTarget(D, ops, fixed, TODAY, { ref: R }).target, '2027-01-12');
+  const blank = S.readTask(D, new URLSearchParams('sinicio=vazio'), TODAY);
+  const b = S.withExampleTarget(D, ops, blank, TODAY, { ref: R });
+  assert.deepEqual([b.route, b.modal, b.target, b.departure], ['', '', '', '']);
+});
+
+// ------------------------------- F2: porto e entrega final, separados ---
+const plain = (s) => s.replace(/\*\*/g, '');
+test('F2: com perna nacional, a frase cita porto e entrega final e não diz "cobre" para a entrega final', () => {
+  const ops = [[30, 4], [31, 5], [32, 6], [33, 9]].map(([t, l]) => op('x', t, l));
+  const r = plan(ops, { target: S.addDays(TODAY, 50) });
+  assert.equal(r.basis, 'final');
+  assert.equal(r.portTarget, S.addDays(r.task.target, -r.leg.p90), 'porto = data-alvo − P90 da perna');
+  const txt = S.resultText(r), head = plain(txt.head);
+  const dd = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
+  assert.match(head, new RegExp(`entrega final até ${dd(r.task.target)}`));
+  assert.match(head, new RegExp(`chegar ao porto até ${dd(r.portTarget)} \\(reserva de 9 dias`));
+  assert.match(head, new RegExp(`faz ${r.coverP90.good} de ${r.coverP90.base} embarques parecidos chegarem ao porto até ${dd(r.portTarget)} \\(P90 do trânsito\\)`));
+  assert.doesNotMatch(head + txt.today, /cobre/i);
+  assert.doesNotMatch(head, /entrega final[^.;]*\d+ de \d+/, 'nenhuma contagem atribuída à entrega final');
+  assert.match(txt.note, /P90 dela somado ao P90 do trânsito; por isso é conservadora/);
+  assert.match(txt.note, /vale só para a chegada ao porto/);
+});
+test('F2: sem perna nacional, a frase fala só de porto (aeroporto no aéreo), sem nota de reserva', () => {
+  const r = plan([30, 31, 32, 33].map((t) => op('x', t)));
+  assert.equal(r.basis, 'port');
+  const txt = S.resultText(r);
+  assert.match(plain(txt.head), /^Para a chegada ao porto até/);
+  assert.doesNotMatch(txt.head + txt.today, /entrega final|cobre/i);
+  assert.equal(txt.note, null);
+  assert.match(txt.today, /Margem até a data-alvo/);
+  const air = S.plan(FD, [30, 31, 32].map((t) => op('x', t, null, 'v')), task({ route: 'v', modal: 'aereo' }), TODAY);
+  assert.match(S.resultText(air).head, /chegada ao aeroporto/);
+});
+test('F2: "Como é calculado" não afirma cobertura da entrega final', () => {
+  const f = S.howCalculated(D, {}, S.readTask(D, new URLSearchParams(''), TODAY), TODAY).find((l) => l.label === 'Fórmula').text;
+  assert.match(f, /vale sempre para a chegada ao porto ou aeroporto/);
+  assert.match(f, /nenhuma cobertura é contada para a entrega final/);
+});
+
+// ------------------------------------- F3: uma escala só, a de b real ---
+test('F3: no modo "Vou embarcar em", a frase conta a de b (nada de "metade" nem "9 de 10")', () => {
+  const ops = [30, 31, 32, 33, 34, 35, 36, 37, 38, 45].map((t) => op('x', t));
+  const r = plan(ops, { mode: 'embarcar', departure: S.addDays(TODAY, 1) });
+  assert.deepEqual(r.coverArrivalMedian, { good: 6, base: 10, pct: 60 });
+  assert.deepEqual(r.coverArrivalP90, { good: 9, base: 10, pct: 90 });
+  const head = S.resultText(r).head;
+  assert.match(head, /6 de 10 embarques parecidos chegaram ao porto até \*\*\d\d\/\d\d\*\* \(mediana\) e 9 de 10 até/);
+  assert.doesNotMatch(head, /metade/);
+});
+test('F3: a cobertura de hoje traz a de b com o percentual entre parênteses, separado do texto', () => {
+  const r = plan([30, 31, 32, 33].map((t) => op('x', t)), { target: S.addDays(TODAY, 31) });
+  assert.match(S.resultText(r).today, /\*\*2 de 4\*\* \(50%\) embarques parecidos/);
 });

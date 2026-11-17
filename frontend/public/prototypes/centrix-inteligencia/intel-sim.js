@@ -12,8 +12,8 @@
 //   - Resultado em SEMANAS, nunca em dia: errar a semana muda a vida do cliente,
 //     prometer o dia seria precisão que o histórico não tem.
 //   - Sem veredito (S3, 17/11/2026): o selo antigo de três estados saiu. O
-//     resultado é cobertura empírica, a de b, em faixas neutras ("Cobre 9 de
-//     10"). Ordem padrão por volume, como nas abas.
+//     resultado é cobertura empírica, contagem real a de b com o percentual
+//     secundário (F3: a escala "de 10" saiu). Ordem padrão por volume.
 //   - Sem custo, saving ou economia: a metodologia de saving está em avaliação.
 (function (root) {
   const inNode = typeof module !== 'undefined' && module.exports;
@@ -113,7 +113,7 @@
     const start = windowStart(task.window, today);
     return [
       { label: 'Fonte', text: `${sourceLabel(task.source)}: ${src(task.source === 'referencia' ? 'sim_reference' : 'sim_transit')}. Perna nacional: ${src('sim_leg')}.` },
-      { label: 'Fórmula', text: `Trânsito = chegada ao destino − saída, em dias corridos. Mediana e P${HIGH_PERCENTILE} (o menor trânsito que cobre ${HIGH_PERCENTILE}% dos casos, sempre um trânsito que aconteceu). Margem até a data-alvo = dias entre o embarque e a data-alvo. Cobertura = embarques do histórico cujo trânsito coube na margem até a data-alvo ÷ embarques com saída e chegada. Variação do trânsito = P90 − mediana. Embarque limite = data-alvo − P${HIGH_PERCENTILE} (ou − mediana). Com Entrega final, a data-alvo desconta antes a perna nacional (chegada → entrega ao cliente) pelo P${HIGH_PERCENTILE} dela. Menos de ${MIN_SAMPLE} trânsitos: sem cálculo.` },
+      { label: 'Fórmula', text: `Trânsito = chegada ao destino − saída, em dias corridos. Mediana e P${HIGH_PERCENTILE} (o menor trânsito que cobre ${HIGH_PERCENTILE}% dos casos, sempre um trânsito que aconteceu). Margem até a data-alvo = dias entre o embarque e a data-alvo. Cobertura = embarques do histórico cujo trânsito coube na margem ÷ embarques com saída e chegada; ela vale sempre para a chegada ao porto ou aeroporto. Variação do trânsito = P90 − mediana. Embarque limite = data da chegada ao porto − P${HIGH_PERCENTILE} do trânsito (ou − mediana). Com Entrega final, a chegada ao porto precisa acontecer até a data-alvo menos uma reserva de dias para desembaraço e transporte: o P${HIGH_PERCENTILE} da perna nacional (chegada → entrega ao cliente). Essa reserva somada ao P${HIGH_PERCENTILE} do trânsito é conservadora, e nenhuma cobertura é contada para a entrega final. Menos de ${MIN_SAMPLE} trânsitos: sem cálculo.` },
       { label: 'Histórico', text: `${windowLabel(task.window)}${start ? `, pela data de saída, de ${start.split('-').reverse().join('/')} até hoje` : ', todos os embarques com saída até hoje'}. O P${HIGH_PERCENTILE} existe para mostrar a cauda; épocas de pico podem variar. O período do painel não se aplica ao Simulador.` },
       { label: 'Registro', text: 'Só entram embarques com chegada registrada. Os que ainda estão em trânsito ou sem registro ficam fora, o que pode fazer o histórico parecer melhor do que é.' },
       { label: 'Modal', text: 'Marítimo e aéreo nunca se misturam. Modal sem base não simula.' },
@@ -132,8 +132,14 @@
   const MODES = [['chegar', 'Quero chegar até'], ['embarcar', 'Vou embarcar em']];
   const MODALS = [['maritimo', 'Marítimo'], ['aereo', 'Aéreo'], ['rodoviario', 'Rodoviário']];
   const MODAL_OF = { 'Marítimo': 'maritimo', 'Aéreo': 'aereo', 'Rodoviário': 'rodoviario' };
-  /** O exemplo fictício com que o Simulador abre (S1): rota, modal e data à vista, nunca escondidos. */
-  const EXAMPLE = { route: 'ningbo', modal: 'maritimo', targetDays: 60, departureDays: 14 };
+  /**
+   * O exemplo fictício com que o Simulador abre (S1): rota, modal e data à vista,
+   * nunca escondidos. A data-alvo NÃO é fixa (F1, 17/11/2026): é "hoje + N dias",
+   * com N escolhido pelo próprio motor (exampleTargetDays) para que embarcar hoje
+   * cubra parte do histórico, entre coverMin e coverMax %. `targetDays` é só a
+   * reserva quando não há base para escolher.
+   */
+  const EXAMPLE = { route: 'ningbo', modal: 'maritimo', targetDays: 60, departureDays: 14, coverMin: 40, coverMax: 80 };
   const modalOfRoute = (D, id) => { const r = D.routes.find((x) => x.id === id); return r ? MODAL_OF[r.mode] || '' : ''; };
   const modalLabel = (id) => (MODALS.find(([m]) => m === id) || [null, ''])[1];
 
@@ -151,7 +157,32 @@
     const departure = validIso(get('sembarque')) ? get('sembarque') : blank ? '' : addDays(today, EXAMPLE.departureDays);
     const source = SOURCES.some(([id]) => id === get('sfonte')) ? get('sfonte') : DEFAULT_SOURCE;
     const cargo = ['FCL', 'LCL', 'Carga geral'].includes(get('scarga')) ? get('scarga') : '';
-    return { mode: get('smodo') === 'embarcar' ? 'embarcar' : 'chegar', route, modal, target, departure, window: readWindow(params), blank, promised: readPromised(get('sprom')), source, cargo };
+    // exampleTarget: a data-alvo veio do exemplo, não da URL; withExampleTarget a recalcula.
+    return { mode: get('smodo') === 'embarcar' ? 'embarcar' : 'chegar', route, modal, target, departure, window: readWindow(params), blank, promised: readPromised(get('sprom')), source, cargo, exampleTarget: !blank && !validIso(get('chegada')) };
+  }
+
+  /**
+   * F1: o N do exemplo. O maior N em que embarcar hoje cobre entre coverMin e
+   * coverMax % dos embarques parecidos (a cobertura cresce com N, então a busca
+   * para no primeiro N acima do teto). O MAIOR N deixa o embarque limite pelo
+   * P90 o mais perto possível de hoje. Ele não fica DEPOIS de hoje, e não pode:
+   * limite P90 depois de hoje ⇔ margem ≥ P90 ⇔ cobertura de hoje ≥ 90%. Quem
+   * fica no futuro é o limite pela mediana. Sem base, a reserva EXAMPLE.targetDays.
+   */
+  function exampleTargetDays(D, ops, task, today, opts = {}) {
+    let best = null;
+    for (let n = 1; n <= 365; n++) {
+      const r = plan(D, ops, { ...task, mode: 'chegar', target: addDays(today, n) }, today, opts);
+      if (r.state !== 'ok') continue;
+      if (r.coverToday.pct > EXAMPLE.coverMax) break;
+      if (r.coverToday.pct >= EXAMPLE.coverMin) best = n;
+    }
+    return best == null ? EXAMPLE.targetDays : best;
+  }
+  /** A tarefa com a data-alvo do exemplo calculada sobre o histórico (só quando ela veio do exemplo). */
+  function withExampleTarget(D, ops, task, today, opts = {}) {
+    if (!task.exampleTarget || !task.route || !task.modal) return task;
+    return { ...task, target: addDays(today, exampleTargetDays(D, ops, task, today, opts)) };
   }
 
   /**
@@ -184,12 +215,6 @@
     if (!base || margin == null) return { good: null, base, pct: null };
     const good = values.filter((t) => t <= margin).length;
     return { good, base, pct: Math.round((good / base) * 100) };
-  }
-
-  /** Faixa descritiva neutra (S3): "Cobre 9 de 10". Arredonda PARA BAIXO, o lado conservador. */
-  function coverageBand(c) {
-    if (!c || c.good == null || !c.base) return null;
-    return `Cobre ${Math.floor((c.good / c.base) * 10)} de 10`;
   }
 
   /** Os embarques do cliente para a tarefa: rota e modal, com chegada e saída registradas para o trânsito. */
@@ -295,14 +320,17 @@
       out.limitP90 = addDays(out.portTarget, -head.p90);
       out.limitMedian = addDays(out.portTarget, -Math.ceil(head.median));
       out.coverToday = coverage(head.values, out.margin);
-      // A cobertura de cada data limite é contada, não suposta: "9 de 10" e
-      // "metade" são o que o histórico de fato mostra naquela margem.
+      // A cobertura de cada data limite é contada, não suposta: a de b é o que
+      // o histórico de fato mostra naquela margem.
       out.coverP90 = coverage(head.values, head.p90);
       out.coverMedian = coverage(head.values, Math.ceil(head.median));
     } else {
       if (diffDays(today, date) < 0) return { ...out, state: 'past' };
       out.arrivalMedian = addDays(date, Math.ceil(head.median));
       out.arrivalP90 = addDays(date, head.p90);
+      // F3: quantos chegaram até cada data, contado, nunca suposto.
+      out.coverArrivalMedian = coverage(head.values, Math.ceil(head.median));
+      out.coverArrivalP90 = coverage(head.values, head.p90);
       if (out.basis === 'final') {
         out.finalMedian = addDays(out.arrivalMedian, Math.ceil(out.leg.median));
         out.finalP90 = addDays(out.arrivalP90, out.leg.p90);
@@ -336,6 +364,34 @@
       return row;
     });
   }
+  /**
+   * F2 (17/11/2026): a frase do resultado, em texto direto. A cobertura contada
+   * é SEMPRE da chegada ao porto (ou aeroporto); a perna nacional entra só como
+   * reserva de dias (o P90 dela) descontada da data-alvo, e nenhuma cobertura é
+   * atribuída à entrega final. Datas em destaque vêm entre ** **; a tela troca
+   * por negrito. Só para o estado ok.
+   */
+  const ddmmOf = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
+  const abOf = (c) => `${c.good} de ${c.base}`;
+  const placeOf = (task) => (task.modal === 'aereo' ? 'aeroporto' : 'porto');
+  function resultText(r) {
+    const t = r.task, place = placeOf(t), final = r.basis === 'final';
+    const passed = (d) => (d < r.today ? ' (já passou)' : '');
+    const nd = (n) => `${n} ${n === 1 ? 'dia' : 'dias'}`;
+    if (t.mode === 'chegar') {
+      const port = ddmmOf(r.portTarget);
+      const cover = `embarcar até **${ddmmOf(r.limitP90)}**${passed(r.limitP90)} faz ${abOf(r.coverP90)} embarques parecidos chegarem ao ${place} até ${port} (P90 do trânsito); até **${ddmmOf(r.limitMedian)}**${passed(r.limitMedian)}, ${abOf(r.coverMedian)} (mediana).`;
+      const head = final
+        ? `Para a entrega final até ${ddmmOf(t.target)}, a carga precisa chegar ao ${place} até ${port} (reserva de ${nd(r.leg.p90)} para desembaraço e transporte, o P${HIGH_PERCENTILE} dessa etapa). E${cover.slice(1)}`
+        : `Para a chegada ao ${place} até ${ddmmOf(t.target)}, ${cover}`;
+      const today = `Embarcando hoje (${ddmmOf(r.today)}), **${abOf(r.coverToday)}** (${r.coverToday.pct}%) embarques parecidos chegaram ao ${place} até ${port}. ${final ? `Margem até a chegada ao ${place}` : 'Margem até a data-alvo'}: ${nd(r.margin)}.`;
+      const note = final ? `A reserva de dias da etapa final é o P${HIGH_PERCENTILE} dela somado ao P${HIGH_PERCENTILE} do trânsito; por isso é conservadora. A cobertura contada vale só para a chegada ao ${place}.` : null;
+      return { head, today, note };
+    }
+    const head = `Embarcando em ${ddmmOf(t.departure)}, ${abOf(r.coverArrivalMedian)} embarques parecidos chegaram ao ${place} até **${ddmmOf(r.arrivalMedian)}** (mediana) e ${abOf(r.coverArrivalP90)} até **${ddmmOf(r.arrivalP90)}** (P90)${final ? `; somando a perna nacional (P${HIGH_PERCENTILE} de ${nd(r.leg.p90)}), a entrega final seria por volta de ${ddmmOf(r.finalMedian)} (mediana) e ${ddmmOf(r.finalP90)} (P90)` : ''}.`;
+    return { head, today: null, note: null };
+  }
+
   const AGENT_SORT = {
     name: (r) => r.name, shipments: (r) => r.shipments, median: (r) => r.median, p90: (r) => r.p90, spread: (r) => r.spread,
     cover: (r) => (r.cover ? r.cover.pct : null), limit: (r) => r.limitP90 || r.arrivalP90 || null,
@@ -376,7 +432,7 @@
     return '/portal/nova-cotacao?' + q.toString();
   }
 
-  const api = { quotationLink, SOURCES, DEFAULT_SOURCE, sourceLabel, cargoOfRoute, historyMine, historyReference, hasBase, readPromised, writePromised, agentRows, sortAgents, nextAgentSort, DEFAULT_AGENT_SORT, MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, coverageBand, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, simulate, howCalculated, addDays, diffDays, validIso };
+  const api = { resultText, exampleTargetDays, withExampleTarget, quotationLink, SOURCES, DEFAULT_SOURCE, sourceLabel, cargoOfRoute, historyMine, historyReference, hasBase, readPromised, writePromised, agentRows, sortAgents, nextAgentSort, DEFAULT_AGENT_SORT, MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, simulate, howCalculated, addDays, diffDays, validIso };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelSim = api;
 })(typeof window !== 'undefined' ? window : globalThis);
