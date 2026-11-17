@@ -783,3 +783,63 @@ table.compare .sort-button{line-height:1.3;min-width:84px}
 @media(max-width:700px){.sim-adjust-title small{display:block;margin:2px 0 0}.sim-result .fact-text{font-size:16px}.sim-task{gap:10px}.sim-mode button{padding:6px 10px}.sim-task-foot{font-size:13px}.sim-measures{border-top:0;padding-top:0}}
 .sim-action{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:16px 0 0}
 .sim-action small{font-size:14px;color:var(--ink-2)}
+
+/* SIMULADOR ENXUTO (E1, 17/11/2026): cartão de resposta, uma frase e três
+   números. Só tokens; "já passou" é marcador neutro, nunca cor de juízo. */
+.sim-answer-card{display:grid;gap:12px}
+.sim-answer{margin:0;font-size:20px;line-height:1.35;font-weight:600;color:var(--ink);max-width:60ch}
+.sim-answer b{font-weight:700}
+.sim-anchor{margin:0;font-size:14px;line-height:1.45;color:var(--ink-2);max-width:96ch}
+.sim-figures{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 16px;margin:0}
+.sim-fig{border-top:2px solid var(--line-strong);padding-top:8px;min-width:0}
+.sim-fig dt{font-size:14px;font-weight:600;color:var(--ink-2)}
+.sim-fig dd{margin:2px 0 0}
+.sim-fig-v{display:block;font-size:26px;line-height:1.2;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.sim-fig-v .frac{display:inline;font-size:inherit;font-weight:inherit;color:inherit}
+.sim-fig-v .pct{display:inline;margin:0;font-size:15px;font-weight:400;color:var(--ink-2)}
+.sim-fig small.pct{display:inline}
+.sim-fig small{display:block;margin-top:2px;font-size:13px;line-height:1.4;color:var(--ink-2)}
+.passed-tag{display:inline-block;vertical-align:middle;margin-left:6px;font-size:12px;font-weight:600;line-height:1.5;color:var(--ink-2);border:1px dashed var(--line-strong);border-radius:4px;padding:0 6px}
+.sim-honesty{margin:0;font-size:14px;color:var(--ink-2)}
+.sim-honesty b{color:var(--ink);font-weight:600}
+.sim-honesty .text-button{font-size:14px;background:none;border:0;padding:4px 0;min-height:32px;color:var(--indigo);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.sim-answer-card>.integrated-notice{margin:0}
+.sim-answer-card .sim-action{margin:0;padding-top:12px;border-top:1px solid var(--line)}
+.sim-answer-card .sim-action .button{margin-top:0}
+@media(max-width:700px){.sim-answer{font-size:18px}.sim-figures{grid-template-columns:1fr}.sim-fig{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:0 12px}.sim-fig dd{text-align:right}.sim-fig small{text-align:right}.sim-fig-v{font-size:22px}}
+/* E2: a linha de rodapé da entrada guarda só "Limpar e começar do zero", discreta. */
+.sim-task-foot{justify-content:flex-end}
+.sim-task-foot .text-button{font-size:13px;min-height:28px;padding:4px 0}
+
+/* E3: "Como é calculado e limites", acordeão fechado por padrão, numa linha. */
+.sim-como{margin:16px 0 0;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.sim-como-h{margin:0;font-size:inherit}
+.sim-como-toggle{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;width:100%;min-height:52px;padding:10px 20px;background:none;border:0;text-align:left;cursor:pointer;color:var(--ink)}
+.sim-como-toggle:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:12px}
+.sim-como-title{font-size:16px;font-weight:600}
+.sim-como-toggle small{font-size:14px;color:var(--ink-2);flex:1 1 220px}
+.sim-como-toggle .fold-toggle::before{content:'Expandir'}
+.sim-como-toggle[aria-expanded="true"] .fold-toggle::before{content:'Recolher'}
+.sim-como-toggle[aria-expanded="true"] .fold-toggle::after{transform:rotate(-135deg) translateY(-2px)}
+.sim-como-body{padding:4px 20px 18px;border-top:1px solid var(--line);display:grid;gap:14px}
+.sim-como-sec h3{margin:10px 0 6px;font-size:15px;font-weight:600;color:var(--ink);font-family:Source,'Segoe UI',sans-serif;letter-spacing:0}
+.sim-como-sec p{margin:0 0 6px;font-size:14px;line-height:1.5;color:var(--ink-2);max-width:96ch}
+.sim-como-sec .sim-full b,.sim-como-sec .sim-cover b{color:var(--ink)}
+.sim-como-sec .sim-source,.sim-como-sec .sim-measures,.sim-como-sec .sim-notes{margin:0;padding-top:0;border-top:0}
+.sim-como-sec .sim-cover{font-size:14px;color:var(--ink-2)}
+.sim-como-sec .sim-how{margin:0;display:grid;gap:4px;font-size:14px}
+.sim-como-sec .sim-how dt{font-weight:600;color:var(--ink)}
+.sim-como-sec .sim-how dd{margin:0 0 6px;color:var(--ink-2);max-width:96ch}
+@media(max-width:700px){.sim-como-toggle,.sim-como-body{padding-left:14px;padding-right:14px}}
+
+/* E4: tabela por agente com cinco colunas; "Comparar com a proposta" opcional. */
+.sim-agents-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin:20px 0 10px}
+.sim-agents-head .sim-h2{margin:0}
+.sim-compare[aria-pressed="true"]{border-color:var(--indigo);color:var(--indigo)}
+.sim-agents-table .sim-transit{white-space:nowrap}
+.sim-agents-table .sim-transit b{font-weight:400;color:var(--ink)}
+.sim-agents-table td .sim-transit small{display:inline;font-size:13px}
+.sim-agents-table td .passed-tag{margin-left:6px}
+.sim-compare{display:inline-flex;align-items:center;gap:8px}
+.sim-compare-box{display:inline-grid;place-items:center;width:16px;height:16px;border:1.5px solid currentColor;border-radius:3px;font-size:12px;line-height:1}
+.sim-como-toggle small{font-family:Source,'Segoe UI',sans-serif;letter-spacing:0}
