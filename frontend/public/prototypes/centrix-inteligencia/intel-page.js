@@ -133,9 +133,9 @@ function barChart(series, currentYm, narrow = chartNarrow()) {
 
 /* --------------------------------------------------------------- blocos --- */
 function blockHead(id, title, sub) { return `<div class="block-head"><div><h2 id="t-${id}">${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div></div>`; }
-/** "Ver detalhe": link discreto no canto do bloco. Destinos num mapa só (IntelPersonalize.DETAIL_LINKS). */
-function detailLink(cardId) {
-  const d = IP.DETAIL_LINKS[cardId];
+/** "Ver detalhe": UM link discreto no canto inferior direito de cada bloco. Destinos num mapa só, por bloco (IntelPersonalize.DETAIL_LINKS). */
+function detailLink(blockId) {
+  const d = IP.DETAIL_LINKS[blockId];
   if (!d) return '';
   // Para o portal, o relógio da demonstração (?hoje=) acompanha o link.
   const hoje = new URLSearchParams(location.search).get('hoje');
@@ -156,7 +156,7 @@ function resultCard(s, vis) {
     const body = k.value == null
       ? '<p class="no-data">Ainda não há entrega final com comprovante neste recorte.</p>'
       : `<b class="hero-number">${k.value}%</b><div class="hero-var">${k.small ? smallTag(k.n) : variationChip(k)}</div><p class="base-line">${a.good} de ${a.eligible.length} entregas com comprovante · ${s.cur.length - a.eligible.length} ainda em curso</p>${spark(series)}<p class="spark-caption">Taxa mês a mês nos últimos 6 meses, pelo mês do compromisso de prontidão.</p>`;
-    left = `<div class="lvl1-hero" id="bloco-destaque"><h2 id="t-destaque">Entrega final no prazo</h2><p class="card-sub">Entregas no destino até o compromisso final original, entre as que têm comprovante.</p>${body}${detailLink('entrega_final')}</div>`;
+    left = `<div class="lvl1-hero" id="bloco-destaque"><h2 id="t-destaque">Entrega final no prazo</h2><p class="card-sub">Entregas no destino até o compromisso final original, entre as que têm comprovante.</p>${body}</div>`;
   }
   if (fun) {
     const f = IE.funnel(D, s.cur);
@@ -166,9 +166,10 @@ function resultCard(s, vis) {
       const baseTxt = st.base ? `${st.good ?? 0} de ${st.base}${st.key === 'final' ? ' com comprovante' : ' elegíveis'}` : 'sem registro neste recorte';
       return `<li><div class="fn-name"><span>${name}</span><small>${baseTxt}</small></div><div class="funnel-track" aria-hidden="true"><span style="width:${st.rate || 0}%"></span></div><b class="fn-pct">${st.rate == null ? '<small>sem dado</small>' : st.rate + '%'}</b><span class="fn-var">${variationPts(k)}</span>${spark(series)}${kpiHowButton(st.key)}${kpiHowBody(st.key, s.gf)}</li>`;
     }).join('');
-    right = `<div class="lvl1-funnel" id="bloco-funil"><h2 id="t-funil">Onde o prazo se perde</h2><p class="card-sub">A mesma carteira em três momentos: quanto chega no prazo a cada etapa.</p><ol class="funnel">${rows}</ol><p class="insight-line accent">${f.drop ? `A maior queda é de <strong>${f.drop.from}</strong> para <strong>${f.drop.to}</strong>: −${f.drop.points} pontos.` : 'Nenhuma queda de prazo entre as etapas neste recorte.'}</p>${detailLink('funil')}</div>`;
+    right = `<div class="lvl1-funnel" id="bloco-funil"><h2 id="t-funil">Onde o prazo se perde</h2><p class="card-sub">A mesma carteira em três momentos: quanto chega no prazo a cada etapa.</p><ol class="funnel">${rows}</ol><p class="insight-line accent">${f.drop ? `A maior queda é de <strong>${f.drop.from}</strong> para <strong>${f.drop.to}</strong>: −${f.drop.points} pontos.` : 'Nenhuma queda de prazo entre as etapas neste recorte.'}</p></div>`;
   }
-  return `<section class="card lvl1${hero && fun ? '' : ' single'}" aria-label="O resultado e onde ele se perde">${left}${right}</section>`;
+  // A3: o nível 1 é UM bloco, com UM "Ver detalhe" no canto inferior direito.
+  return `<section class="card lvl1${hero && fun ? '' : ' single'}" aria-label="O resultado e onde ele se perde">${left}${right}${detailLink('resultado')}</section>`;
 }
 /* NÍVEL 2: apoio. Frete contratado e Embarques no recorte, lado a lado. */
 function supportCard(key, s, cardId) {

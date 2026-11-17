@@ -34,17 +34,25 @@
   const CARD_IDS = CARDS.map((c) => c.id);
 
   /**
-   * Destino do "Ver detalhe" de cada bloco. UM MAPA SÓ, de propósito: os
-   * destinos ainda serão validados com o time (ver a PR), e trocar um deles tem
-   * de ser trocar uma linha. `portal` = rota do portal; `aba` = submódulo da
-   * própria Inteligência. Card fora do mapa não mostra o link.
+   * "Ver detalhe": UM POR BLOCO (A3, 17/11/2026), discreto no canto inferior
+   * direito. Um bloco pode juntar mais de um card (o nível 1 é Entrega final +
+   * funil num card só); por isso o mapa é por BLOCO, e `BLOCKS` diz quais cards
+   * moram em cada um. O link aparece quando qualquer card do bloco está ligado.
+   * `portal` = rota do portal; `aba` = submódulo da própria Inteligência. Bloco
+   * fora do mapa não mostra link (Evolução: o gráfico já é o detalhe).
    */
+  const BLOCKS = {
+    resultado: ['entrega_final', 'funil'],
+    frete: ['frete'],
+    embarques: ['embarques'],
+    evolucao: ['evolucao_prazo', 'evolucao_frete'],
+    trechos: ['trechos'],
+  };
   const DETAIL_LINKS = {
-    entrega_final: { kind: 'portal', href: '/portal/embarques', name: 'Meus Embarques' },
-    funil: { kind: 'portal', href: '/portal/embarques', name: 'Meus Embarques' },
+    resultado: { kind: 'portal', href: '/portal/embarques', name: 'Meus Embarques' },
     frete: { kind: 'aba', aba: 'rotas', name: 'Rotas' },
     embarques: { kind: 'portal', href: '/portal/embarques', name: 'Meus Embarques' },
-    trechos: { kind: 'aba', aba: 'agentes', name: 'Agentes de carga' },
+    trechos: { kind: 'aba', aba: 'rotas', name: 'Rotas' },
   };
 
   const defaults = () => ({ themes: [...THEME_IDS], enabled_cards: [...CARD_IDS] });
@@ -109,7 +117,7 @@
     try { storage.setItem(ONBOARDING_KEY, '1'); return true; } catch { return false; }
   }
 
-  const api = { THEMES, CARDS, STORE_KEY, ONBOARDING_KEY, DETAIL_LINKS, defaults, normalize, toggleTheme, setCard, visibleCards, cardsByTheme, isDefault, load, save, clear, onboardingSeen, markOnboardingSeen };
+  const api = { THEMES, CARDS, STORE_KEY, ONBOARDING_KEY, BLOCKS, DETAIL_LINKS, defaults, normalize, toggleTheme, setCard, visibleCards, cardsByTheme, isDefault, load, save, clear, onboardingSeen, markOnboardingSeen };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelPersonalize = api;
 })(typeof window !== 'undefined' ? window : globalThis);

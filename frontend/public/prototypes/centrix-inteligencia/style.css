@@ -330,6 +330,7 @@ table.compare td .sample-tag{margin-top:4px}
 /* Nível 1: o resultado e onde ele se perde. */
 .lvl1{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,8fr);gap:8px 40px;padding:24px 28px}
 .lvl1.single{grid-template-columns:1fr}
+.lvl1>.detail-row{grid-column:1/-1;padding-top:4px}
 .lvl1-hero,.lvl1-funnel{display:flex;flex-direction:column;min-width:0}
 .lvl1-hero h2{font-size:17px;font-family:Source,'Segoe UI',sans-serif;font-weight:600;color:var(--ink-2)}
 .lvl1 .hero-number{font:600 84px/1 NewBlack,Source,sans-serif;color:var(--indigo);margin:14px 0 12px;letter-spacing:-2px}

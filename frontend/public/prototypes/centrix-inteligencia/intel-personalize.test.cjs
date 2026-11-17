@@ -90,10 +90,20 @@ test('introdução: vista só depois de marcada; sem storage conta como vista', 
   assert.equal(P.markOnboardingSeen(broken), false);
 });
 
-test('todo destino de "Ver detalhe" aponta para um card que existe', () => {
+test('"Ver detalhe": um por bloco, e todo bloco aponta para cards que existem (A3)', () => {
   const ids = P.CARDS.map((c) => c.id);
-  for (const [id, d] of Object.entries(P.DETAIL_LINKS)) {
-    assert.ok(ids.includes(id), id);
+  const owners = new Map();
+  for (const [block, cards] of Object.entries(P.BLOCKS)) for (const c of cards) { assert.ok(ids.includes(c), c); assert.ok(!owners.has(c), `${c} em dois blocos`); owners.set(c, block); }
+  assert.deepEqual([...owners.keys()].sort(), [...ids].sort(), 'todo card mora em exatamente um bloco');
+  for (const [block, d] of Object.entries(P.DETAIL_LINKS)) {
+    assert.ok(P.BLOCKS[block], block);
     assert.ok(d.kind === 'portal' ? d.href.startsWith('/portal/') : ['exportadores', 'agentes', 'rotas', 'simulador'].includes(d.aba));
   }
+});
+test('"Ver detalhe": cada destino faz sentido pelo nome do bloco', () => {
+  assert.equal(P.DETAIL_LINKS.embarques.href, '/portal/embarques');
+  assert.equal(P.DETAIL_LINKS.frete.aba, 'rotas');
+  assert.equal(P.DETAIL_LINKS.trechos.aba, 'rotas');
+  assert.equal(P.DETAIL_LINKS.resultado.href, '/portal/embarques');
+  assert.equal(P.DETAIL_LINKS.evolucao, undefined);
 });
