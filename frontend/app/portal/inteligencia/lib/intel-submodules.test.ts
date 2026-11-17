@@ -86,11 +86,3 @@ test('ida e volta: o hash gerado marca o próprio submódulo', () => {
     assert.equal(activeIntelSubmodule(P, intelSubmoduleHash(s.id)), s.id);
   }
 });
-
-// B4 (17/11/2026): ficha aberta por link de outra ficha — o menu destaca a
-// subaba da ficha aberta, não a de origem.
-test('ficha aberta por link de outra ficha: o menu acompanha a subaba da ficha', () => {
-  assert.equal(activeIntelSubmodule(P, '#executivo?aba=agentes&sel=gamma&de=exp%3Aeast'), 'agentes');
-  assert.equal(activeIntelSubmodule(P, '#executivo?aba=rotas&sel=ningbo&de=ag%3Agamma'), 'rotas');
-  assert.equal(activeIntelSubmodule(P, '#executivo?aba=exportadores&sel=east&de=rota%3Aningbo'), 'exportadores');
-});

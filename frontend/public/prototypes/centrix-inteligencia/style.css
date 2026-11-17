@@ -9,11 +9,6 @@
   --line:#e2e4ed;--line-strong:#7f839b;
   --indigo:#2c2e65;--indigo-fill:#2c2e65;--on-fill:#ffffff;
   --accent:#f59c27;--on-accent:#1a1c31;--accent-ink:#8a3d08;
-  /* E1 (17/11/2026): o acento como SINAL GRÁFICO (fio da coluna líder, aba
-     ativa, trecho com desvio, faixa de insight). O laranja da marca dá 2,17:1
-     sobre branco; este tom mais escuro dá 4,08:1 no branco e 3,48:1 no
-     cabeçalho da tabela. Superfície com texto (botão CTA) segue no --accent. */
-  --accent-mark:#b86b0c;
   --warn-ink:#875810;--warn-bg:#fff4dd;
   --series-1:#2c2e65;--series-2:#5c60a6;--series-3:#878bc9;--series-partial:#c5c8e4;
   --focus:#8b80b9;--shadow:#1a1c3126;--backdrop:#15182b66;--tip-bg:#1a1c31;
@@ -189,7 +184,7 @@ h3.sub{font-size:16px;margin:22px 0 10px}
 .guide h2{margin:0 0 6px;font-size:17px;color:var(--indigo)}
 .guide p{margin:0 0 12px;font-size:14px;line-height:1.5}
 .guide-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
-.guide-target{outline:3px solid var(--accent-mark);outline-offset:4px;border-radius:8px;position:relative;z-index:1}
+.guide-target{outline:3px solid var(--accent);outline-offset:4px;border-radius:8px;position:relative;z-index:1}
 /* Ajustes Vitor (20/10/2026): Selecionar todos/Limpar por filtro, faixa do período, "Como é calculado", atalho do Raio X. */
 .fsel-actions{display:flex;justify-content:space-between;gap:8px;padding:4px 8px 6px;border-bottom:1px solid var(--line);margin-bottom:4px}
 .fsel-actions .text-button{background:none;border:0;padding:6px 2px;min-height:32px}
@@ -213,7 +208,7 @@ h3.sub{font-size:16px;margin:22px 0 10px}
 .intel-tabs-past{display:flex;gap:4px;flex:0 0 auto}
 .intel-tab{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;white-space:nowrap;color:var(--ink-2);text-decoration:none;font-weight:600;font-size:14px;border-bottom:3px solid transparent;margin-bottom:-1px}
 .intel-tab:hover{color:var(--indigo)}
-.intel-tab.active{color:var(--indigo);border-bottom-color:var(--accent-mark)}
+.intel-tab.active{color:var(--indigo);border-bottom-color:var(--accent)}
 .intel-tab:focus-visible{outline:3px solid var(--focus);outline-offset:-3px;border-radius:6px 6px 0 0}
 .tab-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 16px}
 .tab-stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:2px}
@@ -250,7 +245,7 @@ table.compare td .sample-tag{margin-top:4px}
 .intel-tabs-future{display:flex;align-items:flex-end;gap:12px;flex:0 0 auto}
 .tabs-divider{align-self:center;width:1px;height:24px;background:var(--line)}
 .intel-tab.future{background:var(--warn-bg);border-radius:8px 8px 0 0;color:var(--accent-ink)}
-.intel-tab.future.active{color:var(--accent-ink);border-bottom-color:var(--accent-mark)}
+.intel-tab.future.active{color:var(--accent-ink);border-bottom-color:var(--accent)}
 .intel-tab .preview-tag{margin-left:8px}
 .block.sim{border-bottom:0}
 .block.sim h2 .preview-tag{vertical-align:middle;font-family:Source,'Segoe UI',sans-serif}
@@ -298,7 +293,6 @@ table.compare td .sample-tag{margin-top:4px}
 .card-sub,.lead{font-size:14px;color:var(--ink-2);margin:4px 0 0;max-width:80ch;line-height:1.5}
 .lead{margin:2px 0 16px;font-size:15px}
 .card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.lvl1-hero .card-top{justify-content:flex-start}
 .base-line{font-size:14px;color:var(--ink-2);margin:0}
 .no-data{font-size:15px;color:var(--ink-2);margin:14px 0}
 .variation{font-size:13px;padding:3px 8px}
@@ -325,11 +319,7 @@ table.compare td .sample-tag{margin-top:4px}
 .head-chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 16px}
 .chip{display:inline-flex;align-items:center;gap:.3em;min-height:34px;padding:5px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:14px;color:var(--ink)}
 .chip b{color:var(--indigo);font-weight:600}
-/* B2: chip de período e de comparação é botão: abre o painel no campo certo. */
-.chip-edit{cursor:pointer;text-decoration:underline dotted var(--line-strong);text-underline-offset:4px}
-.chip-edit:hover{background:var(--tint);border-color:var(--line-strong)}
-.chip-edit:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
-.chip.warn{border-color:var(--accent-mark);background:var(--surface-2);color:var(--accent-ink)}
+.chip.warn{border-color:var(--accent);background:var(--surface-2);color:var(--accent-ink)}
 .chip-note{font-size:14px;color:var(--ink-2);padding:0 4px}
 .chip-filters{display:flex;flex-wrap:wrap;align-items:center;gap:6px;width:100%}
 .head-chips .filter-chip{font-size:13px;min-height:32px;padding:5px 10px;border-radius:999px;background:var(--tint)}
@@ -340,7 +330,6 @@ table.compare td .sample-tag{margin-top:4px}
 /* Nível 1: o resultado e onde ele se perde. */
 .lvl1{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,8fr);gap:8px 40px;padding:24px 28px}
 .lvl1.single{grid-template-columns:1fr}
-.lvl1>.detail-row{grid-column:1/-1;padding-top:4px}
 .lvl1-hero,.lvl1-funnel{display:flex;flex-direction:column;min-width:0}
 .lvl1-hero h2{font-size:17px;font-family:Source,'Segoe UI',sans-serif;font-weight:600;color:var(--ink-2)}
 .lvl1 .hero-number{font:600 84px/1 NewBlack,Source,sans-serif;color:var(--indigo);margin:14px 0 12px;letter-spacing:-2px}
@@ -361,7 +350,7 @@ table.compare td .sample-tag{margin-top:4px}
 .lvl1 .funnel-track{height:14px;border-radius:7px;background:var(--track)}
 .lvl1 .funnel-track span{border-radius:7px}
 .lvl1 .funnel .kpi-how-body{grid-column:1/-1}
-.insight-line.accent{margin:18px 0 0;padding:12px 16px;border-left:4px solid var(--accent-mark);border-radius:0 8px 8px 0;background:var(--surface-2);font-size:16px;font-weight:600;color:var(--ink)}
+.insight-line.accent{margin:18px 0 0;padding:12px 16px;border-left:4px solid var(--accent);border-radius:0 8px 8px 0;background:var(--surface-2);font-size:16px;font-weight:600;color:var(--ink)}
 .insight-line.accent strong{font-weight:700}
 .detail-row{margin:auto 0 0;padding-top:12px;text-align:right}
 .detail-link{display:inline-flex;align-items:center;gap:4px;min-height:32px;font-size:14px;font-weight:600;color:var(--indigo);text-decoration:underline;text-underline-offset:3px}
@@ -378,7 +367,7 @@ table.compare td .sample-tag{margin-top:4px}
 .support-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin:0 0 16px}
 .support-row.single{grid-template-columns:1fr}
 .support-row .card{margin:0}
-.support{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,240px);gap:6px 20px;align-items:center}
+.support{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,200px);gap:6px 20px;align-items:center}
 .support-main{display:grid;gap:8px;justify-items:start;min-width:0}
 .support .card-top{width:100%;justify-content:flex-start}
 .support h2{font-size:15px;font-family:Source,'Segoe UI',sans-serif;font-weight:600;color:var(--ink-2)}
@@ -403,10 +392,6 @@ table.compare td .sample-tag{margin-top:4px}
 .fold.commitments{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 24px;margin-top:16px}
 .fold.commitments[open]{padding-bottom:20px}
 .fold.commitments .card-sub{margin-bottom:14px}
-/* A2: Performance é dobra com estado próprio, na moldura de card. */
-.fold.perf{padding:8px 24px}
-.fold.perf[open]{padding-bottom:22px}
-.fold.perf>summary h2{font-size:19px}
 .charts.single{grid-template-columns:1fr}
 .chart-card{border-radius:12px;padding:20px 22px}
 .chart-card h3{font-size:16px}
@@ -436,7 +421,7 @@ table.compare td .sample-tag{margin-top:4px}
 .stage-cell b{font:600 30px/1.2 NewBlack,Source,sans-serif;color:var(--ink-2)}
 .stage-what{font-size:14px;color:var(--ink)}
 .stage-cell small{font-size:13px;color:var(--ink-2)}
-.stage-cell.has-dev{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--accent-mark)}
+.stage-cell.has-dev{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--accent)}
 .stage-cell.has-dev:hover{background:var(--tint)}
 .stage-cell.has-dev b{color:var(--accent-ink)}
 .empty.card{padding:40px 24px}
@@ -478,14 +463,6 @@ table.compare td small,.drawer-body td small{font-size:13px;color:var(--ink-2)}
 .sheet-more{border-top:1px solid var(--line);margin-top:8px}
 .entity-sheet .facts{grid-template-columns:1fr 1fr}
 .entity-sheet .entity-actions{margin:18px 0 0;padding-top:16px;border-top:1px solid var(--line)}
-/* A5: UMA divisória entre todas as seções das três fichas (agente, exportador,
-   rota), a mesma linha fina: seção, "Mais detalhes" e ações. */
-.entity-sheet .drawer-body .detail-section{margin:0;padding:18px 0;border-top:1px solid var(--line)}
-.entity-sheet .drawer-body .sheet-more{margin:0;border-top:1px solid var(--line)}
-.entity-sheet .drawer-body .sheet-more .detail-section:first-of-type{border-top:0;padding-top:4px}
-.entity-sheet .drawer-body .sheet-trail+.sheet-strip,.entity-sheet .drawer-body .sheet-strip{margin-bottom:18px}
-.entity-sheet .cross-list>li:last-child,.entity-sheet .detail-section>.sheet-line:last-child{border-bottom:0;padding-bottom:0}
-.entity-sheet .drawer-body .detail-section>.chart-caption:last-child{margin-bottom:0}
 .entity-sheet .drawer-body table{min-width:340px}
 .entity-sheet .drawer-body td,.entity-sheet .drawer-body th{padding:10px 10px}
 
@@ -525,21 +502,6 @@ table.compare td small,.drawer-body td small{font-size:13px;color:var(--ink-2)}
 .pers-card input:checked{background:var(--indigo-fill)}
 .pers-card input:checked::after{left:21px}
 .pers-card input:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
-.pers-group.is-off .pers-group-title{color:var(--ink-2)!important}
-.pers-card.is-off{background:var(--surface-2);border-style:dashed;border-color:var(--line-strong)}
-.pers-card.is-off b{color:var(--ink-2)}
-.off-tag{display:inline-block;margin-left:6px;padding:1px 8px;border:1px solid var(--line-strong);border-radius:999px;font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink-2);background:var(--surface);vertical-align:middle}
-.off-activate{font-size:14px!important;font-weight:600;color:var(--indigo);text-decoration:underline;text-underline-offset:3px;background:none;border:0;padding:4px 2px;margin-left:4px;min-height:32px}
-/* B1: card desligado na Visão geral, esmaecido no lugar dele. Esmaecido por
-   superfície e borda tracejada, texto em --ink-2 (AA), nunca por opacidade. */
-.off-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:0 0 16px}
-.card-off{display:grid;gap:6px;text-align:left;padding:14px 18px;border:1px dashed var(--line-strong);border-radius:12px;background:var(--surface-2);color:var(--ink-2);min-height:44px}
-.card-off:hover{background:var(--tint)}
-.card-off:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
-.off-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-.off-name{font-size:15px;font-weight:600;color:var(--ink-2)}
-.off-head .off-tag{margin-left:0}
-.off-cta{font-size:14px;font-weight:600;color:var(--indigo);text-decoration:underline;text-underline-offset:3px}
 .pers-foot{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:14px;margin:4px 0 0!important}
 .pers-foot .text-button{font-size:14px;background:none;border:0;padding:6px 0;min-height:36px}
 .fa-actions{position:sticky;bottom:0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:16px -24px -24px;padding:14px 24px;background:var(--surface);border-top:1px solid var(--line)}
@@ -553,10 +515,8 @@ dialog.onb::backdrop{background:var(--backdrop)}
 .onb-body{padding:28px 28px 24px}
 .onb-dots{list-style:none;display:flex;gap:6px;margin:0 0 20px;padding:0}
 .onb-dots li{width:10px;height:6px;border-radius:3px;background:var(--line-strong)}
-.onb-dots li.on{width:32px;background:var(--accent-mark)}
+.onb-dots li.on{width:32px;background:var(--accent)}
 .onb h2{font-size:26px;color:var(--ink);outline:0}
-.onb-choice{margin:10px 0 0;padding:12px 14px;border-radius:10px;background:var(--tint);font-size:15px;line-height:1.5;color:var(--ink)}
-.onb-choice b{font-weight:600}
 .onb-lead{font-size:15px;line-height:1.55;color:var(--ink-2);margin:8px 0 18px}
 .onb-illus{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:18px 12px;border-radius:12px;background:var(--tint)}
 .onb-illus>div{display:grid;justify-items:center;gap:2px;padding:10px 16px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
@@ -601,7 +561,7 @@ dialog.onb::backdrop{background:var(--backdrop)}
   .insight-line.accent{font-size:15px}
   .support-row{grid-template-columns:1fr}.support{grid-template-columns:1fr}.support .spark{height:44px}
   .support-number{font-size:32px}
-  .fold.commitments,.fold.perf{padding:6px 16px}
+  .fold.commitments{padding:6px 16px}
   .fa{grid-template-columns:1fr}.fa-actions{margin:16px -18px -20px;padding:12px 18px}
   .fa-actions>span{flex:1 1 100%}.fa-actions .button{flex:1}
   .onb-body{padding:22px 18px 18px}.onb h2{font-size:23px}.onb-illus>div{padding:8px 10px}.onb-illus b{font-size:21px}
@@ -654,15 +614,10 @@ table.compare tr.col-groups th+th{box-shadow:inset 0 -2px 0 var(--line),inset 12
 .sheet-link:focus-visible,.sheet-trail a:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
 .drawer-body .sheet-trail{margin:-6px 0 14px;font-size:14px}
 .sheet-trail a{display:inline-flex;align-items:center;gap:6px;min-height:32px;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px}
-/* B4: "← Voltar" visível (botão secundário) + de onde veio, em texto. */
-.sheet-trail{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
-.sheet-trail a.sheet-back{min-height:36px;padding:4px 14px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);font-weight:600;text-decoration:none}
-.sheet-trail a.sheet-back:hover{background:var(--tint);color:var(--ink)}
-.sheet-from{font-size:14px;color:var(--ink-2)}
 .sheet-trail a:hover{color:var(--indigo)}
 /* Item 6: peso visual. Coluna líder com sublinhado de acento e valores em
    semibold; as demais em tinta secundária (AA). Peso, nunca cor de bom ou ruim. */
-table.compare th.lead-col .sort-button{font-weight:700;color:var(--ink);box-shadow:inset 0 -3px 0 var(--accent-mark)}
+table.compare th.lead-col .sort-button{font-weight:700;color:var(--ink);box-shadow:inset 0 -3px 0 var(--accent)}
 table.compare td.lead-col,table.compare td.lead-col .frac{font-weight:600;color:var(--ink)}
 table.compare td.lead-col small{font-weight:400}
 table.compare th.quiet-col .sort-button{font-weight:500;color:var(--ink-2)}
@@ -693,11 +648,11 @@ table.compare td.quiet-col,table.compare td.quiet-col .frac{color:var(--ink-2);f
 /* O acento da marca fica para o que é insight: a frase da maior queda e o
    trecho com desvio. Superfície calma, sem bloco de fundo colorido: o acento é
    um fio, e o peso do número faz o resto. */
-.insight-line.accent{background:var(--surface-2);border-left-color:var(--accent-mark)}
+.insight-line.accent{background:var(--surface-2);border-left-color:var(--accent)}
 .stage-cell,.stage-cell:hover{background:var(--surface)}
 .stage-cell:hover{background:var(--surface-2)}
 .stage-cell b{color:var(--ink-2);font-weight:500}
-.stage-cell.has-dev{background:var(--surface);box-shadow:inset 0 3px 0 var(--accent-mark)}
+.stage-cell.has-dev{background:var(--surface);box-shadow:inset 0 3px 0 var(--accent)}
 .stage-cell.has-dev:hover{background:var(--surface-2)}
 .stage-cell.has-dev b{color:var(--ink);font-weight:700}
 .stage-cell.has-dev .stage-what{font-weight:600}
@@ -707,7 +662,7 @@ table.compare td.quiet-col,table.compare td.quiet-col .frac{color:var(--ink-2);f
 .tip,#toast{background:var(--tip-bg);color:var(--on-fill)}
 .button.cta{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .onb-dots li{background:var(--line-strong)}
-.onb-dots li.on{background:var(--accent-mark)}
+.onb-dots li.on{background:var(--accent)}
 /* Elementos a 3:1: contorno de campo, switch desligado e trilho do funil. */
 .fa-field select,.fa-field input[type=date],.fa .fsel>summary,.sim-form select,.sim-form input,.report-form input,.report-form select,.link-field,.theme-chip,.button.quiet,.button.secondary,.close.close-text{border-color:var(--line-strong)}
 .pers-card input,.cust-row input{background:var(--line-strong)}
@@ -726,7 +681,7 @@ table.compare td.quiet-col,table.compare td.quiet-col .frac{color:var(--ink-2);f
 table.compare tr.is-open td{background:var(--surface-2)}
 table.compare tr.is-open td:first-child{box-shadow:inset 3px 0 0 var(--indigo)}
 table.compare tr.is-open .row-open{font-weight:700}
-table.compare th.lead-col .sort-button{box-shadow:inset 0 -3px 0 var(--accent-mark)}
+table.compare th.lead-col .sort-button{box-shadow:inset 0 -3px 0 var(--accent)}
 .fsel-menu label.is-disabled,.fsel-menu label.is-disabled small{color:var(--ink-3)}
 /* Superfícies calmas: borda fina no lugar de sombra pesada. */
 .card,.fact-band,.chart-card,.fa-section,.fold.commitments{box-shadow:none}
@@ -743,7 +698,6 @@ html.theme-dark:root{
   --line:#3d3f56;--line-strong:#7c7fa8;
   --indigo:#c1c3f3;--indigo-fill:#696db3;--on-fill:#ffffff;
   --accent:#f59c27;--on-accent:#1a1c31;--accent-ink:#f5b565;
-  --accent-mark:#f59c27;
   --warn-ink:#e3a93a;--warn-bg:#3a3223;
   --series-1:#c1c3f3;--series-2:#9a9de0;--series-3:#7e81c2;--series-partial:#4a4d7a;
   --focus:#b3aaf0;--shadow:#00000059;--backdrop:#0b0c1acc;--tip-bg:#0f1022
@@ -753,26 +707,3 @@ html.theme-dark:root img,html.theme-dark:root picture,html.theme-dark:root video
 table.compare td{padding:14px 12px}
 table.compare thead tr:last-child th{white-space:normal;vertical-align:bottom}
 table.compare .sort-button{line-height:1.3;min-width:84px}
-
-/* C1 (17/11/2026): minigráfico de barras sob o número principal. Cor neutra
-   (--series-2), eixo em zero (linha de base), texto a 14px, espaço de 16px
-   entre o texto de cima e o gráfico. */
-.mini-bars{margin:16px 0 0;min-width:0}
-.lvl1-hero .mini-bars{max-width:420px}
-.mb-plot{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:6px;align-items:end;height:64px;border-bottom:1px solid var(--line-strong)}
-.mb-col{display:flex;align-items:flex-end;height:100%;cursor:default}
-.mb-bar{display:block;width:100%;max-width:36px;margin:0 auto;border-radius:3px 3px 0 0;background:var(--series-2)}
-.mb-bar.none{height:2px!important;background:var(--line-strong)}
-.mb-col:hover .mb-bar{background:var(--series-1)}
-.mb-labels{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:6px;margin-top:4px}
-.mb-labels span{font-size:14px;line-height:1.3;color:var(--ink-2);text-align:center;white-space:nowrap;overflow:visible}
-.mb-legend{margin:8px 0 0;font-size:14px;line-height:1.4;color:var(--ink-2)}
-.mini-bars.compact{margin:0;width:84px}
-.mini-bars.compact .mb-plot{height:28px;gap:3px}
-.mini-bars.compact .mb-bar{max-width:14px}
-.funnel-legend{margin:10px 0 0}
-.support .mini-bars{align-self:end;margin:0}
-
-/* D4: aviso de dependência da integração ao sistema de gestão. Discreto (corpo
-   de 14px, filete à esquerda), mas legível: tinta --ink-2 em AA. */
-.integrated-notice{margin:10px 0 0;padding:8px 12px;border-left:3px solid var(--line-strong);background:var(--surface-2);font-size:14px;line-height:1.45;color:var(--ink-2)}

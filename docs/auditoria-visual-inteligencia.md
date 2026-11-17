@@ -173,21 +173,3 @@ O que ficou como estava, de propósito: o acento laranja como fio (coluna líder
 aba ativa, faixa de insight) tem 2,17:1 sobre branco no claro. Ele nunca é o
 único sinal: a coluna líder também tem peso, a aba ativa tem `aria-current` e
 tinta própria, e a faixa de insight é texto.
-
-## Revisão de 17/11/2026: o fio laranja passa de 3:1 (item E1)
-
-O parágrafo acima ("o que ficou como estava") foi revisto. O acento como SINAL
-GRÁFICO ganhou um token próprio, `--accent-mark`, e o laranja da marca
-(`--accent`) fica só como superfície com texto (o botão CTA, com tinta navy).
-
-| Elemento | Token | Claro | Escuro |
-|---|---|---|---|
-| fio da coluna líder sobre o cabeçalho (`--tint`) | `--accent-mark` | `#b86b0c` · 3,48 | `#f59c27` · 5,09 |
-| fio sobre a superfície (`--surface`) | `--accent-mark` | 4,08 | 6,87 |
-| fio sobre o canvas (`--bg`) | `--accent-mark` | 3,75 | 7,71 |
-| fio sobre a superfície 2 (`--surface-2`) | `--accent-mark` | 3,79 | 6,10 |
-
-Onde o token vale: fio da coluna líder, aba ativa (as duas), trecho com desvio,
-faixa de insight, chip de aviso, passo ativo da introdução e o destaque do
-mini-guia. `intel-contrast.test.cjs` lê os tokens de `style.css` e falha se
-algum par cair abaixo de 3:1, nos dois temas.

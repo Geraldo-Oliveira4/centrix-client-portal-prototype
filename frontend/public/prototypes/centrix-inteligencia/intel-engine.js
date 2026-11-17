@@ -9,23 +9,20 @@
 //      dos dados, nunca de lista fixa. SKU é do ITEM: o embarque entra se tiver o
 //      SKU, mas frete e prazos continuam sendo do embarque inteiro.
 //   2. UMA BASE DE COMPARAÇÃO: toda variação compara o período escolhido com o
-//      período imediatamente anterior (`previousRange`): mês de calendário contra
-//      o mês de calendário anterior; janela móvel contra a janela anterior de
-//      MESMA duração. Nada de "julho contra junho" num card e "agosto contra
-//      julho" no outro.
+//      período imediatamente anterior, de MESMA duração. Nada de "julho contra
+//      junho" num card e "agosto contra julho" no outro.
 //   3. AMOSTRA PEQUENA: com menos de 3 embarques no recorte (ou na base de
 //      comparação) a variação some e o valor ganha o selo "Amostra pequena".
 //      Com zero, a tela mostra o vazio com "Limpar filtros".
 (function (root) {
   const Insights = typeof module !== 'undefined' && module.exports ? require('./insights.js') : root.Insights;
-  const Sources = typeof module !== 'undefined' && module.exports ? require('./intel-sources.js') : root.IntelSources;
   const MIN_SAMPLE = 3;
   const DAY = 86400000;
   const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
   const FILTERS = [
     { key: 'exp', label: 'Exportador', values: (o) => [o.supplier], name: (D, v) => D.companies.find((c) => c.id === v)?.name || v },
-    { key: 'ag', label: 'Agente de carga', values: (o) => [o.agent], name: (D, v) => D.agents.find((a) => a.id === v)?.name || v },
+    { key: 'ag', label: 'Agente de cargas', values: (o) => [o.agent], name: (D, v) => D.agents.find((a) => a.id === v)?.name || v },
     { key: 'rota', label: 'Rota', values: (o) => [o.route], name: (D, v) => { const r = D.routes.find((x) => x.id === v); return r ? `${D.locations[r.from].name} → ${D.locations[r.to].name}` : String(v).replace('>', ' → '); } },
     { key: 'inc', label: 'Incoterm', values: (o) => [o.incoterm], name: (D, v) => v },
     { key: 'pais', label: 'País de origem', values: (o) => [o.country], name: (D, v) => v },
@@ -126,32 +123,8 @@
   // ------------------------------------------------------------ período ---
   const toDay = (iso) => Math.floor(Date.parse(iso + 'T12:00:00Z') / DAY);
   const fromDay = (n) => new Date(n * DAY + 12 * 3600000).toISOString().slice(0, 10);
-  const lastDayOf = (y, m) => new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-  /**
-   * O período é um mês de calendário? (A1, 17/11/2026.) Começa no dia 1 e termina
-   * no mesmo mês: `whole` quando vai até o último dia ("Mês passado"), parcial
-   * quando para antes ("Este mês", até o corte). Fora disso, `null`.
-   */
-  function calendarMonth(range) {
-    if (!range || !range.start || !range.end || range.start.slice(8, 10) !== '01' || range.start.slice(0, 7) !== range.end.slice(0, 7)) return null;
-    const [y, m] = range.start.split('-').map(Number);
-    return { y, m: m - 1, whole: Number(range.end.slice(8, 10)) === lastDayOf(y, m - 1) };
-  }
-  /**
-   * O período de comparação. Mês de calendário compara com o MÊS ANTERIOR DE
-   * CALENDÁRIO (A1): o mês inteiro, do dia 1 ao último dia, quando o período é um
-   * mês fechado; do dia 1 ao mesmo dia, quando é o mês até o corte. Janela móvel
-   * (últimos 30/90 dias, personalizado) compara com a janela imediatamente
-   * anterior, de MESMO número de dias.
-   */
+  /** O período imediatamente anterior, com o MESMO número de dias. */
   function previousRange(range) {
-    const cal = calendarMonth(range);
-    if (cal) {
-      const py = cal.m === 0 ? cal.y - 1 : cal.y, pm = cal.m === 0 ? 11 : cal.m - 1, last = lastDayOf(py, pm);
-      const endDay = cal.whole ? last : Math.min(Number(range.end.slice(8, 10)), last);
-      const ym = `${py}-${String(pm + 1).padStart(2, '0')}`;
-      return { start: `${ym}-01`, end: `${ym}-${String(endDay).padStart(2, '0')}`, days: endDay, calendar: cal.whole ? 'month' : 'month-to-date' };
-    }
     const len = toDay(range.end) - toDay(range.start) + 1;
     const end = toDay(range.start) - 1;
     return { start: fromDay(end - len + 1), end: fromDay(end), days: len };
@@ -163,8 +136,6 @@
   /** A legenda única de toda variação da tela. */
   function comparisonCaption(range) {
     const p = previousRange(range);
-    if (p.calendar === 'month') return `Variações comparam com o mês anterior inteiro (${fullDate(p.start)} a ${fullDate(p.end)}, ${p.days} dias).`;
-    if (p.calendar === 'month-to-date') return `Variações comparam com o mesmo trecho do mês anterior (${fullDate(p.start)} a ${fullDate(p.end)}, ${p.days} dias).`;
     return `Variações comparam com o período anterior de mesma duração (${fullDate(p.start)} a ${fullDate(p.end)}, ${p.days} dias).`;
   }
 
@@ -183,31 +154,30 @@
   const DESTINATION_HINT = 'Porto ou aeroporto de descarga';
   const KPI_FORMULA = {
     ready: 'Mercadoria pronta para embarque na origem dentro do prazo combinado: embarques com prontidão realizada até o compromisso original ÷ embarques com prontidão confirmada.',
+    port: 'Chegada ao destino (porto ou aeroporto de descarga) realizada até o primeiro ETA contratado ÷ embarques com chegada registrada. Resultado da cadeia, sem atribuição automática ao exportador ou agente.',
     freight: null,
     count: 'Contagem dos embarques no recorte (período + filtros).',
   };
   /**
-   * As linhas do "Como é calculado" de um KPI: fonte, fórmula, período e filtros
-   * (D4: fonte e fórmula validadas saem do mapa único, intel-sources.js; fonte
-   * não validada diz "Fonte a confirmar"). Métrica que depende da integração
-   * ao sistema de gestão ganha a quinta linha, "Disponibilidade".
+   * As quatro linhas do "Como é calculado" de um KPI: fonte, fórmula, período e
+   * filtros. Fonte e fórmula saem da definição da métrica na fixture (dado de
+   * exemplo); o que ela não diz vira "A definir com dados", nunca um palpite.
    */
   function kpiDefinition(D, key, filters) {
     const m = (D.metrics || {})[key];
-    const source = Sources.sourceOf(key);   // D4: fonte só pelo mapa único (intel-sources.js)
-    const formula = Sources.formulaOf(key) || KPI_FORMULA[key] || (m && m.definition) || 'A definir com dados';
+    const source = key === 'count' ? 'Embarques da base filtrados pelo período (compromisso de prontidão).' : (m && m.source) || 'A definir com dados';
+    const formula = KPI_FORMULA[key] || (m && m.definition) || 'A definir com dados';
     const active = FILTERS.filter((f) => (filters[f.key] || []).length);
     const filterLine = (active.length
       ? `Ativos: ${active.map((f) => `${f.label} (${filters[f.key].map((v) => f.name(D, v)).join(', ')})`).join('; ')}.`
       : 'Todos os filtros globais (exportador, agente, rota, incoterm, país, SKU).')
       + ' Com SKU, frete e prazos continuam sendo do embarque inteiro.';
-    const notice = Sources.noticeOf(key);
     return [
       { label: 'Fonte', text: source },
       { label: 'Fórmula', text: formula },
-      { label: 'Período', text: 'Compromisso de prontidão dentro do período selecionado; variação contra o período anterior: mês de calendário contra o mês anterior inteiro; janela móvel contra a janela anterior de mesma duração.' },
+      { label: 'Período', text: 'Compromisso de prontidão dentro do período selecionado; variação contra o período anterior de mesma duração.' },
       { label: 'Filtros que se aplicam', text: filterLine },
-    ].concat(notice ? [{ label: 'Disponibilidade', text: notice, notice: true }] : []);
+    ];
   }
 
   // ------------------------------------------------------------ métricas ---
@@ -249,63 +219,6 @@
       out.push({ ym, label: MONTHS[d.getUTCMonth()], n: group.length, base, value: base ? valueOf(D, key, group) : null });
     }
     return out;
-  }
-
-  /**
-   * MINIGRÁFICO DO RECORTE (C1, 17/11/2026): uma barra por subperíodo DENTRO do
-   * período escolhido, calculada pela MESMA métrica do número grande (as bases
-   * das barras somam a base do período). Granularidade pelo tamanho do período:
-   * mais de 45 dias, por mês (o primeiro e o último mês podem ser parciais); de
-   * 8 a 45 dias, por semana (segunda a domingo); menos que isso, duas barras,
-   * período anterior × período atual (A1: valores iguais, barras iguais).
-   */
-  const MONTHS_FULL = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  const ddmm = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
-  function bucketValue(D, key, group) {
-    const base = baseOf(D, key, group);
-    const a = key === 'count' ? null : D.metric(key, group);
-    return { n: group.length, base, good: a && a.m.ok ? a.good : null, value: base ? valueOf(D, key, group) : null };
-  }
-  function subSeries(D, key, ops, range) {
-    const len = toDay(range.end) - toDay(range.start) + 1;
-    const buckets = [];
-    if (len > 45) {
-      let cur = range.start.slice(0, 7) + '-01';
-      while (cur <= range.end) {
-        const [y, m] = cur.split('-').map(Number);
-        const last = `${cur.slice(0, 7)}-${String(lastDayOf(y, m - 1)).padStart(2, '0')}`;
-        const start = cur < range.start ? range.start : cur, end = last > range.end ? range.end : last;
-        const partial = start !== cur || end !== last;
-        buckets.push({ start, end, label: MONTHS[m - 1], name: `${MONTHS_FULL[m - 1]} ${y}${partial ? ` (${ddmm(start)} a ${ddmm(end)})` : ''}`, partial });
-        cur = fromDay(toDay(last) + 1);
-      }
-    } else if (len >= 8) {
-      let start = range.start;
-      while (start <= range.end) {
-        const dow = (new Date(start + 'T12:00:00Z').getUTCDay() + 6) % 7; // 0 = segunda
-        const sunday = fromDay(toDay(start) + 6 - dow), end = sunday > range.end ? range.end : sunday;
-        buckets.push({ start, end, label: ddmm(start), name: start === end ? `Dia ${ddmm(start)}` : `Semana de ${ddmm(start)} a ${ddmm(end)}`, partial: dow !== 0 || end !== sunday });
-        start = fromDay(toDay(end) + 1);
-      }
-    }
-    if (buckets.length >= 2) {
-      return { grain: len > 45 ? 'month' : 'week', legend: len > 45 ? 'por mês' : 'por semana', bars: buckets.map((b) => ({ ...b, ...bucketValue(D, key, inRange(ops, b)) })) };
-    }
-    const prev = previousRange(range);
-    return {
-      grain: 'compare', legend: 'período anterior × período atual',
-      bars: [
-        { ...prev, label: 'anterior', name: `Período anterior (${ddmm(prev.start)} a ${ddmm(prev.end)})`, ...bucketValue(D, key, inRange(ops, prev)) },
-        { start: range.start, end: range.end, label: 'atual', name: `Período atual (${ddmm(range.start)} a ${ddmm(range.end)})`, ...bucketValue(D, key, inRange(ops, range)) },
-      ],
-    };
-  }
-  /** "Jul 2026: 12 de 18" (taxa), "Jul 2026: 9 embarques", "Jul 2026: US$ 12.400". */
-  function barText(key, bar) {
-    if (!bar.base) return `${bar.name}: sem registro`;
-    if (key === 'count') return `${bar.name}: ${bar.value} ${bar.value === 1 ? 'embarque' : 'embarques'}`;
-    if (key === 'freight') return `${bar.name}: ${usd(bar.value)} (${bar.base} com valor)`;
-    return `${bar.name}: ${bar.good} de ${bar.base} (${bar.value}%)`;
   }
 
   // ------------------------------------------------------- leituras prontas ---
@@ -354,7 +267,7 @@
     const f = funnel(D, cur);
     const fa = D.metric('final', cur);
     return {
-      prazo: { kpi: final, metric: pct(final.value), conclusion: final.value == null ? 'Ainda não há entrega final realizada neste recorte.' : `${fa.good} de ${fa.eligible.length} entregas chegaram no prazo final.${routes[0] && routes.length > 1 && routes[0].final.rate < final.value ? ` Onde pesa mais: ${routes[0].name} (${routes[0].final.good} de ${routes[0].final.eligible.length}).` : ''}` },
+      prazo: { kpi: final, metric: pct(final.value), conclusion: final.value == null ? 'Ainda não há entrega final com comprovante neste recorte.' : `${fa.good} de ${fa.eligible.length} entregas chegaram no prazo final.${routes[0] && routes.length > 1 && routes[0].final.rate < final.value ? ` Onde pesa mais: ${routes[0].name} (${routes[0].final.good} de ${routes[0].final.eligible.length}).` : ''}` },
       frete: { kpi: freight, metric: freight.value == null ? '—' : usd(freight.value), conclusion: freight.value == null ? 'Sem frete contratado neste recorte.' : `Média de ${usd(freight.value / Math.max(1, D.metric('freight', cur).eligible.length))} por embarque.${byRoute.length > 1 ? ` Rota mais cara: ${byRoute[0].name} (${usd(byRoute[0].freightAvg)} em média).` : ''}` },
       parceiros: { kpi: null, metric: agents[0] ? agents[0].name : '—', conclusion: agents[0] ? `Chega ao destino no prazo em ${agents[0].port.rate}% (${agents[0].port.good} de ${agents[0].port.eligible.length}).${exps[0] ? ` Exportador mais pontual na prontidão: ${exps[0].name} (${exps[0].ready.rate}%).` : ''}` : `Nenhum agente com ${MIN_SAMPLE} ou mais chegadas neste recorte para comparar.` },
       perda: { kpi: null, metric: delays[0] && delays[0].avg > 0 ? delays[0].label : f.drop ? f.drop.to : '—', conclusion: delays[0] && delays[0].avg > 0 ? `Em média +${String(delays[0].avg).replace('.', ',')} dia(s) acima do planejado nesta etapa.${f.drop ? ` A maior queda de prazo é de ${f.drop.from} para ${f.drop.to} (−${f.drop.points} pontos).` : ''}` : 'Nenhuma etapa acima do planejado neste recorte.' },
@@ -375,7 +288,7 @@
     });
   }
 
-  const api = { FILTERS, MIN_SAMPLE, calendarMonth, subSeries, barText, DESTINATION_HINT, readFilters, writeFilters, activeCount, matches, applyFilters, options, filterOptions, selectAllValues, clearFilter, periodStrip, kpiDefinition, viewSummary, reportContext, previousRange, inRange, comparisonCaption, kpi, monthly, funnel, stageDelays, ranking, questions, commitments, valueOf };
+  const api = { FILTERS, MIN_SAMPLE, DESTINATION_HINT, readFilters, writeFilters, activeCount, matches, applyFilters, options, filterOptions, selectAllValues, clearFilter, periodStrip, kpiDefinition, viewSummary, reportContext, previousRange, inRange, comparisonCaption, kpi, monthly, funnel, stageDelays, ranking, questions, commitments, valueOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelEngine = api;
 })(typeof window !== 'undefined' ? window : globalThis);
