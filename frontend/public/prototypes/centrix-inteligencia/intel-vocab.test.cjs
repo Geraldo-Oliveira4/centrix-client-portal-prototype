@@ -3,8 +3,9 @@
 // Nunca "cargas", nunca "Carga" com maiúscula no meio do nome. Este teste
 // varre os arquivos da Inteligência e falha se a variante errada voltar.
 //
-// Fora da varredura, de propósito: o Simulador (intel-sim.js e o teste dele),
-// que tem prompt próprio e não é alterado nesta rodada.
+// S9 (17/11/2026, Simulador v2): o Simulador entrou na varredura, e "folga"
+// saiu do módulo. O termo queria dizer duas coisas (dias até a data pedida e
+// P90 − mediana); agora são "Margem até a data-alvo" e "Variação do trânsito".
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -12,8 +13,8 @@ const path = require('node:path');
 
 const HERE = __dirname;
 const PORTAL = path.join(HERE, '..', '..', '..', 'app', 'portal', 'inteligencia');
-const SKIP = new Set(['intel-sim.js', 'intel-sim.test.cjs', 'intel-vocab.test.cjs']);
-const WRONG = [/agentes? de cargas/i, /agentes? de Carga/, /Agentes? De Carga/];
+const SKIP = new Set(['intel-vocab.test.cjs']);
+const WRONG = [/agentes? de cargas/i, /agentes? de Carga/, /Agentes? De Carga/, /folga/i];
 
 function files(dir, exts) {
   if (!fs.existsSync(dir)) return [];
@@ -42,4 +43,12 @@ test('o submódulo e a coluna usam o nome padronizado', () => {
   assert.equal(T.TABS.find(([id]) => id === 'agentes')[1], 'Agentes de carga');
   assert.equal(T.COLUMNS.ag[0][1], 'Agente de carga');
   assert.equal(E.FILTERS.find((f) => f.key === 'ag').label, 'Agente de carga');
+});
+
+test('Simulador: "Margem até a data-alvo" e "Variação do trânsito" no lugar de "folga"; sem veredito Cabe/Não cabe', () => {
+  const page = fs.readFileSync(path.join(HERE, 'intel-page.js'), 'utf8'), sim = fs.readFileSync(path.join(HERE, 'intel-sim.js'), 'utf8');
+  assert.match(page, /Margem até a data-alvo/);
+  assert.match(page, /Variação do trânsito/);
+  for (const src of [page, sim]) assert.doesNotMatch(src, /Cabe na data|N[ãa]o cabe|Apertado/);
+  assert.equal(require('./intel-sim.js').STATUS, undefined, 'o selo antigo saiu do motor');
 });

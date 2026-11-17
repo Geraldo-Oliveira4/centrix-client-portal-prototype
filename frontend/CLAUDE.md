@@ -1662,9 +1662,8 @@ telas React antigas.
 - **Ficha lateral** (~410px, `&sel=`): três indicadores + só o que não está na
   linha da tabela; o resto fica em "Mais detalhes". Em Agentes, "Compromissos
   do serviço" fica recolhido abaixo da lista.
-- **Simulador**: a coluna Resultado traz o selo e UMA frase (`IntelSim.reason`,
-  dos mesmos números de `classify`, testada contra o selo); o par antigo "Com
-  folga / No limite" fica em "ver cálculo".
+- **Simulador**: ver "Simulador v2" abaixo (o selo de três estados e a frase
+  por linha saíram em 17/11/2026).
 
 **Subabas v2 (16/11/2026): Agentes de carga, Exportadores e Rotas.**
 
@@ -1720,6 +1719,35 @@ telas React antigas.
 - **Iframe**: a altura acompanha a janela (`IntelligencePreview`), e o iframe se
   põe inteiro na tela quando abre painel, ficha ou introdução (`revealFrame`).
 - Roteiro de navegador nos três motores: `node scripts/intel-browser-check.cjs`.
+
+**Simulador v2 (17/11/2026).** A pergunta é "preciso da carga até [data]; até
+quando embarcar, em que rota e com qual agente de carga?".
+
+- **Tarefa numa linha** (`IntelSim.readTask`): `smodo` (chegar/embarcar), `srota`,
+  `smodal` (obrigatório, sem padrão escondido), `chegada` ou `sembarque`;
+  "Ajustes" com `sfonte`, `scarga`, `janela`. Sem parâmetro, um exemplo
+  fictício; `sinicio=vazio` é o "Limpar". Tudo aditivo: links antigos valem.
+- **Resultado empírico** (`IntelSim.plan`): cobertura = trânsitos que couberam
+  na margem ÷ base (inclusiva), a de b; faixa neutra "Cobre N de 10". Sem
+  "cabe", sem cor, sem recomendação. Data passada ou antes do menor trânsito:
+  o fato, e para.
+- **Chegada ao destino × Entrega final**: a perna nacional (chegada → entrega)
+  só entra com base ≥ 3 da MESMA fonte; aí a data-alvo desconta o P90 dela.
+  Sem base, "Considera a chegada ao porto…". Nunca porto = fábrica.
+- **Fontes**: "Referência agregada da Freitas" (padrão; fictícia em
+  `sim-reference.js`, SEPARADA de `data.js`, com aviso de integração) e "Meus
+  embarques". Agente em foco com < 3 cai para a rota ("Poucos embarques deste
+  agente; mostrando a rota."); rota sem base: "Sem histórico suficiente".
+- **Tabela por agente de carga** no padrão das subabas, cobertura como coluna
+  líder, prometido × histórico opcional (`sprom=alpha:40`), link para a ficha
+  com `de=sim` (Voltar volta ao Simulador).
+- **Cotação**: "Solicitar cotação com esta rota e data" leva à Nova Cotação
+  (`inteligencia/lib/simulator-quotation.ts` lê; `IntelSim.quotationLink`
+  escreve), sem agente pré-selecionado.
+- **Consistência**: `simulate` (o par rota × agente) é o que o teste de
+  igualdade com as fichas confere; "Meus embarques" usa a mesma mediana e o
+  mesmo N. "Folga" saiu do módulo (Margem até a data-alvo / Variação do
+  trânsito), travado em `intel-vocab.test.cjs`. Testes: `intel-sim-v2.test.cjs`.
 
 
 Quatro abas (`layout.tsx`): `performance/`, `agentes/`, `executivo/` e
@@ -2755,7 +2783,7 @@ Spec por aba/indicador (o que é fixture × o que depende de dado real) em
 | Hashes antigos | `LEGACY_SECTION_TAB` + `overview()` em `app.js` | `#exportadores`/`#agentes`/`#rotas` abrem a aba; `#compromissos` abre Agentes e rola até o bloco; `/portal/inteligencia/agentes` cai na aba Agentes |
 | Relatório | `openReportPanel` | Aberto do painel, menciona "Aba X · <entidade>" e trata a entidade como filtrada para o atalho de conversa. Conteúdo do relatório NÃO mudou (o Orsi vai definir) |
 | Tabela rolável | `style.css` | `.table-wrap{position:relative}`: sem isso o `.sr-only` do cabeçalho escapava e alargava a página a 390px |
-| Simulador (Prévia) | `intel-sim.js` (puro) + `intel-sim.test.cjs`; tela em `simulatorTab` (`intel-page.js`); spec `docs/spec-simulador-cenarios.md` | Aba `aba=simulador`, entradas `srota`/`chegada` na URL e na visão salva. Mediana + P90 (posto mais próximo) do trânsito saída → chegada por rota × agente; n < 3 sem estimativa. Cabe/Apertado/Não cabe contra os dias de HOJE (`D.cutoff`, 13/09/2026, o relógio da demo) até a data desejada; resultado em semanas. Período e filtros globais valem (90 dias = tudo amostra pequena, com botão para Este ano). Sem custo/saving: metodologia em avaliação |
+| Simulador (Prévia) | `intel-sim.js` (puro) + `sim-reference.js` + `intel-sim.test.cjs`/`intel-sim-v2.test.cjs`; tela em `simulatorTab` (`intel-page.js`) | Histórico: v2 de 17/11/2026 (ver "Simulador v2" na seção da Inteligência). A versão de 23/10 (Cabe/Apertado/Não cabe em semanas) saiu |
 | Janela do Simulador | `WINDOWS`/`readWindow`/`inWindow` em `intel-sim.js`; `simScope` em `intel-page.js` | `janela=6m\|12m\|tudo` (padrão 12m; visão antiga sem o parâmetro abre com 12m), pela data de saída até hoje. O período do painel NÃO vale no Simulador (a faixa fixa diz "Histórico usado"); os filtros globais valem |
 | Relógio da demonstração | `data.js` (`D.shift`, `D.demoToday`, `D.shiftDate`) + `IntelligencePreview` repassa `?hoje=` | **Nenhum "hoje" congelado.** A fixture é gerada na data-base (13/09/2026) e deslocada em memória para hoje (ou `?hoje=`). No Node, `require('data.js')` devolve a data-base e o teste injeta o relógio. Textos com data passam por `D.cutoff`; hashes antigos (`period=jun`) andam com `D.shiftDate`. Fixture: 79 embarques (60 + 19 anteriores, só fora dos 90 dias) |
 
