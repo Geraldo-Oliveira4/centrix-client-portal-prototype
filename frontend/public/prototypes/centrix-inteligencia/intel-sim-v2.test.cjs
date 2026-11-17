@@ -31,7 +31,6 @@ test('cobertura com base de 3, 10 e 50 embarques: a de b contado, percentual sec
   assert.deepEqual(S.coverage(ten, 38), { good: 9, base: 10, pct: 90 });
   const fifty = Array.from({ length: 50 }, (_, i) => 20 + (i % 25));
   assert.deepEqual(S.coverage(fifty, 32), { good: 26, base: 50, pct: 52 });
-  assert.equal(S.coverageBand(S.coverage(ten, 38)), 'Cobre 9 de 10');
 });
 test('empates e trânsito igual à margem: a margem é inclusiva', () => {
   assert.deepEqual(S.coverage([32, 32, 32, 33], 32), { good: 3, base: 4, pct: 75 });
@@ -292,4 +291,19 @@ test('F2: "Como é calculado" não afirma cobertura da entrega final', () => {
   const f = S.howCalculated(D, {}, S.readTask(D, new URLSearchParams(''), TODAY), TODAY).find((l) => l.label === 'Fórmula').text;
   assert.match(f, /vale sempre para a chegada ao porto ou aeroporto/);
   assert.match(f, /nenhuma cobertura é contada para a entrega final/);
+});
+
+// ------------------------------------- F3: uma escala só, a de b real ---
+test('F3: no modo "Vou embarcar em", a frase conta a de b (nada de "metade" nem "9 de 10")', () => {
+  const ops = [30, 31, 32, 33, 34, 35, 36, 37, 38, 45].map((t) => op('x', t));
+  const r = plan(ops, { mode: 'embarcar', departure: S.addDays(TODAY, 1) });
+  assert.deepEqual(r.coverArrivalMedian, { good: 6, base: 10, pct: 60 });
+  assert.deepEqual(r.coverArrivalP90, { good: 9, base: 10, pct: 90 });
+  const head = S.resultText(r).head;
+  assert.match(head, /6 de 10 embarques parecidos chegaram ao porto até \*\*\d\d\/\d\d\*\* \(mediana\) e 9 de 10 até/);
+  assert.doesNotMatch(head, /metade/);
+});
+test('F3: a cobertura de hoje traz a de b com o percentual entre parênteses, separado do texto', () => {
+  const r = plan([30, 31, 32, 33].map((t) => op('x', t)), { target: S.addDays(TODAY, 31) });
+  assert.match(S.resultText(r).today, /\*\*2 de 4\*\* \(50%\) embarques parecidos/);
 });

@@ -12,8 +12,8 @@
 //   - Resultado em SEMANAS, nunca em dia: errar a semana muda a vida do cliente,
 //     prometer o dia seria precisão que o histórico não tem.
 //   - Sem veredito (S3, 17/11/2026): o selo antigo de três estados saiu. O
-//     resultado é cobertura empírica, a de b, em faixas neutras ("Cobre 9 de
-//     10"). Ordem padrão por volume, como nas abas.
+//     resultado é cobertura empírica, contagem real a de b com o percentual
+//     secundário (F3: a escala "de 10" saiu). Ordem padrão por volume.
 //   - Sem custo, saving ou economia: a metodologia de saving está em avaliação.
 (function (root) {
   const inNode = typeof module !== 'undefined' && module.exports;
@@ -217,12 +217,6 @@
     return { good, base, pct: Math.round((good / base) * 100) };
   }
 
-  /** Faixa descritiva neutra (S3): "Cobre 9 de 10". Arredonda PARA BAIXO, o lado conservador. */
-  function coverageBand(c) {
-    if (!c || c.good == null || !c.base) return null;
-    return `Cobre ${Math.floor((c.good / c.base) * 10)} de 10`;
-  }
-
   /** Os embarques do cliente para a tarefa: rota e modal, com chegada e saída registradas para o trânsito. */
   function taskOps(D, ops, task) {
     return ops.filter((o) => o.route === task.route && modalOfRoute(D, o.route) === task.modal);
@@ -326,14 +320,17 @@
       out.limitP90 = addDays(out.portTarget, -head.p90);
       out.limitMedian = addDays(out.portTarget, -Math.ceil(head.median));
       out.coverToday = coverage(head.values, out.margin);
-      // A cobertura de cada data limite é contada, não suposta: "9 de 10" e
-      // "metade" são o que o histórico de fato mostra naquela margem.
+      // A cobertura de cada data limite é contada, não suposta: a de b é o que
+      // o histórico de fato mostra naquela margem.
       out.coverP90 = coverage(head.values, head.p90);
       out.coverMedian = coverage(head.values, Math.ceil(head.median));
     } else {
       if (diffDays(today, date) < 0) return { ...out, state: 'past' };
       out.arrivalMedian = addDays(date, Math.ceil(head.median));
       out.arrivalP90 = addDays(date, head.p90);
+      // F3: quantos chegaram até cada data, contado, nunca suposto.
+      out.coverArrivalMedian = coverage(head.values, Math.ceil(head.median));
+      out.coverArrivalP90 = coverage(head.values, head.p90);
       if (out.basis === 'final') {
         out.finalMedian = addDays(out.arrivalMedian, Math.ceil(out.leg.median));
         out.finalP90 = addDays(out.arrivalP90, out.leg.p90);
@@ -391,7 +388,7 @@
       const note = final ? `A reserva de dias da etapa final é o P${HIGH_PERCENTILE} dela somado ao P${HIGH_PERCENTILE} do trânsito; por isso é conservadora. A cobertura contada vale só para a chegada ao ${place}.` : null;
       return { head, today, note };
     }
-    const head = `Embarcando em ${ddmmOf(t.departure)}, metade dos embarques parecidos chegou ao ${place} até **${ddmmOf(r.arrivalMedian)}** (mediana) e 9 de 10 até **${ddmmOf(r.arrivalP90)}** (P90)${final ? `; somando a perna nacional (P${HIGH_PERCENTILE} de ${nd(r.leg.p90)}), a entrega final seria por volta de ${ddmmOf(r.finalMedian)} (mediana) e ${ddmmOf(r.finalP90)} (P90)` : ''}.`;
+    const head = `Embarcando em ${ddmmOf(t.departure)}, ${abOf(r.coverArrivalMedian)} embarques parecidos chegaram ao ${place} até **${ddmmOf(r.arrivalMedian)}** (mediana) e ${abOf(r.coverArrivalP90)} até **${ddmmOf(r.arrivalP90)}** (P90)${final ? `; somando a perna nacional (P${HIGH_PERCENTILE} de ${nd(r.leg.p90)}), a entrega final seria por volta de ${ddmmOf(r.finalMedian)} (mediana) e ${ddmmOf(r.finalP90)} (P90)` : ''}.`;
     return { head, today: null, note: null };
   }
 
@@ -435,7 +432,7 @@
     return '/portal/nova-cotacao?' + q.toString();
   }
 
-  const api = { resultText, exampleTargetDays, withExampleTarget, quotationLink, SOURCES, DEFAULT_SOURCE, sourceLabel, cargoOfRoute, historyMine, historyReference, hasBase, readPromised, writePromised, agentRows, sortAgents, nextAgentSort, DEFAULT_AGENT_SORT, MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, coverageBand, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, simulate, howCalculated, addDays, diffDays, validIso };
+  const api = { resultText, exampleTargetDays, withExampleTarget, quotationLink, SOURCES, DEFAULT_SOURCE, sourceLabel, cargoOfRoute, historyMine, historyReference, hasBase, readPromised, writePromised, agentRows, sortAgents, nextAgentSort, DEFAULT_AGENT_SORT, MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, simulate, howCalculated, addDays, diffDays, validIso };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelSim = api;
 })(typeof window !== 'undefined' ? window : globalThis);

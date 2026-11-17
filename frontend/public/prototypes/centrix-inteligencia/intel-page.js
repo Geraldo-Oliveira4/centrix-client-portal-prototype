@@ -654,8 +654,7 @@ function simResultBand(r) {
   // F2: a frase sai do motor (IntelSim.resultText): cobertura da chegada ao
   // porto, perna nacional como reserva de dias, nenhuma cobertura da entrega final.
   const rt = IS.resultText(r), bold = txt => esc(txt).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-  const band = c => `<span class="cover-band">${esc(IS.coverageBand(c))}</span>`;
-  const head = `<p class="fact-text">${bold(rt.head)}</p>${rt.today ? `<p class="sim-cover">${band(r.coverToday)} <span>${bold(rt.today)}</span></p>` : ''}${rt.note ? `<p class="sim-reserve-note">${esc(rt.note)}</p>` : ''}`;
+  const head = `<p class="fact-text">${bold(rt.head)}</p>${rt.today ? `<p class="sim-cover">${bold(rt.today)}</p>` : ''}${rt.note ? `<p class="sim-reserve-note">${esc(rt.note)}</p>` : ''}`;
   // S7: o resultado PRIMEIRO; a fonte e as medidas vêm logo abaixo.
   return `<div class="fact-band sim-result" role="status">${head}${simSourceLine(r)}${simMeasures(r)}</div>`;
 }
@@ -705,7 +704,7 @@ function simAgentTable(r) {
       if (chegar) tds.push('<td class="quiet-col">—</td>');
     } else {
       tds.push(`<td class="quiet-col">${days(a.median)} dias<small>${a.n} com saída e chegada</small></td>`, `<td class="quiet-col">${a.p90} dias</td>`, `<td class="quiet-col">${days(a.spread)} ${a.spread === 1 ? 'dia' : 'dias'}<small>P90 − mediana</small></td>`);
-      if (chegar) tds.push(`<td class="lead-col"><span class="frac">${a.cover.good} de ${a.cover.base}</span><small class="pct">${a.cover.pct}% · ${esc(IS.coverageBand(a.cover))}</small></td>`, `<td class="quiet-col">${dm(a.limitP90)} <small>P90 · ${dm(a.limitMedian)} pela mediana</small></td>`);
+      if (chegar) tds.push(`<td class="lead-col"><span class="frac">${a.cover.good} de ${a.cover.base}</span><small class="pct">${a.cover.pct}%</small></td>`, `<td class="quiet-col">${dm(a.limitP90)} <small>P90 · ${dm(a.limitMedian)} pela mediana</small></td>`);
       else tds.push(`<td class="lead-col"><span class="frac">até ${dm(a.arrivalP90)}</span><small>P90 · ${dm(a.arrivalMedian)} pela mediana</small></td>`);
     }
     const prom = a.promised ? a.promised.days : '';

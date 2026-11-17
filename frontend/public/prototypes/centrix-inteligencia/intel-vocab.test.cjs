@@ -53,3 +53,11 @@ test('Simulador: "Margem até a data-alvo" e "Variação do trânsito" no lugar 
   for (const src of [page, sim]) assert.doesNotMatch(src, /Cabe na data|N[ãa]o cabe|Apertado/);
   assert.equal(require('./intel-sim.js').STATUS, undefined, 'o selo antigo saiu do motor');
 });
+
+// F3 (17/11/2026): a cobertura do Simulador é contagem real a de b; a escala
+// "x de 10" (faixa "Cobre 9 de 10", "9 de 10 até") não volta, nem a classe dela.
+test('Simulador: sem escala "de 10" e sem selo de faixa', () => {
+  const src = ['intel-sim.js', 'intel-page.js', 'style.css'].map((f) => fs.readFileSync(path.join(HERE, f), 'utf8')).join('\n');
+  assert.doesNotMatch(src, /\b(\d+|N|x) de 10\b/);
+  assert.doesNotMatch(src, /coverageBand|cover-band/);
+});

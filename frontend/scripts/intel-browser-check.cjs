@@ -105,7 +105,7 @@ async function roteiroSimulador(page, base) {
     const worst = await page.evaluate(() => {
       const lum = (c) => { const v = c.match(/[\d.]+/g).slice(0, 3).map((x) => +x / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4)); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
       const bg = (el) => { for (let e = el; e; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; if (!/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c; } return 'rgb(255,255,255)'; };
-      const sels = ['.sim-result .fact-text', '.sim-cover', '.cover-band', '.sim-source', '.sim-measures li', '.sim-agents-table th .sort-label', '.sim-agents-table td small', '.sim-notes li', '.sim-task-foot', '.st-field', '.integrated-notice'];
+      const sels = ['.sim-result .fact-text', '.sim-cover', '.sim-reserve-note', '.sim-source', '.sim-measures li', '.sim-agents-table th .sort-label', '.sim-agents-table td small', '.sim-notes li', '.sim-task-foot', '.st-field', '.integrated-notice'];
       return sels.map((s) => { const el = document.querySelector(s); if (!el) return [s, null]; const a = lum(getComputedStyle(el).color), b = lum(bg(el)); return [s, Math.round(((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)) * 100) / 100]; }).filter(([, r]) => r != null).sort((x, y) => x[1] - y[1])[0];
     });
     const dark = await page.evaluate(() => document.documentElement.classList.contains('theme-dark'));
