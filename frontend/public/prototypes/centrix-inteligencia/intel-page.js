@@ -750,7 +750,7 @@ function applyAdjust() {
    localStorage; sem storage não abre sozinho); `?onboarding=1` força, para as
    demos; "Ver introdução", no painel de ajustes, reabre. O passo 2 grava a
    MESMA personalização do painel. Fechar por qualquer caminho marca como visto. */
-let onbStep = 0;
+let onbStep = 0, onbSkipped = false;   // B5: pulou a personalização no passo 2?
 function onbHtml() {
   const dots = `<ol class="onb-dots" aria-label="Passo ${onbStep + 1} de 3">${[0, 1, 2].map(i => `<li${i === onbStep ? ' class="on" aria-current="step"' : ''}></li>`).join('')}</ol>`;
   if (onbStep === 0) {
@@ -761,7 +761,9 @@ function onbHtml() {
   }
   if (onbStep === 1) return `${dots}<h2 id="onb-title" tabindex="-1">Personalizar a Inteligência</h2><p class="onb-lead">Escolha os temas e ligue ou desligue cada card. A Visão geral mostra só os cards ligados dos temas escolhidos.</p><div data-pers-root>${persFieldsHtml()}</div><p class="onb-note">Dá para refazer depois em Filtros e ajustes.</p><div class="onb-actions"><span><button type="button" class="button secondary" data-onb="back">Voltar</button><button type="button" class="button secondary" data-onb="skip-step">Pular por agora</button></span><button type="button" class="button cta" data-onb="save">Salvar e continuar</button></div>`;
   const where = document.documentElement.classList.contains('embedded') ? 'nos submódulos do menu lateral' : 'nas abas no topo da página';
-  return `${dots}<h2 id="onb-title" tabindex="-1">Onde ir para ver mais</h2><p class="onb-lead">Os detalhes ficam ${where}. Cada bloco tem um “Ver detalhe” discreto no canto.</p><ul class="onb-list"><li><b>Exportadores · Agentes de carga · Rotas</b></li><li><b>Simulador</b> <span class="preview-tag">Prévia</span>: teste uma data de chegada.</li><li><b>Preparar relatório</b>: leve o recorte para a reunião.</li></ul><div class="onb-actions"><button type="button" class="button secondary" data-onb="back">Voltar</button><button type="button" class="button cta" data-onb="done">Começar</button></div>`;
+  // B5: feedback de saída — o que a pessoa decidiu no passo 2.
+  const choice = `<p class="onb-choice" role="status"><b>${esc(IP.choiceSummary(intelPers, onbSkipped))}.</b> Dá para mudar depois em “Filtros e ajustes”.</p>`;
+  return `${dots}<h2 id="onb-title" tabindex="-1">Onde ir para ver mais</h2>${choice}<p class="onb-lead">Os detalhes ficam ${where}. Cada bloco tem um “Ver detalhe” discreto no canto.</p><ul class="onb-list"><li><b>Exportadores · Agentes de carga · Rotas</b></li><li><b>Simulador</b> <span class="preview-tag">Prévia</span>: teste uma data de chegada.</li><li><b>Preparar relatório</b>: leve o recorte para a reunião.</li></ul><p class="onb-note"><button type="button" class="text-button" data-onb="restart">Refazer introdução</button></p><div class="onb-actions"><button type="button" class="button secondary" data-onb="back">Voltar</button><button type="button" class="button cta" data-onb="done">Começar</button></div>`;
 }
 function renderOnb() {
   const d = document.getElementById('intel-onb');
@@ -778,7 +780,7 @@ function openOnboarding() {
     document.body.appendChild(d);
     d.addEventListener('close', () => { IP.markOnboardingSeen(STORE); persDraft = null; });
   }
-  persDraft = IP.normalize(intelPers); onbStep = 0;
+  persDraft = IP.normalize(intelPers); onbStep = 0; onbSkipped = false;
   if (!d.open) d.showModal();
   renderOnb();
 }
@@ -794,8 +796,9 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-onb]'); if (!b) return;
   const a = b.dataset.onb, d = document.getElementById('intel-onb');
   if (a === 'skip' || a === 'done') { d.close(); return; }
-  if (a === 'save') { saveIntelPers(persDraft); render(); toast('Personalização salva.'); }
-  onbStep = a === 'back' ? onbStep - 1 : a === 'next' ? onbStep + 1 : 2;
+  if (a === 'save') { saveIntelPers(persDraft); onbSkipped = false; render(); toast('Personalização salva.'); }
+  if (a === 'skip-step') onbSkipped = true;
+  onbStep = a === 'restart' ? 0 : a === 'back' ? onbStep - 1 : a === 'next' ? onbStep + 1 : 2;
   persDraft = IP.normalize(intelPers);
   renderOnb();
 });

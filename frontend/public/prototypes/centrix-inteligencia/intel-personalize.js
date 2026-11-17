@@ -119,6 +119,20 @@
     if (!s.themes.includes(card.theme)) return toggleTheme(s, card.theme);
     return setCard(s, id, true);
   }
+  /**
+   * Feedback de saída da introdução (B5, 17/11/2026): o que a pessoa decidiu no
+   * passo 2. "Você escolheu: Prazo e Volume (6 cartões)"; se pulou, "Você
+   * manteve a visão padrão" (ou "a sua visão atual", quando ela já era outra).
+   */
+  function choiceSummary(state, skipped) {
+    const s = normalize(state);
+    if (skipped) return isDefault(s) ? 'Você manteve a visão padrão' : 'Você manteve a sua visão atual';
+    if (!s.themes.length) return 'Você desligou todos os temas (0 cartões)';
+    const names = THEMES.filter(([id]) => s.themes.includes(id)).map(([, l]) => l);
+    const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`;
+    const n = s.enabled_cards.length;
+    return `Você escolheu: ${list} (${n} ${n === 1 ? 'cartão' : 'cartões'})`;
+  }
   const isDefault = (state) => JSON.stringify(normalize(state)) === JSON.stringify(defaults());
 
   function load(storage) {
@@ -142,7 +156,7 @@
     try { storage.setItem(ONBOARDING_KEY, '1'); return true; } catch { return false; }
   }
 
-  const api = { THEMES, CARDS, STORE_KEY, ONBOARDING_KEY, BLOCKS, DETAIL_LINKS, defaults, normalize, toggleTheme, setCard, visibleCards, cardsByTheme, cardStates, activate, isDefault, load, save, clear, onboardingSeen, markOnboardingSeen };
+  const api = { THEMES, CARDS, STORE_KEY, ONBOARDING_KEY, BLOCKS, DETAIL_LINKS, defaults, normalize, toggleTheme, setCard, visibleCards, cardsByTheme, cardStates, activate, choiceSummary, isDefault, load, save, clear, onboardingSeen, markOnboardingSeen };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelPersonalize = api;
 })(typeof window !== 'undefined' ? window : globalThis);

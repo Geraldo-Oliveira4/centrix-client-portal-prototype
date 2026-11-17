@@ -549,6 +549,8 @@ dialog.onb::backdrop{background:var(--backdrop)}
 .onb-dots li{width:10px;height:6px;border-radius:3px;background:var(--line-strong)}
 .onb-dots li.on{width:32px;background:var(--accent)}
 .onb h2{font-size:26px;color:var(--ink);outline:0}
+.onb-choice{margin:10px 0 0;padding:12px 14px;border-radius:10px;background:var(--tint);font-size:15px;line-height:1.5;color:var(--ink)}
+.onb-choice b{font-weight:600}
 .onb-lead{font-size:15px;line-height:1.55;color:var(--ink-2);margin:8px 0 18px}
 .onb-illus{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:18px 12px;border-radius:12px;background:var(--tint)}
 .onb-illus>div{display:grid;justify-items:center;gap:2px;padding:10px 16px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}

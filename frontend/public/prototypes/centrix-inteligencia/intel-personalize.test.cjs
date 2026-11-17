@@ -127,3 +127,13 @@ test('"Ver detalhe": cada destino faz sentido pelo nome do bloco', () => {
   assert.equal(P.DETAIL_LINKS.resultado.href, '/portal/embarques');
   assert.equal(P.DETAIL_LINKS.evolucao, undefined);
 });
+
+// B5 (17/11/2026): o último passo da introdução diz o que foi escolhido.
+test('resumo da escolha na introdução', () => {
+  const pv = P.toggleTheme(P.defaults(), 'custo');
+  assert.equal(P.choiceSummary(pv, false), 'Você escolheu: Prazo e Volume (5 cartões)');
+  assert.equal(P.choiceSummary(P.defaults(), false), 'Você escolheu: Prazo, Custo e Volume (7 cartões)');
+  assert.equal(P.choiceSummary(P.setCard(P.toggleTheme(P.toggleTheme(P.defaults(), 'prazo'), 'custo'), 'embarques', true), false), 'Você escolheu: Volume (1 cartão)');
+  assert.equal(P.choiceSummary(P.defaults(), true), 'Você manteve a visão padrão');
+  assert.equal(P.choiceSummary(pv, true), 'Você manteve a sua visão atual');
+});
