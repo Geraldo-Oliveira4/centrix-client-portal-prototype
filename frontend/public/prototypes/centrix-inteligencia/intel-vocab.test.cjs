@@ -47,7 +47,8 @@ test('o submódulo e a coluna usam o nome padronizado', () => {
 
 test('Simulador: "Margem até a data-alvo" e "Variação do trânsito" no lugar de "folga"; sem veredito Cabe/Não cabe', () => {
   const page = fs.readFileSync(path.join(HERE, 'intel-page.js'), 'utf8'), sim = fs.readFileSync(path.join(HERE, 'intel-sim.js'), 'utf8');
-  assert.match(page, /Margem até a data-alvo/);
+  // F2: a frase do resultado mora no motor (IntelSim.resultText).
+  assert.match(page + sim, /Margem até a data-alvo/);
   assert.match(page, /Variação do trânsito/);
   for (const src of [page, sim]) assert.doesNotMatch(src, /Cabe na data|N[ãa]o cabe|Apertado/);
   assert.equal(require('./intel-sim.js').STATUS, undefined, 'o selo antigo saiu do motor');

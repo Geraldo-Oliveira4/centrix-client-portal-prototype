@@ -259,3 +259,37 @@ test('F1: data-alvo na URL vale como está; "Limpar" continua esvaziando tudo', 
   const b = S.withExampleTarget(D, ops, blank, TODAY, { ref: R });
   assert.deepEqual([b.route, b.modal, b.target, b.departure], ['', '', '', '']);
 });
+
+// ------------------------------- F2: porto e entrega final, separados ---
+const plain = (s) => s.replace(/\*\*/g, '');
+test('F2: com perna nacional, a frase cita porto e entrega final e não diz "cobre" para a entrega final', () => {
+  const ops = [[30, 4], [31, 5], [32, 6], [33, 9]].map(([t, l]) => op('x', t, l));
+  const r = plan(ops, { target: S.addDays(TODAY, 50) });
+  assert.equal(r.basis, 'final');
+  assert.equal(r.portTarget, S.addDays(r.task.target, -r.leg.p90), 'porto = data-alvo − P90 da perna');
+  const txt = S.resultText(r), head = plain(txt.head);
+  const dd = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
+  assert.match(head, new RegExp(`entrega final até ${dd(r.task.target)}`));
+  assert.match(head, new RegExp(`chegar ao porto até ${dd(r.portTarget)} \\(reserva de 9 dias`));
+  assert.match(head, new RegExp(`faz ${r.coverP90.good} de ${r.coverP90.base} embarques parecidos chegarem ao porto até ${dd(r.portTarget)} \\(P90 do trânsito\\)`));
+  assert.doesNotMatch(head + txt.today, /cobre/i);
+  assert.doesNotMatch(head, /entrega final[^.;]*\d+ de \d+/, 'nenhuma contagem atribuída à entrega final');
+  assert.match(txt.note, /P90 dela somado ao P90 do trânsito; por isso é conservadora/);
+  assert.match(txt.note, /vale só para a chegada ao porto/);
+});
+test('F2: sem perna nacional, a frase fala só de porto (aeroporto no aéreo), sem nota de reserva', () => {
+  const r = plan([30, 31, 32, 33].map((t) => op('x', t)));
+  assert.equal(r.basis, 'port');
+  const txt = S.resultText(r);
+  assert.match(plain(txt.head), /^Para a chegada ao porto até/);
+  assert.doesNotMatch(txt.head + txt.today, /entrega final|cobre/i);
+  assert.equal(txt.note, null);
+  assert.match(txt.today, /Margem até a data-alvo/);
+  const air = S.plan(FD, [30, 31, 32].map((t) => op('x', t, null, 'v')), task({ route: 'v', modal: 'aereo' }), TODAY);
+  assert.match(S.resultText(air).head, /chegada ao aeroporto/);
+});
+test('F2: "Como é calculado" não afirma cobertura da entrega final', () => {
+  const f = S.howCalculated(D, {}, S.readTask(D, new URLSearchParams(''), TODAY), TODAY).find((l) => l.label === 'Fórmula').text;
+  assert.match(f, /vale sempre para a chegada ao porto ou aeroporto/);
+  assert.match(f, /nenhuma cobertura é contada para a entrega final/);
+});
