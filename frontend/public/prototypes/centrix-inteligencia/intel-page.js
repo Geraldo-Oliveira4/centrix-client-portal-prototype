@@ -280,10 +280,14 @@ function headChips(s, tab, ss) {
   const filters = IE.FILTERS.flatMap(f => (s.gf[f.key] || []).map(v => `<button class="filter-chip" data-action="gfilter-remove" data-key="${f.key}" data-value="${esc(v)}" aria-label="Remover filtro ${esc(f.label)}: ${esc(f.name(D, v))}">${esc(f.label)}: ${esc(f.name(D, v))} <span aria-hidden="true">×</span></button>`));
   return `<div class="head-chips" role="status">${chips.join('')}${sim ? '' : '<span class="chip-note">Base: compromisso de prontidão no período</span>'}${filters.length ? `<span class="chip-filters">${filters.join('')}<button class="text-button" data-action="gfilter-clear" aria-label="Limpar todos os filtros">Limpar</button>${raioX(s.gf)}</span>` : ''}</div>`;
 }
+/* E2 (Simulador enxuto): no Simulador, UM selo só, "Exemplo fictício", no
+   cabeçalho. "Prévia" continua no menu do portal e na faixa de abas; dentro
+   do Simulador o selo não se repete (nem no bloco da referência). */
+const SIM_EXAMPLE_TAG = '<span class="example-tag has-tip" tabindex="0" aria-describedby="example-tip">Exemplo fictício<span class="tip" role="tooltip" id="example-tip">Rota, datas e histórico deste exemplo são fictícios, inclusive a referência agregada, que fica separada dos seus embarques. Seus dados reais substituem este exemplo assim que houver embarques.</span></span>';
 function intelHead(tab, s, ss) {
-  const title = TAB_TITLE[tab] + (tab === 'simulador' ? ' <span class="preview-tag">Prévia</span>' : '');
+  const title = TAB_TITLE[tab];
   const adjust = `<button class="button quiet" data-action="intel-adjust">${ICON.sliders}<span>Filtros e ajustes</span>${s.active ? `<b class="count-dot" title="Filtros ativos">${s.active}<span class="sr-only"> filtros ativos</span></b>` : ''}</button>`;
-  return `<header class="intel-head"><div><p class="crumb">Inteligência</p><div class="intel-title"><h1 tabindex="-1">${title}</h1>${EXAMPLE_TAG}</div></div><div class="intel-head-actions">${adjust}${tab === 'simulador' ? '' : '<button class="button" data-action="intel-report">Preparar relatório</button>'}</div></header>${headChips(s, tab, ss)}`;
+  return `<header class="intel-head"><div><p class="crumb">Inteligência</p><div class="intel-title"><h1 tabindex="-1">${title}</h1>${tab === 'simulador' ? SIM_EXAMPLE_TAG : EXAMPLE_TAG}</div></div><div class="intel-head-actions">${adjust}${tab === 'simulador' ? '' : '<button class="button" data-action="intel-report">Preparar relatório</button>'}</div></header>${headChips(s, tab, ss)}`;
 }
 /* Atalho para o Raio X do exportador: só com UM exportador marcado. Desde as abas
    (23/10/2026) o Raio X é o DETALHE da aba Exportadores, aberto em painel com o
@@ -602,7 +606,7 @@ function simFullText(r) {
 function simHow(s, task, r) {
   const open = openKpiHow.has('sim');
   const lines = IS.howCalculated(D, s.gf, task, D.cutoff, window.IntelSources);
-  return `<button type="button" class="kpi-how" data-action="kpi-how" data-id="sim" aria-expanded="${open}" aria-controls="kpi-how-sim">${ICON.info} Como é calculado</button><div class="kpi-how-body sim-how" id="kpi-how-sim" ${open ? '' : 'hidden'}><span class="example-tag">Dado de exemplo</span>${simFullText(r)}<dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
+  return `<button type="button" class="kpi-how" data-action="kpi-how" data-id="sim" aria-expanded="${open}" aria-controls="kpi-how-sim">${ICON.info} Como é calculado</button><div class="kpi-how-body sim-how" id="kpi-how-sim" ${open ? '' : 'hidden'}>${simFullText(r)}<dl>${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl></div>`;
 }
 /* Recorte do Simulador: a JANELA de histórico dele (não o período do painel) +
    os filtros globais. Também alimenta a barra de filtros quando a aba está aberta. */
@@ -639,10 +643,10 @@ function simTaskBar(task) {
     <div class="sim-task-fields">
       <label class="st-field st-route">Origem → destino<select id="sim-route"><option value="">Escolha a rota</option>${routes}</select></label>
       <label class="st-field">Modal<select id="sim-modal" required aria-required="true"><option value="">Escolha o modal</option>${modals}</select></label>
-      <label class="st-field">${chegar ? 'Data-alvo' : 'Data de embarque'}<input id="sim-date" type="date" value="${esc(date || '')}" min="${chegar ? IS.addDays(today, 1) : today}" aria-describedby="sim-today"></label>
+      <label class="st-field">${chegar ? 'Data-alvo' : 'Data de embarque'}<input id="sim-date" type="date" value="${esc(date || '')}" min="${chegar ? IS.addDays(today, 1) : today}"></label>
     </div>
     ${adjust}
-    <p class="sim-task-foot"><span id="sim-today">${task.blank ? '' : 'Exemplo fictício preenchido · '}Hoje na demonstração: ${fullDate(today)}</span><button type="button" class="text-button" data-action="sim-clear">Limpar e começar do zero</button></p>
+    <p class="sim-task-foot"><button type="button" class="text-button" data-action="sim-clear">Limpar e começar do zero</button></p>
   </form>`;
 }
 const dm = iso => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '';
@@ -719,7 +723,7 @@ let simOtherHasBase = false;
 function simSourceLine(r) {
   const notice = r.source === 'referencia' && window.IntelSources ? IntelSources.noticeOf('sim_reference') : null;
   const who = r.level === 'agent' ? ` · ${esc(r.focusName)} nesta rota` : r.fallback ? '' : '';
-  return `<p class="sim-source"><b>${esc(IS.sourceLabel(r.source))}</b>${r.source === 'referencia' ? ' <span class="example-tag">Exemplo fictício</span>' : ''}${who} · ${r.registered.with} de ${r.registered.total} embarques com chegada registrada</p>${r.fallback ? `<p class="sim-fallback">${esc(r.fallback)}</p>` : ''}${notice ? `<p class="integrated-notice">${esc(notice)}</p>` : ''}`;
+  return `<p class="sim-source"><b>${esc(IS.sourceLabel(r.source))}</b>${who} · ${r.registered.with} de ${r.registered.total} embarques com chegada registrada</p>${r.fallback ? `<p class="sim-fallback">${esc(r.fallback)}</p>` : ''}${notice ? `<p class="integrated-notice">${esc(notice)}</p>` : ''}`;
 }
 function simMeasures(r) {
   const days = v => String(v).replace('.', ',');
