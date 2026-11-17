@@ -11,9 +11,9 @@
 //     Sazonalidade, eventos e capacidade não entram.
 //   - Resultado em SEMANAS, nunca em dia: errar a semana muda a vida do cliente,
 //     prometer o dia seria precisão que o histórico não tem.
-//   - Classificação FACTUAL, não nota nem recomendação: "Cabe na data" (até o
-//     P90 cabe), "Apertado" (a mediana cabe, o P90 não), "Não cabe" (nem a
-//     mediana). Ordem padrão por volume, como nas abas.
+//   - Sem veredito (S3, 17/11/2026): "Cabe / Apertado / Não cabe" saíram. O
+//     resultado é cobertura empírica, a de b, em faixas neutras ("Cobre 9 de
+//     10"). Ordem padrão por volume, como nas abas.
 //   - Sem custo, saving ou economia: a metodologia de saving está em avaliação.
 (function (root) {
   const inNode = typeof module !== 'undefined' && module.exports;
@@ -56,133 +56,22 @@
     const a = weekStart(fromIso), b = weekStart(toIso);
     return a === b ? `na semana de ${ddmm(a)}` : `entre a semana de ${ddmm(a)} e a de ${ddmm(b)}`;
   }
-  /** Data limite de embarque em semanas, relativa a hoje. */
-  function departureLabel(limitIso, today) {
-    if (toDay(limitIso) < toDay(today)) return { text: 'Já passou', passed: true };
-    if (weekStart(limitIso) === weekStart(today)) return { text: 'Esta semana', passed: false };
-    return { text: 'Até a ' + weekLabel(limitIso), passed: false };
-  }
-
-  const STATUS = {
-    cabe: { label: 'Cabe na data', tone: 'good', rule: 'Mesmo o trânsito do P90 chega até a data desejada.' },
-    apertado: { label: 'Apertado', tone: 'warn', rule: 'A mediana cabe; o P90 passa da data desejada.' },
-    nao_cabe: { label: 'Não cabe', tone: 'neutral', rule: 'Nem a mediana do trânsito chega até a data desejada.' },
-    small: { label: 'Amostra pequena, sem estimativa', tone: 'sample', rule: `Menos de ${MIN_SAMPLE} trânsitos no histórico deste par.` },
-  };
-
   /**
-   * Classifica um par com estimativa. `available` = dias de hoje até a data
-   * desejada; embarque possível a partir de hoje (premissa declarada na tela).
+   * O par rota × agente em números (n, mediana, P90), agrupado por
+   * IntelTabs.pairGroups, a mesma função que alimenta "Trânsito por rota" e
+   * "Agentes da rota" nas fichas: é o que o teste de igualdade ficha ×
+   * Simulador confere. `route` opcional restringe a uma rota.
    */
-  function classify(available, med, p90) {
-    if (p90 <= available) return 'cabe';
-    if (med <= available) return 'apertado';
-    return 'nao_cabe';
-  }
-
-  /**
-   * A frase do RESULTADO (v4): por que a linha cabe, está apertada ou não cabe.
-   * Sai dos MESMOS números que `classify` compara (dias disponíveis, mediana
-   * arredondada para cima e P90), então nunca contradiz o selo. Em semanas,
-   * como o resto do Simulador; "folga no P90" = dias que sobram entre a chegada
-   * do P90 e a data pedida.
-   */
-  function reason(row, result) {
-    if (!row) return '';
-    if (row.small) return `Menos de ${MIN_SAMPLE} trânsitos no histórico: sem estimativa.`;
-    if (!row.status || !result || !result.arriveBy) return '';
-    const available = result.available, med = Math.ceil(row.median), p90 = row.p90;
-    const days = (n) => `${n} ${n === 1 ? 'dia' : 'dias'}`;
-    const asked = (iso) => weekStart(iso) === weekStart(result.arriveBy);
-    if (row.status === 'nao_cabe') {
-      return asked(row.arrivalFrom)
-        ? `Chegaria na semana pedida, mas ${days(med - available)} depois da data.`
-        : `Chegaria na ${weekLabel(row.arrivalFrom)}, depois da data pedida.`;
-    }
-    if (row.status === 'apertado') {
-      return `Chega ${asked(row.arrivalFrom) ? 'na semana pedida' : 'na ' + weekLabel(row.arrivalFrom)} pela mediana, mas o P90 (${days(p90)}) passa da data.`;
-    }
-    const slack = available - p90;
-    const when = asked(row.arrivalFrom) && asked(row.arrivalTo) ? 'na semana pedida' : weekWindow(row.arrivalFrom, row.arrivalTo);
-    return slack > 0 ? `Chega ${when}, com ${days(slack)} de folga no P90.` : `Chega ${when}; no P90 (${days(p90)}) chega no dia pedido, sem folga.`;
-  }
-
-  /**
-   * As linhas do simulador. `ops` já vem recortado pela página (período +
-   * filtros globais); `route` opcional restringe a uma rota. Uma linha por
-   * rota × agente com histórico.
-   */
-  function simulate(D, ops, { route = '', arriveBy = '', today = D.cutoff } = {}) {
+  function simulate(D, ops, { route = '' } = {}) {
     const scoped = route ? ops.filter((o) => o.route === route) : ops;
-    // O par rota × agente é agrupado por IntelTabs.pairGroups, a mesma função que
-    // alimenta "Trânsito por rota" e "Agentes da rota" nas fichas.
-    const groups = Tabs.pairGroups(scoped);
-    const dateOk = validIso(arriveBy);
-    const available = dateOk ? diffDays(today, arriveBy) : null;
-    const rows = groups.map((g) => {
+    const rows = Tabs.pairGroups(scoped).map((g) => {
       const transits = Tabs.transitDays(D, g.ops);
       const n = transits.length;
       const base = { route: g.route, agent: g.agent, routeName: Tabs.nameOf(D, 'rota', g.route), agentName: Tabs.nameOf(D, 'ag', g.agent), shipments: g.ops.length, n, transits: [...transits].sort((a, b) => a - b) };
-      if (n < MIN_SAMPLE) return { ...base, small: true, median: null, p90: null, status: 'small' };
-      const med = median(transits), p90 = percentile(transits, HIGH_PERCENTILE);
-      const row = { ...base, small: false, median: med, p90, margin: p90 - Math.ceil(med) };
-      if (!dateOk || available <= 0) return { ...row, status: null };
-      // Data em dias inteiros: a mediana fracionária arredonda PARA CIMA (o lado conservador).
-      const medDays = Math.ceil(med);
-      return {
-        ...row,
-        status: classify(available, medDays, p90),
-        arrivalFrom: addDays(today, medDays),
-        arrivalTo: addDays(today, p90),
-        departBySafe: addDays(arriveBy, -p90),
-        departByMedian: addDays(arriveBy, -medDays),
-      };
+      if (n < MIN_SAMPLE) return { ...base, small: true, median: null, p90: null };
+      return { ...base, small: false, median: median(transits), p90: percentile(transits, HIGH_PERCENTILE) };
     });
-    const estimable = rows.filter((r) => !r.small);
-    let state = 'ok';
-    if (!dateOk) state = 'no_date';
-    else if (available <= 0) state = 'past';
-    else if (!rows.length) state = 'no_history';
-    else if (!estimable.length) state = 'all_small';
-    else if (estimable.every((r) => r.status === 'nao_cabe')) state = 'all_nao_cabe';
-    // Para "nada cabe": a partir de quando a mediana mais curta do recorte chega.
-    const fastest = estimable.length ? Math.min(...estimable.map((r) => Math.ceil(r.median))) : null;
-    return {
-      state,
-      rows,
-      today,
-      arriveBy: dateOk ? arriveBy : null,
-      available,
-      earliestArrival: fastest == null ? null : addDays(today, fastest),
-      counts: { cabe: rows.filter((r) => r.status === 'cabe').length, apertado: rows.filter((r) => r.status === 'apertado').length, nao_cabe: rows.filter((r) => r.status === 'nao_cabe').length, small: rows.filter((r) => r.small).length },
-    };
-  }
-
-  // ------------------------------------------------------------- ordem ---
-  const SORT_VALUE = {
-    route: (r) => r.routeName,
-    agent: (r) => r.agentName,
-    shipments: (r) => r.shipments,
-    median: (r) => r.median,
-    p90: (r) => r.p90,
-  };
-  const COLUMNS = [['route', 'Rota'], ['agent', 'Agente de cargas'], ['shipments', 'Histórico'], ['median', 'Trânsito (mediana · P90)'], [null, 'Chegada estimada se embarcar agora'], [null, 'Resultado']];
-  const DEFAULT_SORT = { key: 'shipments', dir: 'desc' };
-  /** Volume por padrão; ausente (amostra pequena) sempre no fim; empate por rota e agente. */
-  function sortSimRows(rows, sort = DEFAULT_SORT) {
-    const get = SORT_VALUE[sort.key] || SORT_VALUE.shipments;
-    const sign = sort.dir === 'asc' ? 1 : -1;
-    return [...rows].sort((a, b) => {
-      const va = get(a), vb = get(b);
-      const na = va == null, nb = vb == null;
-      if (na !== nb) return na ? 1 : -1;
-      if (!na && va !== vb) return (typeof va === 'string' ? va.localeCompare(vb, 'pt-BR') : va - vb) * sign;
-      return b.shipments - a.shipments || a.routeName.localeCompare(b.routeName, 'pt-BR') || a.agentName.localeCompare(b.agentName, 'pt-BR');
-    });
-  }
-  function nextSort(current, key) {
-    if (current && current.key === key) return { key, dir: current.dir === 'desc' ? 'asc' : 'desc' };
-    return { key, dir: key === 'route' || key === 'agent' ? 'asc' : 'desc' };
+    return { rows };
   }
 
   // ------------------------------------------------- janela de histórico ---
@@ -212,27 +101,12 @@
   }
   function windowLabel(key) { return (WINDOWS.find(([id]) => id === key) || WINDOWS[1])[1]; }
 
-  /** Entradas da URL: `srota` (rota ou vazio), `chegada` (data desejada) e `janela`. */
-  function readInputs(D, params, today = D.cutoff) {
-    const get = (k) => (typeof params.get === 'function' ? params.get(k) : params[k]);
-    const route = D.routes.some((r) => r.id === get('srota')) ? get('srota') : '';
-    const raw = get('chegada');
-    return { route, arriveBy: validIso(raw) ? raw : defaultArrival(today), explicit: validIso(raw), window: readWindow(params) };
-  }
-  /**
-   * Data desejada padrão: 32 dias depois de hoje (pouco mais de 4 semanas), para a
-   * aba responder sem clique. Com a fixture, é a data em que a leitura padrão
-   * (12 meses) já mostra os três resultados lado a lado.
-   */
-  const DEFAULT_ARRIVAL_DAYS = 32;
-  function defaultArrival(today) { return addDays(today, DEFAULT_ARRIVAL_DAYS); }
-
   /** As quatro linhas do "Como é calculado" do simulador. */
   function howCalculated(D, filters, windowKey = DEFAULT_WINDOW, today = D.cutoff) {
     const active = Engine.FILTERS.filter((f) => (filters[f.key] || []).length);
     return [
       { label: 'Fonte', text: 'Data de saída e data de chegada ao destino registradas em cada embarque do histórico.' },
-      { label: 'Fórmula', text: `Trânsito = chegada − saída, em dias. Por rota e agente: mediana e P${HIGH_PERCENTILE} (o menor trânsito que cobre ${HIGH_PERCENTILE}% dos casos). Data limite de embarque = data desejada − P${HIGH_PERCENTILE} (com folga) ou − mediana (no limite). Cabe na data: até o P${HIGH_PERCENTILE} chega a tempo embarcando a partir de hoje. Apertado: só a mediana chega. Não cabe: nem a mediana. Menos de ${MIN_SAMPLE} trânsitos: sem estimativa.` },
+      { label: 'Fórmula', text: `Trânsito = chegada − saída, em dias. Por rota e agente: mediana e P${HIGH_PERCENTILE} (o menor trânsito que cobre ${HIGH_PERCENTILE}% dos casos). Embarque limite = data-alvo − P${HIGH_PERCENTILE} (cobre 9 de 10) ou − mediana (cobre metade). Cobertura = embarques do histórico cujo trânsito coube na margem ÷ embarques com saída e chegada. Menos de ${MIN_SAMPLE} trânsitos: sem estimativa.` },
       { label: 'Histórico', text: `${windowLabel(windowKey)}${windowStart(windowKey, today) ? `, pela data de saída, de ${windowStart(windowKey, today).split('-').reverse().join('/')} até hoje` : ', todos os embarques com saída até hoje'}. O período do painel não se aplica ao Simulador. Hoje, nesta demonstração, é ${today.split('-').reverse().join('/')}.` },
       { label: 'Filtros que se aplicam', text: active.length ? `Ativos: ${active.map((f) => `${f.label} (${filters[f.key].map((v) => f.name(D, v)).join(', ')})`).join('; ')}.` : 'Todos os filtros globais (exportador, agente, rota, incoterm, país, SKU).' },
     ];
@@ -283,6 +157,12 @@
     return { good, base, pct: Math.round((good / base) * 100) };
   }
 
+  /** Faixa descritiva neutra (S3): "Cobre 9 de 10". Arredonda PARA BAIXO, o lado conservador. */
+  function coverageBand(c) {
+    if (!c || c.good == null || !c.base) return null;
+    return `Cobre ${Math.floor((c.good / c.base) * 10)} de 10`;
+  }
+
   /** Os embarques do cliente para a tarefa: rota e modal, com chegada e saída registradas para o trânsito. */
   function taskOps(D, ops, task) {
     return ops.filter((o) => o.route === task.route && modalOfRoute(D, o.route) === task.modal);
@@ -326,6 +206,10 @@
       out.limitP90 = addDays(out.portTarget, -route.p90);
       out.limitMedian = addDays(out.portTarget, -Math.ceil(route.median));
       out.coverToday = coverage(route.values, out.margin);
+      // A cobertura de cada data limite é contada, não suposta: "9 de 10" e
+      // "metade" são o que o histórico de fato mostra naquela margem.
+      out.coverP90 = coverage(route.values, route.p90);
+      out.coverMedian = coverage(route.values, Math.ceil(route.median));
     } else {
       if (diffDays(today, date) < 0) return { ...out, state: 'past' };
       out.arrivalMedian = addDays(date, Math.ceil(route.median));
@@ -338,7 +222,7 @@
     return out;
   }
 
-  const api = { MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, STATUS, COLUMNS, DEFAULT_SORT, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, departureLabel, classify, reason, simulate, sortSimRows, nextSort, readInputs, defaultArrival, howCalculated, addDays, diffDays, validIso };
+  const api = { MODES, MODALS, EXAMPLE, modalOfRoute, modalLabel, readTask, stats, coverage, coverageBand, taskOps, plan, MIN_SAMPLE, HIGH_PERCENTILE, WINDOWS, DEFAULT_WINDOW, readWindow, windowStart, inWindow, windowLabel, percentile, median, weekStart, weekLabel, weekWindow, simulate, howCalculated, addDays, diffDays, validIso };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelSim = api;
 })(typeof window !== 'undefined' ? window : globalThis);

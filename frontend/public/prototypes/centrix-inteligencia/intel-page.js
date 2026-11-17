@@ -21,7 +21,6 @@ let intelLayout = IL.setMode((() => { try { return IL.load(localStorage); } catc
 let intelPers = IP.load(STORE);      // temas e cards ligados da Visão geral
 const tableSort = new Map();       // ordenação de cada tabela de aba (dim -> {key, dir}), preservada entre renders
 let reportEntity = null;           // entidade do painel de detalhe que abriu o relatório
-let simSort = null;                // ordenação da tabela do Simulador, preservada entre renders
 let openFilterKey = null;          // dropdown de filtro aberto, preservado entre renders
 const openKpiHow = new Set();      // "Como é calculado" abertos, preservados entre renders
 let persDraft = null;                // rascunho do "Personalizar a Inteligência" (painel ou introdução)
@@ -586,34 +585,7 @@ function extraTabContent(tab, s) { return tab === 'simulador' ? simulatorTab(s) 
    o histórico do recorte (intel-sim.js), em semanas, sem custo e sem
    recomendação. Hoje = o corte da demonstração (D.cutoff, relativo à data atual ou ?hoje=), o mesmo relógio de
    toda a página. */
-const SIM_ICON = { cabe: '✓', apertado: '◐', nao_cabe: '×', small: '?' };
-function simStatus(r) {
-  const key = r.small ? 'small' : r.status;
-  if (!key) return '—';
-  return `<span class="sim-status ${key}"><span aria-hidden="true">${SIM_ICON[key]}</span> ${IS.STATUS[key].label}</span>`;
-}
 const daysTxt = v => String(v).replace('.', ',');
-function simTable(result) {
-  const sort = simSort || IS.DEFAULT_SORT, rows = IS.sortSimRows(result.rows, sort);
-  const head = IS.COLUMNS.map(([key, label]) => {
-    if (!key) return `<th scope="col"><span class="th-plain">${label}</span></th>`;
-    const on = sort.key === key, dir = on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
-    return `<th scope="col" aria-sort="${dir}"><button type="button" class="sort-button${on ? ' active' : ''}" data-action="sim-sort" data-key="${key}">${label} <span aria-hidden="true">${on ? (sort.dir === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>`;
-  }).join('');
-  const body = rows.map(r => {
-    const hist = `${r.n} ${r.n === 1 ? 'trânsito' : 'trânsitos'}<small>${r.shipments} ${r.shipments === 1 ? 'embarque' : 'embarques'} no histórico</small>${r.small ? smallTag(r.n) : ''}`;
-    const L = IS.COLUMNS.map(([, label]) => esc(label));
-    if (r.small || !r.status) return `<tr><td data-label="${L[0]}"><b>${esc(r.routeName)}</b></td><td data-label="${L[1]}">${esc(r.agentName)}</td><td data-label="${L[2]}">${hist}</td><td data-label="${L[3]}">${r.small ? '—' : `${daysTxt(r.median)} · ${r.p90} dias`}</td><td data-label="${L[4]}">—</td><td data-label="${L[5]}">${simStatus(r)}${r.small ? `<span class="sim-reason">${esc(IS.reason(r, result))}</span>` : ''}</td></tr>`;
-    // RESULTADO (v4): o selo e UMA frase que explica o porquê, da mesma regra de
-    // classificação (IntelSim.reason). O par antigo "Com folga / No limite" fica em "ver cálculo".
-    const safe = IS.departureLabel(r.departBySafe, result.today), lim = IS.departureLabel(r.departByMedian, result.today);
-    const calc = `<details class="sim-calc"><summary>ver cálculo</summary><p>Data limite de embarque para chegar até a data. Com folga (P90): ${safe.text}. No limite (mediana): ${lim.text}.</p><p>Trânsito: mediana ${daysTxt(r.median)} dias, P90 ${r.p90} dias. Faltam ${result.available} ${result.available === 1 ? 'dia' : 'dias'} até a data pedida.</p></details>`;
-    return `<tr><td data-label="${L[0]}"><b>${esc(r.routeName)}</b></td><td data-label="${L[1]}">${esc(r.agentName)}</td><td data-label="${L[2]}">${hist}</td><td data-label="${L[3]}">${daysTxt(r.median)} · ${r.p90} dias<small>folga do P90: ${r.margin} ${r.margin === 1 ? 'dia' : 'dias'}</small></td><td data-label="${L[4]}">Chegada estimada ${IS.weekWindow(r.arrivalFrom, r.arrivalTo)}</td><td data-label="${L[5]}">${simStatus(r)}<span class="sim-reason">${esc(IS.reason(r, result))}</span>${calc}</td></tr>`;
-  }).join('');
-  // Conteúdo de cada célula num só bloco: no celular a célula vira grade rótulo | valor.
-  const cells = body.replace(/(<td data-label="[^"]*">)([\s\S]*?)(<\/td>)/g, '$1<div>$2</div>$3');
-  return `<div class="table-wrap sim-wrap"><table class="compare sim-table"><thead><tr>${head}</tr></thead><tbody>${cells}</tbody></table></div>`;
-}
 function simHow(s) {
   const open = openKpiHow.has('sim');
   const lines = IS.howCalculated(D, s.gf, IS.readWindow(params), D.cutoff);
@@ -664,10 +636,14 @@ function simResultBand(r) {
   if (r.state === 'no_date') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Escolha ${ask}.</p></div>`;
   if (r.state === 'no_history') return `<div class="fact-band sim-result" role="status"><p class="fact-text">Sem histórico suficiente para esta rota e modal.</p><p class="fact-conc">${r.route.n} ${r.route.n === 1 ? 'embarque' : 'embarques'} com saída e chegada registradas; são precisos ${IS.MIN_SAMPLE}. Nada é simulado sem base.</p></div>`;
   if (r.state === 'past') return `<div class="fact-band sim-result" role="status"><p class="fact-text">${t.mode === 'chegar' ? 'A data-alvo' : 'A data de embarque'} já passou: hoje, nesta demonstração, é ${fullDate(r.today)}.</p></div>`;
-  if (r.state === 'before_min') return `<div class="fact-band sim-result" role="status"><p class="fact-text">A data-alvo é anterior ao menor trânsito do histórico.</p><p class="fact-conc">Embarcando hoje (${dm(r.today)}), o trânsito mais curto registrado (${r.route.min} dias, em ${r.route.n} embarques) chegaria em ${dm(IS.addDays(r.today, r.route.min))}.</p></div>`;
+  if (r.state === 'before_min') return `<div class="fact-band sim-result" role="status"><p class="fact-text">A data-alvo é anterior ao menor trânsito do histórico.</p><p class="fact-conc">Embarcando hoje (${dm(r.today)}), o trânsito mais curto registrado (${r.route.min} dias, em ${r.route.n} embarques) chegaria ao destino em ${dm(IS.addDays(r.today, r.route.min))}${r.basis === 'final' ? `, e a perna nacional até o cliente levou até ${r.leg.p90} dias (P90)` : ''}.</p></div>`;
   const final = r.basis === 'final';
+  // S3: frase calculada, a de b contado no histórico, percentual secundário,
+  // faixa descritiva neutra. Sem "cabe", sem cor, sem recomendação.
+  const ab = c => `${c.good} de ${c.base}`, pc = c => `<small class="pct">${c.pct}%</small>`;
+  const band = c => `<span class="cover-band">${esc(IS.coverageBand(c))}</span>`;
   const head = t.mode === 'chegar'
-    ? `<p class="fact-text">Para ${final ? 'a entrega final' : 'a chegada ao destino'} até ${dm(t.target)}, embarcar até <b>${dm(r.limitP90)}</b> cobre 9 de 10 embarques parecidos (P90); até <b>${dm(r.limitMedian)}</b> cobre metade (mediana).</p><p class="fact-conc">Embarcando hoje (${dm(r.today)}), ${r.coverToday.good} de ${r.coverToday.base} embarques parecidos chegaram a tempo.</p>`
+    ? `<p class="fact-text">Para ${final ? 'a entrega final' : 'a chegada ao destino'} até ${dm(t.target)}, embarcar até <b>${dm(r.limitP90)}</b> cobre ${ab(r.coverP90)} embarques parecidos (P90); até <b>${dm(r.limitMedian)}</b> cobre ${ab(r.coverMedian)} (mediana).</p><p class="sim-cover">${band(r.coverToday)} <span>Embarcando hoje (${dm(r.today)}), <b>${ab(r.coverToday)}</b> embarques parecidos chegaram até a data-alvo ${pc(r.coverToday)}</span></p>`
     : `<p class="fact-text">Embarcando em ${dm(t.departure)}, metade dos embarques parecidos chegou ao destino até <b>${dm(r.arrivalMedian)}</b> (mediana) e 9 de 10 até <b>${dm(r.arrivalP90)}</b> (P90)${final ? `; com a perna nacional, entrega final até ${dm(r.finalMedian)} (mediana) e ${dm(r.finalP90)} (P90)` : ''}.</p>`;
   return `<div class="fact-band sim-result" role="status">${head}${simMeasures(r)}</div>`;
 }
@@ -686,9 +662,7 @@ function simMeasures(r) {
 function simulatorTab(s) {
   const today = D.cutoff, ss = simScope(s), task = IS.readTask(D, params, today);
   const r = IS.plan(D, ss.cur, task, today);
-  const old = IS.simulate(D, ss.cur, { route: task.route, arriveBy: task.mode === 'chegar' ? task.target : '', today });
-  const showTable = r.state === 'ok' && task.mode === 'chegar' && old.rows.length;
-  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${simHow(s)}${showTable ? simTable(old) : ''}<p class="chart-caption">Histórico, não garantia. Sem nota nem recomendação. Custos ficam fora desta prévia.</p></section>`;
+  return `<section class="block sim" id="aba-simulador" aria-label="Simulador de cenários (Prévia)">${simTaskBar(task)}${simResultBand(r)}${simHow(s)}<p class="chart-caption">Histórico, não garantia. Sem nota nem recomendação. Custos ficam fora desta prévia.</p></section>`;
 }
 function setSimParam(changes) { location.hash = url('executivo', changes); }
 function intelOverview() {
@@ -921,7 +895,6 @@ document.addEventListener('click', e => {
   else if (a === 'intel-report') { reportEntity = null; openReportPanel(); }
   else if (a === 'tab-sort') { const dim = b.dataset.dim; tableSort.set(dim, IT.nextSort(tableSort.get(dim) || IT.DEFAULT_SORT, b.dataset.key)); render(); document.querySelector(`[data-action="tab-sort"][data-dim="${dim}"][data-key="${b.dataset.key}"]`)?.focus(); }
   else if (a === 'entity-open') location.hash = url('executivo', { sel: b.dataset.id, de: null });
-  else if (a === 'sim-sort') { simSort = IS.nextSort(simSort || IS.DEFAULT_SORT, b.dataset.key); render(); document.querySelector(`[data-action="sim-sort"][data-key="${b.dataset.key}"]`)?.focus(); }
   else if (a === 'sim-all-routes') setSimParam({ srota: null });
   else if (a === 'sim-mode') setSimParam({ smodo: b.dataset.mode === 'embarcar' ? 'embarcar' : null });
   else if (a === 'sim-clear') { setSimParam({ sinicio: 'vazio', srota: null, smodal: null, chegada: null, sembarque: null, smodo: null }); toast('Simulador limpo: escolha rota, modal e data.'); }
