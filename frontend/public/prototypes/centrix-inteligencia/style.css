@@ -392,6 +392,10 @@ table.compare td .sample-tag{margin-top:4px}
 .fold.commitments{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 24px;margin-top:16px}
 .fold.commitments[open]{padding-bottom:20px}
 .fold.commitments .card-sub{margin-bottom:14px}
+/* A2: Performance é dobra com estado próprio, na moldura de card. */
+.fold.perf{padding:8px 24px}
+.fold.perf[open]{padding-bottom:22px}
+.fold.perf>summary h2{font-size:19px}
 .charts.single{grid-template-columns:1fr}
 .chart-card{border-radius:12px;padding:20px 22px}
 .chart-card h3{font-size:16px}
@@ -561,7 +565,7 @@ dialog.onb::backdrop{background:var(--backdrop)}
   .insight-line.accent{font-size:15px}
   .support-row{grid-template-columns:1fr}.support{grid-template-columns:1fr}.support .spark{height:44px}
   .support-number{font-size:32px}
-  .fold.commitments{padding:6px 16px}
+  .fold.commitments,.fold.perf{padding:6px 16px}
   .fa{grid-template-columns:1fr}.fa-actions{margin:16px -18px -20px;padding:12px 18px}
   .fa-actions>span{flex:1 1 100%}.fa-actions .button{flex:1}
   .onb-body{padding:22px 18px 18px}.onb h2{font-size:23px}.onb-illus>div{padding:8px 10px}.onb-illus b{font-size:21px}

@@ -11,7 +11,7 @@
    periodRange, params...) em tempo de chamada, por isso é carregado ANTES de
    app.js e não executa nada sozinho. */
 
-const IE = window.IntelEngine, IL = window.IntelLayout, IT = window.IntelTabs, IS = window.IntelSim, IP = window.IntelPersonalize;
+const IE = window.IntelEngine, IL = window.IntelLayout, IT = window.IntelTabs, IS = window.IntelSim, IP = window.IntelPersonalize, IF = window.IntelFolds;
 /* v4 (13/11/2026): não há mais modos de leitura nem ordem de blocos. A Visão
    geral tem UMA hierarquia fixa e o cliente liga e desliga cards por tema
    (intel-personalize.js). `intelLayout` continua existindo só porque as visões
@@ -26,8 +26,10 @@ let openFilterKey = null;          // dropdown de filtro aberto, preservado entr
 const openKpiHow = new Set();      // "Como é calculado" abertos, preservados entre renders
 let persDraft = null;                // rascunho do "Personalizar a Inteligência" (painel ou introdução)
 let adjustDraft = null;              // rascunho de período e filtros do painel "Filtros e ajustes"
-let evoOpen = true;                  // seção "Evolução" aberta por padrão, preservada entre renders
-let commitmentsOpen = false;         // "Compromissos do serviço" recolhido por padrão
+/* Dobras recolhíveis: UMA chave por seção (intel-folds.js, puro e testado),
+   preservadas entre renders. Recolher uma não mexe em outra (A2). */
+let folds = IF.defaults();
+const foldAttrs = id => `data-fold="${id}" ${IF.isOpen(folds, id) ? 'open' : ''}`;
 let intelViews = (() => { try { return IL.loadViews(localStorage); } catch { return []; } })();
 const FILTER_KEYS = IE.FILTERS.map(f => f.key);
 function saveViews(next) { intelViews = next; try { IL.saveViews(localStorage, intelViews); } catch {} }
@@ -184,7 +186,7 @@ function evolutionBlock(s, vis) {
   const keys = [['ready', 'Prontidão', 's1'], ['port', 'Chegada ao destino', 's2'], ['final', 'Entrega final', 's3']];
   const c1 = prazo ? `<div class="chart-card"><h3>Prazo por etapa · últimos 6 meses</h3>${lineChart(keys.map(([k]) => IE.monthly(D, k, base, s.range.end)), keys)}<p class="chart-caption">Percentual no prazo em cada etapa, por mês do compromisso de prontidão. Meses recentes ainda têm cargas em curso.</p></div>` : '';
   const c2 = frete ? `<div class="chart-card"><h3>Frete por mês</h3>${barChart(IE.monthly(D, 'freight', base, s.range.end), D.cutoff.slice(0, 7))}<p class="chart-caption">Frete internacional contratado (USD) por mês do compromisso de prontidão. Exclui taxas e trecho terrestre.</p></div>` : '';
-  return `<details class="fold evo" id="bloco-graficos" data-fold="evo" ${evoOpen ? 'open' : ''}><summary><h2 id="t-graficos">Evolução</h2><span class="fold-toggle" aria-hidden="true"></span></summary><div class="charts${prazo && frete ? '' : ' single'}">${c1}${c2}</div></details>`;
+  return `<details class="fold evo" id="bloco-graficos" ${foldAttrs('evo')}><summary><h2 id="t-graficos">Evolução</h2><span class="fold-toggle" aria-hidden="true"></span></summary><div class="charts${prazo && frete ? '' : ' single'}">${c1}${c2}</div></details>`;
 }
 /* NÍVEL 4: detalhe por trecho. Cinco trechos em sequência; sem desvio em cinza,
    com desvio em destaque. Cada trecho continua abrindo a base (stageDrawer). */
@@ -193,7 +195,10 @@ function trechosBlock(s) {
     const e = s.cur.filter(o => o[st.from] && o[st.to]), bad = e.filter(o => D.days(o[st.from], o[st.to]) > st.plan(o));
     return `<li><button type="button" class="stage-cell${bad.length ? ' has-dev' : ''}" data-action="stage" data-id="${st.id}"><span class="stage-name">${esc(st.label)}</span><b>${bad.length}/${e.length}</b><span class="stage-what">acima do previsto</span><small>${e.length} de ${s.cur.length} com marcos</small></button></li>`;
   }).join('');
-  return `<section class="card trechos" id="bloco-performance" aria-labelledby="t-performance"><h2 id="t-performance">Performance · Onde os tempos excedem o previsto</h2><p class="card-sub">Dias corridos por trecho concluído; cada trecho abre a base. Por parceiro e por rota, veja os submódulos.</p><ol class="stages">${cells}</ol><p class="chart-caption">Trechos sem desvio ficam em cinza; os que têm desvio ganham destaque. O desvio localiza o trecho, não a causa nem o responsável.</p>${detailLink('trechos')}</section>`;
+  const dev = D.stages.filter(st => s.cur.some(o => o[st.from] && o[st.to] && D.days(o[st.from], o[st.to]) > st.plan(o))).length;
+  // A2: a seção é recolhível, com estado próprio. O resumo na linha do título
+  // ("· 2 de 5 trechos com desvio") deixa o essencial à vista quando recolhida.
+  return `<details class="fold perf card trechos" id="bloco-performance" ${foldAttrs('perf')}><summary><h2 id="t-performance">Performance · Onde os tempos excedem o previsto <span class="fold-count">· ${dev} de ${D.stages.length} trechos com desvio</span></h2><span class="fold-toggle" aria-hidden="true"></span></summary><p class="card-sub">Dias corridos por trecho concluído; cada trecho abre a base. Por parceiro e por rota, veja os submódulos.</p><ol class="stages">${cells}</ol><p class="chart-caption">Trechos sem desvio ficam em cinza; os que têm desvio ganham destaque. O desvio localiza o trecho, não a causa nem o responsável.</p>${detailLink('trechos')}</details>`;
 }
 function commitmentsBlock(s) {
   // Mora no submódulo Agentes de carga desde 23/10/2026: é o combinado com o AGENTE.
@@ -203,7 +208,7 @@ function commitmentsBlock(s) {
   const rows = IE.commitments(D, s.cur).sort((a, b) => (a.status === 'deviation' ? 0 : 1) - (b.status === 'deviation' ? 0 : 1)), LABEL = { deviation: 'Desvio identificado', clean: 'Sem desvio', missing: 'Falta informação' };
   const dev = rows.filter(r => r.status === 'deviation').length;
   const ctl = c => `${esc(c.name)}: ${c.actual} ${c.unit} <small>combinado ${c.agreed} ${c.unit}</small>`;
-  const open = commitmentsOpen || pagePath === 'compromissos';
+  const open = IF.isOpen(folds, 'commitments') || pagePath === 'compromissos';
   return `<details class="fold commitments" id="bloco-compromissos" data-fold="commitments" ${open ? 'open' : ''}><summary><h2 id="t-compromissos">Compromissos do serviço <span class="fold-count">· ${dev} de ${rows.length} com desvio</span></h2><span class="fold-toggle" aria-hidden="true"></span></summary><p class="card-sub">Prazos e condições combinados com o agente × o realizado. Relatório de leitura: um desvio sozinho não atribui responsabilidade. Os desvios de cada agente também aparecem na ficha dele.</p>${rows.length ? table(['Exportador / PO', 'Agente / rota', 'Desvios', 'Situação'], rows.map(({ o, deviations, status }) => `<tr><td>${esc(company(o.supplier).name)}<small>${esc(o.po)} · ${esc(o.id)}</small></td><td>${esc(agent(o.agent).name)}<small>${esc(routeName(route(o.route)))}</small></td><td>${deviations.length ? deviations.map(ctl).join('<br>') : '—'}</td><td><span class="pill ${status === 'clean' ? 'good' : ''}">${LABEL[status]}</span></td></tr>`).join('')) : '<p class="muted">Nenhum embarque neste recorte.</p>'}</details>`;
 }
 
@@ -833,10 +838,11 @@ document.addEventListener('click', e => {
   persDraft = IP.toggleTheme(persDraft, b.dataset.persTheme);
   refreshPers(`[data-pers-theme="${b.dataset.persTheme}"]`);
 });
-// Dobras ("Evolução", "Compromissos do serviço"): o estado sobrevive ao redesenho.
+// Dobras ("Evolução", "Performance", "Compromissos do serviço"): cada uma guarda
+// o PRÓPRIO estado pela chave `data-fold`, que sobrevive ao redesenho.
 document.addEventListener('toggle', e => {
   const d = e.target; if (!d.dataset || !d.dataset.fold) return;
-  if (d.dataset.fold === 'evo') evoOpen = d.open; else if (d.dataset.fold === 'commitments') commitmentsOpen = d.open;
+  folds = IF.setOpen(folds, d.dataset.fold, d.open);
 }, true);
 document.addEventListener('toggle', e => {
   const d = e.target; if (!d.matches || !d.matches('details.fsel')) return;
