@@ -236,8 +236,10 @@ function headChips(s, tab, ss) {
   else if (!s.range.valid) chips.push('<span class="chip warn">Período inválido: revise as datas em Filtros e ajustes</span>');
   else {
     const label = periodNames[params.get('period') || 'days90'] || 'Personalizado', p = IE.previousRange(s.range);
-    chips.push(`<span class="chip">${esc(label)} · <b>${shortRange(s.range.start, s.range.end)}</b></span>`);
-    chips.push(`<span class="chip" title="${esc(IE.comparisonCaption(s.range))}">comparado com ${shortRange(p.start, p.end)}</span>`);
+    // B2: os chips de período e de comparação abrem "Filtros e ajustes" já no
+    // campo Período (a comparação sai do período; não há campo próprio).
+    chips.push(`<button type="button" class="chip chip-edit" data-action="intel-adjust" data-field="period" aria-label="${esc(label)}, ${shortRange(s.range.start, s.range.end)}. Alterar o período em Filtros e ajustes">${esc(label)} · <b>${shortRange(s.range.start, s.range.end)}</b></button>`);
+    chips.push(`<button type="button" class="chip chip-edit" data-action="intel-adjust" data-field="period" title="${esc(IE.comparisonCaption(s.range))}" aria-label="Comparado com ${shortRange(p.start, p.end)}. ${esc(IE.comparisonCaption(s.range))} Alterar o período em Filtros e ajustes">comparado com ${shortRange(p.start, p.end)}</button>`);
   }
   chips.push(`<span class="chip"><b>${ss.cur.length}</b> de ${ss.all.length} embarques</span>`);
   const filters = IE.FILTERS.flatMap(f => (s.gf[f.key] || []).map(v => `<button class="filter-chip" data-action="gfilter-remove" data-key="${f.key}" data-value="${esc(v)}" aria-label="Remover filtro ${esc(f.label)}: ${esc(f.name(D, v))}">${esc(f.label)}: ${esc(f.name(D, v))} <span aria-hidden="true">×</span></button>`));
@@ -702,11 +704,16 @@ function refreshAdjust(focusSelector) {
   root.innerHTML = adjustFiltersHtml();
   if (focusSelector) root.querySelector(focusSelector)?.focus();
 }
-function openAdjust() {
+/** Abre o painel. Com `field` (B2), o foco vai direto ao campo; seletor nativo abre a lista quando o navegador deixa. */
+function openAdjust(field) {
   adjustDraft = { period: params.get('period') || 'days90', start: params.get('start') || '', end: params.get('end') || '', gf: IE.readFilters(params) };
   persDraft = IP.normalize(intelPers); openFilterKey = null;
   openDrawer('Filtros e ajustes', 'O recorte e os cards da Inteligência, num lugar só.', `<div class="fa"><section class="fa-section" aria-labelledby="fa-t1"><h3 id="fa-t1">Filtros</h3><div id="fa-filters">${adjustFiltersHtml()}</div></section><section class="fa-section" aria-labelledby="fa-t2"><h3 id="fa-t2">Personalizar a Inteligência</h3><p class="fa-help">Escolha os temas e ligue ou desligue cada card. A Visão geral mostra só os cards ligados dos temas escolhidos.</p><div data-pers-root>${persFieldsHtml()}</div><p class="pers-foot"><button type="button" class="text-button" data-action="pers-reset">Refazer personalização do zero</button> <span id="pers-reset-note" role="status"></span></p></section></div><div class="fa-actions" data-bottom-action-bar><button type="button" class="text-button" data-action="onb-open">Ver introdução</button><span><button type="button" class="button secondary" data-action="fa-clear">Limpar filtros</button><button type="button" class="button" data-action="fa-apply">Aplicar</button></span></div>`);
   sheetMode('adjust-sheet');
+  if (field === 'period') {
+    const el = document.getElementById('fa-period');
+    if (el) { el.focus(); el.scrollIntoView({ block: 'nearest' }); try { el.showPicker?.(); } catch {} }
+  }
 }
 function applyAdjust() {
   const d = adjustDraft;
@@ -787,7 +794,7 @@ function jumpTo(id) { const el = document.getElementById('bloco-' + id); if (el)
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-action]'); if (!b) return;
   const a = b.dataset.action, id = b.dataset.id;
-  if (a === 'intel-adjust') openAdjust();
+  if (a === 'intel-adjust') openAdjust(b.dataset.field);
   else if (a === 'fa-apply') applyAdjust();
   else if (a === 'fa-clear') { adjustDraft.gf = {}; openFilterKey = null; refreshAdjust('#fa-period'); }
   else if (a === 'dfilter-all' || a === 'dfilter-clear-one') {

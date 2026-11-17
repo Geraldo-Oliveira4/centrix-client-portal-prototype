@@ -319,6 +319,10 @@ table.compare td .sample-tag{margin-top:4px}
 .head-chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 16px}
 .chip{display:inline-flex;align-items:center;gap:.3em;min-height:34px;padding:5px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:14px;color:var(--ink)}
 .chip b{color:var(--indigo);font-weight:600}
+/* B2: chip de período e de comparação é botão: abre o painel no campo certo. */
+.chip-edit{cursor:pointer;text-decoration:underline dotted var(--line-strong);text-underline-offset:4px}
+.chip-edit:hover{background:var(--tint);border-color:var(--line-strong)}
+.chip-edit:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
 .chip.warn{border-color:var(--accent);background:var(--surface-2);color:var(--accent-ink)}
 .chip-note{font-size:14px;color:var(--ink-2);padding:0 4px}
 .chip-filters{display:flex;flex-wrap:wrap;align-items:center;gap:6px;width:100%}
