@@ -672,7 +672,8 @@ function simSourceLine(r) {
 }
 function simMeasures(r) {
   const days = v => String(v).replace('.', ',');
-  const port = `<li><b>${destTerm('Chegada ao destino')}</b> (porto ou aeroporto de descarga): trânsito mediano ${days(r.route.median)} dias, P90 ${r.route.p90} dias · ${r.route.n} embarques com saída e chegada</li>`;
+  // F4: o termo é dito uma vez, por extenso (destTerm repetiria a dica para o leitor de tela).
+  const port = `<li><b>Chegada ao destino</b> (porto ou aeroporto de descarga): trânsito mediano ${days(r.route.median)} dias, P90 ${r.route.p90} dias · ${r.route.n} embarques com saída e chegada</li>`;
   // A referência agregada já leva o aviso de integração no topo; ele não se repete.
   const notice = r.source !== 'referencia' && window.IntelSources ? IntelSources.noticeOf('final') : null;
   const final = r.basis === 'final'
@@ -704,7 +705,7 @@ function simAgentTable(r) {
       if (chegar) tds.push('<td class="quiet-col">—</td>');
     } else {
       tds.push(`<td class="quiet-col">${days(a.median)} dias<small>${a.n} com saída e chegada</small></td>`, `<td class="quiet-col">${a.p90} dias</td>`, `<td class="quiet-col">${days(a.spread)} ${a.spread === 1 ? 'dia' : 'dias'}<small>P90 − mediana</small></td>`);
-      if (chegar) tds.push(`<td class="lead-col"><span class="frac">${a.cover.good} de ${a.cover.base}</span><small class="pct">${a.cover.pct}%</small></td>`, `<td class="quiet-col">${dm(a.limitP90)} <small>P90 · ${dm(a.limitMedian)} pela mediana</small></td>`);
+      if (chegar) tds.push(`<td class="lead-col"><span class="frac">${a.cover.good} de ${a.cover.base}</span> <small class="pct">(${a.cover.pct}%)</small></td>`, `<td class="quiet-col">${dm(a.limitP90)} <small>P90 · ${dm(a.limitMedian)} pela mediana</small></td>`);
       else tds.push(`<td class="lead-col"><span class="frac">até ${dm(a.arrivalP90)}</span><small>P90 · ${dm(a.arrivalMedian)} pela mediana</small></td>`);
     }
     const prom = a.promised ? a.promised.days : '';

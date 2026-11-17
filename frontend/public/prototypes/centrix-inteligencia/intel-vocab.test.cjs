@@ -61,3 +61,18 @@ test('Simulador: sem escala "de 10" e sem selo de faixa', () => {
   assert.doesNotMatch(src, /\b(\d+|N|x) de 10\b/);
   assert.doesNotMatch(src, /coverageBand|cover-band/);
 });
+
+// F4 (17/11/2026): "Chegada ao destino (porto ou aeroporto de descarga)
+// (porto ou aeroporto de descarga)". destTerm já leva a dica por extenso para o
+// leitor de tela; repetir a dica em texto logo depois a dizia duas vezes.
+test('Simulador: rótulo não se repete dentro da própria frase, e percentual não cola no texto', () => {
+  const page = fs.readFileSync(path.join(HERE, 'intel-page.js'), 'utf8');
+  assert.doesNotMatch(page, /destTerm\([^)]*\)[^`]{0,12}\(porto ou aeroporto de descarga\)/i);
+  assert.match(page, /<b>Chegada ao destino<\/b> \(porto ou aeroporto de descarga\): trânsito mediano/);
+  // Percentual sempre separado do texto anterior (nada de "data-alvo100%" nem
+  // "de 5269%"). Só o trecho do Simulador: as outras subabas ficam fora desta PR.
+  const sim = page.slice(page.indexOf('function simResultBand'), page.indexOf('function simQuoteAction'));
+  assert.ok(sim.length > 1000);
+  assert.doesNotMatch(sim, /<\/span><small class="pct">/);
+  assert.doesNotMatch(sim, /data-alvo\$\{pc\(/);
+});

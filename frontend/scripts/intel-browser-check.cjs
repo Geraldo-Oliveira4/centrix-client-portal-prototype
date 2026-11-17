@@ -71,7 +71,12 @@ async function roteiroSimulador(page, base) {
   const text = (sel) => page.evaluate((s) => document.querySelector(s)?.innerText || '', sel);
   await go('#executivo?aba=simulador');
   const phrase = await text('.sim-result .fact-text');
-  check('S1/S3 exemplo preenchido com resultado à vista', /cobre \d+ de \d+/.test(phrase), phrase.slice(0, 90));
+  check('S1/F2 exemplo preenchido: cobertura da chegada ao porto, entrega final sem cobertura', /faz \d+ de \d+ embarques parecidos chegarem ao porto/.test(phrase) && !/cobre/i.test(phrase), phrase.slice(0, 90));
+  const cover = await text('.sim-cover'), pct = Number((cover.match(/\((\d+)%\)/) || [])[1]);
+  check('F1 exemplo com cobertura parcial embarcando hoje', pct >= 40 && pct <= 80, cover.slice(0, 70));
+  check('F3 sem escala "de 10" no Simulador', !/\b\d+ de 10\b|Cobre/.test(await text('#aba-simulador')));
+  const measures = await page.evaluate(() => document.querySelector('.sim-measures').textContent);
+  check('F4 "Chegada ao destino" dito uma vez', (measures.match(/porto ou aeroporto de descarga/gi) || []).length === 1, measures.slice(0, 80));
   check('S4 tabela por agente de carga', (await page.locator('.sim-agents-table tbody tr').count()) >= 2);
   check('S3 sem veredito Cabe/Não cabe', !/Cabe na data|Não cabe|Apertado/.test(await text('#aba-simulador')));
   const above = await page.evaluate(() => document.querySelector('.sim-result .fact-text').getBoundingClientRect().bottom <= innerHeight);
