@@ -620,7 +620,7 @@ function simComo(s, task, r) {
     + sec('O resultado por extenso', simFullText(r, false))
     + sec('Reserva da entrega final', note ? `<p class="sim-reserve-note">${esc(note)}</p>` : '')
     + sec('Fórmula e histórico', `<dl class="sim-how">${lines.map(l => `<dt>${esc(l.label)}</dt><dd>${esc(l.text)}</dd>`).join('')}</dl>`)
-    + sec('Limites', `${simNotes(r)}<p class="sim-limit">Dado, não veredito: as colunas da tabela são fatos do histórico, sem nota nem ranking. Com menos de ${IS.MIN_SAMPLE} embarques, “Amostra pequena” e nenhuma cobertura calculada. O prometido é o que a proposta diz; o histórico mostra quantas vezes ele foi cumprido.</p><p class="sim-limit">Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.</p>`);
+    + sec('Limites', `${simNotes(r)}<p class="sim-limit">Dado, não veredito: as colunas são fatos do histórico, sem nota nem ranking. Com menos de ${IS.MIN_SAMPLE} embarques, “Amostra pequena” e nenhuma cobertura calculada. O prometido é o que a proposta diz; o histórico mostra quantas vezes ele foi cumprido.</p><p class="sim-limit">Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.</p>`);
   return `<section class="sim-como" id="sim-como" aria-labelledby="sim-como-t"><h2 class="sim-como-h"><button type="button" class="sim-como-toggle" id="sim-como-t" data-action="sim-como" aria-expanded="${open}" aria-controls="sim-como-body"><span class="sim-como-title">Como é calculado e limites</span><small>Fonte, definições, reserva e limites do histórico</small><span class="fold-toggle" aria-hidden="true"></span></button></h2><div class="sim-como-body" id="sim-como-body" ${open ? '' : 'hidden'}>${body}</div></section>`;
 }
 /** Abre ou fecha o acordeão e guarda `como` na URL sem nova navegação. */

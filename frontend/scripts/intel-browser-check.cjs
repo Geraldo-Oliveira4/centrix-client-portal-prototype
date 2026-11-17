@@ -55,9 +55,38 @@ async function roteiro(page, base) {
   return steps;
 }
 
-// Simulador v2 (S10, 17/11/2026): fluxo completo nos dois modos, deep link,
-// "Limpar", troca de fonte, modal sem base, ficha com Voltar e acessibilidade
-// (rótulos, foco, contraste AA no claro e no escuro).
+// Simulador v2 (S10) e Simulador enxuto (E6, 17/11/2026): fluxo completo nos
+// dois modos, deep links, "Limpar", troca de fonte, modal sem base, ficha com
+// Voltar, estrutura da tela (cartão de resposta, blocos antes da tabela, selo
+// único, tabela de 5/7 colunas, acordeão) e acessibilidade (rótulos, foco,
+// teclado, contraste AA no claro e no escuro).
+//
+// SIM_BASELINE: todo o texto explicativo que o Simulador mostrava na main antes
+// do E1 a E4 (mesma URL de data fixa, chegada=2026-12-27), sem as repetições do
+// selo. Depois do enxugamento ele precisa estar inteiro na página, à vista ou
+// dentro do acordeão "Como é calculado e limites": nada sumiu do produto.
+const SIM_BASELINE = [
+  "Referência agregada da Freitas · 52 de 59 embarques com chegada registrada",
+  "Disponível para clientes integrados ao sistema de gestão. Não faz parte da versão sem integração.",
+  "Chegada ao destino (porto ou aeroporto de descarga): trânsito mediano 34 dias, P90 37 dias · 52 embarques com saída e chegada",
+  "Entrega final = chegada ao destino + perna nacional (desembaraço e transporte até o cliente): mediana 6 dias, P90 9 dias · 36 embarques com chegada e entrega. Entra como reserva de dias (o P90), sem cobertura contada.",
+  "Para a entrega final até 27/12, a carga precisa chegar ao porto até 18/12 (reserva de 9 dias para desembaraço e transporte, o P90 dessa etapa). Embarcar até 11/11 (já passou) faz 48 de 52 embarques parecidos chegarem ao porto até 18/12 (P90 do trânsito); até 14/11, 30 de 52 (mediana).",
+  "Embarcando hoje (13/11), 36 de 52 (69%) embarques parecidos chegaram ao porto até 18/12. Margem até a chegada ao porto: 35 dias.",
+  "A reserva de dias da etapa final é o P90 dela somado ao P90 do trânsito; por isso é conservadora. A cobertura contada vale só para a chegada ao porto.",
+  "Referência agregada da Freitas: Fonte a confirmar. Perna nacional: Fonte a confirmar.",
+  "Trânsito = chegada ao destino − saída, em dias corridos. Mediana e P90 (o menor trânsito que cobre 90% dos casos, sempre um trânsito que aconteceu). Margem até a data-alvo = dias entre o embarque e a data-alvo. Cobertura = embarques do histórico cujo trânsito coube na margem ÷ embarques com saída e chegada; ela vale sempre para a chegada ao porto ou aeroporto. Variação do trânsito = P90 − mediana. Embarque limite = data da chegada ao porto − P90 do trânsito (ou − mediana). Com Entrega final, a chegada ao porto precisa acontecer até a data-alvo menos uma reserva de dias para desembaraço e transporte: o P90 da perna nacional (chegada → entrega ao cliente). Essa reserva somada ao P90 do trânsito é conservadora, e nenhuma cobertura é contada para a entrega final. Menos de 3 trânsitos: sem cálculo.",
+  "Últimos 12 meses, pela data de saída, de 13/11/2025 até hoje. O P90 existe para mostrar a cauda; épocas de pico podem variar. O período do painel não se aplica ao Simulador.",
+  "Só entram embarques com chegada registrada. Os que ainda estão em trânsito ou sem registro ficam fora, o que pode fazer o histórico parecer melhor do que é.",
+  "Marítimo e aéreo nunca se misturam. Modal sem base não simula.",
+  "A referência agregada é recortada só por rota, modal, tipo de carga e período; os filtros globais valem para \"Meus embarques\".",
+  "Histórico, não garantia. O resultado descreve o que aconteceu, não o que vai acontecer. A Freitas não se compromete com a data.",
+  "Só embarques com chegada registrada. Os que estão em trânsito ou sem registro ficam fora, o que pode fazer o histórico parecer melhor do que é. Nesta simulação: 52 de 59 embarques com chegada registrada.",
+  "Período: últimos 12 meses. O P90 mostra a cauda; épocas de pico podem variar.",
+  "Modal separado: marítimo e aéreo nunca se misturam; modal sem base não simula.",
+  "Dado, não veredito: as colunas são fatos do histórico, sem nota nem ranking. Com menos de 3 embarques, “Amostra pequena” e nenhuma cobertura calculada. O prometido é o que a proposta diz; o histórico mostra quantas vezes ele foi cumprido.",
+  "Sem nota, ranking nem recomendação. Custos ficam fora desta prévia."
+];
+
 async function roteiroSimulador(page, base) {
   const steps = [];
   const check = (name, ok, got) => steps.push({ name, ok: !!ok, got });
@@ -69,48 +98,95 @@ async function roteiroSimulador(page, base) {
     await page.waitForSelector('#aba-simulador');
   };
   const text = (sel) => page.evaluate((s) => document.querySelector(s)?.innerText || '', sel);
+  const raw = (sel) => page.evaluate((s) => (document.querySelector(s)?.textContent || '').replace(/\s+/g, ' ').trim(), sel);
   await go('#executivo?aba=simulador');
-  const phrase = await text('.sim-result .fact-text');
-  check('S1/F2 exemplo preenchido: cobertura da chegada ao porto, entrega final sem cobertura', /faz \d+ de \d+ embarques parecidos chegarem ao porto/.test(phrase) && !/cobre/i.test(phrase), phrase.slice(0, 90));
-  const cover = await text('.sim-cover'), pct = Number((cover.match(/\((\d+)%\)/) || [])[1]);
-  check('F1 exemplo com cobertura parcial embarcando hoje', pct >= 40 && pct <= 80, cover.slice(0, 70));
-  check('F3 sem escala "de 10" no Simulador', !/\b\d+ de 10\b|Cobre/.test(await text('#aba-simulador')));
-  const measures = await page.evaluate(() => document.querySelector('.sim-measures').textContent);
+  // E1/E5: cartão de resposta, uma frase e três números; exemplo com embarque no futuro.
+  const answer = await text('.sim-answer');
+  check('E1 frase de resposta curta', /^Para chegar ao porto até \d\d\/\d\d, embarque até \d\d\/\d\d\.$/.test(answer), answer);
+  check('E5 exemplo não abre com "já passou"', !/já passou/.test(answer) && (await page.locator('.sim-figures .passed-tag').count()) === 0, answer);
+  const figs = await page.$$eval('.sim-fig dt', (els) => els.map((e) => e.textContent));
+  check('E1 três números: Embarcar até, Chegar ao porto até, Cobertura', figs.join('|') === 'Embarcar até|Chegar ao porto até|Cobertura', figs.join('|'));
+  const cover = await text('.sim-fig:nth-child(3) .sim-fig-v'), pct = Number((cover.match(/\((\d+)%\)/) || [])[1]);
+  check('E1/E5 cobertura a de b com percentual, parcial', /^\d+ de \d+ \(\d+%\)$/.test(cover.replace(/\s+/g, ' ')) && pct < 100, cover);
+  check('E1 âncora da entrega final numa linha', /^Entrega final até \d\d\/\d\d = chegada ao porto até \d\d\/\d\d \+ reserva de \d+ dias \(P90 da etapa final\)\.$/.test(await text('.sim-anchor')), await text('.sim-anchor'));
+  check('E1 botão de cotação dentro do cartão', (await page.locator('.sim-answer-card .sim-action a.button').count()) === 1 && /Leva origem, destino, modal e data-alvo\. Nenhum agente é pré-selecionado\./.test(await text('.sim-answer-card .sim-action')));
+  check('E1 "Histórico, não garantia · Como é calculado"', /^Histórico, não garantia\s*·\s*Como é calculado$/.test(await text('.sim-honesty')), await text('.sim-honesty'));
+  // E6: no máximo 4 blocos de texto visíveis antes da tabela (fora a entrada, os números e o botão).
+  const blocks = await page.evaluate(() => {
+    const table = document.querySelector('.sim-agents');
+    return [...document.querySelectorAll('#aba-simulador p, #aba-simulador li')].filter((el) => el.offsetParent && !el.closest('.sim-task, .sim-figures, .sim-action') && (el.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING)).map((el) => el.className || el.tagName);
+  });
+  check('E6 no máximo 4 blocos de texto antes da tabela', blocks.length <= 4, blocks.join(', '));
+  const visible = await page.evaluate(() => document.querySelector('#page').innerText);
+  check('E2 um selo só, "Exemplo fictício"', (visible.match(/Exemplo fictício/g) || []).length === 1 && !/Exemplo ilustrativo|Dado de exemplo|Exemplo fictício preenchido|Hoje na demonstração/.test(visible));
+  check('E2 "Referência agregada da Freitas" uma vez à vista', (visible.match(/Referência agregada da Freitas/g) || []).length === 1);
+  check('E2 aviso de integração uma vez à vista', (visible.match(/Disponível para clientes integrados/g) || []).length === 1);
+  // E4: tabela de 5 colunas; "Comparar com a proposta" traz as duas de promessa.
+  const cols = () => page.locator('.sim-agents-table thead th').count();
+  check('E4 tabela com 5 colunas por padrão', (await cols()) === 5, await cols());
+  await page.click('[data-action="sim-compare"]'); await page.waitForTimeout(250);
+  check('E4 "Comparar com a proposta" liga 7 colunas e grava comparar=1', (await cols()) === 7 && (await page.evaluate(() => location.hash)).includes('comparar=1') && (await page.getAttribute('[data-action="sim-compare"]', 'aria-pressed')) === 'true', await cols());
+  await page.click('[data-action="sim-compare"]'); await page.waitForTimeout(250);
+  check('E4 desligar volta a 5', (await cols()) === 5);
+  // E3: acordeão fechado por padrão; o gatilho do cartão abre e rola até ele.
+  check('E3 acordeão fechado por padrão', (await page.getAttribute('#sim-como-t', 'aria-expanded')) === 'false' && (await page.evaluate(() => document.querySelector('#sim-como-body').hidden)));
+  await page.click('.sim-honesty [data-action="sim-como-open"]'); await page.waitForTimeout(600);
+  check('E3 "Como é calculado" do cartão abre, foca e grava como=1', (await page.getAttribute('#sim-como-t', 'aria-expanded')) === 'true' && (await page.evaluate(() => document.activeElement.id)) === 'sim-como-t' && (await page.evaluate(() => location.hash)).includes('como=1'));
+  await page.keyboard.press('Enter'); await page.waitForTimeout(150);
+  check('E3 teclado: Enter recolhe', (await page.getAttribute('#sim-como-t', 'aria-expanded')) === 'false');
+  await page.keyboard.press('Space'); await page.waitForTimeout(150);
+  check('E3 teclado: Espaço abre', (await page.getAttribute('#sim-como-t', 'aria-expanded')) === 'true');
+  // E3/E6: com a data fixa da linha de base, o texto de antes está inteiro na página.
+  await go('#executivo?aba=simulador&chegada=2026-12-27&como=1');
+  check('E3 deep link como=1 abre o acordeão', (await page.getAttribute('#sim-como-t', 'aria-expanded')) === 'true');
+  const all = (await raw('#aba-simulador')).replace(/\s+/g, ' ');
+  const missing = SIM_BASELINE.filter((ph) => !all.includes(ph));
+  check(`E3 nenhum texto de antes se perdeu (${SIM_BASELINE.length} frases)`, missing.length === 0, missing.map((m) => m.slice(0, 50)).join(' | '));
+  const inAcc = await raw('#sim-como-body');
+  check('E3 o acordeão contém as notas, as definições, a reserva e "Dado, não veredito"', ['Histórico, não garantia.', 'Só embarques com chegada registrada.', 'Período: últimos 12 meses', 'Modal separado', 'Sem nota, ranking nem recomendação. Custos ficam fora desta prévia.', 'Dado, não veredito', 'Chegada ao destino (porto ou aeroporto de descarga)', 'Entrega final = chegada ao destino', 'por isso é conservadora', 'vale só para a chegada ao porto', '52 de 59 embarques com chegada registrada', 'Disponível para clientes integrados'].every((x) => inAcc.includes(x)));
+  check('E5/E4 data passada: frase neutra e "já passou" na tabela', /o embarque limite para essa data já passou/.test(await text('.sim-answer')) && (await page.locator('.sim-agents-table .passed-tag').count()) >= 1, await text('.sim-answer'));
+  check('F3 sem escala "de 10" no Simulador', !/\b\d+ de 10\b|Cobre/.test(await raw('#aba-simulador')));
+  const measures = await raw('.sim-measures');
   check('F4 "Chegada ao destino" dito uma vez', (measures.match(/porto ou aeroporto de descarga/gi) || []).length === 1, measures.slice(0, 80));
   check('S4 tabela por agente de carga', (await page.locator('.sim-agents-table tbody tr').count()) >= 2);
-  check('S3 sem veredito Cabe/Não cabe', !/Cabe na data|Não cabe|Apertado/.test(await text('#aba-simulador')));
-  const above = await page.evaluate(() => document.querySelector('.sim-result .fact-text').getBoundingClientRect().bottom <= innerHeight);
+  check('S3 sem veredito Cabe/Não cabe', !/Cabe na data|Não cabe|Apertado/.test(await raw('#aba-simulador')));
+  await go('#executivo?aba=simulador');
+  const above = await page.evaluate(() => document.querySelector('.sim-answer').getBoundingClientRect().bottom <= innerHeight);
   check('S7 resultado acima da dobra', above);
   await page.click('[data-action="sim-mode"][data-mode="embarcar"]'); await page.waitForTimeout(250);
-  check('S1 modo "Vou embarcar em"', /^Embarcando em/.test(await text('.sim-result .fact-text')));
+  check('S1 modo "Vou embarcar em"', /^Embarcando em/.test(await text('.sim-answer')) && (await page.locator('.sim-agents-table thead th').count()) === 4, await text('.sim-answer'));
   await go('#executivo?aba=simulador&srota=genova&smodal=maritimo&chegada=2027-01-20');
   check('deep link antigo + aditivo', (await page.inputValue('#sim-route')) === 'genova' && (await page.inputValue('#sim-date')) === '2027-01-20');
+  await go('#executivo?aba=simulador&sprom=alpha:40');
+  check('deep link antigo com sprom abre a comparação', (await page.locator('.sim-agents-table thead th').count()) === 7 && (await page.inputValue('#prom-alpha')) === '40');
+  await go('#executivo?aba=simulador&srota=genova&smodal=maritimo&chegada=2027-01-20');
   await page.click('[data-action="sim-clear"]'); await page.waitForTimeout(250);
   check('S1 Limpar esvazia (modal incluído)', (await page.inputValue('#sim-modal')) === '' && /Escolha a origem/.test(await text('.sim-result')));
   await go('#executivo?aba=simulador');
   await page.click('.sim-adjust > summary'); await page.selectOption('#sim-source', 'meus'); await page.waitForTimeout(250);
-  check('S5 troca de fonte rotulada', /Meus embarques/.test(await text('.sim-source')));
+  check('S5 troca de fonte rotulada', /Meus embarques/.test(await raw('.sim-source')) && /Meus embarques/.test(await text('.sim-adjust-title')));
   await go('#executivo?aba=simulador&smodal=aereo&sfonte=meus');
   const nb = await text('.sim-result');
   check('S5 modal sem base: sem histórico suficiente', /Sem histórico suficiente para esta rota e modal/.test(nb), nb.slice(0, 60));
   await page.click('.sim-result [data-action="sim-source"]'); await page.waitForTimeout(250);
-  check('S5 atalho para a fonte com base', /Referência agregada/.test(await text('.sim-source')));
+  check('S5 atalho para a fonte com base', /Referência agregada/.test(await raw('.sim-source')));
   await go('#executivo?aba=simulador');
   await page.click('.sim-agents-table a.sheet-link'); await page.waitForSelector('.sheet-back');
   await page.click('.sheet-back'); await page.waitForTimeout(400);
   check('S4 agente abre a ficha e Voltar volta ao Simulador', (await page.evaluate(() => location.hash)).includes('aba=simulador'));
   // Acessibilidade
+  await go('#executivo?aba=simulador&comparar=1');
   const unlabeled = await page.evaluate(() => [...document.querySelectorAll('#aba-simulador select, #aba-simulador input')].filter((el) => !el.closest('label') && !(el.id && document.querySelector(`label[for="${el.id}"]`)) && !el.getAttribute('aria-label')).length);
   check('acessibilidade: todo campo tem rótulo', unlabeled === 0, unlabeled);
   check('acessibilidade: modo é radiogroup com aria-checked', (await page.locator('.sim-mode [role="radio"][aria-checked="true"]').count()) === 1);
   await page.focus('#sim-route'); await page.keyboard.press('Tab');
   check('acessibilidade: Tab leva ao modal', (await page.evaluate(() => document.activeElement.id)) === 'sim-modal');
   for (const theme of ['', 'dark']) {
-    await go('#executivo?aba=simulador', theme);
+    await go('#executivo?aba=simulador&como=1&chegada=2026-12-27', theme);
     const worst = await page.evaluate(() => {
       const lum = (c) => { const v = c.match(/[\d.]+/g).slice(0, 3).map((x) => +x / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4)); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
       const bg = (el) => { for (let e = el; e; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; if (!/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c; } return 'rgb(255,255,255)'; };
-      const sels = ['.sim-result .fact-text', '.sim-cover', '.sim-reserve-note', '.sim-source', '.sim-measures li', '.sim-agents-table th .sort-label', '.sim-agents-table td small', '.sim-notes li', '.sim-task-foot', '.st-field', '.integrated-notice'];
+      const sels = ['.sim-answer', '.sim-anchor', '.sim-fig dt', '.sim-fig-v', '.sim-fig small', '.passed-tag', '.sim-honesty', '.sim-honesty .text-button', '.sim-como-toggle small', '.sim-como-sec p', '.sim-cover', '.sim-reserve-note', '.sim-source', '.sim-measures li', '.sim-agents-table th .sort-label', '.sim-agents-table td small', '.sim-notes li', '.sim-compare', '.sim-task-foot .text-button', '.st-field', '.integrated-notice'];
       return sels.map((s) => { const el = document.querySelector(s); if (!el) return [s, null]; const a = lum(getComputedStyle(el).color), b = lum(bg(el)); return [s, Math.round(((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)) * 100) / 100]; }).filter(([, r]) => r != null).sort((x, y) => x[1] - y[1])[0];
     });
     const dark = await page.evaluate(() => document.documentElement.classList.contains('theme-dark'));

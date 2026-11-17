@@ -1749,6 +1749,18 @@ quando embarcar, em que rota e com qual agente de carga?".
   igualdade com as fichas confere; "Meus embarques" usa a mesma mediana e o
   mesmo N. "Folga" saiu do módulo (Margem até a data-alvo / Variação do
   trânsito), travado em `intel-vocab.test.cjs`. Testes: `intel-sim-v2.test.cjs`.
+- **Enxuto (E1 a E6, 17/11/2026)**: antes da tabela só o **cartão de resposta**
+  (uma frase, a linha de ancoragem quando há perna nacional, três números —
+  Embarcar até / Chegar ao porto até / Cobertura a de b —, "Histórico, não
+  garantia · Como é calculado", o aviso de integração e o botão de cotação).
+  Todo o texto explicativo mora no acordeão **"Como é calculado e limites"**
+  (fechado; `como=1` abre). Tabela com 5 colunas; "Comparar com a proposta"
+  (`comparar=1`, ou `sprom` sem `comparar`) traz as duas de promessa. Um selo
+  só, "Exemplo fictício", no cabeçalho. O exemplo abre com o limite P90 no
+  futuro (o menor N; a cobertura de hoje fica ≥ 90% por aritmética). O roteiro
+  `intel-browser-check.cjs` confere ≤ 4 blocos de texto antes da tabela e que
+  nenhuma frase da versão anterior (`SIM_BASELINE`) sumiu da página. Texto
+  novo de explicação vai para o acordeão, não para o cartão.
 
 
 Quatro abas (`layout.tsx`): `performance/`, `agentes/`, `executivo/` e
