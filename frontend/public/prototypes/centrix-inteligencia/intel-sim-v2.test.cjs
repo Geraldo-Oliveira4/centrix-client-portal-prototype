@@ -320,3 +320,35 @@ test('F3: a cobertura de hoje traz a de b com o percentual entre parênteses, se
   const r = plan([30, 31, 32, 33].map((t) => op('x', t)), { target: S.addDays(TODAY, 31) });
   assert.match(S.resultText(r).today, /\*\*2 de 4\*\* \(50%\) embarques parecidos/);
 });
+
+// ---------------------- L1: o acordeão mostra só o que o cartão não diz ---
+test('L1: resultText().extra traz a cobertura pelo P90 e pela mediana e a margem, sem a cobertura de hoje', () => {
+  const ops = [[30, 4], [31, 5], [32, 6], [33, 9]].map(([t, l]) => op('x', t, l));
+  const r = plan(ops, { target: S.addDays(TODAY, 50) });
+  const [cover, margin] = S.resultText(r).extra;
+  assert.match(plain(cover), new RegExp(`^Embarcar até \\d\\d/\\d\\d faz ${r.coverP90.good} de ${r.coverP90.base} embarques parecidos chegarem ao porto até \\d\\d/\\d\\d \\(P90 do trânsito\\); até \\d\\d/\\d\\d, ${r.coverMedian.good} de ${r.coverMedian.base} \\(mediana\\)\\.$`));
+  assert.equal(margin, `Margem até a chegada ao porto: ${r.margin} dias.`);
+  assert.doesNotMatch(cover + margin, /Embarcando hoje|Para a entrega final/);
+  const emb = plan(ops, { mode: 'embarcar', departure: S.addDays(TODAY, 1) });
+  assert.match(S.resultText(emb).extra[0], /^Somando a perna nacional \(P90 de \d+ dias\), a entrega final seria por volta de \d\d\/\d\d \(mediana\) e \d\d\/\d\d \(P90\)\.$/);
+  assert.deepEqual(S.resultText(plan([30, 31, 32].map((t) => op('x', t)), { mode: 'embarcar' })).extra, []);
+});
+
+// -------------------- L3: "já passou" por linha, com data-alvo apertada ---
+// A tela marca "já passou" quando o embarque limite da linha é ANTERIOR a hoje
+// (igual a hoje não é passado). Com ?hoje=2026-11-13 e a referência do exemplo:
+// hoje + 46 dias deixa Gamma Freight antes de hoje e Alpha Logistics em hoje;
+// hoje + 20 fica antes do menor trânsito e não chega a ter tabela.
+test('L3: data-alvo apertada separa linhas com embarque limite antes de hoje das demais', () => {
+  const today = '2026-11-13', DD = D.shift(today), ops = S.inWindow(DD.operations, '12m', today);
+  const at = (n) => S.plan(DD, ops, S.readTask(DD, new URLSearchParams(`chegada=${S.addDays(today, n)}`), today), today, { ref: R });
+  const r = at(46);
+  assert.equal(r.state, 'ok');
+  const passed = r.agents.filter((a) => a.limitP90 && a.limitP90 < today).map((a) => a.agent);
+  const notPassed = r.agents.filter((a) => a.limitP90 && a.limitP90 >= today).map((a) => a.agent);
+  assert.deepEqual(passed, ['gamma']);
+  assert.deepEqual(notPassed, ['alpha']);
+  assert.equal(r.agents.find((a) => a.agent === 'alpha').limitP90, today, 'limite igual a hoje não é "já passou"');
+  assert.ok(r.agents.filter((a) => a.small).every((a) => a.limitP90 === undefined), 'amostra pequena sem embarque limite');
+  assert.equal(at(20).state, 'before_min', 'hoje + 20 fica antes do menor trânsito: sem tabela');
+});
