@@ -1,17 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
   ChevronDown,
-  ChevronRight,
   Clock3,
   Info,
   Ship,
-  Sparkles,
 } from 'lucide-react';
 import { LoaderComponent } from '@arboria-tech/arboria-ui';
 import {
@@ -49,7 +47,6 @@ import { usesPreparationDetail } from '../../cotacoes/lib/preparation-model';
 import { mergeQuotationV2 } from '../../_shared/demo/quotation-review';
 import { useQuotationReview } from '../../_shared/demo/use-quotation-review';
 import { usePortalModuleReleased } from '../../_shared/demo/use-feature-flags';
-import { ReviewedByFreitasBadge } from '../../_shared/demo/quotation-v2-labels';
 import {
   effectiveProposals,
   isDemoProposal,
@@ -76,16 +73,14 @@ import {
 } from '../../inteligencia/components/evidence-block';
 import { ApproveDialog } from './components/approve-dialog';
 import { useBottomActionBar } from '../../_shared/use-bottom-action-bar';
-import {
-  AgentHistoryDrawer,
-  AgentHistoryInline,
-} from '../components/agent-history-drawer';
-import { agentHistoryLine } from '../lib/agent-history-line';
+import { AgentHistoryDrawer } from '../components/agent-history-drawer';
+import { buildComparisonMap } from '../lib/comparison-map-model';
+import { localDay } from '@/lib/demo-clock';
 import { CancelDialog } from './components/cancel-dialog';
 import { DeclineDialog } from './components/decline-dialog';
 import { DocumentsSection } from './components/documents-section';
 import { HistoryTimeline } from './components/history-timeline';
-import { RecommendationPanel } from './components/recommendation-panel';
+import { ProposalsVerticalMap } from './components/proposals-vertical-map';
 import { RfqDispatchCard } from './components/rfq-dispatch-card';
 import { QuotationFooterCard } from './components/quotation-footer-card';
 import { QuotationConference } from '../../cotacoes/components/quotation-conference';
@@ -202,6 +197,17 @@ function QuotationDetail({
       (recommendation?.recommended_proposal_id
         ? p.id === recommendation.recommended_proposal_id
         : p.is_recommended) && !proposalIssue(p),
+  );
+  // O MAPA COMPARATIVO decide ordem, selos e a frase da recomendação num
+  // módulo puro (`lib/comparison-map-model.ts`); a tela só desenha. Mesmo
+  // "hoje" do `proposalIssue`: o dia local de quem abre.
+  const comparisonMap = useMemo(
+    () =>
+      buildComparisonMap(proposals, {
+        recommendedId: recommended?.id ?? null,
+        today: localDay(new Date()),
+      }),
+    [proposals, recommended?.id],
   );
   const historyProposal = proposals.find((p) => p.id === historyFor) ?? null;
   // O OVERLAY DESTRAVA A ESCOLHA. `canDecide` exige ENVIADA_CLIENTE, e uma
@@ -524,227 +530,43 @@ function QuotationDetail({
               </div>
               <span className={s.muted}>{proposals.length} ofertas</span>
             </div>
-            <div className={s.tableWrap}>
-              <table className={s.offersTable}>
-                <thead>
-                  <tr>
-                    <th>
-                      <span className={s.srOnly}>Selecionar</span>
-                    </th>
-                    <th>Agente / armador</th>
-                    <th>Valor informado</th>
-                    <th>
-                      Prazo e chegada
-                      {q.data_limite_necessidade && (
-                        <small className={s.needReference}>
-                          Necessária até {formatDate(q.data_limite_necessidade)}
-                        </small>
-                      )}
-                    </th>
-                    <th>Condições</th>
-                    <th>Validade</th>
-                    <th>
-                      <span className={s.srOnly}>Detalhes</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {proposals.map((p) => {
-                    const issue = proposalIssue(p);
-                    const selected = (winner?.id ?? chosen?.id) === p.id;
-                    const difference =
-                      marketReference && p.total_brl > 0
-                        ? Math.round((1 - p.total_brl / marketReference) * 100)
-                        : null;
-                    return (
-                      <React.Fragment key={p.id}>
-                        <tr
-                          className={
-                            (selected ? s.selectedRow : '') +
-                            ' ' +
-                            (deciding && !issue ? s.selectableRow : '')
-                          }
-                          onClick={(event) => {
-                            if (
-                              !(event.target as HTMLElement).closest(
-                                'button, input, a, summary',
-                              )
-                            )
-                              select(p);
-                          }}
-                        >
-                          <td data-label="Selecionar">
-                            <input
-                              type="radio"
-                              name="proposal"
-                              aria-label={
-                                'Selecionar oferta de ' +
-                                (p.agent?.name || 'agente')
-                              }
-                              checked={selected}
-                              disabled={!deciding || !!issue}
-                              onChange={() => select(p)}
-                            />
-                          </td>
-                          <td data-label="Agente / armador">
-                            <strong className={s.agentName}>
-                              {p.agent?.name || 'Agente não informado'}
-                            </strong>
-                            <small>
-                              {p.carrier || 'Armador não informado'}
-                            </small>
-                            {(() => {
-                              const line = agentHistoryLine(
-                                p.agent_id ? illustrativeAgentHistory(p.agent_id) : null,
-                              );
-                              return (
-                                <AgentHistoryInline
-                                  text={line.text}
-                                  muted={line.kind !== 'normal'}
-                                  agentName={p.agent?.name || 'agente'}
-                                  onOpen={() => setHistoryFor(p.id)}
-                                />
-                              );
-                            })()}
-                            {p.is_winner ? (
-                              <span className={s.recommendedTag}>
-                                Escolhida
-                              </span>
-                            ) : recommended?.id === p.id ? (
-                              <span className={s.recommendedTag}>
-                                <Sparkles size={11} /> Recomendada
-                              </span>
-                            ) : null}
-                            {/* RQ-17: toda proposta que chegou ao cliente
-                                passou pela revisao de saida. Desfecho, nao
-                                sugestao — dai o verde e nao o azul. */}
-                            {v2?.stage === 'released' && (
-                              <ReviewedByFreitasBadge className="mt-1" />
-                            )}
-                          </td>
-                          <td data-label="Valor informado">
-                            <strong className={s.price}>
-                              {formatBRL(p.total_brl)}
-                            </strong>
-                            {difference !== null && (
-                              <small className={s.marketComparison}>
-                                {difference === 0
-                                  ? 'Próximo da referência de mercado'
-                                  : `${Math.abs(difference)}% ${difference > 0 ? 'abaixo' : 'acima'} do mercado`}
-                              </small>
-                            )}
-                            <small>Confira a composição e as exclusões</small>
-                          </td>
-                          <td data-label="Prazo e chegada">
-                            <strong>
-                              {p.transit_time == null
-                                ? 'Trânsito não informado'
-                                : p.transit_time + ' dias de trânsito'}
-                            </strong>
-                            <small>Data de chegada a confirmar</small>
-                          </td>
-                          <td data-label="Condições">
-                            <strong>
-                              {p.route_type
-                                ? PROPOSAL_ROUTE_TYPE_LABELS[p.route_type]
-                                : 'Rota a confirmar'}
-                            </strong>
-                            <small>
-                              {p.insurance_included
-                                ? 'Seguro incluído'
-                                : 'Seguro não incluído'}
-                            </small>
-                            <small>
-                              {p.prazo_pagamento_dias == null
-                                ? 'Pagamento a confirmar'
-                                : 'Pagamento em ' +
-                                  p.prazo_pagamento_dias +
-                                  ' dias'}
-                            </small>
-                          </td>
-                          <td data-label="Validade">
-                            <strong>{formatDate(p.validity)}</strong>
-                            {issue && (
-                              <small className={s.warningText}>{issue}</small>
-                            )}
-                          </td>
-                          <td>
-                            <button
-                              className={s.detailButton}
-                              aria-label={
-                                'Detalhes de ' + (p.agent?.name || 'agente')
-                              }
-                              aria-expanded={expanded === p.id}
-                              onClick={() =>
-                                setExpanded(expanded === p.id ? null : p.id)
-                              }
-                            >
-                              {expanded === p.id ? (
-                                <ChevronDown size={18} />
-                              ) : (
-                                <ChevronRight size={18} />
-                              )}
-                              <span className={s.mobileOnly}>Ver detalhes</span>
-                            </button>
-                          </td>
-                        </tr>
-                        {expanded === p.id && (
-                          <tr className={s.expansionRow}>
-                            <td colSpan={7}>
-                              <ProposalDetails
-                                proposal={p}
-                                marketReference={marketReference}
-                              />
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            {/* Uma coluna por proposta, recomendada primeiro. A recomendação
+                vive DENTRO da coluna (selo + frase de fato + "Entender a
+                recomendação"): não há mais bloco separado abaixo. */}
+            <ProposalsVerticalMap
+              quotationId={q.id}
+              proposals={proposals}
+              map={comparisonMap}
+              deciding={deciding}
+              selectedId={winner?.id ?? chosen?.id ?? null}
+              onSelect={select}
+              onOpenHistory={setHistoryFor}
+              expandedId={expanded}
+              onToggleDetails={(id) => setExpanded(expanded === id ? null : id)}
+              renderDetails={(p) => (
+                <ProposalDetails proposal={p} marketReference={marketReference} />
+              )}
+              reviewed={v2?.stage === 'released'}
+              marketReference={marketReference}
+              needBy={
+                q.data_limite_necessidade
+                  ? formatDate(q.data_limite_necessidade)
+                  : null
+              }
+            />
             <div className={s.tableNote}>
               <Info size={14} />
               <span>
-                O prazo de trânsito não confirma uma data de chegada. Confira
-                saída, taxas, free time e entrega final antes de escolher.
+                A chegada prevista soma o trânsito a partir de hoje e não é
+                data confirmada. Free time marcado como ilustrativo é exemplo
+                da demonstração. Confira saída, taxas, free time e entrega
+                final com o agente antes de escolher.
               </span>
             </div>
           </section>
         </ResponseOffers>
       )}
 
-      {deciding && (
-        <section className={s.recommendation}>
-          <Sparkles size={21} />
-          <div>
-            <h2>
-              {recommended ? 'Recomendação Centrix' : 'Antes de recomendar'}
-            </h2>
-            <p>
-              {recommended ? (
-                <>
-                  <strong>
-                    {recommended.agent?.name || 'Agente recomendado'}
-                  </strong>{' '}
-                  é a indicação entre as propostas recebidas. Confira abaixo os
-                  critérios e as diferenças.
-                </>
-              ) : (
-                'Ainda não há indicação válida para esta cotação. Confira prazo, validade e condições das propostas.'
-              )}
-            </p>
-            <details>
-              <summary>
-                Entender a recomendação <ChevronDown size={13} />
-              </summary>
-              <RecommendationPanel quotationId={q.id} proposals={proposals} />
-              <p>A indicação não confirma atendimento à sua data necessária.</p>
-            </details>
-          </div>
-        </section>
-      )}
       {/* O antigo bloco "Raio X do agente de cargas" virou a linha de histórico
           de cada oferta + esta gaveta (07/10/2026). Mesma fonte de dado. */}
       {historyProposal && (
@@ -934,8 +756,20 @@ function ProposalDetails({
           <dd>Confirmar datas com o agente</dd>
         </div>
         <div>
-          <dt>Free time</dt>
-          <dd>Confirmar com o agente</dd>
+          <dt>Tipo de rota</dt>
+          <dd>
+            {p.route_type
+              ? PROPOSAL_ROUTE_TYPE_LABELS[p.route_type]
+              : 'Rota a confirmar'}
+          </dd>
+        </div>
+        <div>
+          <dt>Pagamento</dt>
+          <dd>
+            {p.prazo_pagamento_dias == null
+              ? 'A confirmar'
+              : `Em ${p.prazo_pagamento_dias} dias`}
+          </dd>
         </div>
       </dl>
       {p.observations && <p>{p.observations}</p>}

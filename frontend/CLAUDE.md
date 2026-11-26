@@ -1947,6 +1947,9 @@ Mudou só a exibição, e só no `variant="portal"`:
   não existe, não.
 - **Selo discreto, sem estrela**: "Melhor equilíbrio", em `portal-info`, na
   linha do agente. Não é caixa, não é troféu.
+  **Substituído em 26/11/2026 só em `/portal/cotacao/[id]`** pelo selo
+  "Recomendada pela IA" da coluna recomendada — ver "Mapa comparativo vertical"
+  abaixo.
 - **O que ficou**: inelegibilidade e validade em risco. São fatos sobre a oferta
   que o cliente está prestes a escolher, não aparato de pontuação.
 - O título do card no portal é **"Recomendação"** (sem "por IA"); no analista
@@ -2021,6 +2024,65 @@ sem lastro. As quatro mudanças:
 -> Confiabilidade com Evidência dentro (posso confiar) -> Mercado (o preço está
 competitivo) -> Dados da cotação (o dado bruto para conferir). Está comentada em
 `cotacao/[id]/page.tsx`; mexer nela quebra a leitura, não só o layout.
+
+#### Mapa comparativo vertical: a recomendação mora na coluna (26/11/2026)
+
+Pedido do Victor Orsi para a demonstração comercial. **Escopo: só
+`/portal/cotacao/[id]`.** `cotacoes/previa/quotation-preview.tsx` e
+`/portal/cotacoes/comparativo` não mudaram, e a prévia segue com a tabela de um
+agente por linha e o bloco de recomendação separado.
+
+- **A tabela "Compare e escolha sua proposta" virou mapa**: uma COLUNA por
+  proposta (`cotacao/[id]/components/proposals-vertical-map.tsx`, espelhando
+  `comparativo/components/map-tab.tsx`), com os atributos em linhas nesta ordem:
+  preço all-in · frete · transit time · chegada prevista · free time · validade ·
+  armador · agente. `<table>` no desktop (até 4 colunas sem rolagem a 1440px; daí
+  em diante rola o contêiner, nunca a página) e cartões empilhados abaixo de
+  680px, na mesma ordem. São dois desenhos do mesmo dado trocados por CSS.
+- **O bloco separado "Recomendação Centrix" (`<section className={s.recommendation}>`)
+  saiu desta página.** A recomendação vive DENTRO da coluna recomendada, que vai
+  primeiro e leva borda `portal-info` (nunca verde — verde é desfecho): selo
+  **"Recomendada pela IA"** + uma frase de fato + "Entender a recomendação"
+  recolhido, com o mesmo `RecommendationPanel` e a nota "A indicação não confirma
+  atendimento à sua data necessária". **Não reintroduza o bloco**: a recomendação
+  apareceria duas vezes. Isso **substitui, só nesta rota**, o selo "Melhor
+  equilíbrio" e o título sem "por IA" da seção de 27/08/2026. O que NÃO mudou:
+  **score numérico e barras continuam fora do cliente**, e o
+  `recommendation_text` do backend continua sem ser renderizado.
+- **Toda afirmação sai de `cotacao/lib/comparison-map-model.ts`** (puro, sem
+  `@/`, testado no `test:unit`). O componente só desenha. As regras, que são as
+  de `recommendation-gap.ts` aplicadas contra TODAS as rivais válidas:
+  - só compete quem não tem `proposalIssue`; proposta inválida não leva selo,
+    não serve de rival, fica desabilitada com o motivo visível e vai para o fim;
+  - "chega N dias antes" só entra se a recomendada chegar antes da rival válida
+    MAIS RÁPIDA; mais lenta ou empatada, a frase cala sobre o prazo;
+  - o custo entra nos dois sentidos: "R$ X acima da mais barata" ou "menor custo
+    entre as propostas";
+  - selos "Menor custo" / "Menor prazo" ficam na própria célula, empate marca
+    todas, e com uma única proposta válida ninguém leva selo (não há contra quem);
+  - recomendação que aponta para proposta inválida não destaca coluna nenhuma, e
+    uma linha discreta acima do mapa diz que ainda não há indicação válida.
+- **O que é ILUSTRATIVO no mapa**, e precisa virar dado real na versão integrada:
+  o **histórico do agente** na frase e na linha "N de M no prazo"
+  (`illustrativeAgentHistory`, a mesma fonte da gaveta; abaixo de `SMALL_SAMPLE`
+  a frase diz "ainda sem histórico suficiente deste agente nesta rota") e o
+  **free time** quando o payload não traz `free_time_dias`
+  (`seededInt(agent_id + ':freetime', 7, 21)`, com a marca "ilustrativo" na
+  célula). `free_time_dias` ainda não existe em `PortalProposal`; quando vier, o
+  modelo já o prefere e a marca some sozinha. **Chegada prevista é conta** (hoje +
+  transit time), não data do agente — a nota do rodapé do painel diz isso; não a
+  apague.
+- **A frase cita histórico do AGENTE, e isso não contradiz a regra de 27/08** de
+  nunca dizer "com base no histórico desta rota": aquela regra proíbe atribuir o
+  RANKING a um histórico que o cálculo não lê. Aqui a frase não explica o
+  ranking; ela justapõe três fatos conferíveis nas linhas do próprio mapa.
+- **Escolha e aprovação não mudaram.** "Escolher esta proposta" chama o mesmo
+  `select(p)` (com `aria-pressed`), a barra inferior reflete a escolha e segue
+  sendo a única porta para o `ApproveDialog`; os dois caminhos de aprovação (real
+  e `approveIllustrative`) estão intactos.
+- **"Condições" saiu da grade e foi para "Ver detalhes"**: tipo de rota e
+  pagamento entraram em `ProposalDetails`, no lugar do "Free time: confirmar com
+  o agente" que o mapa agora responde.
 
 #### Comparação de Propostas parou de marcar real x ilustrativo (28/08/2026)
 
