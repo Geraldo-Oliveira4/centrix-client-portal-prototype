@@ -25,10 +25,11 @@
 // (carga pronta + transit time; sem carga pronta, hoje + transit time), não
 // data confirmada pelo agente.
 //
-// "CHEGA A TEMPO" É FATO, NÃO CRITÉRIO: `onTime` compara a chegada prevista com
-// a necessidade do cliente e marca a célula. Ele NÃO entra na ordem das colunas,
-// na recomendação nem na frase — a recomendada pode chegar depois da
-// necessidade, e a tela mostra as duas coisas lado a lado.
+// A NECESSIDADE DE CHEGADA VEM ANTES DO CUSTO (27/11/2026): `onTime` marca a
+// célula E decide a recomendação desta tela (`pickRecommendation`). Os selos
+// "menor custo" / "menor prazo" seguem sendo fatos entre as válidas,
+// independentes de quem é a recomendada. `buildComparisonMap` não escolhe:
+// recebe o id que `pickRecommendation` devolveu.
 //
 // PURO, sem `@/`: roda sob `node --test` (comparison-map-model.test.ts).
 
@@ -78,6 +79,7 @@ export interface ComparisonMap<P extends MapProposal> {
 }
 
 export interface ComparisonMapOptions {
+  /** O id que `pickRecommendation` devolveu. */
   recommendedId: string | null | undefined;
   /** `AAAA-MM-DD`. */
   today: string;
@@ -168,11 +170,102 @@ function joinParts(parts: string[]): string {
   return parts.slice(0, -1).join(', ') + ' e ' + parts[parts.length - 1];
 }
 
-/** A frase sob o selo "Recomendada pela IA". Só afirma o que as linhas mostram. */
+export interface PickRecommendationInput<P extends MapProposal> {
+  proposals: P[];
+  /** Carga pronta (`data_prontidao`); ausente, a chegada parte de `today`. */
+  readyDate?: string | null;
+  /** Necessidade de chegada do cliente (`data_limite_necessidade`). */
+  needDate?: string | null;
+  /** A recomendada que a API devolveu (ou o `is_recommended` do payload). */
+  apiRecommendedId?: string | null;
+  /** `AAAA-MM-DD`: o dia de `proposalIssue` e o ponto de partida sem carga pronta. */
+  today: string;
+}
+
+/**
+ * Qual proposta a tela recomenda. A NECESSIDADE DE CHEGADA VEM ANTES DO CUSTO
+ * (decisão de produto da demonstração, 27/11/2026):
+ *
+ *  a) sem necessidade informada: a recomendada da API, se for válida;
+ *  b) com necessidade: entre as VÁLIDAS que chegam a tempo, a de menor custo
+ *     (desempate: menor transit time, depois a ordem recebida). Aqui a API
+ *     deixa de mandar;
+ *  c) com necessidade e NENHUMA chegando a tempo: volta para (a).
+ *
+ * DIVERGÊNCIA CONSCIENTE DO BACKEND: o `recommendation_service` (copiado do
+ * Centrix) não conhece a necessidade do cliente e não foi alterado. Esta
+ * função só decide o que ESTA TELA destaca; se a regra virar produto, ela
+ * precisa ser alinhada no backend, e esta função some.
+ */
+export function pickRecommendation<P extends MapProposal>(
+  input: PickRecommendationInput<P>,
+): string | null {
+  const valid = input.proposals.filter((p) => !proposalIssue(p, input.today));
+  const fromApi =
+    valid.find((p) => p.id === input.apiRecommendedId)?.id ?? null;
+  if (!dayOf(input.needDate)) return fromApi;
+
+  const inTime = valid
+    .map((p, index) => ({ p, index, transit: transitOf(p) }))
+    .filter(
+      (c) =>
+        onTime(
+          arrivalDate(c.transit, input.readyDate, input.today),
+          input.needDate,
+        ) === true,
+    );
+  if (inTime.length === 0) return fromApi;
+  return inTime.sort(
+    (a, b) =>
+      a.p.total_brl - b.p.total_brl ||
+      (a.transit ?? 0) - (b.transit ?? 0) ||
+      a.index - b.index,
+  )[0].p.id;
+}
+
+/** `DD/MM` de um dia `AAAA-MM-DD`. */
+const shortDay = (day: string) => `${day.slice(8, 10)}/${day.slice(5, 7)}`;
+
+/**
+ * A frase sob o selo "Recomendada pela IA". Só afirma o que as linhas mostram.
+ *
+ * Duas famílias, e quem escolhe é um FATO da própria coluna (`onTime`):
+ *
+ *  - a recomendada CHEGA A TEMPO: a frase é sobre a necessidade e o preço que
+ *    ela custa ("Única que chega a tempo para 05/01; custa R$ 630 a mais que a
+ *    mais barata."). O histórico do agente sai da frase e continua na linha
+ *    "Agente" e na gaveta;
+ *  - não há necessidade, ou ninguém chega a tempo: custo + histórico, como
+ *    antes. Com necessidade informada e a recomendada chegando depois dela, a
+ *    frase NÃO fala de prazo: "chega 2 dias antes" ao lado de "Chega após a
+ *    sua necessidade" leria como vantagem o que para o cliente é atraso.
+ */
 export function recommendationReason<P extends MapProposal>(
   recommended: MapColumn<P>,
   rivals: MapColumn<P>[],
+  needBy?: string | null,
 ): string {
+  const need = dayOf(needBy);
+
+  if (need && recommended.onTime === true) {
+    const when = `a tempo para ${shortDay(need)}`;
+    if (rivals.length === 0)
+      return `Chega ${when}; única proposta válida no momento.`;
+    const cheapest = Math.min(
+      recommended.proposal.total_brl,
+      ...rivals.map((c) => c.proposal.total_brl),
+    );
+    const gap = Math.round(recommended.proposal.total_brl - cheapest);
+    const alone = !rivals.some((c) => c.onTime === true);
+    if (alone)
+      return gap > 0
+        ? `Única que chega ${when}; custa ${brl(gap)} a mais que a mais barata.`
+        : `Única que chega ${when} e é a mais barata.`;
+    return gap > 0
+      ? `Chega ${when} e custa ${brl(gap)} a mais que a mais barata.`
+      : `Chega ${when} e é a mais barata entre as que chegam a tempo.`;
+  }
+
   const parts: string[] = [];
 
   if (rivals.length === 0) {
@@ -188,7 +281,7 @@ export function recommendationReason<P extends MapProposal>(
     const rivalTransits = rivals
       .map((c) => transitOf(c.proposal))
       .filter((t): t is number => t != null);
-    if (own != null && rivalTransits.length > 0) {
+    if (!need && own != null && rivalTransits.length > 0) {
       const ahead = Math.min(...rivalTransits) - own;
       if (ahead > 0)
         parts.push(
@@ -264,6 +357,7 @@ export function buildComparisonMap<P extends MapProposal>(
       ? recommendationReason(
           recommended,
           columns.filter((c) => !c.recommended && !c.issue),
+          options.needBy,
         )
       : null,
   };

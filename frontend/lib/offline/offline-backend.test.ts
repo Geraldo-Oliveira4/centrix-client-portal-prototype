@@ -89,7 +89,7 @@ test('a recomendação é a proposta mais barata e não carrega placar', () => {
   const b = backend();
   const rec = b.handle(
     'GET',
-    '/portal/quotations/offline-quote-16/recommendation',
+    '/portal/quotations/offline-quote-17/recommendation',
   ).data as {
     recommended_proposal_id: string;
     scores: {
@@ -238,4 +238,29 @@ test('COT-2026-0016 tem datas FIXAS para a demonstração; as demais seguem rela
     assert.equal(q17.data_prontidao, addDays(today, 12));
     assert.equal(q17.data_limite_necessidade, null);
   }
+});
+
+test('COT-2026-0016: com necessidade de chegada, a recomendada é a única que chega a tempo (Gamma), sem placar', () => {
+  const rec = backend().handle(
+    'GET',
+    '/portal/quotations/offline-quote-16/recommendation',
+  ).data as {
+    recommended_proposal_id: string;
+    scores: {
+      proposal_id: string;
+      total_score: number | null;
+      is_recommended: boolean;
+      is_lowest_cost: boolean;
+      is_lowest_transit: boolean;
+    }[];
+  };
+  assert.match(rec.recommended_proposal_id, /demo-agent-gamma$/);
+  const gamma = rec.scores.find((s) => s.is_recommended)!;
+  assert.equal(gamma.proposal_id, rec.recommended_proposal_id);
+  assert.equal(rec.scores.filter((s) => s.is_recommended).length, 1);
+  // Os fatos não mudam com a recomendação: a Alpha segue a mais barata.
+  assert.equal(gamma.is_lowest_cost, false);
+  assert.equal(gamma.is_lowest_transit, true);
+  assert.match(rec.scores.find((s) => s.is_lowest_cost)!.proposal_id, /demo-agent-alpha$/);
+  assert.ok(rec.scores.every((s) => s.total_score === null));
 });

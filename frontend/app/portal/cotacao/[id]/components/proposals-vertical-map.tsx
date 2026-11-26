@@ -29,6 +29,7 @@ import {
   Timer,
 } from 'lucide-react';
 
+import { useMyRecommendation } from '@/hooks/use-portal-quotations';
 import { formatBRL, formatCurrency, formatDate } from '@/lib/portal-formatters';
 import type { PortalProposal } from '@/types/portal';
 
@@ -62,8 +63,6 @@ interface ProposalsVerticalMapProps {
   /** Cotação V2 liberada: toda proposta visível passou pela revisão de saída. */
   reviewed: boolean;
   marketReference: number | null;
-  /** `data_limite_necessidade` já formatada (dd/mm/aaaa), quando existe. */
-  needBy: string | null;
 }
 
 interface Row {
@@ -97,9 +96,16 @@ export function ProposalsVerticalMap({
   renderDetails,
   reviewed,
   marketReference,
-  needBy,
 }: ProposalsVerticalMapProps) {
   const { columns } = map;
+  // Mesma chave SWR do painel: não há segunda chamada.
+  const { recommendation } = useMyRecommendation(
+    deciding && map.recommendedId ? quotationId : null,
+  );
+  const panelConflicts =
+    !!recommendation?.recommended_proposal_id &&
+    recommendation.recommended_proposal_id !== map.recommendedId;
+  const byNeed = columns.some((c) => c.recommended && c.onTime === true);
 
   const rows: Row[] = [
     {
@@ -246,7 +252,21 @@ export function ProposalsVerticalMap({
           <summary>
             Entender a recomendação <ChevronDown size={13} aria-hidden />
           </summary>
-          <RecommendationPanel quotationId={quotationId} proposals={proposals} />
+          {byNeed && (
+            <p>
+              A indicação considera primeiro a sua necessidade de chegada e,
+              entre as propostas que chegam a tempo, o menor custo.
+            </p>
+          )}
+          {/* O painel lê a recomendação da API, que não conhece a necessidade
+              do cliente. Se ela apontar outra proposta, o painel fica de fora:
+              duas indicações diferentes na mesma coluna é pior do que uma só. */}
+          {!panelConflicts && (
+            <RecommendationPanel
+              quotationId={quotationId}
+              proposals={proposals}
+            />
+          )}
           <p>A indicação não confirma atendimento à sua data necessária.</p>
         </details>
       )}
@@ -317,12 +337,6 @@ export function ProposalsVerticalMap({
         <p className={s.mapHint}>
           Ainda não há indicação válida para esta cotação. Compare prazo,
           validade e condições das propostas.
-        </p>
-      )}
-
-      {needBy && (
-        <p className={s.mapNeed}>
-          Sua necessidade de chegada: <strong>{needBy}</strong>
         </p>
       )}
 
