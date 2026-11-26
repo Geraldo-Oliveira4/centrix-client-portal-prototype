@@ -2129,6 +2129,59 @@ fixtures offline. Onde este bloco contradiz o anterior, **vale este**.
   em `/portal/cotacao/[id]` devolve `null` e o modal só fecha; em todas as
   outras telas continua indo para a Home. Esc segue igual ao "Pular".
 
+#### A recomendação desta tela prioriza a necessidade de chegada (27/11/2026)
+
+Decisão de produto da demonstração comercial, em `/portal/cotacao/[id]`. Onde
+este bloco contradiz os dois anteriores, **vale este** — em particular, o
+"`onTime` não entra na recomendação" do bloco de ajustes está **superado**.
+
+- **A necessidade de chegada do cliente vem ANTES do custo.**
+  `pickRecommendation` (em `cotacao/lib/comparison-map-model.ts`, pura e
+  testada) decide a recomendada da tela:
+  a) sem `data_limite_necessidade`: a recomendada da API, se válida (como antes);
+  b) com necessidade: entre as propostas VÁLIDAS que chegam a tempo (carga pronta
+     + transit time <= necessidade), a de menor custo; desempate por menor
+     transit time e depois pela ordem recebida. **Aqui a API deixa de mandar**;
+  c) com necessidade e nenhuma chegando a tempo: volta para a recomendada da API.
+- **DIVERGÊNCIA CONSCIENTE DO BACKEND.** O `recommendation_service` (copiado do
+  Centrix) não conhece a necessidade do cliente e **não foi alterado**; o
+  endpoint real continua devolvendo o ranking dele. A regra vive só nesta tela.
+  **Se ela virar produto, precisa ser alinhada no backend** e
+  `pickRecommendation` some — enquanto isso, qualquer outra superfície que leia
+  a recomendação da API (analista, proposta pública, a prévia) pode indicar
+  outra proposta para a mesma cotação.
+- **A frase segue a mesma lógica** (`recommendationReason`). Recomendada que
+  chega a tempo: "Única que chega a tempo para 05/01; custa R$ 630 a mais que a
+  mais barata." (com mais de uma a tempo: "Chega a tempo para DD/MM e custa R$ X
+  a mais que a mais barata." ou "...e é a mais barata entre as que chegam a
+  tempo."). Essa frase **substitui a cláusula de histórico**, que continua na
+  linha "Agente" e na gaveta. Sem necessidade, a frase antiga (custo, prazo,
+  histórico). No caso (c) ela **não fala de prazo**: "chega N dias antes" ao lado
+  de "Chega após a sua necessidade" leria como vantagem o que é atraso.
+- **Os selos "Menor custo" / "Menor prazo" não dependem da recomendada.** Na
+  COT-2026-0016 a Gamma é a recomendada e a primeira coluna, e o "Menor custo"
+  fica com a Alpha.
+- **Coluna e "Entender a recomendação" não podem se contradizer.** O painel
+  (`RecommendationPanel`) lê a recomendação da API. Dois cuidados:
+  - no modo offline, `lib/offline/offline-backend.ts` chama a MESMA
+    `pickRecommendation`, então a recomendação da COT-2026-0016 passa a ser a
+    Gamma também ali. Cotação offline sem necessidade continua recomendando a
+    mais barata. `is_recommended` das propostas ilustrativas
+    (`quotation-demo-proposals.ts`) não mudou: ele só vale quando não há
+    recomendação da API;
+  - com backend real, se a API apontar outra proposta, o mapa **oculta o
+    painel** em vez de mostrar duas indicações; ficam a frase "A indicação
+    considera primeiro a sua necessidade de chegada…" e a nota sobre a data.
+- **A linha "Sua necessidade de chegada: …" acima do mapa saiu**: a necessidade
+  já está no cartão do topo. As marcas "Chega a tempo" / "Chega após a sua
+  necessidade" continuam nas células.
+- **Histórico fixo da Gamma**: `DEMO_HISTORY_OVERRIDES` em
+  `cotacao/lib/detail-model.ts` dá a `demo-agent-gamma` "10 de 11 no prazo nesta
+  rota", sem divergências (a amostra sorteada era 7 de 11 com 2 divergências, e
+  contradizia a indicação na mesma coluna). Continua ilustrativo; só deixou de
+  ser sorteado. Vale para a linha e para a gaveta. Os demais agentes seguem por
+  semente.
+
 #### Comparação de Propostas parou de marcar real x ilustrativo (28/08/2026)
 
 Decisão de produto: clientes reais já estão vendo o protótipo, e nos dois cards

@@ -28,8 +28,23 @@ export function illustrativeMarketReference(
   return reference ? reference.total_brl * 1.08 : null;
 }
 
+/**
+ * Históricos FIXOS de demonstração, por agente. Existem para o roteiro da demo
+ * comercial (27/11/2026): a Gamma é a recomendada da COT-2026-0016 e a amostra
+ * sorteada dela (7 de 11, 2 divergências) contradizia a indicação na mesma
+ * coluna. Continua ilustrativo como o resto; só deixa de ser sorteado.
+ */
+const DEMO_HISTORY_OVERRIDES: Record<
+  string,
+  { completed: number; onTime: number; audited: number; discrepancies: number }
+> = {
+  'demo-agent-gamma': { completed: 11, onTime: 10, audited: 9, discrepancies: 0 },
+};
+
 /** UI reference only: stable sample per agent, not calculated from shipment records. */
 export function illustrativeAgentHistory(agentId: string) {
+  const fixed = DEMO_HISTORY_OVERRIDES[agentId];
+  if (fixed) return { ...fixed };
   const completed = seededInt(agentId + ':sample', 8, 24);
   const audited = completed - 2;
   return {

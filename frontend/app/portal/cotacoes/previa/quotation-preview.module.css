@@ -1872,16 +1872,6 @@
   font-weight: 600;
   white-space: nowrap;
 }
-.mapNeed {
-  margin: 0 !important;
-  padding: 0 22px 14px;
-  font-size: 13px;
-  color: var(--q-muted);
-}
-.mapNeed strong {
-  color: var(--q-ink);
-  font-weight: 600;
-}
 /* Fato na célula (chega a tempo / após a necessidade): contorno, sem
    preenchimento. O aviso é warning-ink, nunca vermelho. */
 .mapFact {
@@ -2036,8 +2026,7 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
   }
-  .mapHint,
-  .mapNeed {
+  .mapHint {
     padding: 0 16px 12px;
   }
 }

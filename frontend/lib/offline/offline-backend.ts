@@ -16,6 +16,7 @@
 
 import type { PortalProposal, PortalQuotation } from '../../types/portal.ts';
 import type { PortalPreferences } from '../../types/portal-agent.ts';
+import { pickRecommendation } from '../../app/portal/cotacao/lib/comparison-map-model.ts';
 import { buildOfflineFixtures, type OfflineFixtures } from './fixtures.ts';
 
 export interface OfflineResponse {
@@ -102,7 +103,18 @@ export function createOfflineBackend(
     const fastest = [...priced].sort(
       (a, b) => a.transit_time - b.transit_time,
     )[0];
-    const recommended = sorted[0] ?? null;
+    // A mais barata, salvo quando a cotação tem necessidade de chegada: aí a
+    // regra é a MESMA da tela (`pickRecommendation`), para o painel "Entender
+    // a recomendação" e a coluna destacada nunca apontarem propostas diferentes.
+    const recommendedId = pickRecommendation({
+      proposals: priced,
+      readyDate: q.data_prontidao,
+      needDate: q.data_limite_necessidade,
+      apiRecommendedId: sorted[0]?.id ?? null,
+      today: state.today,
+    });
+    const recommended =
+      priced.find((p) => p.id === recommendedId) ?? sorted[0] ?? null;
     return {
       recommended_proposal_id: recommended?.id ?? null,
       recommendation_text: null,

@@ -77,6 +77,7 @@ import { AgentHistoryDrawer } from '../components/agent-history-drawer';
 import {
   SHOW_ILLUSTRATIVE_MARKS,
   buildComparisonMap,
+  pickRecommendation,
 } from '../lib/comparison-map-model';
 import { localDay } from '@/lib/demo-clock';
 import { CancelDialog } from './components/cancel-dialog';
@@ -195,24 +196,36 @@ function QuotationDetail({
   const { recommendation } = useMyRecommendation(
     canDecide(q.state) ? q.id : null,
   );
-  const recommended = proposals.find(
-    (p) =>
-      (recommendation?.recommended_proposal_id
-        ? p.id === recommendation.recommended_proposal_id
-        : p.is_recommended) && !proposalIssue(p),
-  );
+  // A RECOMENDADA DESTA TELA. A necessidade de chegada do cliente vem antes
+  // do custo: havendo proposta válida que chega a tempo, é entre elas que a
+  // indicação sai, e a da API deixa de mandar (`pickRecommendation`). O
+  // `recommendation_service` do backend não conhece a necessidade e não mudou
+  // — divergência consciente, registrada no frontend/CLAUDE.md.
+  const apiRecommendedId =
+    recommendation?.recommended_proposal_id ??
+    proposals.find((p) => p.is_recommended)?.id ??
+    null;
+  const today = localDay(new Date());
+  const recommendedId = pickRecommendation({
+    proposals,
+    readyDate: q.data_prontidao,
+    needDate: q.data_limite_necessidade,
+    apiRecommendedId,
+    today,
+  });
+  const recommended = proposals.find((p) => p.id === recommendedId);
   // O MAPA COMPARATIVO decide ordem, selos e a frase da recomendação num
   // módulo puro (`lib/comparison-map-model.ts`); a tela só desenha. Mesmo
   // "hoje" do `proposalIssue`: o dia local de quem abre.
   const comparisonMap = useMemo(
     () =>
       buildComparisonMap(proposals, {
-        recommendedId: recommended?.id ?? null,
-        today: localDay(new Date()),
+        recommendedId,
+        today,
         readyDate: q.data_prontidao,
         needBy: q.data_limite_necessidade,
       }),
-    [proposals, recommended?.id, q.data_prontidao, q.data_limite_necessidade],
+    [proposals, recommendedId, today, q.data_prontidao, q.data_limite_necessidade],
   );
   const historyProposal = proposals.find((p) => p.id === historyFor) ?? null;
   // O OVERLAY DESTRAVA A ESCOLHA. `canDecide` exige ENVIADA_CLIENTE, e uma
@@ -556,15 +569,6 @@ function QuotationDetail({
               )}
               reviewed={v2?.stage === 'released'}
               marketReference={marketReference}
-              needBy={
-                q.data_limite_necessidade
-                  ? formatDate(q.data_limite_necessidade, {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                    })
-                  : null
-              }
             />
             <div className={s.tableNote}>
               <Info size={14} />

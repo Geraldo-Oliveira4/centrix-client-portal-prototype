@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { proposalIssue, illustrativeMarketReference } from './detail-model.ts';
+import {
+  proposalIssue,
+  illustrativeAgentHistory,
+  illustrativeMarketReference,
+} from './detail-model.ts';
+import { agentHistoryFacts, agentHistoryLine } from './agent-history-line.ts';
 
 test('offer remains eligible through its validity day; expires the following day', () => {
   const p = { total_brl: 9230, validity: '2026-09-13' };
@@ -30,4 +35,26 @@ test('market context uses one reference for the quote, independent of array orde
   assert.equal(illustrativeMarketReference([...proposals].reverse()), 11880);
   assert.equal(illustrativeMarketReference([]), null);
   assert.equal(illustrativeMarketReference([{ total_brl: null }]), null);
+});
+
+test('demo: a Gamma tem histórico fixo, "10 de 11 no prazo nesta rota", sem divergências', () => {
+  const gamma = illustrativeAgentHistory('demo-agent-gamma');
+  assert.deepEqual(gamma, { completed: 11, onTime: 10, audited: 9, discrepancies: 0 });
+  assert.deepEqual(agentHistoryLine(gamma), {
+    kind: 'normal',
+    text: '10 de 11 no prazo nesta rota',
+  });
+  // A gaveta "Ver histórico" lê a mesma fonte.
+  const facts = agentHistoryFacts(gamma, 'Shanghai → Santos');
+  assert.equal(facts[0].value, '10 de 11');
+  assert.equal(facts[1].value, 'Nenhuma');
+  // Cópia nova a cada chamada: ninguém altera o override por referência.
+  gamma.onTime = 0;
+  assert.equal(illustrativeAgentHistory('demo-agent-gamma').onTime, 10);
+});
+
+test('demo: os outros agentes seguem sorteados por semente (Alpha: 13 de 14)', () => {
+  const alpha = illustrativeAgentHistory('demo-agent-alpha');
+  assert.equal(agentHistoryLine(alpha).text, '13 de 14 no prazo nesta rota');
+  assert.deepEqual(illustrativeAgentHistory('demo-agent-alpha'), alpha);
 });

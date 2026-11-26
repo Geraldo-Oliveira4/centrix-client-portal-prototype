@@ -6,6 +6,7 @@ import {
   buildComparisonMap,
   freeTimeOf,
   onTime,
+  pickRecommendation,
   type MapProposal,
 } from './comparison-map-model.ts';
 import { illustrativeAgentHistory } from './detail-model.ts';
@@ -221,27 +222,107 @@ test('mapa: chegada parte da carga pronta; sem ela, de hoje; sem trânsito, sem 
   assert.equal(ready.columns[0].arrival, '2027-01-06');
 });
 
-test('demo COT-2026-0016: a recomendada chega 1 dia depois da necessidade e nada na recomendação muda', () => {
-  const proposals = [p('alpha', 6490, 29), p('gamma', 7120, 27)];
-  const base = build(proposals, 'alpha');
-  const map = buildComparisonMap(proposals, {
-    recommendedId: 'alpha',
+const DEMO = [p('alpha', 6490, 29), p('gamma', 7120, 27)];
+const READY = '2026-12-08';
+const NEED = '2027-01-05';
+
+const pick = (
+  proposals: MapProposal[],
+  apiRecommendedId: string | null,
+  needDate: string | null = NEED,
+) => pickRecommendation({ proposals, readyDate: READY, needDate, apiRecommendedId, today: TODAY });
+
+const withNeed = (proposals: MapProposal[], apiRecommendedId: string | null, needBy: string | null = NEED) =>
+  buildComparisonMap(proposals, {
+    recommendedId: pick(proposals, apiRecommendedId, needBy),
     today: TODAY,
     historyOf: history(8, 10),
-    readyDate: '2026-12-08',
-    needBy: '2027-01-05',
+    readyDate: READY,
+    needBy,
   });
+
+test('demo COT-2026-0016: a necessidade vence o custo e a Gamma é a recomendada, na primeira coluna', () => {
+  assert.equal(pick(DEMO, 'alpha'), 'gamma');
+  const map = withNeed(DEMO, 'alpha');
   assert.deepEqual(
-    map.columns.map((c) => [c.proposal.id, c.arrival, c.onTime]),
+    map.columns.map((c) => [c.proposal.id, c.arrival, c.onTime, c.cheapest, c.fastest]),
     [
-      ['alpha', '2027-01-06', false],
-      ['gamma', '2027-01-04', true],
+      ['gamma', '2027-01-04', true, false, true],
+      ['alpha', '2027-01-06', false, true, false],
     ],
   );
-  // Chegar a tempo é fato na célula: não mexe em ordem, destaque nem frase.
+  assert.equal(map.recommendedId, 'gamma');
+  assert.equal(
+    map.reason,
+    'Única que chega a tempo para 05/01; custa R$ 630 a mais que a mais barata.',
+  );
+  // A frase de prazo substitui a cláusula de histórico.
+  assert.doesNotMatch(map.reason!, /cumpriu o prazo|histórico/);
+});
+
+test('pickRecommendation (a): sem necessidade, vale a recomendada da API, se válida', () => {
+  for (const need of [null, '', 'inválida']) {
+    assert.equal(pick(DEMO, 'alpha', need), 'alpha');
+    assert.equal(pick(DEMO, 'gamma', need), 'gamma');
+    assert.equal(pick(DEMO, null, need), null);
+  }
+  assert.equal(pick([p('x', 5000, 20, EXPIRED), p('a', 9000, 30)], 'x', null), null);
+  const map = withNeed(DEMO, 'alpha', null);
   assert.equal(map.recommendedId, 'alpha');
-  assert.equal(map.reason, base.reason);
-  assert.doesNotMatch(map.reason!, /tempo|necessidade/);
+  assert.equal(
+    map.reason,
+    'Recomendada: menor custo entre as propostas e este agente cumpriu o prazo em 8 de 10 embarques desta rota.',
+  );
+});
+
+test('pickRecommendation (b): entre as que chegam a tempo, a de menor custo; a API deixa de mandar', () => {
+  // 27 e 28 dias chegam a tempo (04/01 e 05/01); 29 não.
+  const three = [p('lenta', 5000, 29), p('cara', 9000, 27), p('meio', 8000, 28)];
+  assert.equal(pick(three, 'lenta'), 'meio');
+  assert.equal(pick(three, 'cara'), 'meio');
+  assert.equal(pick(three, null), 'meio');
+  // Desempate: menor transit time; depois a ordem recebida.
+  assert.equal(pick([p('a', 8000, 28), p('b', 8000, 27)], null), 'b');
+  assert.equal(pick([p('a', 8000, 27), p('b', 8000, 27)], null), 'a');
+  // Inválida não é candidata, mesmo chegando a tempo e sendo a mais barata.
+  assert.equal(pick([p('vencida', 1000, 5, EXPIRED), p('a', 8000, 27)], 'vencida'), 'a');
+});
+
+test('pickRecommendation (c): nenhuma chega a tempo, volta para a API e a frase não fala de prazo', () => {
+  const late = [p('rec', 8000, 30), p('barata', 6800, 40)];
+  assert.equal(pick(late, 'rec'), 'rec');
+  assert.equal(pick(late, null), null);
+  const map = withNeed(late, 'rec');
+  assert.ok(map.columns.every((c) => c.onTime === false));
+  assert.equal(
+    map.reason,
+    'Recomendada: R$ 1.200 acima da mais barata e este agente cumpriu o prazo em 8 de 10 embarques desta rota.',
+  );
+  assert.doesNotMatch(map.reason!, /chega|antes|tempo/);
+  // Sem necessidade, a mesma dupla volta a citar a vantagem de prazo.
+  assert.match(withNeed(late, 'rec', null).reason!, /chega 10 dias antes/);
+});
+
+test('frase com mais de uma a tempo: "Chega a tempo para DD/MM e ..."', () => {
+  assert.equal(
+    withNeed([p('lenta', 5000, 29), p('cara', 9000, 27), p('meio', 8000, 28)], null).reason,
+    'Chega a tempo para 05/01 e custa R$ 3.000 a mais que a mais barata.',
+  );
+  assert.equal(
+    withNeed([p('a', 7000, 27), p('b', 9000, 28)], null).reason,
+    'Chega a tempo para 05/01 e é a mais barata entre as que chegam a tempo.',
+  );
+});
+
+test('frase quando a única a tempo também é a mais barata, e quando não há rival', () => {
+  assert.equal(
+    withNeed([p('a', 6000, 27), p('b', 9000, 29)], null).reason,
+    'Única que chega a tempo para 05/01 e é a mais barata.',
+  );
+  assert.equal(
+    withNeed([p('a', 6000, 27), p('vencida', 100, 2, EXPIRED)], null).reason,
+    'Chega a tempo para 05/01; única proposta válida no momento.',
+  );
 });
 
 test('free time: payload vence; senão valor ilustrativo estável por agente, entre 7 e 21', () => {
