@@ -37,6 +37,7 @@ import {
   tourStepLabel,
   INTEL_PRACTICE_HREF,
   FIRST_STEPS_DONE_BY_ACTION,
+  skipDestination,
 } from './onboarding.ts';
 
 test('mini tour: 4 paradas — menu, Central, Performance (antes da Ajuda) e Ajuda', () => {
@@ -358,4 +359,10 @@ test('primeiros passos: próximo passo, barra fina faltando 1 de 5 e comemoraç�
     ),
     null,
   );
+});
+
+test('Pular: no detalhe da cotação fecha e fica; nas outras telas segue para a Home', () => {
+  assert.equal(skipDestination('/portal/cotacao/offline-quote-16'), null);
+  for (const path of ['/portal/home', '/portal/cotacoes', '/portal/embarques', null, undefined])
+    assert.equal(skipDestination(path), '/portal/home');
 });

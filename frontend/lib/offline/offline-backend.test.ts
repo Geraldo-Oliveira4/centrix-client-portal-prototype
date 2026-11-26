@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { addDays } from '../demo-clock.ts';
 
 import {
   buildOfflineFixtures,
@@ -225,4 +226,16 @@ test('ponto único: só lib/portal-api.ts instala o adapter offline', () => {
   for (const dir of ['app', 'hooks', 'lib', 'components'])
     walk(join(root, dir));
   assert.deepEqual(hits.sort(), ['lib/portal-api.ts']);
+});
+
+test('COT-2026-0016 tem datas FIXAS para a demonstração; as demais seguem relativas ao dia', () => {
+  for (const today of ['2026-11-12', '2026-12-02']) {
+    const { quotations } = buildOfflineFixtures(today);
+    const q16 = quotations.find((q) => q.id === 'offline-quote-16')!;
+    assert.equal(q16.data_prontidao, '2026-12-08');
+    assert.equal(q16.data_limite_necessidade, '2027-01-05');
+    const q17 = quotations.find((q) => q.id === 'offline-quote-17')!;
+    assert.equal(q17.data_prontidao, addDays(today, 12));
+    assert.equal(q17.data_limite_necessidade, null);
+  }
 });

@@ -22,11 +22,17 @@
 //
 // ILUSTRATIVO aqui: o histórico do agente (amostra estável por agente) e o free
 // time quando o payload não traz `free_time_dias`. Chegada prevista é conta
-// (hoje + transit time), não data confirmada pelo agente.
+// (carga pronta + transit time; sem carga pronta, hoje + transit time), não
+// data confirmada pelo agente.
+//
+// "CHEGA A TEMPO" É FATO, NÃO CRITÉRIO: `onTime` compara a chegada prevista com
+// a necessidade do cliente e marca a célula. Ele NÃO entra na ordem das colunas,
+// na recomendação nem na frase — a recomendada pode chegar depois da
+// necessidade, e a tela mostra as duas coisas lado a lado.
 //
 // PURO, sem `@/`: roda sob `node --test` (comparison-map-model.test.ts).
 
-import { addDays } from '../../../../lib/demo-clock.ts';
+import { addDays, isValidDay } from '../../../../lib/demo-clock.ts';
 import { seededInt } from '../../inteligencia/lib/intel-helpers.ts';
 import { SMALL_SAMPLE, type AgentRouteHistory } from './agent-history-line.ts';
 import { illustrativeAgentHistory, proposalIssue } from './detail-model.ts';
@@ -55,8 +61,10 @@ export interface MapColumn<P extends MapProposal> {
   recommended: boolean;
   cheapest: boolean;
   fastest: boolean;
-  /** `AAAA-MM-DD`: hoje + transit time. `null` sem trânsito informado. */
+  /** `AAAA-MM-DD`: carga pronta (ou hoje) + transit time. `null` sem trânsito. */
   arrival: string | null;
+  /** Chega até a necessidade do cliente? `null` sem chegada ou sem necessidade. */
+  onTime: boolean | null;
   freeTime: MapFreeTime | null;
   history: AgentRouteHistory | null;
 }
@@ -73,6 +81,10 @@ export interface ComparisonMapOptions {
   recommendedId: string | null | undefined;
   /** `AAAA-MM-DD`. */
   today: string;
+  /** Carga pronta (`data_prontidao`): de onde a chegada parte. Ausente: hoje. */
+  readyDate?: string | null;
+  /** Necessidade de chegada do cliente (`data_limite_necessidade`). */
+  needBy?: string | null;
   /** Injetável para teste; o padrão é a fonte da linha de histórico da tela. */
   historyOf?: (agentId: string) => AgentRouteHistory | null;
 }
@@ -88,6 +100,53 @@ const brl = (value: number) =>
   'R$ ' + Math.round(value).toLocaleString('pt-BR');
 
 const days = (n: number) => (n === 1 ? '1 dia' : `${n} dias`);
+
+/**
+ * As marcas "ilustrativo" da tela. Desligadas em 27/11/2026 SÓ para a
+ * demonstração comercial: os valores continuam ilustrativos (free time sem
+ * `free_time_dias`, referência de mercado), apenas sem o rótulo. Reverter é
+ * trocar para `true`.
+ */
+export const SHOW_ILLUSTRATIVE_MARKS = false;
+
+/** O dia (`AAAA-MM-DD`) de uma data ISO com ou sem hora; `null` se inválida. */
+const dayOf = (iso: string | null | undefined): string | null => {
+  const day = iso ? iso.slice(0, 10) : null;
+  return isValidDay(day) ? day : null;
+};
+
+/**
+ * Chegada prevista: carga pronta + transit time. Sem carga pronta (ou com data
+ * inválida) parte de hoje, que era a regra anterior — assim cotação sem
+ * `data_prontidao` continua mostrando uma data.
+ */
+export function arrivalDate(
+  transitDays: number | null | undefined,
+  readyDate: string | null | undefined,
+  today: string,
+): string | null {
+  if (
+    typeof transitDays !== 'number' ||
+    !Number.isFinite(transitDays) ||
+    transitDays <= 0
+  )
+    return null;
+  return addDays(dayOf(readyDate) ?? today, transitDays);
+}
+
+/**
+ * A chegada atende a necessidade? Chegar NO dia conta como a tempo. `null`
+ * quando falta um dos lados: sem necessidade informada não há o que marcar.
+ */
+export function onTime(
+  arrival: string | null | undefined,
+  need: string | null | undefined,
+): boolean | null {
+  const a = dayOf(arrival);
+  const n = dayOf(need);
+  if (!a || !n) return null;
+  return a <= n;
+}
 
 /** Free time do payload quando existe; senão um valor estável por agente. */
 export function freeTimeOf(p: MapProposal): MapFreeTime | null {
@@ -182,6 +241,7 @@ export function buildComparisonMap<P extends MapProposal>(
     .map(({ p }): MapColumn<P> => {
       const issue = issues.get(p.id) ?? null;
       const transit = transitOf(p);
+      const arrival = arrivalDate(transit, options.readyDate, options.today);
       return {
         proposal: p,
         issue,
@@ -189,7 +249,8 @@ export function buildComparisonMap<P extends MapProposal>(
         cheapest: compares && !issue && p.total_brl === minCost,
         fastest:
           compares && !issue && transit != null && transit === minTransit,
-        arrival: transit == null ? null : addDays(options.today, transit),
+        arrival,
+        onTime: onTime(arrival, options.needBy),
         freeTime: freeTimeOf(p),
         history: p.agent_id ? historyOf(p.agent_id) : null,
       };

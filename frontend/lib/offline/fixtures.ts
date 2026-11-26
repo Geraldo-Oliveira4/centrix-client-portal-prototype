@@ -361,6 +361,10 @@ interface ActiveQuotationSpec {
   createdDaysAgo: number;
   withProposals?: boolean;
   missingData?: boolean;
+  /** Carga pronta FIXA (`AAAA-MM-DD`), em vez de relativa ao dia. */
+  readyOn?: string;
+  /** Necessidade de chegada do cliente, FIXA. */
+  needBy?: string;
   declineReason?: string;
 }
 
@@ -375,6 +379,12 @@ const ACTIVE_QUOTATIONS: ActiveQuotationSpec[] = [
     destination: 'Santos',
     createdDaysAgo: 6,
     withProposals: true,
+    // Roteiro da demonstração comercial (27/11/2026): datas FIXAS para o mapa
+    // contar sempre a mesma história — carga pronta em 08/12, Gamma (27 dias)
+    // chega 04/01, Alpha (29 dias, a recomendada) chega 06/01, um dia depois da
+    // necessidade de 05/01/2027. Só esta cotação; as demais seguem relativas.
+    readyOn: '2026-12-08',
+    needBy: '2027-01-05',
   },
   {
     ref: 17,
@@ -463,7 +473,8 @@ export function buildOfflineFixtures(today: string): OfflineFixtures {
       porto_destino: [spec.destination],
       product: spec.product,
       client_reference: 'PO-' + (4580 + spec.ref),
-      data_prontidao: spec.missingData ? null : date(12),
+      data_prontidao: spec.missingData ? null : (spec.readyOn ?? date(12)),
+      data_limite_necessidade: spec.needBy ?? null,
       desired_deadline: date(45),
       created_at: date(-spec.createdDaysAgo) + 'T12:00:00Z',
       updated_at: date(declined ? -25 : -1) + 'T12:00:00Z',

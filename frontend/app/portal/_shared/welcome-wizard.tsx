@@ -18,7 +18,7 @@
 // nos botões de lista ao lado — o mapa nunca é o único caminho.
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
   ArrowRight,
@@ -63,6 +63,7 @@ import {
   type Persona,
   type PreferredRoute,
   type Priority,
+  skipDestination,
 } from './onboarding';
 import { RouteMap } from './route-map';
 import { updateOnboarding } from './use-onboarding';
@@ -197,6 +198,7 @@ function RouteInsight({
 
 export function WelcomeWizard({ initial }: { initial: OnboardingState }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { client } = useMyClient();
   const { layout, mutate } = useMyHomeLayout();
   const [step, setStepState] = useState(initial.wizardStep);
@@ -284,7 +286,10 @@ export function WelcomeWizard({ initial }: { initial: OnboardingState }) {
     });
     setFinishing(false);
     if (skipped) toast.info('Tudo bem. Você personaliza a Home quando quiser.');
-    router.push(goTo);
+    // Pular fecha o modal (o `setupDone` acima já o desmonta). No detalhe da
+    // cotação ele para aí, sem trocar de rota; ver `skipDestination`.
+    const destination = skipped ? skipDestination(pathname) : goTo;
+    if (destination) router.push(destination);
   };
 
   // A rota do "Cotar esta rota agora": a que está sendo escolhida, se está

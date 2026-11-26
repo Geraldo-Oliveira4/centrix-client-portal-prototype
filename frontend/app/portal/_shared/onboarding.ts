@@ -92,6 +92,22 @@ export const EMPTY_ONBOARDING: OnboardingState = {
   revealPending: false,
 };
 
+/**
+ * Para onde o "Pular" das boas-vindas leva. `null` = fecha o modal e fica onde
+ * está.
+ *
+ * O padrão é a Home, que é onde o resultado das boas-vindas aparece. No detalhe
+ * de uma cotação (`/portal/cotacao/[id]`) pular NÃO navega (27/11/2026): quem
+ * abriu um link direto para comparar propostas era jogado na Home e perdia a
+ * tela, e a escolha já feita, no meio da demonstração. Só essa rota muda; as
+ * demais continuam indo para a Home.
+ */
+export function skipDestination(
+  pathname: string | null | undefined,
+): string | null {
+  return pathname?.startsWith('/portal/cotacao/') ? null : '/portal/home';
+}
+
 export function routeKey(route: PreferredRoute): string {
   return `${route.origin}>${route.destination}`;
 }
