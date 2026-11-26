@@ -2084,6 +2084,51 @@ agente por linha e o bloco de recomendação separado.
   pagamento entraram em `ProposalDetails`, no lugar do "Free time: confirmar com
   o agente" que o mapa agora responde.
 
+#### Ajustes do mapa para a demonstração comercial (27/11/2026)
+
+Quatro ajustes em cima do mapa vertical, todos em `/portal/cotacao/[id]` e nas
+fixtures offline. Onde este bloco contradiz o anterior, **vale este**.
+
+- **Chegada prevista = carga pronta + transit time** (`arrivalDate`, em
+  `comparison-map-model.ts`), a partir de `q.data_prontidao`. Sem carga pronta,
+  ou com data inválida, cai para hoje + transit time, que era a regra anterior.
+- **"Chega a tempo" / "Chega após a sua necessidade" é FATO na célula**
+  (`onTime(arrival, need)` -> `true`/`false`/`null`, contra
+  `q.data_limite_necessidade`): ícone + texto, contorno sem preenchimento, e o
+  aviso em `portal-warning-ink`, nunca vermelho. Chegar NO dia conta como a
+  tempo; sem necessidade informada não há marca. A necessidade aparece também
+  uma vez acima do mapa. **`onTime` não entra na ordem das colunas, na
+  recomendação nem na frase** — a recomendada pode chegar depois da necessidade
+  e a tela mostra as duas coisas. Por isso a nota "A indicação não confirma
+  atendimento à sua data necessária" continua no "Entender a recomendação".
+- **A COT-2026-0016 (`offline-quote-16`) tem datas FIXAS** em
+  `lib/offline/fixtures.ts` (`readyOn: 2026-12-08`, `needBy: 2027-01-05`), para o
+  roteiro contar sempre a mesma história: Gamma (27 dias) chega 04/01, a tempo;
+  Alpha (29 dias, a recomendada) chega 06/01, um dia depois. É a ÚNICA cotação
+  offline com data fixa; as demais seguem relativas ao dia. A validade das
+  propostas continua relativa, então depois da data da demo o cenário envelhece
+  (a necessidade fica no passado) e precisa ser reancorado.
+- **Os rótulos "ilustrativo" saíram da tela, SÓ para a demonstração comercial.**
+  Os valores continuam ilustrativos — free time sem `free_time_dias`, referência
+  de mercado do "Contexto de mercado", histórico do agente — apenas sem a marca.
+  Uma chave só: `SHOW_ILLUSTRATIVE_MARKS = false` em `comparison-map-model.ts`;
+  reverter é trocar para `true`. **Não é mudança da regra geral de proveniência
+  do portal** (`ProvenanceBadge`, `tracking_is_mock` e o resto seguem como
+  estavam), e na versão integrada o que hoje é ilustrativo precisa virar dado
+  real ou voltar a ser marcado.
+- **"Ver variações do protótipo" só aparece com `?dev=1`** na URL do detalhe.
+- **A nota abaixo do mapa tem UMA linha**: "Chegada prevista = carga pronta +
+  transit time; confirme saída e free time com o agente." (diz "hoje" no lugar
+  de "carga pronta" quando a cotação não tem `data_prontidao`). Ela substitui a
+  nota longa do bloco anterior e é o que sustenta a chegada como conta, não data
+  do agente: encurtar pode, apagar não.
+- **"Pular" das boas-vindas não navega no detalhe da cotação.** O modal
+  (`_shared/welcome-wizard.tsx`, montado no layout do portal inteiro) gravava o
+  onboarding e fazia `router.push('/portal/home')` em qualquer tela. Agora o
+  destino sai de `skipDestination(pathname)` (`_shared/onboarding.ts`, testado):
+  em `/portal/cotacao/[id]` devolve `null` e o modal só fecha; em todas as
+  outras telas continua indo para a Home. Esc segue igual ao "Pular".
+
 #### Comparação de Propostas parou de marcar real x ilustrativo (28/08/2026)
 
 Decisão de produto: clientes reais já estão vendo o protótipo, e nos dois cards

@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  arrivalDate,
   buildComparisonMap,
   freeTimeOf,
+  onTime,
   type MapProposal,
 } from './comparison-map-model.ts';
 import { illustrativeAgentHistory } from './detail-model.ts';
@@ -180,11 +182,66 @@ test('histórico padrão é o mesmo da linha "N de M no prazo" da tela', () => {
   assert.ok(agentHistoryLine(h).text.startsWith(`${h.onTime} de ${h.completed} no prazo`));
 });
 
-test('chegada prevista = hoje + transit time; sem trânsito, sem chegada', () => {
-  const map = build([p('a', 7000, 29), p('b', 8000, null)], null);
+test('arrivalDate: carga pronta + transit time, atravessando o ano', () => {
+  assert.equal(arrivalDate(27, '2026-12-08', TODAY), '2027-01-04');
+  assert.equal(arrivalDate(29, '2026-12-08', TODAY), '2027-01-06');
+  // Data com hora (ISO completo) vale pelo dia.
+  assert.equal(arrivalDate(27, '2026-12-08T12:00:00Z', TODAY), '2027-01-04');
+});
+
+test('arrivalDate: sem carga pronta (ou inválida) parte de hoje; sem trânsito, sem chegada', () => {
+  for (const ready of [null, undefined, '', 'a confirmar', '2026-02-31'])
+    assert.equal(arrivalDate(29, ready, TODAY), '2026-12-25');
+  for (const transit of [null, undefined, 0, -3, NaN])
+    assert.equal(arrivalDate(transit, '2026-12-08', TODAY), null);
+});
+
+test('onTime: chegar no dia conta; sem chegada ou sem necessidade não há marca', () => {
+  assert.equal(onTime('2027-01-04', '2027-01-05'), true);
+  assert.equal(onTime('2027-01-05', '2027-01-05'), true);
+  assert.equal(onTime('2027-01-06', '2027-01-05'), false);
+  assert.equal(onTime('2027-01-04', '2027-01-05T00:00:00Z'), true);
+  for (const need of [null, undefined, '', 'inválida'])
+    assert.equal(onTime('2027-01-04', need), null);
+  assert.equal(onTime(null, '2027-01-05'), null);
+});
+
+test('mapa: chegada parte da carga pronta; sem ela, de hoje; sem trânsito, sem chegada', () => {
+  const proposals = [p('a', 7000, 29), p('b', 8000, null)];
+  const map = build(proposals, null);
   assert.equal(map.columns[0].arrival, '2026-12-25');
   assert.equal(map.columns[1].arrival, null);
   assert.equal(map.columns[1].fastest, false);
+  assert.ok(map.columns.every((c) => c.onTime === null));
+  const ready = buildComparisonMap(proposals, {
+    recommendedId: null,
+    today: TODAY,
+    readyDate: '2026-12-08',
+  });
+  assert.equal(ready.columns[0].arrival, '2027-01-06');
+});
+
+test('demo COT-2026-0016: a recomendada chega 1 dia depois da necessidade e nada na recomendação muda', () => {
+  const proposals = [p('alpha', 6490, 29), p('gamma', 7120, 27)];
+  const base = build(proposals, 'alpha');
+  const map = buildComparisonMap(proposals, {
+    recommendedId: 'alpha',
+    today: TODAY,
+    historyOf: history(8, 10),
+    readyDate: '2026-12-08',
+    needBy: '2027-01-05',
+  });
+  assert.deepEqual(
+    map.columns.map((c) => [c.proposal.id, c.arrival, c.onTime]),
+    [
+      ['alpha', '2027-01-06', false],
+      ['gamma', '2027-01-04', true],
+    ],
+  );
+  // Chegar a tempo é fato na célula: não mexe em ordem, destaque nem frase.
+  assert.equal(map.recommendedId, 'alpha');
+  assert.equal(map.reason, base.reason);
+  assert.doesNotMatch(map.reason!, /tempo|necessidade/);
 });
 
 test('free time: payload vence; senão valor ilustrativo estável por agente, entre 7 e 21', () => {

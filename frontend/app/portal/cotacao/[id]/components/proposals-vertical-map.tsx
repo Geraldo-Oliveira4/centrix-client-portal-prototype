@@ -21,8 +21,10 @@
 import type { CSSProperties, ReactNode } from 'react';
 import {
   Check,
+  CheckCircle2,
   ChevronDown,
   CircleDollarSign,
+  Clock3,
   Sparkles,
   Timer,
 } from 'lucide-react';
@@ -34,9 +36,10 @@ import { ReviewedByFreitasBadge } from '../../../_shared/demo/quotation-v2-label
 import s from '../../../cotacoes/previa/quotation-preview.module.css';
 import { AgentHistoryInline } from '../../components/agent-history-drawer';
 import { agentHistoryLine } from '../../lib/agent-history-line';
-import type {
-  ComparisonMap,
-  MapColumn,
+import {
+  SHOW_ILLUSTRATIVE_MARKS,
+  type ComparisonMap,
+  type MapColumn,
 } from '../../lib/comparison-map-model';
 import { RecommendationPanel } from './recommendation-panel';
 
@@ -59,7 +62,7 @@ interface ProposalsVerticalMapProps {
   /** Cotação V2 liberada: toda proposta visível passou pela revisão de saída. */
   reviewed: boolean;
   marketReference: number | null;
-  /** `data_limite_necessidade` já formatada, quando existe. */
+  /** `data_limite_necessidade` já formatada (dd/mm/aaaa), quando existe. */
   needBy: string | null;
 }
 
@@ -149,8 +152,23 @@ export function ProposalsVerticalMap({
     {
       key: 'chegada',
       label: 'Chegada prevista',
-      note: needBy ? `Necessária até ${needBy}` : undefined,
-      render: ({ arrival }) => (arrival ? formatDate(arrival) : 'A confirmar'),
+      // Fato com ícone + texto, nunca só cor. Sem necessidade informada
+      // (`onTime === null`) não há marca.
+      render: ({ arrival, onTime }) => (
+        <>
+          {arrival ? formatDate(arrival) : 'A confirmar'}
+          {onTime === true && (
+            <span className={s.mapFact}>
+              <CheckCircle2 size={12} aria-hidden /> Chega a tempo
+            </span>
+          )}
+          {onTime === false && (
+            <span className={s.mapFact + ' ' + s.mapFactLate}>
+              <Clock3 size={12} aria-hidden /> Chega após a sua necessidade
+            </span>
+          )}
+        </>
+      ),
     },
     {
       key: 'free-time',
@@ -159,7 +177,7 @@ export function ProposalsVerticalMap({
         freeTime ? (
           <>
             {freeTime.days} dias
-            {freeTime.illustrative && (
+            {SHOW_ILLUSTRATIVE_MARKS && freeTime.illustrative && (
               <span className={s.mapIllustrative}>ilustrativo</span>
             )}
           </>
@@ -299,6 +317,12 @@ export function ProposalsVerticalMap({
         <p className={s.mapHint}>
           Ainda não há indicação válida para esta cotação. Compare prazo,
           validade e condições das propostas.
+        </p>
+      )}
+
+      {needBy && (
+        <p className={s.mapNeed}>
+          Sua necessidade de chegada: <strong>{needBy}</strong>
         </p>
       )}
 

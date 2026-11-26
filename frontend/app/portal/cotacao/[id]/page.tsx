@@ -74,7 +74,10 @@ import {
 import { ApproveDialog } from './components/approve-dialog';
 import { useBottomActionBar } from '../../_shared/use-bottom-action-bar';
 import { AgentHistoryDrawer } from '../components/agent-history-drawer';
-import { buildComparisonMap } from '../lib/comparison-map-model';
+import {
+  SHOW_ILLUSTRATIVE_MARKS,
+  buildComparisonMap,
+} from '../lib/comparison-map-model';
 import { localDay } from '@/lib/demo-clock';
 import { CancelDialog } from './components/cancel-dialog';
 import { DeclineDialog } from './components/decline-dialog';
@@ -206,8 +209,10 @@ function QuotationDetail({
       buildComparisonMap(proposals, {
         recommendedId: recommended?.id ?? null,
         today: localDay(new Date()),
+        readyDate: q.data_prontidao,
+        needBy: q.data_limite_necessidade,
       }),
-    [proposals, recommended?.id],
+    [proposals, recommended?.id, q.data_prontidao, q.data_limite_necessidade],
   );
   const historyProposal = proposals.find((p) => p.id === historyFor) ?? null;
   // O OVERLAY DESTRAVA A ESCOLHA. `canDecide` exige ENVIADA_CLIENTE, e uma
@@ -301,9 +306,12 @@ function QuotationDetail({
           <ArrowLeft size={16} /> Minhas cotações
         </a>
         {isHistory(q.state) && <a className={s.textButton} href={`/portal/cotacoes/repetir/${q.id}?retorno=${encodeURIComponent(returnHref)}`}>Cotar novamente <ArrowRight size={16} /></a>}
-        <a className={s.textButton} href="/portal/cotacoes/previa?variacoes=1">
-          Ver variações do protótipo
-        </a>
+        {/* Fora da demonstração comercial: só com `?dev=1` na URL. */}
+        {search.get('dev') === '1' && (
+          <a className={s.textButton} href="/portal/cotacoes/previa?variacoes=1">
+            Ver variações do protótipo
+          </a>
+        )}
       </div>
       <header className={s.heading}>
         <div>
@@ -550,17 +558,19 @@ function QuotationDetail({
               marketReference={marketReference}
               needBy={
                 q.data_limite_necessidade
-                  ? formatDate(q.data_limite_necessidade)
+                  ? formatDate(q.data_limite_necessidade, {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    })
                   : null
               }
             />
             <div className={s.tableNote}>
               <Info size={14} />
               <span>
-                A chegada prevista soma o trânsito a partir de hoje e não é
-                data confirmada. Free time marcado como ilustrativo é exemplo
-                da demonstração. Confira saída, taxas, free time e entrega
-                final com o agente antes de escolher.
+                Chegada prevista = {q.data_prontidao ? 'carga pronta' : 'hoje'}{' '}
+                + transit time; confirme saída e free time com o agente.
               </span>
             </div>
           </section>
@@ -821,10 +831,12 @@ function ProposalDetails({
             <strong>{formatBRL(marketReference)}</strong>. A mesma base é usada
             para todas as ofertas.
           </p>
-          <p className={s.muted}>
-            Referência ilustrativa do protótipo, sem índice externo de mercado
-            conectado.
-          </p>
+          {SHOW_ILLUSTRATIVE_MARKS && (
+            <p className={s.muted}>
+              Referência ilustrativa do protótipo, sem índice externo de mercado
+              conectado.
+            </p>
+          )}
         </details>
       )}
     </div>
