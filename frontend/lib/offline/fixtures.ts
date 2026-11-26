@@ -365,6 +365,8 @@ interface ActiveQuotationSpec {
   readyOn?: string;
   /** Necessidade de chegada do cliente, FIXA. */
   needBy?: string;
+  /** Carga declarada, em pallets. Sem isto a cotação fica sem `totals`. */
+  cargo?: { pallets: number; weightKg: number };
   declineReason?: string;
 }
 
@@ -385,6 +387,8 @@ const ACTIVE_QUOTATIONS: ActiveQuotationSpec[] = [
     // necessidade de 05/01/2027. Só esta cotação; as demais seguem relativas.
     readyOn: '2026-12-08',
     needBy: '2027-01-05',
+    // "Dados da solicitação" mostra "2 pallets, 850 kg" (só esta cotação).
+    cargo: { pallets: 2, weightKg: 850 },
   },
   {
     ref: 17,
@@ -475,6 +479,32 @@ export function buildOfflineFixtures(today: string): OfflineFixtures {
       client_reference: 'PO-' + (4580 + spec.ref),
       data_prontidao: spec.missingData ? null : (spec.readyOn ?? date(12)),
       data_limite_necessidade: spec.needBy ?? null,
+      ...(spec.cargo
+        ? {
+            totals: {
+              weight_kg: spec.cargo.weightKg,
+              volume_m3: null,
+              qty: spec.cargo.pallets,
+            },
+            volumes: [
+              {
+                id: id + ':volume-1',
+                quotation_id: id,
+                quantity: spec.cargo.pallets,
+                embalagem: 'PALLET' as const,
+                peso_bruto: spec.cargo.weightKg,
+                peso_unidade: 'KG' as const,
+                comprimento: null,
+                largura: null,
+                altura: null,
+                dimensao_unidade: 'CM' as const,
+                volume_m3: null,
+                inspecao_iof: null,
+                created_at: date(-spec.createdDaysAgo) + 'T12:00:00Z',
+              },
+            ],
+          }
+        : {}),
       desired_deadline: date(45),
       created_at: date(-spec.createdDaysAgo) + 'T12:00:00Z',
       updated_at: date(declined ? -25 : -1) + 'T12:00:00Z',

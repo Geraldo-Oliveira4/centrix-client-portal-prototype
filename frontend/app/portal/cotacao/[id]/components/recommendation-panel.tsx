@@ -16,12 +16,15 @@ interface RecommendationPanelProps {
    * nem fetch a mais, e o numero da frase e conferivel na tabela logo acima.
    */
   proposals: PortalProposal[];
+  /** A recomendada saiu da necessidade de chegada: o texto cita esse critério. */
+  considersNeed?: boolean;
 }
 
 /** Read-only AI recommendation for the client portal (no override action). */
 export function RecommendationPanel({
   quotationId,
   proposals,
+  considersNeed = false,
 }: RecommendationPanelProps) {
   const { recommendation, isLoading } = useMyRecommendation(quotationId);
 
@@ -45,6 +48,7 @@ export function RecommendationPanel({
       isLoading={isLoading}
       variant="portal-inline"
       gap={gap}
+      considersNeed={considersNeed}
     />
   );
 }

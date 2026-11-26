@@ -4,6 +4,7 @@ import {
   proposalIssue,
   illustrativeAgentHistory,
   illustrativeMarketReference,
+  palletCargoSummary,
 } from './detail-model.ts';
 import { agentHistoryFacts, agentHistoryLine } from './agent-history-line.ts';
 
@@ -57,4 +58,25 @@ test('demo: os outros agentes seguem sorteados por semente (Alpha: 13 de 14)', (
   const alpha = illustrativeAgentHistory('demo-agent-alpha');
   assert.equal(agentHistoryLine(alpha).text, '13 de 14 no prazo nesta rota');
   assert.deepEqual(illustrativeAgentHistory('demo-agent-alpha'), alpha);
+});
+
+test('carga por extenso: "2 pallets, 850 kg" só quando todos os volumes são pallets', () => {
+  const pallet = (quantity: number) => ({ quantity, embalagem: 'PALLET' });
+  assert.equal(
+    palletCargoSummary({ volumes: [pallet(2)], totals: { weight_kg: 850 } }),
+    '2 pallets, 850 kg',
+  );
+  assert.equal(
+    palletCargoSummary({ volumes: [pallet(1), pallet(2)], totals: { weight_kg: 1250 } }),
+    '3 pallets, 1.250 kg',
+  );
+  assert.equal(palletCargoSummary({ volumes: [pallet(1)], totals: { weight_kg: null } }), '1 pallet');
+  // Qualquer outro caso cai no formatTotals da tela.
+  assert.equal(palletCargoSummary({ volumes: [], totals: { weight_kg: 850 } }), null);
+  assert.equal(palletCargoSummary({ totals: { weight_kg: 850 } }), null);
+  assert.equal(
+    palletCargoSummary({ volumes: [pallet(2), { quantity: 1, embalagem: 'CAIXA' }], totals: { weight_kg: 850 } }),
+    null,
+  );
+  assert.equal(palletCargoSummary({ volumes: [{ quantity: 2, embalagem: null }] }), null);
 });
