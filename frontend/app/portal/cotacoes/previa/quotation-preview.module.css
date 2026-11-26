@@ -1747,3 +1747,264 @@
   color: var(--q-muted);
   font-size: 12px;
 }
+
+/* Mapa comparativo vertical do detalhe real (/portal/cotacao/[id]): uma coluna
+   por proposta. Desenho em `cotacao/[id]/components/proposals-vertical-map.tsx`.
+   O destaque da recomendada é portal-info, nunca verde: verde é desfecho. */
+.mapHint {
+  margin: 0 !important;
+  padding: 0 22px 14px;
+  font-size: 13px;
+  color: var(--q-muted);
+}
+.mapScroll {
+  width: 100%;
+  overflow-x: auto;
+  border-top: 1px solid var(--q-line);
+}
+.mapTable {
+  width: 100%;
+  /* Até 4 colunas cabem sem rolagem a 1440px; daí em diante rola o contêiner. */
+  min-width: calc(132px + var(--map-cols, 2) * 190px);
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+  font-size: 13px;
+}
+.mapLabelCol {
+  width: 132px;
+}
+.mapTable th,
+.mapTable td {
+  padding: 12px 14px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--q-line);
+  border-left: 1px solid var(--q-line);
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.mapTable tr > :first-child {
+  border-left: 0;
+}
+.mapTable tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.mapTable thead tr:first-child > * {
+  border-bottom: 0;
+  padding-bottom: 4px;
+}
+.mapTable .mapRowLabel {
+  background: var(--q-soft);
+  color: var(--q-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.mapTable small,
+.mapCard > .mapActions small,
+.mapFacts small {
+  display: block;
+  margin-top: 3px;
+  color: var(--q-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.mapTable td strong,
+.mapFacts dd strong {
+  display: block;
+  font-weight: 600;
+}
+.mapPrice {
+  font-size: 17px;
+  letter-spacing: -0.3px;
+}
+.mapAgent {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--q-ink);
+}
+.mapRecSeal {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 8px;
+  padding: 3px 9px;
+  border: 1px solid hsl(var(--portal-info) / 0.35);
+  border-radius: 999px;
+  background: hsl(var(--portal-info) / 0.1);
+  color: hsl(var(--portal-info));
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mapReason {
+  margin-top: 8px !important;
+  font-size: 13px;
+  color: var(--q-ink);
+}
+.mapWhy summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--q-accent);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.mapWhy > p {
+  margin-top: 6px;
+  color: var(--q-muted);
+  font-size: 12px;
+}
+.mapSeal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 2px 7px;
+  border: 1px solid var(--q-line);
+  border-radius: 4px;
+  background: var(--q-soft);
+  color: var(--q-accent);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mapIllustrative {
+  margin-left: 6px;
+  color: var(--q-muted);
+  font-size: 11px;
+  font-style: italic;
+}
+/* A linha de histórico nasceu numa célula larga; na coluna estreita ela quebra. */
+.mapHistory span {
+  white-space: normal;
+}
+.mapChoose {
+  width: 100%;
+  white-space: normal;
+}
+.mapChoose[aria-pressed='true'] {
+  background: var(--q-accent);
+  border-color: var(--q-accent);
+  color: var(--q-surface);
+}
+.mapChoose:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.mapIssue {
+  color: var(--q-amber) !important;
+}
+.mapDetailsToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 4px 0;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--q-accent);
+  font-size: 12px !important;
+  font-weight: 500;
+}
+.mapChevronOpen {
+  transform: rotate(180deg);
+}
+.mapSelected {
+  background: #f2f2fb;
+}
+:global(.dark) .mapSelected {
+  background: #35354d;
+}
+.mapDisabled,
+.mapDisabled .mapAgent,
+.mapDisabled .mapPrice {
+  color: var(--q-muted);
+}
+.mapTable .mapRec {
+  border-left: 2px solid hsl(var(--portal-info));
+  border-right: 2px solid hsl(var(--portal-info));
+}
+.mapTable .mapRec + * {
+  border-left: 0;
+}
+.mapTable thead tr:first-child > .mapRec {
+  border-top: 2px solid hsl(var(--portal-info));
+}
+.mapTable tbody tr:last-child > .mapRec {
+  border-bottom: 2px solid hsl(var(--portal-info));
+}
+.mapDetailsDesktop {
+  border-top: 1px solid var(--q-line);
+  background: var(--q-soft);
+}
+.mapDetailsTitle {
+  margin: 0 !important;
+  padding: 14px 24px 0;
+  color: var(--q-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.mapCards {
+  display: none;
+  margin: 0;
+  padding: 0 14px 14px;
+  list-style: none;
+}
+.mapCard {
+  padding: 14px;
+  border: 1px solid var(--q-line);
+  border-radius: 9px;
+  background: var(--q-surface);
+}
+.mapCard.mapRec {
+  border: 2px solid hsl(var(--portal-info));
+}
+.mapCard.mapSelected {
+  background: #f2f2fb;
+}
+:global(.dark) .mapCard.mapSelected {
+  background: #35354d;
+}
+.mapCard .mapActions {
+  display: block;
+  margin-top: 12px;
+}
+.mapFacts {
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+.mapFacts > div {
+  display: grid;
+  grid-template-columns: 124px minmax(0, 1fr);
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--q-line);
+}
+.mapFacts dt {
+  color: var(--q-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.mapFacts dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 680px) {
+  .mapScroll,
+  .mapDetailsDesktop {
+    display: none;
+  }
+  .mapCards {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .mapHint {
+    padding: 0 16px 12px;
+  }
+}
