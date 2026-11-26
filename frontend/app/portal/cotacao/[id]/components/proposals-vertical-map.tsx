@@ -265,9 +265,10 @@ export function ProposalsVerticalMap({
             <RecommendationPanel
               quotationId={quotationId}
               proposals={proposals}
+              considersNeed={byNeed}
             />
           )}
-          <p>A indicação não confirma atendimento à sua data necessária.</p>
+          <p>Confirme a data com o agente.</p>
         </details>
       )}
     </>

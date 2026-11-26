@@ -264,3 +264,16 @@ test('COT-2026-0016: com necessidade de chegada, a recomendada é a única que c
   assert.match(rec.scores.find((s) => s.is_lowest_cost)!.proposal_id, /demo-agent-alpha$/);
   assert.ok(rec.scores.every((s) => s.total_score === null));
 });
+
+test('COT-2026-0016 declara a carga (2 pallets, 850 kg); as demais cotações offline seguem sem totals', () => {
+  const { quotations } = buildOfflineFixtures('2026-11-12');
+  const q16 = quotations.find((q) => q.id === 'offline-quote-16')!;
+  assert.deepEqual(q16.totals, { weight_kg: 850, volume_m3: null, qty: 2 });
+  assert.deepEqual(
+    q16.volumes!.map((v) => [v.quantity, v.embalagem, v.peso_bruto]),
+    [[2, 'PALLET', 850]],
+  );
+  const q17 = quotations.find((q) => q.id === 'offline-quote-17')!;
+  assert.equal(q17.totals, undefined);
+  assert.deepEqual(q17.volumes, []);
+});

@@ -2182,6 +2182,32 @@ este bloco contradiz os dois anteriores, **vale este** — em particular, o
   ser sorteado. Vale para a linha e para a gaveta. Os demais agentes seguem por
   semente.
 
+#### Textos finais do mapa e da solicitação (27/11/2026)
+
+- **`RecommendationView` ganhou a prop `considersNeed`, lida SÓ no
+  `variant="portal-inline"`** (o painel do "Entender a recomendação" de
+  `/portal/cotacao/[id]`). Com ela, o texto cita a necessidade de chegada junto
+  dos demais critérios ("melhor equilíbrio entre necessidade de chegada, custo,
+  prazo e condições" e "Critérios: necessidade de chegada, preço, …"). O mapa
+  passa `true` apenas quando a recomendada saiu do caso (b) da
+  `pickRecommendation` (chega a tempo); sem data necessária, ou com nenhuma
+  proposta a tempo, o texto é o de antes — **não cite um critério que não
+  pesou**. O `variant="portal"` e o analista não leem a prop e não mudaram.
+- **A nota do recolhido é "Confirme a data com o agente."**, no lugar de "A
+  indicação não confirma atendimento à sua data necessária." (que os blocos
+  anteriores mandam manter — superado). A frase da coluna agora afirma "chega a
+  tempo", e a nota antiga a contradizia.
+- **"Dados da solicitação" mostra o rótulo do modal** (`MODAL_LABELS`:
+  "Marítimo"), não o enum cru `MARITIMO` que `quotation-footer-card.tsx`
+  imprimia. Não havia erro de grafia em `types/quotation.ts`.
+- **Carga por extenso**: `palletCargoSummary` (`cotacao/lib/detail-model.ts`,
+  pura e testada) devolve "2 pallets, 850 kg" quando TODOS os volumes da cotação
+  são pallets; fora disso devolve `null` e a tela usa o `formatTotals` de sempre
+  ("850 kg / 2 vol."). O formatador compartilhado não foi tocado. A
+  COT-2026-0016 offline ganhou `totals` e um volume `PALLET` (campo `cargo` do
+  spec, em `lib/offline/fixtures.ts`); as demais cotações offline seguem sem
+  `totals`.
+
 #### Comparação de Propostas parou de marcar real x ilustrativo (28/08/2026)
 
 Decisão de produto: clientes reais já estão vendo o protótipo, e nos dois cards

@@ -101,6 +101,7 @@ import {
   proposalIssue,
   illustrativeAgentHistory,
   illustrativeMarketReference,
+  palletCargoSummary,
 } from '../lib/detail-model';
 import s from '../../cotacoes/previa/quotation-preview.module.css';
 import {
@@ -351,7 +352,7 @@ function QuotationDetail({
             <small>
               {q.modal ? MODAL_LABELS[q.modal] : 'Modal não informado'} ·{' '}
               {q.incoterm || 'Incoterm a informar'} ·{' '}
-              {formatTotals(q.totals, q.modal)}
+              {palletCargoSummary(q) ?? formatTotals(q.totals, q.modal)}
             </small>
           </div>
         </div>

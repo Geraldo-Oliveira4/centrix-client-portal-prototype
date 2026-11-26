@@ -14,6 +14,28 @@ export function proposalIssue(
   return null;
 }
 
+/**
+ * "2 pallets, 850 kg": a carga por extenso, quando TODOS os volumes da cotação
+ * são pallets. Fora disso devolve `null` e a tela cai no `formatTotals` de
+ * sempre ("850 kg / 2 vol.") — a contagem genérica "vol." não diz que tipo de
+ * volume é, e inventar o tipo seria pior do que não dizer.
+ */
+export function palletCargoSummary(q: {
+  volumes?: { quantity: number; embalagem: string | null }[] | null;
+  totals?: { weight_kg: number | null } | null;
+}): string | null {
+  const volumes = q.volumes ?? [];
+  if (!volumes.length || volumes.some((v) => v.embalagem !== 'PALLET'))
+    return null;
+  const count = volumes.reduce((sum, v) => sum + v.quantity, 0);
+  if (!(count > 0)) return null;
+  const pallets = `${count} ${count === 1 ? 'pallet' : 'pallets'}`;
+  const weight = q.totals?.weight_kg;
+  return weight != null && weight > 0
+    ? `${pallets}, ${weight.toLocaleString('pt-BR')} kg`
+    : pallets;
+}
+
 /** Same illustrative 8% benchmark as the existing MarketBlock; one base per quote. */
 export function illustrativeMarketReference(
   proposals: PortalProposal[],

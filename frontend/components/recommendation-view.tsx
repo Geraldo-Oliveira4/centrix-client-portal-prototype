@@ -265,6 +265,16 @@ interface RecommendationViewProps {
    * numero para preencher o espaco.
    */
   gap?: RecommendationGap | null;
+  /**
+   * `portal-inline` only (27/11/2026): a tela que hospeda o painel escolheu a
+   * recomendada considerando a NECESSIDADE DE CHEGADA do cliente
+   * (`pickRecommendation`, no mapa de /portal/cotacao/[id]). O texto passa a
+   * citar esse critério junto dos demais. Falso ou ausente — cotação sem data
+   * necessária, ou nenhuma proposta chegando a tempo — o texto não o cita:
+   * dizer que um critério pesou quando ele não pesou é a frase mentindo. O
+   * analista e o `variant="portal"` nunca leem esta prop.
+   */
+  considersNeed?: boolean;
 }
 
 export function RecommendationView({
@@ -273,8 +283,10 @@ export function RecommendationView({
   headerAction,
   variant = 'default',
   gap,
+  considersNeed = false,
 }: RecommendationViewProps) {
   const isInline = variant === 'portal-inline';
+  const citesNeed = isInline && considersNeed;
   const isPortal = variant === 'portal' || isInline;
 
   if (isLoading) {
@@ -379,7 +391,8 @@ export function RecommendationView({
                 </>
               ) : (
                 <>
-                  foi a que apresentou o melhor equilíbrio entre custo, prazo e
+                  foi a que apresentou o melhor equilíbrio entre{' '}
+                  {citesNeed ? 'necessidade de chegada, ' : ''}custo, prazo e
                   condições.
                 </>
               )}{' '}
@@ -419,7 +432,7 @@ export function RecommendationView({
               }
             >
               {isInline
-                ? 'Critérios: preço, trânsito, rota, frequência, free time e validade.'
+                ? `Critérios: ${citesNeed ? 'necessidade de chegada, ' : ''}preço, trânsito, rota, frequência, free time e validade.`
                 : 'Comparação feita sobre as propostas desta cotação — preço, transit time, rota, frequência, free time e validade. Não é uma indicação da Freitas sobre qual contratar.'}
             </p>
           </div>
