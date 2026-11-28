@@ -974,6 +974,12 @@ function applyAdjust() {
    demos; "Ver introdução", no painel de ajustes, reabre. O passo 2 grava a
    MESMA personalização do painel. Fechar por qualquer caminho marca como visto. */
 let onbStep = 0, onbSkipped = false;   // B5: pulou a personalização no passo 2?
+const ONB_ICON = {
+  exportadores: svgIcon('<path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1"/><path d="M12 18h1"/><path d="M7 18h1"/>'),
+  agentes: svgIcon('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
+  rotas: svgIcon('<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>'),
+  simulador: svgIcon('<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/>'),
+};
 function onbHtml() {
   const dots = `<ol class="onb-dots" aria-label="Passo ${onbStep + 1} de 3">${[0, 1, 2].map(i => `<li${i === onbStep ? ' class="on" aria-current="step"' : ''}></li>`).join('')}</ol>`;
   if (onbStep === 0) {
@@ -983,14 +989,16 @@ function onbHtml() {
     return `${dots}<h2 id="onb-title" tabindex="-1">Bem-vindo à Inteligência</h2><p class="onb-lead">O retrato da sua operação: o que o histórico dos seus embarques mostra. O que precisa de ação hoje continua na Central de trabalho.</p><div class="onb-illus" role="img" aria-label="Todo indicador traz número, variação e conclusão"><div><b>${num}</b><span>número</span></div><i>+</i><div><b>${vari}</b><span>variação</span></div><i>+</i><div><b>frase</b><span>conclusão</span></div></div><p class="onb-strong">Mostramos o dado e a base; a decisão é sua.</p><div class="onb-actions"><button type="button" class="button secondary" data-onb="skip">Pular</button><button type="button" class="button cta" data-onb="next">Próximo</button></div>`;
   }
   if (onbStep === 1) return `${dots}<h2 id="onb-title" tabindex="-1">Personalizar a Inteligência</h2><p class="onb-lead">Escolha os temas e ligue ou desligue cada card. A Visão geral mostra só os cards ligados dos temas escolhidos.</p><div data-pers-root>${persFieldsHtml()}</div><p class="onb-note">Dá para refazer depois em Filtros e ajustes.</p><div class="onb-actions"><span><button type="button" class="button secondary" data-onb="back">Voltar</button><button type="button" class="button secondary" data-onb="skip-step">Pular por agora</button></span><button type="button" class="button cta" data-onb="save">Salvar e continuar</button></div>`;
-  const where = document.documentElement.classList.contains('embedded') ? 'nos submódulos do menu lateral' : 'nas abas no topo da página';
-  // B5: feedback de saída — o que a pessoa decidiu no passo 2.
-  const choice = `<p class="onb-choice" role="status"><b>${esc(IP.choiceSummary(intelPers, onbSkipped))}.</b> Dá para mudar depois em “Filtros e ajustes”.</p>`;
-  return `${dots}<h2 id="onb-title" tabindex="-1">Onde ir para ver mais</h2>${choice}<p class="onb-lead">Os detalhes ficam ${where}. Cada bloco tem um “Ver detalhe” discreto no canto.</p><ul class="onb-list"><li><b>Exportadores · Agentes de carga · Rotas</b></li><li><b>Simulador</b> <span class="preview-tag">Prévia</span>: teste uma data de chegada.</li><li><b>Preparar relatório</b>: leve o recorte para a reunião.</li></ul><p class="onb-note"><button type="button" class="text-button" data-onb="restart">Refazer introdução</button></p><div class="onb-actions"><button type="button" class="button secondary" data-onb="back">Voltar</button><button type="button" class="button cta" data-onb="done">Começar</button></div>`;
+  // Passo 3: por onde começar. Um cartão por submódulo; o cartão inteiro leva
+  // ao submódulo, e o "Abrir" é o alvo de teclado e de leitor de tela.
+  const cards = IP.STEP3_CARDS.map(c => `<li class="onb-card" data-onb="open-tab" data-tab="${c.tab}"><span class="onb-card-ico" aria-hidden="true">${ONB_ICON[c.tab]}</span><div class="onb-card-text"><h3>${esc(c.name)}${c.preview ? ' <span class="preview-tag">Prévia</span>' : ''}</h3><p>${esc(c.question)}</p></div><button type="button" class="button secondary" data-onb="open-tab" data-tab="${c.tab}" aria-label="Abrir ${esc(c.name)}">Abrir</button></li>`).join('');
+  const summary = `<p class="onb-summary">${esc(IP.step3Summary(intelPers, onbSkipped))} · mudar em <button type="button" class="text-button" data-onb="open-adjust">Filtros e ajustes</button></p>`;
+  return `${dots}<h2 id="onb-title" tabindex="-1">Por onde começar</h2><p class="onb-lead">Cada área responde a uma pergunta. Escolha uma ou comece pela Visão geral.</p><ul class="onb-cards" aria-label="Áreas da Inteligência">${cards}</ul>${summary}<p class="onb-links"><button type="button" class="text-button" data-onb="open-report">Preparar relatório</button><button type="button" class="text-button" data-onb="restart">Refazer introdução</button></p><div class="onb-actions"><button type="button" class="button secondary" data-onb="back">Voltar</button><button type="button" class="button cta" data-onb="done-overview">Começar pela Visão geral</button></div>`;
 }
 function renderOnb() {
   const d = document.getElementById('intel-onb');
   d.innerHTML = `<div class="onb-body">${onbHtml()}</div>`;
+  d.classList.toggle('onb-step3', onbStep === 2);   // só o passo 3 alarga o diálogo
   d.scrollTop = 0;
   d.querySelector('h2').focus();
 }
@@ -1020,6 +1028,19 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-onb]'); if (!b) return;
   const a = b.dataset.onb, d = document.getElementById('intel-onb');
   if (a === 'skip' || a === 'done') { d.close(); return; }
+  // Saídas do passo 3. O diálogo é modal e o `close` dele chega DEPOIS (zera o
+  // rascunho da personalização): a navegação e os painéis só rodam quando ele
+  // já fechou, para nada abrir por baixo nem perder o rascunho recém-criado.
+  if (a === 'open-tab' || a === 'done-overview' || a === 'open-adjust' || a === 'open-report') {
+    const tab = a === 'open-tab' ? b.dataset.tab : 'geral';
+    d.addEventListener('close', () => {
+      if (a === 'open-adjust') openAdjust();
+      else if (a === 'open-report') { reportEntity = null; openReportPanel(); }
+      // A mesma URL das abas (tabNav). Já na aba de destino, o hash não muda.
+      else if (pagePath !== 'executivo' || currentTab() !== tab) location.hash = url('executivo', { aba: tab === 'geral' ? null : tab, sel: null, de: null });
+    }, { once: true });
+    d.close(); return;
+  }
   if (a === 'save') { saveIntelPers(persDraft); onbSkipped = false; render(); toast('Personalização salva.'); }
   if (a === 'skip-step') onbSkipped = true;
   onbStep = a === 'restart' ? 0 : a === 'back' ? onbStep - 1 : a === 'next' ? onbStep + 1 : 2;

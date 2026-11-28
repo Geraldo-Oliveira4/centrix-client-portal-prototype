@@ -135,6 +135,31 @@
   }
   const isDefault = (state) => JSON.stringify(normalize(state)) === JSON.stringify(defaults());
 
+  /**
+   * Passo 3 da introdução ("Por onde começar"): um cartão por submódulo, com a
+   * pergunta que ele responde. `tab` é a aba de destino (`?aba=<tab>`, a mesma
+   * que a navegação das abas escreve); `preview` leva o selo "Prévia".
+   */
+  const STEP3_CARDS = [
+    { tab: 'exportadores', name: 'Exportadores', question: 'Quem entrega a carga pronta no prazo?', preview: false },
+    { tab: 'agentes', name: 'Agentes de carga', question: 'Qual agente cumpre o que promete?', preview: false },
+    { tab: 'rotas', name: 'Rotas', question: 'Onde o trânsito demora mais?', preview: false },
+    { tab: 'simulador', name: 'Simulador', question: 'Testar uma data de chegada.', preview: true },
+  ];
+  /**
+   * Resumo dos temas para a linha discreta do passo 3: "Você escolheu Prazo,
+   * Custo e Volume". Mesma fonte do `choiceSummary`, sem a contagem de cartões;
+   * quem pulou o passo 2 lê a mesma ideia de lá ("Você manteve a visão padrão").
+   * O " · mudar em Filtros e ajustes" é da tela: o link não mora no texto.
+   */
+  function step3Summary(state, skipped) {
+    const s = normalize(state);
+    if (skipped) return isDefault(s) ? 'Você manteve a visão padrão' : 'Você manteve a sua visão atual';
+    if (!s.themes.length) return 'Você desligou todos os temas';
+    const names = THEMES.filter(([id]) => s.themes.includes(id)).map(([, l]) => l);
+    return `Você escolheu ${names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`}`;
+  }
+
   function load(storage) {
     try { const raw = storage.getItem(STORE_KEY); return raw ? normalize(JSON.parse(raw)) : defaults(); } catch { return defaults(); }
   }
@@ -156,7 +181,7 @@
     try { storage.setItem(ONBOARDING_KEY, '1'); return true; } catch { return false; }
   }
 
-  const api = { THEMES, CARDS, STORE_KEY, ONBOARDING_KEY, BLOCKS, DETAIL_LINKS, defaults, normalize, toggleTheme, setCard, visibleCards, cardsByTheme, cardStates, activate, choiceSummary, isDefault, load, save, clear, onboardingSeen, markOnboardingSeen };
+  const api = { THEMES, CARDS, STORE_KEY, ONBOARDING_KEY, BLOCKS, DETAIL_LINKS, defaults, normalize, toggleTheme, setCard, visibleCards, cardsByTheme, cardStates, activate, choiceSummary, isDefault, STEP3_CARDS, step3Summary, load, save, clear, onboardingSeen, markOnboardingSeen };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.IntelPersonalize = api;
 })(typeof window !== 'undefined' ? window : globalThis);
